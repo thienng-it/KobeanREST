@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "KobeanREST",
+  "version": "0.1.0",
+  "identifier": "com.kobeanrest.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "KobeanREST",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 1040,
+        "minHeight": 680
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost https://github.com https://api.github.com"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "msi", "appimage", "deb"],
+    "icon": [],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJCQjQwRTUxOTc2NTQxMUQKUldRZFFXV1hVUTYwSzBXS3UrS1lrWCtoMG83aXVvZE9JeUxva05SelAwcjIvQTZ2Y1BsV0JpOVMK",
+      "endpoints": [
+        "https://github.com/thienng-it/KobeanREST/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}
