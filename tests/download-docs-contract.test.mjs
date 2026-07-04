@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), "utf8");
+const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
 
 test("download docs include OS-specific install steps and checksum verification guidance", () => {
   const doc = read("docs/download.md");

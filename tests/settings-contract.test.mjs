@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), "utf8");
+const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
 
 test("Rust native core exposes app settings commands with privacy-preserving defaults", () => {
   const persistence = read("src-tauri/src/persistence.rs");

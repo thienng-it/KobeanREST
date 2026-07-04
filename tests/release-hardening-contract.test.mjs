@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), "utf8");
+const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
 
 test("release workflow collects platform bundles and publishes SHA256 checksums", () => {
   const workflow = read(".github/workflows/release.yml");

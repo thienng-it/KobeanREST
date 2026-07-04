@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = new URL("../", import.meta.url);
 const rootDir = fileURLToPath(root);
-const read = (path) => readFileSync(new URL(path, root), "utf8");
+const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
 const hasFile = (path) => existsSync(new URL(path, root));
 
 test("repo exposes a release preflight command", () => {

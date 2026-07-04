@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), "utf8");
+const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
 
 test("updater service uses the Tauri updater plugin with browser-preview fallback", () => {
   const updater = read("src/renderer/src/services/updater.ts");
