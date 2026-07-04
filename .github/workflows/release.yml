@@ -111,4 +111,4 @@ jobs:
       - name: Publish SHA256SUMS.txt to the draft release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.ref_name }}" release-artifacts/SHA256SUMS.txt --clobber
+        run: gh release upload "${{ github.ref_name }}" release-artifacts/SHA256SUMS.txt --clobber --repo "${{ github.repository }}"
