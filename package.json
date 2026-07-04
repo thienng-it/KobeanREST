@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Local-first desktop API client for REST and HTTP workflows.",
   "scripts": {
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test \"tests/*.test.mjs\"",
     "check:local-only": "node tests/local-only-contract.test.mjs",
     "check:release": "node scripts/check-release-preflight.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
