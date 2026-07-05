@@ -58,7 +58,10 @@ test("docs site deployment workflow publishes the built portal to GitHub Pages",
   const workflow = read(".github/workflows/docs-site.yml");
   assert.match(workflow, /Build docs site/);
   assert.match(workflow, /npm run build:docs/);
-  assert.match(workflow, /actions\/upload-pages-artifact@v3/);
-  assert.match(workflow, /actions\/deploy-pages@v4/);
+  assert.match(workflow, /group: docs-site-\$\{\{ github\.ref \}\}/);
+  assert.doesNotMatch(workflow, /group: pages/);
+  assert.match(workflow, /actions\/configure-pages@v6/);
+  assert.match(workflow, /actions\/upload-pages-artifact@v5/);
+  assert.match(workflow, /actions\/deploy-pages@v5/);
   assert.match(workflow, /docs-site\/dist/);
 });

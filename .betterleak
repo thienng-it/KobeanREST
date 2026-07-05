@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "include": [
+    ".github",
+    "docs",
+    "docs-site",
+    "src",
+    "src-tauri",
+    "README.md",
+    "package.json",
+    "tsconfig.json",
+    "vite.config.ts",
+    "rust-toolchain.toml"
+  ],
+  "ignoreDirs": [
+    ".git",
+    ".agents",
+    ".codex",
+    "dist",
+    "node_modules",
+    "docs-site/dist",
+    "src-tauri/target"
+  ],
+  "ignoreFiles": [
+    "package-lock.json"
+  ],
+  "allowedExtensions": [
+    ".css",
+    ".html",
+    ".js",
+    ".json",
+    ".md",
+    ".mjs",
+    ".rs",
+    ".sql",
+    ".toml",
+    ".ts",
+    ".tsx",
+    ".yaml",
+    ".yml"
+  ],
+  "patterns": [
+    {
+      "label": "private-key",
+      "regex": "-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    },
+    {
+      "label": "openai-key",
+      "regex": "\\bsk-[A-Za-z0-9]{20,}\\b"
+    },
+    {
+      "label": "github-token",
+      "regex": "\\bghp_[A-Za-z0-9]{20,}\\b"
+    },
+    {
+      "label": "github-pat",
+      "regex": "\\bgithub_pat_[A-Za-z0-9_]{20,}\\b"
+    },
+    {
+      "label": "aws-key",
+      "regex": "\\bAKIA[0-9A-Z]{16}\\b"
+    },
+    {
+      "label": "literal-secret-assignment",
+      "regex": "\\b(?:API[_-]?KEY|ACCESS[_-]?TOKEN|REFRESH[_-]?TOKEN|CLIENT[_-]?SECRET|PASSWORD)\\b\\s*[:=]\\s*[\"']?([^\\s\"',`]{8,})",
+      "allow": "\\$\\{\\{|REPLACE_|YOUR_|example|placeholder|redacted|dummy|changeme"
+    }
+  ]
+}

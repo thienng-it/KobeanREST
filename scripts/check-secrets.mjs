@@ -2,54 +2,16 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const includeRoots = [
-  ".github",
-  "docs",
-  "src",
-  "src-tauri",
-  "README.md",
-  "package.json",
-  "tsconfig.json",
-  "vite.config.ts",
-  "rust-toolchain.toml",
-];
-const ignoredDirs = new Set([
-  ".git",
-  ".agents",
-  ".codex",
-  "dist",
-  "node_modules",
-  "src-tauri/target",
-]);
-const ignoredFiles = new Set(["package-lock.json"]);
-const allowedExtensions = new Set([
-  ".css",
-  ".html",
-  ".js",
-  ".json",
-  ".md",
-  ".mjs",
-  ".rs",
-  ".sql",
-  ".toml",
-  ".ts",
-  ".tsx",
-  ".yaml",
-  ".yml",
-]);
-
-const patterns = [
-  { label: "private-key", regex: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
-  { label: "openai-key", regex: /\bsk-[A-Za-z0-9]{20,}\b/ },
-  { label: "github-token", regex: /\bghp_[A-Za-z0-9]{20,}\b/ },
-  { label: "github-pat", regex: /\bgithub_pat_[A-Za-z0-9_]{20,}\b/ },
-  { label: "aws-key", regex: /\bAKIA[0-9A-Z]{16}\b/ },
-  {
-    label: "literal-secret-assignment",
-    regex: /\b(?:API[_-]?KEY|ACCESS[_-]?TOKEN|REFRESH[_-]?TOKEN|CLIENT[_-]?SECRET|PASSWORD)\b\s*[:=]\s*["']?([^\s"',`]{8,})/,
-    allow: /\$\{\{|REPLACE_|YOUR_|example|placeholder|redacted|dummy|changeme/i,
-  },
-];
+const config = JSON.parse(readFileSync(path.join(root, ".betterleak"), "utf8"));
+const includeRoots = config.include;
+const ignoredDirs = new Set(config.ignoreDirs);
+const ignoredFiles = new Set(config.ignoreFiles);
+const allowedExtensions = new Set(config.allowedExtensions);
+const patterns = config.patterns.map((pattern) => ({
+  label: pattern.label,
+  regex: new RegExp(pattern.regex),
+  allow: pattern.allow ? new RegExp(pattern.allow, "i") : undefined,
+}));
 
 function shouldSkip(relativePath) {
   if (ignoredFiles.has(relativePath)) return true;
