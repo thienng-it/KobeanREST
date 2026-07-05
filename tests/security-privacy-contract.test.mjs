@@ -26,18 +26,26 @@ test("diagnostic errors go through a shared redaction helper before logging or a
 });
 
 test("repo includes a source and config secret scan that skips generated output", () => {
+  assert.equal(hasFile(".betterleak"), true);
   assert.equal(hasFile("scripts/check-secrets.mjs"), true);
+  assert.equal(hasFile(".github/workflows/sensitive-data.yml"), true);
 
+  const betterleak = read(".betterleak");
   const script = read("scripts/check-secrets.mjs");
+  const workflow = read(".github/workflows/sensitive-data.yml");
   const pkg = read("package.json");
   const roadmap = read("docs/implementation-roadmap.md");
 
   assert.match(pkg, /"check:secrets": "node scripts\/check-secrets\.mjs"/);
-  assert.match(script, /node_modules/);
-  assert.match(script, /dist/);
-  assert.match(script, /src-tauri\/target/);
-  assert.match(script, /PRIVATE KEY/);
-  assert.match(script, /ghp_|github_pat_|AKIA|sk-/);
+  assert.match(script, /\.betterleak/);
+  assert.match(betterleak, /docs-site/);
+  assert.match(betterleak, /PRIVATE KEY/);
+  assert.match(betterleak, /github_pat_|AKIA|sk-/);
+  assert.match(workflow, /npm run check:secrets/);
+  assert.match(workflow, /pull_request/);
+  assert.match(betterleak, /node_modules/);
+  assert.match(betterleak, /dist/);
+  assert.match(betterleak, /src-tauri\/target/);
   assert.match(script, /process\.exit\(1\)/);
 
   assert.match(roadmap, /Source\/config secret scan before release/);
