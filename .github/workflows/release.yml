@@ -55,6 +55,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
+      # --- ADDED LIBSODIUM FIX HERE ---
+      - name: Install libsodium (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg install libsodium:x64-windows-static-md
+          echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "SODIUM_USE_PKG_CONFIG=1" | Out-File -FilePath $env:GITHUB_ENV -Append
+      # --------------------------------
+
       - name: Install frontend dependencies
         run: npm ci
 
