@@ -42,6 +42,18 @@ test("download documentation points users to GitHub Release artifacts for all de
   assert.match(downloadDoc, /checksums/i);
 });
 
+test("topbar Docs button opens the public docs portal", () => {
+  const contract = read("src/renderer/src/product-contract.ts");
+  const app = read("src/renderer/src/App.tsx");
+
+  assert.match(contract, /PRODUCT_DOCS_URL/);
+  assert.match(contract, /https:\/\/thienng-it\.github\.io\/KobeanREST\//);
+  assert.match(app, /PRODUCT_DOCS_URL/);
+  assert.match(app, /function openProductDocs\(/);
+  assert.match(app, /window\.open\(PRODUCT_DOCS_URL, "_blank", "noopener,noreferrer"\)/);
+  assert.match(app, /onClick=\{\(\) => openProductDocs\(\)\}/);
+});
+
 test("release workflow builds cross-platform installers and update metadata", () => {
   assert.equal(hasFile(".github/workflows/release.yml"), true);
 

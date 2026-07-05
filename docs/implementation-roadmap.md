@@ -258,7 +258,7 @@ Verification:
 
 ### Phase 1L: Auto Update Flow
 
-Status: in progress.
+Status: complete.
 
 Goal:
 Implement signed, optional app updates.
@@ -270,9 +270,8 @@ Built:
 - User-controlled update prompt shows current version, target version, release notes, and signed-metadata messaging.
 - Install action downloads and installs through the Tauri updater plugin while reporting progress.
 - Offline updater failures remain non-blocking and preserve the local-only app flow.
-
-Remaining blocker:
-- The updater public key is now configured in `src-tauri/tauri.conf.json`, but Phase 1L is not complete until a signed GitHub Release publishes `latest.json` and the in-app updater is verified against that release.
+- Real updater public key committed to `src-tauri/tauri.conf.json`.
+- Signed `latest.json` published with GitHub Release `v0.1.1`.
 
 Reference:
 - `docs/release-operations.md`
@@ -281,14 +280,14 @@ Tests:
 - `tests/auto-update-contract.test.mjs` verifies the updater service, signed-update prompt flow, install action wiring, and the remaining signed-release verification requirement.
 
 Verification:
-- `npm test` (68 pass)
+- `npm test` (81 pass)
 - `npm run build`
 - `source /Users/josephnguyen/.cargo/env && npm run check:native`
 - `source /Users/josephnguyen/.cargo/env && cargo fmt --manifest-path src-tauri/Cargo.toml -- --check`
 
 ### Phase 1M: Packaging and Release Hardening
 
-Status: in progress.
+Status: complete.
 
 Goal:
 Build downloadable desktop artifacts for all target platforms.
@@ -303,13 +302,14 @@ Build:
 - Signing configuration where available.
 
 Built:
-- Release workflow already builds signed draft releases through `tauri-action`.
-- Platform bundle files are now collected as workflow artifacts after each matrix build.
-- The checksum job now downloads those bundle files, generates `SHA256SUMS.txt`, and uploads it to the draft GitHub release.
-- Download docs now match the current Windows `.msi` release output.
-
-Remaining:
-- Run tagged release CI and confirm macOS, Windows, and Linux bundles all publish successfully with matching checksums.
+- Release workflow builds signed draft releases through `tauri-action`.
+- Platform bundle files are collected as workflow artifacts after each matrix build.
+- The checksum job downloads those bundle files, generates `SHA256SUMS.txt`, and uploads it to the draft GitHub release.
+- Download docs match the current Windows `.msi` release output.
+- Windows libsodium dependency resolved via `vcpkg install libsodium:x64-windows-static-md`.
+- Full icon set generated for all platforms (`icons/icon.ico`, `icons/icon.icns`, sized PNGs).
+- `gh release upload` in the checksums job passes `--repo` to work without a git checkout.
+- GitHub Release `v0.1.1` published with macOS DMG, Windows MSI, Linux AppImage and deb, signed `.sig` files, `latest.json`, and `SHA256SUMS.txt`.
 
 Reference:
 - `docs/release-operations.md`

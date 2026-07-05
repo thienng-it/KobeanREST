@@ -1,11 +1,11 @@
 # Release Operations
 
-This runbook covers the remaining external work for the two in-progress phases:
+This runbook covers the release workflow that shipped the now-complete phases:
 
 - Phase `1L`: Auto Update Flow
 - Phase `1M`: Packaging and Release Hardening
 
-The app code and GitHub workflow are already wired. What remains is release signing, secret setup, tagged publishing, and post-release verification.
+The app code and GitHub workflow are already wired. Use this checklist for future tagged releases and to verify the release wiring has not drifted.
 
 ## 1. Generate the updater signing keypair
 
@@ -63,14 +63,13 @@ source /Users/josephnguyen/.cargo/env && cargo fmt --manifest-path src-tauri/Car
 
 ## 5. Create and push the release tag
 
-Create a semver tag:
+Create a semver tag that matches the app version:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v<version>
+git push origin v<version>
 ```
 
-If you are publishing a later release, use the correct version tag instead of `v0.1.0`.
 If you prefer to push all local release tags at once, `git push origin --tags` also works.
 
 This triggers `.github/workflows/release.yml`, which should:
@@ -103,9 +102,9 @@ Focus on these updater checks:
 - Confirm the prompt references signed release metadata.
 - Confirm offline update checks stay non-blocking.
 
-## 8. Mark the roadmap complete
+## 8. Keep the roadmap and release docs aligned
 
-Only after the real release succeeds:
+After a real release succeeds:
 
-- Mark Phase `1L` complete once the real public key is committed and the updater is verified against signed `latest.json`.
-- Mark Phase `1M` complete once the tagged GitHub Release publishes the artifacts and `SHA256SUMS.txt` successfully for macOS, Windows, and Linux.
+- Keep `docs/implementation-roadmap.md` aligned with the shipped release status.
+- Keep this runbook aligned with the current release version and verification flow.

@@ -1,6 +1,6 @@
 {
   "name": "kobeanrest",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Local-first desktop API client for REST and HTTP workflows.",
@@ -12,6 +12,7 @@
     "check:native": "cargo check --manifest-path src-tauri/Cargo.toml",
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:docs": "npm --prefix docs-site run build",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
