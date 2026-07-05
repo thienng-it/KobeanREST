@@ -22,14 +22,16 @@ test("release operations doc covers tagged release flow and post-release verific
   const doc = read("docs/release-operations.md");
   const roadmap = read("docs/implementation-roadmap.md");
 
-  assert.match(doc, /git tag v/i);
-  assert.match(doc, /git push .*--tags|git push origin .*tag/i);
+  assert.match(doc, /git tag v<version>/i);
+  assert.match(doc, /git push origin v<version>|git push .*--tags/i);
   assert.match(doc, /latest\.json/);
   assert.match(doc, /SHA256SUMS\.txt/);
   assert.match(doc, /Check now|update prompt|signed release metadata/i);
   assert.match(doc, /docs\/release-qa\.md/);
+  assert.doesNotMatch(doc, /two in-progress phases/i);
+  assert.doesNotMatch(doc, /git tag v0\.1\.0/);
 
   assert.match(roadmap, /docs\/release-operations\.md/);
-  assert.match(roadmap, /Remaining blocker:/);
-  assert.match(roadmap, /Remaining:/);
+  assert.match(roadmap, /Phase 1L[\s\S]{0,50}Status: complete/);
+  assert.match(roadmap, /Phase 1M[\s\S]{0,50}Status: complete/);
 });

@@ -17,7 +17,7 @@ import {
   X
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
+import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
 import { authModes, sampleWorkspace } from "./data/sample-workspace";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap } from "./services/variables";
@@ -97,6 +97,13 @@ function statusColor(status: number): string {
   if (status >= 300) return '#1e40af';
   if (status >= 200) return '#14532d';
   return '#334155';
+}
+
+function openProductDocs() {
+  const popup = window.open(PRODUCT_DOCS_URL, "_blank", "noopener,noreferrer");
+  if (!popup) {
+    window.location.assign(PRODUCT_DOCS_URL);
+  }
 }
 
 interface AddVariableRowProps {
@@ -792,7 +799,7 @@ export function App() {
             <h1>{workspace.name}</h1>
           </div>
           <div className="topbar-actions">
-            <button className="ghost-button" type="button">
+            <button className="ghost-button" type="button" onClick={() => openProductDocs()}>
               <Download size={16} />
               Docs
             </button>

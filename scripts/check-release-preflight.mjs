@@ -4,7 +4,9 @@ import path from "node:path";
 const root = process.cwd();
 const files = {
   packageJson: "package.json",
+  packageLock: "package-lock.json",
   tauriConfig: "src-tauri/tauri.conf.json",
+  cargoToml: "src-tauri/Cargo.toml",
   releaseWorkflow: ".github/workflows/release.yml",
   releaseOperations: "docs/release-operations.md",
   releaseQa: "docs/release-qa.md",
@@ -38,13 +40,29 @@ if (findings.length > 0) {
 }
 
 const pkg = JSON.parse(read(files.packageJson));
+const packageLock = JSON.parse(read(files.packageLock));
 const tauriConfig = JSON.parse(read(files.tauriConfig));
+const cargoToml = read(files.cargoToml);
 const releaseWorkflow = read(files.releaseWorkflow);
 
 const version = pkg.version;
 const updater = tauriConfig.plugins?.updater;
 const pubkey = updater?.pubkey;
 const endpoints = updater?.endpoints ?? [];
+const cargoVersionMatch = cargoToml.match(/^version = "([^"]+)"/m);
+const cargoVersion = cargoVersionMatch?.[1];
+
+if (tauriConfig.version !== version) {
+  findings.push(`src-tauri/tauri.conf.json version ${tauriConfig.version} does not match package.json version ${version}.`);
+}
+
+if (cargoVersion !== version) {
+  findings.push(`src-tauri/Cargo.toml version ${cargoVersion ?? "missing"} does not match package.json version ${version}.`);
+}
+
+if (packageLock.version !== version || packageLock.packages?.[""]?.version !== version) {
+  findings.push(`package-lock.json version metadata does not match package.json version ${version}.`);
+}
 
 if (!pubkey || pubkey === placeholderPublicKey) {
   findings.push(

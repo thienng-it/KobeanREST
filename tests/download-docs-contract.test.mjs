@@ -23,6 +23,8 @@ test("download docs explain no-account use, offline use, and update behavior", (
   const roadmap = read("docs/implementation-roadmap.md");
 
   assert.match(doc, /without a KobeanREST account|no account/i);
+  assert.match(doc, /cloud workspace|server setup/i);
+  assert.match(doc, /Gatekeeper|SmartScreen/i);
   assert.match(doc, /usable offline|fully usable offline/i);
   assert.match(doc, /disable automatic update checks|Check now|signed release metadata/i);
   assert.match(doc, /GitHub Releases\/latest|releases\/latest/i);

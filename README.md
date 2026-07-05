@@ -36,6 +36,17 @@ npm run tauri dev
 ## Downloads
 
 Public downloads are published through GitHub Releases and linked from [docs/download.md](docs/download.md).
+The public documentation portal is designed for GitHub Pages at:
+
+<https://thienng-it.github.io/KobeanREST/>
+
+Users can download and launch KobeanREST without a KobeanREST account, cloud workspace, or server setup. The download guide includes direct macOS, Windows, and Linux links plus command-line download commands.
+
+Build the docs portal locally:
+
+```bash
+npm run build:docs
+```
 
 ## Planning
 

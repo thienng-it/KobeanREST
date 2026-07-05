@@ -83,11 +83,11 @@ test("update prompt UI explains signed metadata and keeps offline failures non-b
   assert.match(app, /The app remains usable offline\./);
 });
 
-test("roadmap reflects that the updater key is configured but signed release verification is still required", () => {
+test("roadmap confirms Phase 1L complete with real updater key and signed release published", () => {
   const config = read("src-tauri/tauri.conf.json");
   const roadmap = read("docs/implementation-roadmap.md");
 
   assert.doesNotMatch(config, /REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY_BEFORE_PUBLIC_RELEASE/);
-  assert.match(roadmap, /signed GitHub Release publishes `latest\.json`/);
-  assert.match(roadmap, /in-app updater is verified against that release/);
+  assert.match(roadmap, /Phase 1L[\s\S]{0,50}Status: complete/);
+  assert.match(roadmap, /latest\.json.*published|Signed.*latest\.json/);
 });

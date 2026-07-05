@@ -25,16 +25,29 @@ test("repo exposes a release preflight command", () => {
   assert.match(script, /TAURI_SIGNING_PRIVATE_KEY_PASSWORD/);
   assert.match(script, /latest\.json/);
   assert.match(script, /git tag v\$\{version\}/);
+  assert.match(script, /tauri\.conf\.json version/);
+  assert.match(script, /Cargo\.toml version/);
+  assert.match(script, /package-lock\.json version metadata/);
   assert.match(roadmap, /Release preflight command before tagging/);
 });
 
 test("release preflight passes once the updater public key is configured", () => {
+  const pkg = JSON.parse(read("package.json"));
+  const tauriConfig = JSON.parse(read("src-tauri/tauri.conf.json"));
+  const cargoToml = read("src-tauri/Cargo.toml");
+  const lockfile = JSON.parse(read("package-lock.json"));
+
+  assert.equal(tauriConfig.version, pkg.version);
+  assert.match(cargoToml, new RegExp(`version = "${pkg.version.replace(/\./g, "\\.")}"`));
+  assert.equal(lockfile.version, pkg.version);
+  assert.equal(lockfile.packages[""].version, pkg.version);
+
   const run = spawnSync("node", ["scripts/check-release-preflight.mjs"], {
     cwd: rootDir,
     encoding: "utf8",
   });
 
   assert.equal(run.status, 0);
-  assert.match(run.stdout, /Release preflight passed for version 0\.1\.0/);
-  assert.match(run.stdout, /git tag v0\.1\.0/);
+  assert.match(run.stdout, new RegExp(`Release preflight passed for version ${pkg.version.replace(/\./g, "\\.")}`));
+  assert.match(run.stdout, new RegExp(`git tag v${pkg.version.replace(/\./g, "\\.")}`));
 });
