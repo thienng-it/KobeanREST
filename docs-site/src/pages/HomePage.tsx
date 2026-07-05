@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, LockKeyhole, WifiOff } from "lucide-react";
 import { PortalCard } from "../components/PortalCard";
-import { navItems, portalStats, releasesUrl } from "../site";
+import { navItems, portalStats, releasesUrl, webAppUrl } from "../site";
 
 export function HomePage() {
   const directoryItems = navItems.filter((item) => item.route !== "home");
@@ -16,8 +16,11 @@ export function HomePage() {
             release operations.
           </p>
           <div className="hero-actions">
-            <a className="primary-link" href="#/product">
-              Start reading <ArrowRight size={17} />
+            <a className="primary-link" href={webAppUrl} target="_blank" rel="noreferrer">
+              Run in browser <ArrowRight size={17} />
+            </a>
+            <a className="secondary-link" href="#/product">
+              Start reading
             </a>
             <a className="secondary-link" href={releasesUrl} target="_blank" rel="noreferrer">
               Latest release

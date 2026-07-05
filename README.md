@@ -14,6 +14,7 @@ API request authentication remains in scope. Basic Auth, Bearer Token, API Key, 
 ## Public Links
 
 - Documentation portal: <https://thienng-it.github.io/KobeanREST/>
+- Run in browser (web preview): <https://thienng-it.github.io/KobeanREST/app/>
 - Downloads: [docs/download.md](docs/download.md)
 - Release operations: [docs/release-operations.md](docs/release-operations.md)
 - Implementation roadmap: [docs/implementation-roadmap.md](docs/implementation-roadmap.md)
@@ -29,6 +30,7 @@ API request authentication remains in scope. Basic Auth, Bearer Token, API Key, 
 - Export/import flow that redacts secret values by default.
 - Optional signed updater flow using public GitHub Release metadata.
 - Public GitHub Pages documentation portal with multi-page product, download, developer, release, roadmap, and QA docs.
+- Browser preview build of the renderer, published alongside the docs portal, for trying the UI without installing the desktop app. Requests run through a local preview responder instead of the native HTTP client, and workspace data is not persisted between sessions.
 - Betterleak sensitive-data policy checked in CI through `npm run check:secrets`.
 
 ## Downloads

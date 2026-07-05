@@ -1,4 +1,4 @@
-import { BrandIcon, navItems, releasesUrl, repoUrl, type SiteRoute } from "../site";
+import { BrandIcon, navItems, releasesUrl, repoUrl, webAppUrl, type SiteRoute } from "../site";
 
 interface AppShellProps {
   activeRoute: SiteRoute;
@@ -28,6 +28,9 @@ export function AppShell({ activeRoute, children }: AppShellProps) {
         <div className="header-actions">
           <a href={repoUrl} target="_blank" rel="noreferrer">
             GitHub
+          </a>
+          <a href={webAppUrl} target="_blank" rel="noreferrer">
+            Run in Browser
           </a>
           <a className="button-link" href={releasesUrl} target="_blank" rel="noreferrer">
             Download

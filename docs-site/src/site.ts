@@ -21,6 +21,7 @@ export interface NavItem {
 }
 
 export const docsPortalUrl = "https://thienng-it.github.io/KobeanREST/";
+export const webAppUrl = "https://thienng-it.github.io/KobeanREST/app/";
 export const releasesUrl = "https://github.com/thienng-it/KobeanREST/releases/latest";
 export const repoUrl = "https://github.com/thienng-it/KobeanREST";
 
