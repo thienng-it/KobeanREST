@@ -199,6 +199,13 @@ export function App() {
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateProgressLabel, setUpdateProgressLabel] = useState("Signed release metadata is required before install.");
+  const [updateToast, setUpdateToast] = useState<{ message: string; tone: "info" | "error" } | null>(null);
+
+  useEffect(() => {
+    if (!updateToast) return;
+    const timer = window.setTimeout(() => setUpdateToast(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [updateToast]);
 
   useEffect(() => {
     let isActive = true;
@@ -534,6 +541,10 @@ export function App() {
   ) {
     if (!settingsOverride.updateChecksEnabled && trigger === "automatic") return;
 
+    if (trigger === "manual") {
+      setUpdateToast({ message: "Checking for updates...", tone: "info" });
+    }
+
     try {
       const preview = await checkForUpdates();
       if (!preview.releaseReady) {
@@ -545,6 +556,7 @@ export function App() {
           lastCheckedLabel: preview.message,
           channel: "stable",
         });
+        if (trigger === "manual") setUpdateToast({ message: preview.message, tone: "info" });
         return;
       }
 
@@ -558,6 +570,7 @@ export function App() {
           lastCheckedLabel: `Update ${update.version} is ready to install.`,
           channel: "stable",
         });
+        if (trigger === "manual") setUpdateToast(null);
         return;
       }
 
@@ -569,6 +582,9 @@ export function App() {
         lastCheckedLabel: "No signed updates available.",
         channel: "stable",
       });
+      if (trigger === "manual") {
+        setUpdateToast({ message: "You're already on the latest version.", tone: "info" });
+      }
     } catch (error) {
       if (trigger === "manual" || settingsOverride.offlineBehavior === "notice") {
         setUpdateDialogOpen(false);
@@ -577,6 +593,9 @@ export function App() {
           lastCheckedLabel: "Update check unavailable. The app remains usable offline.",
           channel: "stable",
         });
+        if (trigger === "manual") {
+          setUpdateToast({ message: "Update check unavailable. The app remains usable offline.", tone: "error" });
+        }
       }
       console.error("Failed to check for updates", diagnosticMessage(error));
     }
@@ -699,6 +718,15 @@ export function App() {
 
   return (
     <main className="app-shell">
+      {updateToast && (
+        <div
+          className={`update-toast update-toast-${updateToast.tone}`}
+          role="status"
+          aria-live="polite"
+        >
+          {updateToast.message}
+        </div>
+      )}
       <aside className="sidebar" aria-label="Workspace navigation">
         <div className="brand-row">
           <div className="brand-mark">KR</div>
