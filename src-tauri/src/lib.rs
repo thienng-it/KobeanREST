@@ -11,6 +11,7 @@ use persistence::{
     initialize_persistence, load_app_settings, load_request_history, load_workspace,
     record_request_history, rename_environment, save_app_settings, save_request,
     save_secret_variable, save_variable, set_active_environment, update_folder,
+    get_scripts, save_script, delete_script,
 };
 use secrets::{delete_secret, store_secret};
 use tauri::Manager;
@@ -61,7 +62,10 @@ pub fn run() {
             load_request_history,
             clear_request_history,
             load_app_settings,
-            save_app_settings
+            save_app_settings,
+            get_scripts,
+            save_script,
+            delete_script,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run KobeanREST");

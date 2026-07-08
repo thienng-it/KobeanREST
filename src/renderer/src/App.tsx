@@ -20,9 +20,10 @@ import { useEffect, useState } from "react";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
 import { authModes, sampleWorkspace } from "./data/sample-workspace";
 import { executeHttpRequest } from "./services/http-client";
-import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap } from "./services/variables";
+import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
 import { VariableInput, VariableTextarea } from "./components/VariableInput";
 import { MethodSelector, methodClass, resolvedMethodLabel } from "./components/MethodSelector";
+import { ScriptEditor } from "./components/ScriptEditor";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl } from "./services/auth";
 import { redactDiagnosticError } from "./services/redaction";
 import { checkForAppUpdate, downloadAndInstallUpdate, type AvailableUpdate } from "./services/updater";
@@ -48,6 +49,8 @@ import {
   loadAppSettings,
   saveAppSettings,
   checkForUpdates,
+  getScripts,
+  saveScript,
 } from "./services/local-store";
 import { storeSecret } from "./services/secrets";
 import type { AppSettings, ExecuteHttpResponse, HistoryEntry, SavedRequest, UpdateStatus, WorkspaceSummary } from "./types";
@@ -155,7 +158,7 @@ function AddVariableRow({
 export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceSummary>(() => sampleWorkspace);
   const [selectedRequestId, setSelectedRequestId] = useState(sampleWorkspace.requests[0]?.id ?? "");
-  const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth">("body");
+  const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts">("body");
   const [responseState, setResponseState] = useState<ResponseState>({
     kind: "idle",
   });
@@ -164,6 +167,8 @@ export function App() {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const [draftRequest, setDraftRequest] = useState<SavedRequest | null>(null);
+  const [preScript, setPreScript] = useState("");
+  const [postScript, setPostScript] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [envEditorOpen, setEnvEditorOpen] = useState(false);
@@ -189,11 +194,37 @@ export function App() {
   const [updateProgressLabel, setUpdateProgressLabel] = useState("Signed release metadata is required before install.");
   const [updateToast, setUpdateToast] = useState<{ message: string; tone: "info" | "error" } | null>(null);
 
+  const [scriptStatus, setScriptStatus] = useState<Record<string, boolean>>({});
+  const [folderScriptsOpen, setFolderScriptsOpen] = useState(false);
+  const [folderScriptsTarget, setFolderScriptsTarget] = useState<string>("");
+  const [folderPreScript, setFolderPreScript] = useState("");
+  const [folderPostScript, setFolderPostScript] = useState("");
+
   useEffect(() => {
     if (!updateToast) return;
     const timer = window.setTimeout(() => setUpdateToast(null), 5000);
     return () => window.clearTimeout(timer);
   }, [updateToast]);
+
+  async function handleLoadScriptStatuses() {
+    try {
+      const statuses: Record<string, boolean> = {};
+      
+      for (const folder of workspace.folders) {
+        const scripts = await getScripts(folder.id, 'folder');
+        statuses[folder.id] = scripts.length > 0;
+      }
+      
+      for (const request of workspace.requests) {
+        const scripts = await getScripts(request.id, 'request');
+        statuses[request.id] = scripts.length > 0;
+      }
+      
+      setScriptStatus(statuses);
+    } catch (err) {
+      console.error("Failed to load script statuses", diagnosticMessage(err));
+    }
+  }
 
   useEffect(() => {
     let isActive = true;
@@ -222,6 +253,7 @@ export function App() {
         if (loadedSettings.updateChecksEnabled) {
           void handleCheckForUpdates("automatic", loadedSettings);
         }
+        void handleLoadScriptStatuses();
       } catch (error) {
         console.error("Failed to load local workspace", diagnosticMessage(error));
       }
@@ -236,6 +268,22 @@ export function App() {
     const req = workspace.requests.find(r => r.id === selectedRequestId);
     setDraftRequest(req ? JSON.parse(JSON.stringify(req)) : null);
   }, [selectedRequestId, workspace.requests]);
+
+  useEffect(() => {
+    async function loadScripts() {
+      if (!selectedRequestId) return;
+      try {
+        const scripts = await getScripts(selectedRequestId, 'request');
+        const pre = scripts.find(s => s.scriptType === 'pre')?.content ?? "";
+        const post = scripts.find(s => s.scriptType === 'post')?.content ?? "";
+        setPreScript(pre);
+        setPostScript(post);
+      } catch (err) {
+        console.error("Failed to load scripts", diagnosticMessage(err));
+      }
+    }
+    void loadScripts();
+  }, [selectedRequestId]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -630,17 +678,108 @@ export function App() {
     }
   }
 
+  async function handleOpenFolderScripts(folderId: string) {
+    try {
+      const scripts = await getScripts(folderId, 'folder');
+      const pre = scripts.find(s => s.scriptType === 'pre')?.content ?? "";
+      const post = scripts.find(s => s.scriptType === 'post')?.content ?? "";
+      setFolderPreScript(pre);
+      setFolderPostScript(post);
+      setFolderScriptsTarget(folderId);
+      setFolderScriptsOpen(true);
+    } catch (err) {
+      console.error("Failed to load folder scripts", diagnosticMessage(err));
+      alert("Failed to load folder scripts: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleSaveFolderScripts() {
+    if (!folderScriptsTarget) return;
+    try {
+      await saveScript(folderScriptsTarget, "folder", "pre", folderPreScript);
+      await saveScript(folderScriptsTarget, "folder", "post", folderPostScript);
+      alert("Folder scripts saved successfully!");
+      setFolderScriptsOpen(false);
+    } catch (err) {
+      console.error("Failed to save folder scripts", diagnosticMessage(err));
+      alert("Failed to save folder scripts: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleSaveScripts() {
+    if (!selectedRequestId) return;
+    try {
+      await saveScript(selectedRequestId, "request", "pre", preScript);
+      await saveScript(selectedRequestId, "request", "post", postScript);
+      alert("Scripts saved successfully!");
+    } catch (err) {
+      console.error("Failed to save scripts", diagnosticMessage(err));
+      alert("Failed to save scripts: " + diagnosticMessage(err));
+    }
+  }
+
+  async function runScript(content: string, context: any) {
+    if (!content) return;
+    try {
+      const fn = new Function("context", `
+        try {
+          ${content}
+        } catch (e) {
+          console.error("Script execution error:", e);
+        }
+      `);
+      fn(context);
+    } catch (err) {
+      console.error("Failed to parse script:", err);
+    }
+  }
+
   async function sendSelectedRequest() {
     if (!draftRequest) return;
+    
+    let variableMap = buildVariableMap(activeEnvironmentVariables(workspace));
+
+    // 1. Execute Pre-scripts (Hierarchy: Folder -> Request)
+    // Note: Collection level is not yet fully implemented in the store, focusing on Folder -> Request
+    const preScriptsContext = { 
+      request: { ...draftRequest },
+      variables: { ...activeVars } 
+    };
+    
+    try {
+      const folderScripts = await getScripts(draftRequest.folderId, 'folder');
+      const preFolder = folderScripts.find(s => s.scriptType === 'pre')?.content;
+      if (preFolder) {
+        const resolved = resolveString(preFolder, variableMap).resolved;
+        await runScript(resolved, preScriptsContext);
+      }
+      
+      const reqScripts = await getScripts(draftRequest.id, 'request');
+      const preReq = reqScripts.find(s => s.scriptType === 'pre')?.content;
+      if (preReq) {
+        const resolved = resolveString(preReq, variableMap).resolved;
+        await runScript(resolved, preScriptsContext);
+      }
+    } catch (err) {
+      console.error("Pre-script execution failed", diagnosticMessage(err));
+      if (err instanceof UnresolvedVariableError) {
+        setResponseState({ kind: "error", message: err.message });
+        return;
+      }
+    }
+
+    // Use the modified request from scripts
+    const requestToSend = preScriptsContext.request;
+
     let resolvedUrl: string;
     let resolvedHeaders: Array<{ key: string; value: string; enabled: boolean }>;
     let resolvedBody: string | undefined;
 
     try {
       const resolved = resolveRequestVariables(
-        draftRequest.url,
-        draftRequest.headers,
-        draftRequest.body || undefined,
+        requestToSend.url,
+        requestToSend.headers,
+        requestToSend.body || undefined,
         workspace,
       );
       resolvedUrl = resolved.url;
@@ -655,11 +794,10 @@ export function App() {
       return;
     }
 
-    // Resolve auth config values and inject auth headers / query params
-    const variableMap = buildVariableMap(activeEnvironmentVariables(workspace));
-    const resolvedAuth = resolveAuthConfig(draftRequest.authConfig ?? {}, variableMap);
+    variableMap = buildVariableMap(activeEnvironmentVariables(workspace));
+    const resolvedAuth = resolveAuthConfig(requestToSend.authConfig ?? {}, variableMap);
     const { url: authUrl, headers: authHeaders } = applyAuth(
-      draftRequest.authMode,
+      requestToSend.authMode,
       resolvedAuth,
       resolvedUrl,
       resolvedHeaders,
@@ -673,11 +811,10 @@ export function App() {
     const controller = new AbortController();
     setAbortController(controller);
 
-    // Resolve the actual method string (CUSTOM uses the customMethod field)
     const effectiveMethod =
-      draftRequest.method === "CUSTOM"
-        ? (draftRequest.customMethod?.trim().toUpperCase() || "CUSTOM")
-        : draftRequest.method;
+      requestToSend.method === "CUSTOM"
+        ? (requestToSend.customMethod?.trim().toUpperCase() || "CUSTOM")
+        : requestToSend.method;
 
     try {
       const response = await executeHttpRequest({
@@ -685,14 +822,40 @@ export function App() {
         url: authUrl,
         headers: authHeaders,
         body: resolvedBody,
-        timeoutMs: draftRequest.timeoutMs,
-        followRedirects: draftRequest.followRedirects,
+        timeoutMs: requestToSend.timeoutMs,
+        followRedirects: requestToSend.followRedirects,
       });
       setResponseState({ kind: "success", response });
       setAbortController(null);
-      const historyUrl = redactAuthFromUrl(authUrl, draftRequest.authMode, resolvedAuth);
+      
+      // 2. Execute Post-scripts (Hierarchy: Request -> Folder)
+      const postScriptsContext = {
+        request: requestToSend,
+        response: response,
+        variables: { ...activeVars }
+      };
+      
+      try {
+        const reqScripts = await getScripts(requestToSend.id, 'request');
+        const postReq = reqScripts.find(s => s.scriptType === 'post')?.content;
+        if (postReq) {
+          const resolved = resolveString(postReq, variableMap).resolved;
+          await runScript(resolved, postScriptsContext);
+        }
+        
+        const folderScripts = await getScripts(requestToSend.folderId, 'folder');
+        const postFolder = folderScripts.find(s => s.scriptType === 'post')?.content;
+        if (postFolder) {
+          const resolved = resolveString(postFolder, variableMap).resolved;
+          await runScript(resolved, postScriptsContext);
+        }
+      } catch (err) {
+        console.error("Post-script execution failed", diagnosticMessage(err));
+      }
+
+      const historyUrl = redactAuthFromUrl(authUrl, requestToSend.authMode, resolvedAuth);
       void recordRequestHistory({
-        requestId: draftRequest.id,
+        requestId: requestToSend.id,
         method: effectiveMethod,
         url: historyUrl,
         status: response.status,
@@ -806,8 +969,14 @@ export function App() {
                   <button type="button" style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                     <ChevronDown size={14} />
                     {folder.name}
+                    {scriptStatus[folder.id] && (
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
+                    )}
                   </button>
                   <div style={{ display: 'flex', gap: '4px' }}>
+                    <button type="button" aria-label="Folder scripts" onClick={() => void handleOpenFolderScripts(folder.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }} title="Scripts">
+                      <Edit2 size={12} />
+                    </button>
                     <button type="button" aria-label="New request" onClick={() => handleCreateRequest(folder.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px' }}>
                       <Plus size={12} />
                     </button>
@@ -825,6 +994,9 @@ export function App() {
                     >
                       <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
                       <span>{request.name}</span>
+                      {scriptStatus[request.id] && (
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
+                      )}
                     </button>
                     <button type="button" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
                       <Trash2 size={12} />
@@ -922,7 +1094,7 @@ export function App() {
             </div>
 
             <div className="tab-row" role="tablist" aria-label="Request configuration">
-              {(["body", "headers", "auth"] as const).map((tab) => (
+              {(["body", "headers", "auth", "scripts"] as const).map((tab) => (
                 <button
                   className={activeTab === tab ? "tab active" : "tab"}
                   key={tab}
@@ -930,7 +1102,14 @@ export function App() {
                   role="tab"
                   type="button"
                 >
-                  {tab}
+                  {tab === "scripts" ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
+                      {tab}
+                    </div>
+                  ) : (
+                    tab
+                  )}
                 </button>
               ))}
             </div>
@@ -1055,6 +1234,39 @@ export function App() {
                     </label>
                   </div>
                 )}
+              </div>
+            )}
+            {activeTab === "scripts" && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
+                    Pre-request Script
+                  </label>
+                  <ScriptEditor 
+                    value={preScript}
+                    onChange={setPreScript}
+                    variables={activeVars.map(v => v.key)}
+                    placeholder="// JavaScript only (no TypeScript types) to run before the request"
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
+                    Post-request Script
+                  </label>
+                  <ScriptEditor 
+                    value={postScript}
+                    onChange={setPostScript}
+                    variables={activeVars.map(v => v.key)}
+                    placeholder="// JavaScript only (no TypeScript types) to run after the request"
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button className="ghost-button" type="button" onClick={handleSaveScripts} style={{ padding: '6px 12px', fontSize: '12px' }}>
+                    <Save size={14} /> Save Scripts
+                  </button>
+                </div>
               </div>
             )}
             <div className="execution-options" aria-label="Request execution options" style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
@@ -1692,6 +1904,63 @@ export function App() {
                   <p style={{ opacity: 0.5, fontSize: '13px' }}>Select an environment to edit its variables.</p>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {folderScriptsOpen && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Folder scripts"
+          onClick={() => setFolderScriptsOpen(false)}
+        >
+          <div
+            className="modal"
+            onClick={e => e.stopPropagation()}
+            style={{ width: '560px', maxWidth: '95vw', display: 'flex', flexDirection: 'column', gap: '16px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontSize: '16px' }}>Folder Scripts</h2>
+              <button type="button" onClick={() => setFolderScriptsOpen(false)} style={{ all: 'unset', cursor: 'pointer' }}><X size={18} /></button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
+                  Pre-request Script
+                </label>
+                <ScriptEditor 
+                  value={folderPreScript}
+                  onChange={setFolderPreScript}
+                  variables={activeVars.map(v => v.key)}
+                  placeholder="// JavaScript only (no TypeScript types) to run before any request in this folder"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
+                  Post-request Script
+                </label>
+                <ScriptEditor 
+                  value={folderPostScript}
+                  onChange={setFolderPostScript}
+                  variables={activeVars.map(v => v.key)}
+                  placeholder="// JavaScript only (no TypeScript types) to run after any request in this folder"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button className="modal-cancel" type="button" onClick={() => setFolderScriptsOpen(false)}>
+                Cancel
+              </button>
+              <button className="modal-confirm" type="button" onClick={handleSaveFolderScripts}>
+                Save Scripts
+              </button>
             </div>
           </div>
         </div>

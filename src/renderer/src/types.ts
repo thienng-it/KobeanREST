@@ -11,6 +11,15 @@ export interface AuthConfig {
   placement?: "header" | "query";
 }
 
+export interface Script {
+  id: string;
+  entityId: string;
+  entityType: 'collection' | 'folder' | 'request';
+  scriptType: 'pre' | 'post';
+  content: string;
+  position: number;
+}
+
 export interface SavedRequest {
   id: string;
   name: string;
