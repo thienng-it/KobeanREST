@@ -93,6 +93,17 @@ pub struct RequestHistoryEntry {
     pub size_bytes: usize,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Script {
+    pub id: String,
+    pub entity_id: String,
+    pub entity_type: String,
+    pub script_type: String,
+    pub content: String,
+    pub position: i64,
+}
+
 fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app
         .path()
@@ -116,14 +127,85 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     connection
         .execute_batch(INITIAL_MIGRATION)
         .map_err(|error| format!("failed to run local database migration: {error}"))?;
+
     ensure_secret_ref_column(&connection)?;
     ensure_auth_config_column(&connection)?;
+    ensure_folder_parent_id_column(&connection)?;
+    ensure_scripts_table(&connection)?;
     seed_default_workspace(&mut connection)?;
 
     Ok(PersistenceStatus {
         database_path: path.to_string_lossy().to_string(),
         migrated: true,
     })
+}
+
+fn ensure_folder_parent_id_column(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(folders)")
+        .map_err(|error| format!("failed to inspect folders table: {error}"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("failed to query folders table info: {error}"))?;
+
+    let mut has_parent_id = false;
+    for column in columns {
+        if column.map_err(|error| format!("failed to read folders column: {error}"))?
+            == "parent_id"
+        {
+            has_parent_id = true;
+            break;
+        }
+    }
+
+    if !has_parent_id {
+        connection
+            .execute("ALTER TABLE folders ADD COLUMN parent_id TEXT REFERENCES folders(id) ON DELETE CASCADE", [])
+            .map_err(|error| format!("failed to add folders.parent_id column: {error}"))?;
+    }
+
+    connection
+        .execute("CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id)", [])
+        .map_err(|error| format!("failed to create folders.parent_id index: {error}"))?;
+
+    Ok(())
+}
+
+fn ensure_scripts_table(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(scripts)")
+        .map_err(|error| format!("failed to inspect scripts table: {error}"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("failed to query scripts table info: {error}"))?;
+
+    let mut exists = false;
+    for column in columns {
+        if column.map_err(|error| format!("failed to read scripts column: {error}"))? == "id" {
+            exists = true;
+            break;
+        }
+    }
+
+    if !exists {
+        connection
+            .execute(
+                "CREATE TABLE IF NOT EXISTS scripts (
+                  id TEXT PRIMARY KEY,
+                  entity_id TEXT NOT NULL,
+                  entity_type TEXT NOT NULL, -- 'collection', 'folder', 'request'
+                  script_type TEXT NOT NULL, -- 'pre', 'post'
+                  content TEXT NOT NULL,
+                  position INTEGER NOT NULL DEFAULT 0,
+                  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )",
+                [],
+            )
+            .map_err(|error| format!("failed to create scripts table: {error}"))?;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -602,8 +684,8 @@ fn load_variables(
 fn load_folders(connection: &Connection, workspace_id: &str) -> Result<Vec<FolderSummary>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT folders.id, folders.name FROM folders 
-         JOIN collections ON collections.id = folders.collection_id 
+            "SELECT folders.id, folders.name FROM folders
+         JOIN collections ON collections.id = folders.collection_id
          WHERE collections.workspace_id = ?1 ORDER BY folders.position",
         )
         .map_err(|e| e.to_string())?;
@@ -1410,5 +1492,83 @@ pub fn save_secret_variable(
             )
             .map_err(|error| format!("failed to insert secret variable: {error}"))?;
     }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_scripts(app: AppHandle, entity_id: String, entity_type: String) -> Result<Vec<Script>, String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT id, entity_id, entity_type, script_type, content, position
+             FROM scripts
+             WHERE entity_id = ?1 AND entity_type = ?2
+             ORDER BY position, id",
+        )
+        .map_err(|error| format!("failed to prepare scripts query: {error}"))?;
+    let rows = statement
+        .query_map(params![entity_id, entity_type], |row| {
+            Ok(Script {
+                id: row.get(0)?,
+                entity_id: row.get(1)?,
+                entity_type: row.get(2)?,
+                script_type: row.get(3)?,
+                content: row.get(4)?,
+                position: row.get(5)?,
+            })
+        })
+        .map_err(|error| format!("failed to query scripts: {error}"))?;
+    collect_rows(rows, "script")
+}
+
+#[tauri::command]
+pub fn save_script(
+    app: AppHandle,
+    entity_id: String,
+    entity_type: String,
+    script_type: String,
+    content: String,
+) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let script_id = format!("script-{}", uuid::Uuid::new_v4());
+
+    // Check if a script of this type already exists for this entity
+    let existing_id: Option<String> = connection
+        .query_row(
+            "SELECT id FROM scripts WHERE entity_id = ?1 AND entity_type = ?2 AND script_type = ?3",
+            params![entity_id, entity_type, script_type],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| format!("failed to lookup existing script: {error}"))?;
+
+    if let Some(id) = existing_id {
+        connection
+            .execute(
+                "UPDATE scripts SET content = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+                params![content, id],
+            )
+            .map_err(|error| format!("failed to update script: {error}"))?;
+    } else {
+        connection
+            .execute(
+                "INSERT INTO scripts (id, entity_id, entity_type, script_type, content, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5, 0)",
+                params![script_id, entity_id, entity_type, script_type, content],
+            )
+            .map_err(|error| format!("failed to insert script: {error}"))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_script(app: AppHandle, script_id: String) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    connection
+        .execute("DELETE FROM scripts WHERE id = ?1", params![script_id])
+        .map_err(|error| format!("failed to delete script: {error}"))?;
     Ok(())
 }

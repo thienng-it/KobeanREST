@@ -116,6 +116,8 @@ export async function createRequest(folderId: string): Promise<import("../types"
       authConfig: {},
       headers: [],
       body: "",
+      bodyMimeType: "text/plain",
+      bodyForm: [],
       timeoutMs: 30000,
       followRedirects: true,
     };
@@ -197,4 +199,19 @@ export async function checkForUpdates(): Promise<UpdateCheckPreview> {
     };
   }
   return invoke<UpdateCheckPreview>("check_for_update");
+}
+
+export async function getScripts(entityId: string, entityType: string): Promise<import("../types").Script[]> {
+  if (!isTauriRuntime()) return [];
+  return invoke<import("../types").Script[]>("get_scripts", { entityId, entityType });
+}
+
+export async function saveScript(entityId: string, entityType: string, scriptType: string, content: string): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("save_script", { entityId, entityType, scriptType, content });
+}
+
+export async function deleteScript(scriptId: string): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("delete_script", { scriptId });
 }

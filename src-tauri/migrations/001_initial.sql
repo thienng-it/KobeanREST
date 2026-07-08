@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS collections (
 CREATE TABLE IF NOT EXISTS folders (
   id TEXT PRIMARY KEY,
   collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  parent_id TEXT REFERENCES folders(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   position INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -37,6 +38,17 @@ CREATE TABLE IF NOT EXISTS requests (
   body TEXT NOT NULL DEFAULT '',
   timeout_ms INTEGER NOT NULL DEFAULT 30000,
   follow_redirects INTEGER NOT NULL DEFAULT 1,
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS scripts (
+  id TEXT PRIMARY KEY,
+  entity_id TEXT NOT NULL,
+  entity_type TEXT NOT NULL, -- 'collection', 'folder', 'request'
+  script_type TEXT NOT NULL, -- 'pre', 'post'
+  content TEXT NOT NULL,
   position INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -95,3 +107,4 @@ CREATE INDEX IF NOT EXISTS idx_request_headers_request ON request_headers(reques
 CREATE INDEX IF NOT EXISTS idx_environments_workspace ON environments(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_variables_environment ON variables(environment_id);
 CREATE INDEX IF NOT EXISTS idx_request_history_workspace ON request_history(workspace_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_scripts_entity ON scripts(entity_id);

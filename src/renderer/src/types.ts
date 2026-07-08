@@ -1,4 +1,4 @@
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "CUSTOM";
 
 export type ApiAuthMode = "none" | "basic" | "bearer" | "apiKey" | "oauth2";
 
@@ -11,16 +11,29 @@ export interface AuthConfig {
   placement?: "header" | "query";
 }
 
+export interface Script {
+  id: string;
+  entityId: string;
+  entityType: 'collection' | 'folder' | 'request';
+  scriptType: 'pre' | 'post';
+  content: string;
+  position: number;
+}
+
 export interface SavedRequest {
   id: string;
   name: string;
   method: HttpMethod;
+  /** When method === "CUSTOM", this holds the actual HTTP method string (e.g. "TRACE", "QUERY"). */
+  customMethod?: string;
   url: string;
   folderId: string;
   authMode: ApiAuthMode;
   authConfig: AuthConfig;
   headers: Array<{ key: string; value: string; enabled: boolean }>;
   body: string;
+  bodyMimeType: string;
+  bodyForm: Array<{ key: string; value: string; enabled: boolean }>;
   timeoutMs: number;
   followRedirects: boolean;
 }
@@ -82,10 +95,12 @@ export interface UpdateCheckPreview {
 }
 
 export interface ExecuteHttpRequest {
-  method: HttpMethod;
+  method: string;
   url: string;
   headers: Array<{ key: string; value: string; enabled: boolean }>;
   body?: string;
+  bodyMimeType?: string;
+  bodyForm?: Array<{ key: string; value: string; enabled: boolean }>;
   timeoutMs: number;
   followRedirects: boolean;
 }
@@ -97,6 +112,10 @@ export interface ExecuteHttpResponse {
   bodyText?: string;
   bodyBase64?: string;
   durationMs: number;
+  dnsMs: number;
+  connectMs: number;
+  tlsMs: number;
+  requestMs: number;
   sizeBytes: number;
-  contentType?: string;
+  contentType?: any;
 }
