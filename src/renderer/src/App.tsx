@@ -667,7 +667,7 @@ export function App() {
 
     setResponseState((current) => ({
       kind: "loading",
-      response: current.response,
+      response: 'response' in current ? current.response : undefined,
     }));
 
     const controller = new AbortController();
@@ -1259,13 +1259,25 @@ export function App() {
                       <span style={{ fontWeight: 600, color: 'var(--color-accent)' }}>{currentResponse.durationMs} ms</span>
                     </div>
                     <div style={{ 
-                      fontSize: '11px', 
-                      color: 'var(--color-text-muted)', 
-                      fontStyle: 'italic',
-                      textAlign: 'center',
-                      padding: '12px'
-                      }}>
-                      Note: Detailed breakdown (DNS, TCP, TLS) is currently handled by the native core.
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '4px'
+                    }}>
+                      {[
+                        { label: 'DNS Lookup', value: currentResponse.dnsMs },
+                        { label: 'TCP Connection', value: currentResponse.connectMs },
+                        { label: 'TLS Handshake', value: currentResponse.tlsMs },
+                        { label: 'Request/Response', value: currentResponse.requestMs },
+                      ].map(item => (
+                        <div key={item.label} style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          padding: '4px 0'
+                        }}>
+                          <span style={{ color: 'var(--color-text-muted)' }}>{item.label}</span>
+                          <span style={{ fontWeight: 500 }}>{item.value} ms</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

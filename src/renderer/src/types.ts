@@ -104,5 +104,5 @@ export interface ExecuteHttpResponse {
   tlsMs: number;
   requestMs: number;
   sizeBytes: number;
-  contentType?: string;
+  contentType?: any;
 }

@@ -7,6 +7,32 @@ declare global {
   }
 }
 
+function createPreviewResponse(
+  status: number,
+  statusText: string,
+  headers: Headers,
+  bodyText: string,
+  durationMs: number,
+): ExecuteHttpResponse {
+  return {
+    status,
+    statusText,
+    headers: Array.from(headers.entries()).map(([key, value]) => ({
+      key,
+      value,
+      enabled: true,
+    })),
+    bodyText,
+    durationMs,
+    dnsMs: 0,
+    connectMs: 0,
+    tlsMs: 0,
+    requestMs: 0,
+    sizeBytes: new TextEncoder().encode(bodyText).length,
+    contentType: headers.get("content-type"),
+  };
+}
+
 export async function executeHttpRequest(
   request: ExecuteHttpRequest,
 ): Promise<ExecuteHttpResponse> {
@@ -35,19 +61,13 @@ export async function executeHttpRequest(
     const bodyText = await response.text();
     const durationMs = Math.round(performance.now() - start);
 
-    return {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Array.from(response.headers.entries()).map(([key, value]) => ({
-        key,
-        value,
-        enabled: true,
-      })),
+    return createPreviewResponse(
+      response.status,
+      response.statusText,
+      response.headers,
       bodyText,
       durationMs,
-      sizeBytes: new TextEncoder().encode(bodyText).length,
-      contentType: response.headers.get("content-type"),
-    };
+    );
   } catch (error: any) {
     if (error.name === "AbortError") {
       throw new Error(`Request timed out after ${request.timeoutMs}ms`);
