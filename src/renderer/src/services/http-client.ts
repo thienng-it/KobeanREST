@@ -14,36 +14,44 @@ export async function executeHttpRequest(
     return invoke<ExecuteHttpResponse>("execute_http_request", { input: request });
   }
 
-  return createPreviewResponse(request);
-}
+  const start = performance.now();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), request.timeoutMs);
 
-export function createPreviewResponse(request: ExecuteHttpRequest): ExecuteHttpResponse {
-  const bodyText = JSON.stringify(
-    {
-      status: "preview",
-      method: request.method,
-      url: request.url,
-      timeoutMs: request.timeoutMs,
-      followRedirects: request.followRedirects,
-      source: "browser preview fallback",
-    },
-    null,
-    2,
-  );
+    const response = await fetch(request.url, {
+      method: request.method === "CUSTOM" ? "GET" : request.method, // fetch doesn't support all custom methods
+      headers: Object.fromEntries(
+        request.headers
+          .filter(h => h.enabled)
+          .map(h => [h.key, h.value])
+      ),
+      body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
+      signal: controller.signal,
+      redirect: request.followRedirects ? "follow" : "manual",
+    });
 
-  return {
-    status: 200,
-    statusText: "Preview OK",
-    headers: [
-      {
-        key: "content-type",
-        value: "application/json",
+    clearTimeout(timeoutId);
+    const bodyText = await response.text();
+    const durationMs = Math.round(performance.now() - start);
+
+    return {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Array.from(response.headers.entries()).map(([key, value]) => ({
+        key,
+        value,
         enabled: true,
-      },
-    ],
-    bodyText,
-    durationMs: 12,
-    sizeBytes: new TextEncoder().encode(bodyText).length,
-    contentType: "application/json",
-  };
+      })),
+      bodyText,
+      durationMs,
+      sizeBytes: new TextEncoder().encode(bodyText).length,
+      contentType: response.headers.get("content-type"),
+    };
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      throw new Error(`Request timed out after ${request.timeoutMs}ms`);
+    }
+    throw error;
+  }
 }

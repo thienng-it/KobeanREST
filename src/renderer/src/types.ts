@@ -99,6 +99,10 @@ export interface ExecuteHttpResponse {
   bodyText?: string;
   bodyBase64?: string;
   durationMs: number;
+  dnsMs: number;
+  connectMs: number;
+  tlsMs: number;
+  requestMs: number;
   sizeBytes: number;
   contentType?: string;
 }

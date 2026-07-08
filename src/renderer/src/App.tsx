@@ -53,29 +53,13 @@ import { storeSecret } from "./services/secrets";
 import type { AppSettings, ExecuteHttpResponse, HistoryEntry, SavedRequest, UpdateStatus, WorkspaceSummary } from "./types";
 
 type ResponseState =
-  | { kind: "idle"; response: ExecuteHttpResponse }
-  | { kind: "loading"; response: ExecuteHttpResponse }
+  | { kind: "idle"; response?: ExecuteHttpResponse }
+  | { kind: "loading"; response?: ExecuteHttpResponse }
   | { kind: "success"; response: ExecuteHttpResponse }
   | { kind: "error"; message: string };
 
-const initialResponse: ExecuteHttpResponse = {
-  status: 200,
-  statusText: "Preview OK",
-  headers: [{ key: "content-type", value: "application/json", enabled: true }],
-  bodyText: JSON.stringify(
-    {
-      status: "healthy",
-      source: "local preview",
-      historySaved: true,
-      secretsRedacted: true,
-    },
-    null,
-    2,
-  ),
-  durationMs: 184,
-  sizeBytes: 3200,
-  contentType: "application/json",
-};
+// initialResponse is no longer used as a default for the state
+
 
 function formatBytes(sizeBytes: number) {
   if (sizeBytes < 1024) {
@@ -174,8 +158,10 @@ export function App() {
   const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth">("body");
   const [responseState, setResponseState] = useState<ResponseState>({
     kind: "idle",
-    response: initialResponse,
   });
+  const [previewMode, setPreviewMode] = useState<'rendered' | 'xml' | 'html' | 'json' | 'raw'>('rendered');
+  const [responseTab, setResponseTab] = useState<'preview' | 'headers' | 'timeline' | 'download' | 'copy'>('preview');
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const [draftRequest, setDraftRequest] = useState<SavedRequest | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
@@ -681,8 +667,11 @@ export function App() {
 
     setResponseState((current) => ({
       kind: "loading",
-      response: current.kind === "error" ? initialResponse : current.response,
+      response: current.response,
     }));
+
+    const controller = new AbortController();
+    setAbortController(controller);
 
     // Resolve the actual method string (CUSTOM uses the customMethod field)
     const effectiveMethod =
@@ -700,6 +689,7 @@ export function App() {
         followRedirects: draftRequest.followRedirects,
       });
       setResponseState({ kind: "success", response });
+      setAbortController(null);
       const historyUrl = redactAuthFromUrl(authUrl, draftRequest.authMode, resolvedAuth);
       void recordRequestHistory({
         requestId: draftRequest.id,
@@ -710,7 +700,12 @@ export function App() {
         sizeBytes: response.sizeBytes,
       });
     } catch (error) {
-      setResponseState({ kind: "error", message: error instanceof Error ? error.message : String(error) });
+      if (error instanceof Error && error.message.includes("aborted")) {
+        setResponseState({ kind: "error", message: "Request cancelled by user" });
+      } else {
+        setResponseState({ kind: "error", message: error instanceof Error ? error.message : String(error) });
+      }
+      setAbortController(null);
     }
   }
 
@@ -727,6 +722,19 @@ export function App() {
 
   return (
     <main className="app-shell">
+      {responseState.kind === "loading" && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1000,
+          backgroundColor: 'rgba(0, 0, 0, 0.2)',
+          backdropFilter: 'blur(2px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'not-allowed'
+        }} />
+      )}
       {updateToast && (
         <div
           className={`update-toast update-toast-${updateToast.tone}`}
@@ -1077,7 +1085,7 @@ export function App() {
                 <span className="muted-label">Response</span>
                 <h2 style={{
                   color: responseState.kind === 'error' ? '#991b1b'
-                    : responseState.kind === 'success' ? '#15803d'
+                    : currentResponse ? statusColor(currentResponse.status)
                     : 'var(--color-text)'
                 }}>
                   {responseState.kind === "error"
@@ -1087,31 +1095,181 @@ export function App() {
                       : "No response"}
                 </h2>
               </div>
-              {currentResponse && responseState.kind !== "error" && (
-                <div className="response-stats">
-                  <span>
-                    <Clock3 size={14} />
-                    {currentResponse.durationMs} ms
-                  </span>
-                  <span>{formatBytes(currentResponse.sizeBytes)}</span>
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {currentResponse && responseState.kind !== "error" && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className="ghost-button" 
+                      onClick={() => {
+                        const blob = new Blob([currentResponse.bodyText || ''], { type: currentResponse.contentType || 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `response_${currentResponse.status}.txt`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      style={{ padding: '4px 8px', fontSize: '11px' }}
+                    >
+                      <Download size={12} /> Download
+                    </button>
+                    <button 
+                      className="ghost-button" 
+                      onClick={() => {
+                        navigator.clipboard.writeText(currentResponse.bodyText || '');
+                        alert('Response body copied to clipboard!');
+                      }}
+                      style={{ padding: '4px 8px', fontSize: '11px' }}
+                    >
+                      <span style={{ fontSize: '10px' }}>📋</span> Copy
+                    </button>
+                  </div>
+                )}
+                {currentResponse && responseState.kind !== "error" && responseTab === 'preview' && (
+                  <select 
+                    value={previewMode} 
+                    onChange={(e) => setPreviewMode(e.target.value as any)}
+                    style={{ 
+                      fontSize: '12px', 
+                      padding: '2px 6px', 
+                      borderRadius: '4px', 
+                      backgroundColor: 'var(--color-surface-muted)', 
+                      color: 'var(--color-text)', 
+                      border: '1px solid var(--color-border)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="rendered">Rendered</option>
+                    <option value="json">JSON</option>
+                    <option value="xml">XML</option>
+                    <option value="html">HTML</option>
+                    <option value="raw">Raw</option>
+                  </select>
+                )}
+                {currentResponse && responseState.kind !== "error" && (
+                  <div className="response-stats">
+                    <span>
+                      <Clock3 size={14} />
+                      {currentResponse.durationMs} ms
+                    </span>
+                    <span>{formatBytes(currentResponse.sizeBytes)}</span>
+                  </div>
+                )}
+              </div>
             </div>
+
+            <div className="response-tabs" style={{ display: 'flex', gap: '4px', borderBottom: '1px solid var(--color-border)', marginBottom: '16px' }}>
+              {(['preview', 'headers', 'timeline'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setResponseTab(tab)}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    backgroundColor: responseTab === tab ? 'var(--color-surface)' : 'transparent',
+                    color: responseTab === tab ? 'var(--color-text)' : 'var(--color-text-muted)',
+                    border: 'none',
+                    borderBottom: responseTab === tab ? '2px solid var(--color-accent)' : '2px solid transparent',
+                    borderRadius: '4px 4px 0 0',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+
             {responseState.kind === "success" && (
               <div className="response-banner success">Response received from the native HTTP engine.</div>
             )}
             {responseState.kind === "error" && (
               <div className="response-banner error">{responseState.message}</div>
             )}
+
             {responseState.kind === "error" ? (
               <pre className="response-body">{'// No response — see error above.'}</pre>
             ) : currentResponse ? (
-              <pre className="response-body">
-                {currentResponse.bodyText ??
-                  (currentResponse.bodyBase64
-                    ? `[binary response base64]\n${currentResponse.bodyBase64}`
-                    : "// Empty response body")}
-              </pre>
+              <div className="response-body-container">
+                {responseTab === 'preview' && (
+                  <>
+                    {previewMode === 'rendered' ? (
+                      <div 
+                        className="response-body rendered" 
+                        dangerouslySetInnerHTML={{ __html: currentResponse.bodyText || '' }} 
+                      />
+                    ) : (
+                      <pre className="response-body">
+                        {currentResponse.bodyText ??
+                          (currentResponse.bodyBase64
+                        ? `[binary response base64]\n${currentResponse.bodyBase64}`
+                        : "// Empty response body")}
+                      </pre>
+                    )}
+                  </>
+                )}
+                {responseTab === 'headers' && (
+                  <div className="response-body" style={{ 
+                    display: 'grid', 
+                    gap: '8px', 
+                    fontSize: '13px', 
+                    color: 'var(--color-text)'
+                  }}>
+                    {currentResponse.headers.map((h, i) => (
+                      <div key={i} style={{ 
+                        display: 'flex', 
+                        gap: '12px', 
+                        borderBottom: '1px solid var(--color-border)', 
+                        paddingBottom: '6px',
+                        paddingTop: '4px'
+                      }}>
+                        <span style={{ 
+                          fontWeight: 600, 
+                          color: 'var(--color-text-muted)', 
+                          minWidth: '140px',
+                          flexShrink: 0
+                        }}>{h.key}:</span>
+                        <span style={{ 
+                          color: 'var(--color-text)', 
+                          wordBreak: 'break-all' 
+                        }}>{h.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {responseTab === 'timeline' && (
+                  <div className="response-body" style={{ 
+                    fontSize: '13px', 
+                    color: 'var(--color-text)',
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '12px' 
+                  }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      padding: '8px 12px',
+                      backgroundColor: 'var(--color-surface-muted)',
+                      borderRadius: '6px',
+                      border: '1px solid var(--color-border)'
+                    }}>
+                      <span>Total Duration:</span>
+                      <span style={{ fontWeight: 600, color: 'var(--color-accent)' }}>{currentResponse.durationMs} ms</span>
+                    </div>
+                    <div style={{ 
+                      fontSize: '11px', 
+                      color: 'var(--color-text-muted)', 
+                      fontStyle: 'italic',
+                      textAlign: 'center',
+                      padding: '12px'
+                      }}>
+                      Note: Detailed breakdown (DNS, TCP, TLS) is currently handled by the native core.
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <pre className="response-body">{'// Send a request to see a response.'}</pre>
             )}

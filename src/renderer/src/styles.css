@@ -892,13 +892,12 @@ button:disabled {
   margin: 0;
   overflow: auto;
   border-radius: 8px;
-  background: var(--color-editor-bg);
-  color: var(--color-editor-text);
+  background: var(--color-surface);
+  color: var(--color-text);
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Courier, monospace;
   font-size: 13px;
   line-height: 1.7;
   border: 1px solid var(--color-border);
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .editor {
@@ -1059,6 +1058,23 @@ button:disabled {
   min-height: 238px;
   max-height: 420px;
   padding: 16px;
+}
+
+.response-body-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.response-body.rendered {
+  border: none;
+  box-shadow: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 16px;
+  overflow: auto;
 }
 
 .response-banner {
