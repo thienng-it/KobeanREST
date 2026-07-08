@@ -1,0 +1,138 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macOS
+            os: macos-latest
+            args: "--target universal-apple-darwin"
+            bundle_paths: |
+              src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+              src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig
+          - name: Windows
+            os: windows-latest
+            args: ""
+            bundle_paths: |
+              src-tauri/target/release/bundle/msi/*.msi
+              src-tauri/target/release/bundle/msi/*.msi.sig
+          - name: Linux
+            os: ubuntu-latest
+            args: ""
+            bundle_paths: |
+              src-tauri/target/release/bundle/appimage/*.AppImage
+              src-tauri/target/release/bundle/appimage/*.AppImage.sig
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/deb/*.deb.sig
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add macOS universal Rust targets
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Install Linux dependencies
+        if: matrix.platform.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      # --- ADDED LIBSODIUM FIX HERE ---
+      - name: Install libsodium (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg install libsodium:x64-windows-static-md
+          echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "SODIUM_USE_PKG_CONFIG=1" | Out-File -FilePath $env:GITHUB_ENV -Append
+      # --------------------------------
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run local-only contract tests
+        run: npm test
+
+      - name: Build and upload desktop artifacts
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "KobeanREST ${{ github.ref_name }}"
+          releaseBody: "Local-first KobeanREST desktop release. See latest.json for signed updater metadata."
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: false
+          args: ${{ matrix.platform.args }}
+
+      - name: Upload platform bundle files
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.platform.name }}
+          path: ${{ matrix.platform.bundle_paths }}
+          if-no-files-found: error
+
+  checksums:
+    name: Generate release checksums
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download platform bundle files
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bundle-*
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS.txt
+        shell: bash
+        run: |
+          cd release-artifacts
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | xargs -0 shasum -a 256 > SHA256SUMS.txt
+
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-checksums
+          path: release-artifacts/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Publish SHA256SUMS.txt to the draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" release-artifacts/SHA256SUMS.txt --clobber --repo "${{ github.repository }}"
+
+      - name: Build merged updater manifest (latest.json)
+        run: node scripts/build-updater-manifest.mjs release-artifacts "${{ github.ref_name }}" "${{ github.repository }}"
+
+      - name: Publish latest.json to the draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" release-artifacts/latest.json --clobber --repo "${{ github.repository }}"
