@@ -45,4 +45,7 @@ test("App.tsx implements editable state management", () => {
   assert.match(app, /async function handleDeleteFolder/);
   assert.match(app, /async function handleCreateRequest/);
   assert.match(app, /async function handleDeleteRequest/);
+  assert.match(app, /const \[collapsedFolders, setCollapsedFolders\] = useState<Record<string, boolean>>\(\{\}\);/);
+  assert.match(app, /aria-expanded=\{!collapsedFolders\[folder\.id\]\}/);
+  assert.match(app, /\{!collapsedFolders\[folder\.id\] && folderRequests\.map\(request => \(/);
 });

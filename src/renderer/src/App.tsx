@@ -195,6 +195,7 @@ export function App() {
   const [updateToast, setUpdateToast] = useState<{ message: string; tone: "info" | "error" } | null>(null);
 
   const [scriptStatus, setScriptStatus] = useState<Record<string, boolean>>({});
+  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [folderScriptsOpen, setFolderScriptsOpen] = useState(false);
   const [folderScriptsTarget, setFolderScriptsTarget] = useState<string>("");
   const [folderPreScript, setFolderPreScript] = useState("");
@@ -385,10 +386,22 @@ export function App() {
     });
   }
 
+  function toggleFolder(folderId: string) {
+    setCollapsedFolders(prev => ({
+      ...prev,
+      [folderId]: !prev[folderId],
+    }));
+  }
+
   async function confirmDeleteFolder(folderId: string) {
     setDeleteError(null);
     try {
       await deleteFolder(folderId);
+      setCollapsedFolders(prev => {
+        const next = { ...prev };
+        delete next[folderId];
+        return next;
+      });
       setWorkspace(prev => ({
         ...prev,
         folders: prev.folders.filter(f => f.id !== folderId),
@@ -534,6 +547,10 @@ export function App() {
   async function handleCreateRequest(folderId: string) {
     try {
       const newReq = await createRequest(folderId);
+      setCollapsedFolders(prev => ({
+        ...prev,
+        [folderId]: false,
+      }));
       setWorkspace(prev => ({
         ...prev,
         requests: [...prev.requests, newReq]
@@ -730,7 +747,7 @@ export function App() {
       `);
       fn(context);
     } catch (err) {
-      console.error("Failed to parse script:", err);
+      console.error("Failed to parse script:", diagnosticMessage(err));
     }
   }
 
@@ -966,8 +983,13 @@ export function App() {
             return (
               <div className="folder-group" key={folder.id}>
                 <div className="folder-title" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                  <button type="button" style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                    <ChevronDown size={14} />
+                  <button
+                    type="button"
+                    aria-expanded={!collapsedFolders[folder.id]}
+                    onClick={() => toggleFolder(folder.id)}
+                    style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                  >
+                    <ChevronDown size={14} style={{ transform: collapsedFolders[folder.id] ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
                     {folder.name}
                     {scriptStatus[folder.id] && (
                       <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
@@ -985,7 +1007,7 @@ export function App() {
                     </button>
                   </div>
                 </div>
-                {folderRequests.map(request => (
+                {!collapsedFolders[folder.id] && folderRequests.map(request => (
                   <div key={request.id} className={request.id === selectedRequestId ? "request-row active" : "request-row"} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <button
                       style={{ all: 'unset', flex: 1, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
