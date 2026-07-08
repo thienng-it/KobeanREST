@@ -1115,15 +1115,99 @@ export function App() {
             </div>
 
             {activeTab === "body" && (
-              <VariableTextarea 
-                activeVariables={activeVars}
-                className="editor" 
-                aria-label="Request body"
-                value={draftRequest.body}
-                onChange={(e) => updateDraft({ body: e.target.value })}
-                placeholder="// Request body"
-                style={{ width: '100%', minHeight: '150px', padding: '12px', fontFamily: 'monospace', backgroundColor: 'var(--color-surface)', border: 'none', resize: 'vertical' }}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>Content-Type:</label>
+                  <select
+                    value={draftRequest.bodyMimeType}
+                    onChange={(e) => {
+                      const newMimeType = e.target.value;
+                      const updates: any = { bodyMimeType: newMimeType };
+                      if (["application/x-www-form-urlencoded", "multipart/form-data"].includes(newMimeType)) {
+                        updates.bodyForm = draftRequest.bodyForm ?? [];
+                      }
+                      updateDraft(updates);
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '12px',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--color-surface)',
+                      color: 'var(--color-text)',
+                      border: '1px solid var(--color-border)',
+                    }}
+                  >
+                    <option value="text/plain">Text (plain)</option>
+                    <option value="application/json">JSON</option>
+                    <option value="application/xml">XML</option>
+                    <option value="text/xml">XML</option>
+                    <option value="application/x-www-form-urlencoded">Form URL Encoded</option>
+                    <option value="multipart/form-data">Multipart Form Data</option>
+                    <option value="application/octet-stream">Binary</option>
+                  </select>
+                </div>
+                
+                {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
+                  <div className="table-like" aria-label="Body form data">
+                    {(draftRequest.bodyForm ?? []).map((item, idx) => (
+                      <div className="table-row" key={idx} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={item.enabled}
+                          onChange={(e) => {
+                            const form = [...(draftRequest.bodyForm ?? [])];
+                            form[idx].enabled = e.target.checked;
+                            updateDraft({ bodyForm: form });
+                          }}
+                        />
+                        <VariableInput 
+                          activeVariables={activeVars}
+                          value={item.key} 
+                          placeholder="Key"
+                          onChange={(e) => {
+                            const form = [...(draftRequest.bodyForm ?? [])];
+                            form[idx].key = e.target.value;
+                            updateDraft({ bodyForm: form });
+                          }}
+                          style={{ backgroundColor: 'transparent', border: 'none' }}
+                          containerStyle={{ flex: 1 }}
+                        />
+                        <VariableInput 
+                          activeVariables={activeVars}
+                          value={item.value} 
+                          placeholder="Value"
+                          onChange={(e) => {
+                            const form = [...(draftRequest.bodyForm ?? [])];
+                            form[idx].value = e.target.value;
+                            updateDraft({ bodyForm: form });
+                          }}
+                          style={{ backgroundColor: 'transparent', border: 'none' }}
+                          containerStyle={{ flex: 2 }}
+                        />
+                        <button type="button" onClick={() => {
+                          const form = (draftRequest.bodyForm ?? []).filter((_, i) => i !== idx);
+                          updateDraft({ bodyForm: form });
+                        }} style={{ all: 'unset', cursor: 'pointer', padding: '4px', opacity: 0.7 }}><Trash2 size={14}/></button>
+                      </div>
+                    ))}
+                    <button type="button" className="ghost-button" onClick={() => {
+                      updateDraft({ bodyForm: [...(draftRequest.bodyForm ?? []), { key: '', value: '', enabled: true }] });
+                    }} style={{ marginTop: '8px' }}>
+                      <Plus size={14}/> Add Field
+                    </button>
+                  </div>
+                ) : (
+                  <VariableTextarea 
+                    activeVariables={activeVars}
+                    className="editor" 
+                    aria-label="Request body"
+                    value={draftRequest.body}
+                    onChange={(e) => updateDraft({ body: e.target.value })}
+                    placeholder="// Request body"
+                    style={{ width: '100%', minHeight: '150px', padding: '12px', fontFamily: 'monospace', backgroundColor: 'var(--color-surface)', border: 'none', resize: 'vertical' }}
+                  />
+                )}
+              </div>
             )}
             {activeTab === "headers" && (
               <div className="table-like" aria-label="Request headers">

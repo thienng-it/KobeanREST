@@ -32,6 +32,8 @@ export interface SavedRequest {
   authConfig: AuthConfig;
   headers: Array<{ key: string; value: string; enabled: boolean }>;
   body: string;
+  bodyMimeType: string;
+  bodyForm: Array<{ key: string; value: string; enabled: boolean }>;
   timeoutMs: number;
   followRedirects: boolean;
 }
@@ -97,6 +99,8 @@ export interface ExecuteHttpRequest {
   url: string;
   headers: Array<{ key: string; value: string; enabled: boolean }>;
   body?: string;
+  bodyMimeType?: string;
+  bodyForm?: Array<{ key: string; value: string; enabled: boolean }>;
   timeoutMs: number;
   followRedirects: boolean;
 }

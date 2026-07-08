@@ -116,6 +116,8 @@ export async function createRequest(folderId: string): Promise<import("../types"
       authConfig: {},
       headers: [],
       body: "",
+      bodyMimeType: "text/plain",
+      bodyForm: [],
       timeoutMs: 30000,
       followRedirects: true,
     };

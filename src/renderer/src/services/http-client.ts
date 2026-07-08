@@ -45,14 +45,36 @@ export async function executeHttpRequest(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), request.timeoutMs);
 
+    const headersObj = Object.fromEntries(
+      request.headers
+        .filter(h => h.enabled)
+        .map(h => [h.key, h.value])
+    );
+
+    // If bodyMimeType is provided and Content-Type is not explicitly set in headers, add it.
+    if (request.bodyMimeType && !headersObj["Content-Type"] && !headersObj["content-type"]) {
+      headersObj["Content-Type"] = request.bodyMimeType;
+    }
+
+    let body: string | undefined = undefined;
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      if (request.bodyMimeType === "application/x-www-form-urlencoded" && request.bodyForm && request.bodyForm.length > 0) {
+        const params = new URLSearchParams();
+        request.bodyForm.forEach(item => {
+          if (item.enabled && item.key) {
+            params.append(item.key, item.value);
+          }
+        });
+        body = params.toString();
+      } else {
+        body = request.body;
+      }
+    }
+
     const response = await fetch(request.url, {
       method: request.method === "CUSTOM" ? "GET" : request.method, // fetch doesn't support all custom methods
-      headers: Object.fromEntries(
-        request.headers
-          .filter(h => h.enabled)
-          .map(h => [h.key, h.value])
-      ),
-      body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
+      headers: headersObj,
+      body: body,
       signal: controller.signal,
       redirect: request.followRedirects ? "follow" : "manual",
     });
