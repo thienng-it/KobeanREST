@@ -1,4 +1,4 @@
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "CUSTOM";
 
 export type ApiAuthMode = "none" | "basic" | "bearer" | "apiKey" | "oauth2";
 
@@ -15,6 +15,8 @@ export interface SavedRequest {
   id: string;
   name: string;
   method: HttpMethod;
+  /** When method === "CUSTOM", this holds the actual HTTP method string (e.g. "TRACE", "QUERY"). */
+  customMethod?: string;
   url: string;
   folderId: string;
   authMode: ApiAuthMode;
@@ -82,7 +84,7 @@ export interface UpdateCheckPreview {
 }
 
 export interface ExecuteHttpRequest {
-  method: HttpMethod;
+  method: string;
   url: string;
   headers: Array<{ key: string; value: string; enabled: boolean }>;
   body?: string;

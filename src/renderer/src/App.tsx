@@ -21,6 +21,8 @@ import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contra
 import { authModes, sampleWorkspace } from "./data/sample-workspace";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap } from "./services/variables";
+import { VariableInput, VariableTextarea } from "./components/VariableInput";
+import { MethodSelector, methodClass, resolvedMethodLabel } from "./components/MethodSelector";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl } from "./services/auth";
 import { redactDiagnosticError } from "./services/redaction";
 import { checkForAppUpdate, downloadAndInstallUpdate, type AvailableUpdate } from "./services/updater";
@@ -129,7 +131,7 @@ function AddVariableRow({
   return (
     <div
       aria-label="Add variable"
-      style={{ padding: '8px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}
+      style={{ padding: '8px', background: 'var(--color-surface-muted)', borderTop: '1px solid var(--color-border)' }}
     >
       <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
         <input
@@ -137,7 +139,7 @@ function AddVariableRow({
           onChange={e => setNewVarKey(e.target.value)}
           placeholder="New key"
           aria-label="Variable key"
-          style={{ flex: 1, fontSize: '12px', fontFamily: 'monospace', backgroundColor: '#fff', color: '#15202f', border: '1px solid #cfd9e8', borderRadius: '3px', padding: '4px 6px' }}
+          style={{ flex: 1, fontSize: '12px', fontFamily: 'monospace', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '3px', padding: '4px 6px' }}
         />
         <input
           value={newVarValue}
@@ -145,7 +147,7 @@ function AddVariableRow({
           placeholder={newVarSecret ? 'Secret value' : 'Value'}
           aria-label="Variable value"
           type={newVarSecret ? 'password' : 'text'}
-          style={{ flex: 2, fontSize: '12px', fontFamily: 'monospace', backgroundColor: '#fff', color: '#15202f', border: '1px solid #cfd9e8', borderRadius: '3px', padding: '4px 6px' }}
+          style={{ flex: 2, fontSize: '12px', fontFamily: 'monospace', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '3px', padding: '4px 6px' }}
         />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -267,6 +269,7 @@ export function App() {
 
   const isSending = responseState.kind === "loading";
   const currentResponse = responseState.kind === "error" ? undefined : responseState.response;
+  const activeVars = activeEnvironmentVariables(workspace);
 
   function updateDraft(fields: Partial<SavedRequest>) {
     if (draftRequest) {
@@ -681,9 +684,15 @@ export function App() {
       response: current.kind === "error" ? initialResponse : current.response,
     }));
 
+    // Resolve the actual method string (CUSTOM uses the customMethod field)
+    const effectiveMethod =
+      draftRequest.method === "CUSTOM"
+        ? (draftRequest.customMethod?.trim().toUpperCase() || "CUSTOM")
+        : draftRequest.method;
+
     try {
       const response = await executeHttpRequest({
-        method: draftRequest.method,
+        method: effectiveMethod,
         url: authUrl,
         headers: authHeaders,
         body: resolvedBody,
@@ -694,7 +703,7 @@ export function App() {
       const historyUrl = redactAuthFromUrl(authUrl, draftRequest.authMode, resolvedAuth);
       void recordRequestHistory({
         requestId: draftRequest.id,
-        method: draftRequest.method,
+        method: effectiveMethod,
         url: historyUrl,
         status: response.status,
         durationMs: response.durationMs,
@@ -806,7 +815,7 @@ export function App() {
                       onClick={() => setSelectedRequestId(request.id)}
                       type="button"
                     >
-                      <span className={`method method-${request.method.toLowerCase()}`}>{request.method}</span>
+                      <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
                       <span>{request.name}</span>
                     </button>
                     <button type="button" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
@@ -880,22 +889,18 @@ export function App() {
               </button>
             </div>
             <div className="request-url-row">
-              <select
-                value={draftRequest.method}
-                aria-label="HTTP method"
-                onChange={(e) => updateDraft({ method: e.target.value as any })}
-              >
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-                <option value="PUT">PUT</option>
-                <option value="PATCH">PATCH</option>
-                <option value="DELETE">DELETE</option>
-              </select>
-              <input 
+              <MethodSelector
+                method={draftRequest.method}
+                customMethod={draftRequest.customMethod}
+                onChange={(m, cm) => updateDraft({ method: m, customMethod: cm })}
+              />
+              <VariableInput 
+                activeVariables={activeVars}
                 value={draftRequest.url} 
                 aria-label="Request URL" 
                 onChange={(e) => updateDraft({ url: e.target.value })}
                 placeholder="https://api.example.com"
+                containerStyle={{ flex: 1 }}
               />
               <button
                 className="send-button"
@@ -923,13 +928,14 @@ export function App() {
             </div>
 
             {activeTab === "body" && (
-              <textarea 
+              <VariableTextarea 
+                activeVariables={activeVars}
                 className="editor" 
                 aria-label="Request body"
                 value={draftRequest.body}
                 onChange={(e) => updateDraft({ body: e.target.value })}
                 placeholder="// Request body"
-                style={{ width: '100%', minHeight: '150px', padding: '12px', fontFamily: 'monospace', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: 'none', resize: 'vertical' }}
+                style={{ width: '100%', minHeight: '150px', padding: '12px', fontFamily: 'monospace', backgroundColor: 'var(--color-surface)', border: 'none', resize: 'vertical' }}
               />
             )}
             {activeTab === "headers" && (
@@ -945,7 +951,8 @@ export function App() {
                         updateDraft({ headers: h });
                       }}
                     />
-                    <input 
+                    <VariableInput 
+                      activeVariables={activeVars}
                       value={header.key} 
                       placeholder="Header key"
                       onChange={(e) => {
@@ -953,9 +960,11 @@ export function App() {
                         h[idx].key = e.target.value;
                         updateDraft({ headers: h });
                       }}
-                      style={{ flex: 1, backgroundColor: 'transparent', color: 'var(--color-text)', border: 'none' }}
+                      style={{ backgroundColor: 'transparent', border: 'none' }}
+                      containerStyle={{ flex: 1 }}
                     />
-                    <input 
+                    <VariableInput 
+                      activeVariables={activeVars}
                       value={header.value} 
                       placeholder="Header value"
                       onChange={(e) => {
@@ -963,7 +972,8 @@ export function App() {
                         h[idx].value = e.target.value;
                         updateDraft({ headers: h });
                       }}
-                      style={{ flex: 2, backgroundColor: 'transparent', color: 'var(--color-text)', border: 'none' }}
+                      style={{ backgroundColor: 'transparent', border: 'none' }}
+                      containerStyle={{ flex: 2 }}
                     />
                     <button type="button" onClick={() => {
                       const h = draftRequest.headers.filter((_, i) => i !== idx);
@@ -998,15 +1008,15 @@ export function App() {
                     );
                   })}
                 </div>
-                {draftRequest.authMode === "basic" && (
+                 {draftRequest.authMode === "basic" && (
                   <div className="auth-config-fields" aria-label="Basic auth credentials">
                     <label>
                       <span>Username</span>
-                      <input value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
+                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
                     </label>
                     <label>
                       <span>Password</span>
-                      <input type="password" value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
+                      <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
                     </label>
                   </div>
                 )}
@@ -1014,7 +1024,7 @@ export function App() {
                   <div className="auth-config-fields" aria-label="Bearer token credential">
                     <label>
                       <span>Token</span>
-                      <input value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
+                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
                     </label>
                   </div>
                 )}
@@ -1022,11 +1032,11 @@ export function App() {
                   <div className="auth-config-fields" aria-label="API key credentials">
                     <label>
                       <span>Key name</span>
-                      <input value={draftRequest.authConfig?.keyName ?? ""} onChange={e => updateAuthConfig({ keyName: e.target.value })} placeholder="X-API-Key or {{variable}}" autoComplete="off" />
+                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.keyName ?? ""} onChange={e => updateAuthConfig({ keyName: e.target.value })} placeholder="X-API-Key or {{variable}}" autoComplete="off" />
                     </label>
                     <label>
                       <span>Key value</span>
-                      <input value={draftRequest.authConfig?.keyValue ?? ""} onChange={e => updateAuthConfig({ keyValue: e.target.value })} placeholder="value or {{variable}}" autoComplete="off" />
+                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.keyValue ?? ""} onChange={e => updateAuthConfig({ keyValue: e.target.value })} placeholder="value or {{variable}}" autoComplete="off" />
                     </label>
                     <label>
                       <span>Add to</span>
@@ -1068,7 +1078,7 @@ export function App() {
                 <h2 style={{
                   color: responseState.kind === 'error' ? '#991b1b'
                     : responseState.kind === 'success' ? '#15803d'
-                    : '#15202f'
+                    : 'var(--color-text)'
                 }}>
                   {responseState.kind === "error"
                     ? "Request failed"
@@ -1164,14 +1174,14 @@ export function App() {
               </div>
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '6px 10px', border: '1px solid #dbe4ef', borderRadius: '6px', background: '#f8fafc' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '6px 10px', border: '1px solid var(--color-border)', borderRadius: '6px', background: 'var(--color-surface-muted)' }}>
               <Search size={14} style={{ opacity: 0.5, flexShrink: 0 }} />
               <input
                 value={historySearch}
                 onChange={e => setHistorySearch(e.target.value)}
                 placeholder="Filter by URL or method…"
                 aria-label="Search history"
-                style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: '#15202f' }}
+                style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: 'var(--color-text)' }}
               />
             </label>
 
@@ -1191,15 +1201,15 @@ export function App() {
                   return (
                     <div
                       key={entry.id}
-                      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 4px', borderBottom: '1px solid #f1f5f9' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 4px', borderBottom: '1px solid var(--color-border)' }}
                     >
                       <span
                         style={{ flexShrink: 0, fontSize: '12px', fontWeight: 700, minWidth: '36px', textAlign: 'center', padding: '2px 5px', borderRadius: '4px', backgroundColor: `${statusColor(entry.status)}18`, color: statusColor(entry.status) }}
                       >
                         {entry.status}
                       </span>
-                      <span style={{ flexShrink: 0, fontSize: '11px', fontWeight: 800, color: '#64748b', minWidth: '44px' }}>{entry.method}</span>
-                      <span style={{ flex: 1, fontSize: '12px', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#15202f' }} title={entry.url}>{entry.url}</span>
+                      <span className={`method method-${methodClass(entry.method)}`} style={{ flexShrink: 0 }}>{entry.method}</span>
+                      <span style={{ flex: 1, fontSize: '12px', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text)' }} title={entry.url}>{entry.url}</span>
                       <span style={{ flexShrink: 0, fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{entry.durationMs} ms</span>
                       <span style={{ flexShrink: 0, fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{formatBytes(entry.sizeBytes)}</span>
                       <span style={{ flexShrink: 0, fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{formatTimestamp(entry.createdAt)}</span>
