@@ -167,6 +167,8 @@ export function App() {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const [draftRequest, setDraftRequest] = useState<SavedRequest | null>(null);
+  const [renamingRequestId, setRenamingRequestId] = useState("");
+  const [renameDraft, setRenameDraft] = useState("");
   const [preScript, setPreScript] = useState("");
   const [postScript, setPostScript] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
@@ -305,11 +307,42 @@ export function App() {
   const isSending = responseState.kind === "loading";
   const currentResponse = responseState.kind === "error" ? undefined : responseState.response;
   const activeVars = activeEnvironmentVariables(workspace);
-
+  const requestFolder = draftRequest
+    ? workspace.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
+    : null;
+  const requestPath = requestFolder && draftRequest ? `${requestFolder.name} / ${draftRequest.name}` : draftRequest?.name ?? "";
   function updateDraft(fields: Partial<SavedRequest>) {
     if (draftRequest) {
       setDraftRequest({ ...draftRequest, ...fields });
     }
+  }
+
+  function startRequestRename(request: SavedRequest) {
+    setSelectedRequestId(request.id);
+    setRenameDraft(draftRequest?.id === request.id ? draftRequest.name : request.name);
+    setRenamingRequestId(request.id);
+  }
+
+  function stopRequestRename() {
+    setRenamingRequestId("");
+  }
+
+  function applyRequestRename(requestId: string) {
+    const nextName = renameDraft.trim();
+    if (!nextName) {
+      const request = workspace.requests.find((item) => item.id === requestId);
+      setRenameDraft(request?.name ?? "");
+      setRenamingRequestId("");
+      return;
+    }
+
+    setDraftRequest((current) => {
+      if (!current || current.id !== requestId) {
+        return current;
+      }
+      return { ...current, name: nextName };
+    });
+    setRenamingRequestId("");
   }
 
   function updateAuthConfig(fields: Partial<import("./types").AuthConfig>) {
@@ -902,19 +935,6 @@ export function App() {
 
   return (
     <main className="app-shell">
-      {responseState.kind === "loading" && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 1000,
-          backgroundColor: 'rgba(0, 0, 0, 0.2)',
-          backdropFilter: 'blur(2px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'not-allowed'
-        }} />
-      )}
       {updateToast && (
         <div
           className={`update-toast update-toast-${updateToast.tone}`}
@@ -1009,20 +1029,52 @@ export function App() {
                 </div>
                 {!collapsedFolders[folder.id] && folderRequests.map(request => (
                   <div key={request.id} className={request.id === selectedRequestId ? "request-row active" : "request-row"} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <button
-                      style={{ all: 'unset', flex: 1, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                      onClick={() => setSelectedRequestId(request.id)}
-                      type="button"
-                    >
-                      <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
-                      <span>{request.name}</span>
-                      {scriptStatus[request.id] && (
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
-                      )}
-                    </button>
-                    <button type="button" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
-                      <Trash2 size={12} />
-                    </button>
+                    {renamingRequestId === request.id ? (
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
+                        <input
+                          value={renameDraft}
+                          aria-label={`Rename ${request.name}`}
+                          placeholder="Request Name"
+                          autoFocus
+                          onChange={(event) => setRenameDraft(event.target.value)}
+                          onBlur={() => applyRequestRename(request.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              applyRequestRename(request.id);
+                            } else if (event.key === "Escape") {
+                              event.preventDefault();
+                              stopRequestRename();
+                            }
+                          }}
+                          style={{ flex: 1, minWidth: 0, width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border-tint)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '4px 8px' }}
+                        />
+                        {scriptStatus[request.id] && (
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        style={{ all: 'unset', flex: 1, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                        onClick={() => setSelectedRequestId(request.id)}
+                        type="button"
+                      >
+                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
+                        <span onDoubleClick={() => startRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
+                        {scriptStatus[request.id] && (
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
+                        )}
+                      </button>
+                    )}
+                    <div style={{ display: 'flex', flexShrink: 0, gap: '4px' }}>
+                      <button type="button" aria-label={`Rename ${request.name}`} onClick={() => startRequestRename(request)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
+                        <Edit2 size={12} />
+                      </button>
+                      <button type="button" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1033,10 +1085,6 @@ export function App() {
 
       <section className="workspace">
         <header className="topbar">
-          <div>
-            <span className="muted-label">Workspace</span>
-            <h1>{workspace.name}</h1>
-          </div>
           <div className="topbar-actions">
             <button className="ghost-button" type="button" onClick={() => openProductDocs()}>
               <Download size={16} />
@@ -1070,169 +1118,171 @@ export function App() {
           </div>
         </header>
 
-        {draftRequest && (
-          <section className="request-panel" aria-label="Request builder">
-            <div className="request-url-row" style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input
-                value={draftRequest.name}
-                aria-label="Request Name"
-                onChange={(e) => updateDraft({ name: e.target.value })}
-                style={{ flex: 1, padding: '6px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
-                placeholder="Request Name"
-              />
-              <button
-                className="ghost-button"
-                type="button"
-                onClick={handleSaveRequest}
-                title="Save (Cmd/Ctrl + S)"
-              >
-                <Save size={17} />
-                Save
-              </button>
-            </div>
-            <div className="request-url-row">
-              <MethodSelector
-                method={draftRequest.method}
-                customMethod={draftRequest.customMethod}
-                onChange={(m, cm) => updateDraft({ method: m, customMethod: cm })}
-              />
-              <VariableInput 
-                activeVariables={activeVars}
-                value={draftRequest.url} 
-                aria-label="Request URL" 
-                onChange={(e) => updateDraft({ url: e.target.value })}
-                placeholder="https://api.example.com"
-                containerStyle={{ flex: 1 }}
-              />
-              <button
-                className="send-button"
-                type="button"
-                onClick={sendSelectedRequest}
-                disabled={isSending}
-              >
-                <Play size={17} />
-                {isSending ? "Sending" : "Send"}
-              </button>
-            </div>
-
-            <div className="tab-row" role="tablist" aria-label="Request configuration">
-              {(["body", "headers", "auth", "scripts"] as const).map((tab) => (
-                <button
-                  className={activeTab === tab ? "tab active" : "tab"}
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  role="tab"
-                  type="button"
-                >
-                  {tab === "scripts" ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
-                      {tab}
-                    </div>
-                  ) : (
-                    tab
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {activeTab === "body" && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>Content-Type:</label>
-                  <select
-                    value={draftRequest.bodyMimeType}
-                    onChange={(e) => {
-                      const newMimeType = e.target.value;
-                      const updates: any = { bodyMimeType: newMimeType };
-                      if (["application/x-www-form-urlencoded", "multipart/form-data"].includes(newMimeType)) {
-                        updates.bodyForm = draftRequest.bodyForm ?? [];
-                      }
-                      updateDraft(updates);
-                    }}
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '12px',
-                      borderRadius: '4px',
-                      backgroundColor: 'var(--color-surface)',
-                      color: 'var(--color-text)',
-                      border: '1px solid var(--color-border)',
-                    }}
-                  >
-                    <option value="text/plain">Text (plain)</option>
-                    <option value="application/json">JSON</option>
-                    <option value="application/xml">XML</option>
-                    <option value="text/xml">XML</option>
-                    <option value="application/x-www-form-urlencoded">Form URL Encoded</option>
-                    <option value="multipart/form-data">Multipart Form Data</option>
-                    <option value="application/octet-stream">Binary</option>
-                  </select>
-                </div>
-                
-                {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
-                  <div className="table-like" aria-label="Body form data">
-                    {(draftRequest.bodyForm ?? []).map((item, idx) => (
-                      <div className="table-row" key={idx} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
-                        <input 
-                          type="checkbox" 
-                          checked={item.enabled}
-                          onChange={(e) => {
-                            const form = [...(draftRequest.bodyForm ?? [])];
-                            form[idx].enabled = e.target.checked;
-                            updateDraft({ bodyForm: form });
-                          }}
-                        />
-                        <VariableInput 
-                          activeVariables={activeVars}
-                          value={item.key} 
-                          placeholder="Key"
-                          onChange={(e) => {
-                            const form = [...(draftRequest.bodyForm ?? [])];
-                            form[idx].key = e.target.value;
-                            updateDraft({ bodyForm: form });
-                          }}
-                          style={{ backgroundColor: 'transparent', border: 'none' }}
-                          containerStyle={{ flex: 1 }}
-                        />
-                        <VariableInput 
-                          activeVariables={activeVars}
-                          value={item.value} 
-                          placeholder="Value"
-                          onChange={(e) => {
-                            const form = [...(draftRequest.bodyForm ?? [])];
-                            form[idx].value = e.target.value;
-                            updateDraft({ bodyForm: form });
-                          }}
-                          style={{ backgroundColor: 'transparent', border: 'none' }}
-                          containerStyle={{ flex: 2 }}
-                        />
-                        <button type="button" onClick={() => {
-                          const form = (draftRequest.bodyForm ?? []).filter((_, i) => i !== idx);
-                          updateDraft({ bodyForm: form });
-                        }} style={{ all: 'unset', cursor: 'pointer', padding: '4px', opacity: 0.7 }}><Trash2 size={14}/></button>
-                      </div>
-                    ))}
-                    <button type="button" className="ghost-button" onClick={() => {
-                      updateDraft({ bodyForm: [...(draftRequest.bodyForm ?? []), { key: '', value: '', enabled: true }] });
-                    }} style={{ marginTop: '8px' }}>
-                      <Plus size={14}/> Add Field
-                    </button>
+        <div className="workspace-main">
+          {draftRequest && (
+            <section className="request-panel" aria-label="Request builder">
+              <div className="request-header">
+                <div className="request-identity">
+                  <span className="muted-label">Request</span>
+                  <div className="request-title-row">
+                    <h1>{draftRequest.name}</h1>
                   </div>
-                ) : (
-                  <VariableTextarea 
-                    activeVariables={activeVars}
-                    className="editor" 
-                    aria-label="Request body"
-                    value={draftRequest.body}
-                    onChange={(e) => updateDraft({ body: e.target.value })}
-                    placeholder="// Request body"
-                    style={{ width: '100%', minHeight: '150px', padding: '12px', fontFamily: 'monospace', backgroundColor: 'var(--color-surface)', border: 'none', resize: 'vertical' }}
-                  />
-                )}
+                  <div className="request-path">{requestPath}</div>
+                </div>
+                <div className="request-header-actions">
+                  <button
+                    className="ghost-button request-save-button"
+                    type="button"
+                    onClick={handleSaveRequest}
+                    title="Save (Cmd/Ctrl + S)"
+                  >
+                    <Save size={17} />
+                    Save
+                  </button>
+                </div>
               </div>
-            )}
-            {activeTab === "headers" && (
-              <div className="table-like" aria-label="Request headers">
+
+              <div className="request-command-bar">
+                <MethodSelector
+                  method={draftRequest.method}
+                  customMethod={draftRequest.customMethod}
+                  onChange={(m, cm) => updateDraft({ method: m, customMethod: cm })}
+                />
+                <VariableInput
+                  activeVariables={activeVars}
+                  value={draftRequest.url}
+                  aria-label="Request URL"
+                  onChange={(e) => updateDraft({ url: e.target.value })}
+                  placeholder="https://api.example.com"
+                  containerClassName="request-command-input"
+                  className="request-command-input-field"
+                  containerStyle={{ flex: 1 }}
+                />
+                <button
+                  className="send-button request-send-button"
+                  type="button"
+                  onClick={sendSelectedRequest}
+                  disabled={isSending}
+                >
+                  <Play size={17} />
+                  {isSending ? "Sending" : "Send"}
+                </button>
+              </div>
+
+              <div className="request-workspace">
+                <div className="tab-row" role="tablist" aria-label="Request configuration">
+                  {(["body", "headers", "auth", "scripts"] as const).map((tab) => (
+                    <button
+                      className={activeTab === tab ? "tab active" : "tab"}
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      role="tab"
+                      type="button"
+                    >
+                      {tab === "scripts" ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
+                          {tab}
+                        </div>
+                      ) : (
+                        tab
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {activeTab === "body" && (
+                  <div className="request-tab-panel request-body-panel">
+                    <div className="request-body-toolbar">
+                      <label>Content-Type</label>
+                      <select
+                        value={draftRequest.bodyMimeType}
+                        onChange={(e) => {
+                          const newMimeType = e.target.value;
+                          const updates: any = { bodyMimeType: newMimeType };
+                          if (["application/x-www-form-urlencoded", "multipart/form-data"].includes(newMimeType)) {
+                            updates.bodyForm = draftRequest.bodyForm ?? [];
+                          }
+                          updateDraft(updates);
+                        }}
+                      >
+                        <option value="text/plain">Text (plain)</option>
+                        <option value="application/json">JSON</option>
+                        <option value="application/xml">XML</option>
+                        <option value="text/xml">XML</option>
+                        <option value="application/x-www-form-urlencoded">Form URL Encoded</option>
+                        <option value="multipart/form-data">Multipart Form Data</option>
+                        <option value="application/octet-stream">Binary</option>
+                      </select>
+                    </div>
+
+                    {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
+                      <div className="table-like" aria-label="Body form data">
+                        {(draftRequest.bodyForm ?? []).map((item, idx) => (
+                          <div className="table-row" key={idx} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
+                            <input
+                              type="checkbox"
+                              checked={item.enabled}
+                              onChange={(e) => {
+                                const form = [...(draftRequest.bodyForm ?? [])];
+                                form[idx].enabled = e.target.checked;
+                                updateDraft({ bodyForm: form });
+                              }}
+                            />
+                            <VariableInput
+                              activeVariables={activeVars}
+                              value={item.key}
+                              placeholder="Key"
+                              onChange={(e) => {
+                                const form = [...(draftRequest.bodyForm ?? [])];
+                                form[idx].key = e.target.value;
+                                updateDraft({ bodyForm: form });
+                              }}
+                              style={{ backgroundColor: 'transparent', border: 'none' }}
+                              containerStyle={{ flex: 1 }}
+                            />
+                            <VariableInput
+                              activeVariables={activeVars}
+                              value={item.value}
+                              placeholder="Value"
+                              onChange={(e) => {
+                                const form = [...(draftRequest.bodyForm ?? [])];
+                                form[idx].value = e.target.value;
+                                updateDraft({ bodyForm: form });
+                              }}
+                              style={{ backgroundColor: 'transparent', border: 'none' }}
+                              containerStyle={{ flex: 2 }}
+                            />
+                            <button type="button" onClick={() => {
+                              const form = (draftRequest.bodyForm ?? []).filter((_, i) => i !== idx);
+                              updateDraft({ bodyForm: form });
+                            }} style={{ all: 'unset', cursor: 'pointer', padding: '4px', opacity: 0.7 }}><Trash2 size={14}/></button>
+                          </div>
+                        ))}
+                        <button type="button" className="ghost-button" onClick={() => {
+                          updateDraft({ bodyForm: [...(draftRequest.bodyForm ?? []), { key: '', value: '', enabled: true }] });
+                        }} style={{ marginTop: '8px' }}>
+                          <Plus size={14}/> Add Field
+                        </button>
+                      </div>
+                    ) : (
+                      <VariableTextarea
+                        activeVariables={activeVars}
+                        className="editor request-body-editor"
+                        containerClassName="request-body-editor-shell"
+                        containerStyle={{ flex: 1, minHeight: 0 }}
+                        aria-label="Request body"
+                        value={draftRequest.body}
+                        onChange={(e) => updateDraft({ body: e.target.value })}
+                        placeholder="// Request body"
+                        style={{ width: '100%', height: '100%', minHeight: '100%', padding: '12px 14px', fontFamily: 'monospace', resize: 'none' }}
+                      />
+                    )}
+                  </div>
+                )}
+              {activeTab === "headers" && (
+                <div className="request-tab-panel">
+                  <div className="table-like" aria-label="Request headers">
                 {draftRequest.headers.map((header, idx) => (
                   <div className="table-row" key={idx} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
                     <input 
@@ -1279,10 +1329,11 @@ export function App() {
                 }} style={{ marginTop: '8px' }}>
                   <Plus size={14}/> Add Header
                 </button>
-              </div>
-            )}
-            {activeTab === "auth" && (
-              <div aria-label="API request authentication">
+                  </div>
+                </div>
+              )}
+              {activeTab === "auth" && (
+              <div className="request-tab-panel" aria-label="API request authentication">
                 <div className="auth-grid">
                   {authModes.map((mode) => {
                     const modeVal = mode === "None" ? "none" : mode === "Basic Auth" ? "basic" : mode === "Bearer Token" ? "bearer" : mode === "API Key" ? "apiKey" : "oauth2";
@@ -1341,11 +1392,11 @@ export function App() {
                   </div>
                 )}
               </div>
-            )}
-            {activeTab === "scripts" && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              )}
+              {activeTab === "scripts" && (
+              <div className="request-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
                     Pre-request Script
                   </label>
@@ -1357,7 +1408,7 @@ export function App() {
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
                     Post-request Script
                   </label>
@@ -1374,30 +1425,31 @@ export function App() {
                   </button>
                 </div>
               </div>
-            )}
-            <div className="execution-options" aria-label="Request execution options" style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Timeout (ms):
-                <input 
-                  type="number" 
-                  value={draftRequest.timeoutMs}
-                  onChange={(e) => updateDraft({ timeoutMs: parseInt(e.target.value) || 30000 })}
-                  style={{ width: '80px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px' }}
-                />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input 
-                  type="checkbox" 
-                  checked={draftRequest.followRedirects}
-                  onChange={(e) => updateDraft({ followRedirects: e.target.checked })}
-                /> Follow Redirects
-              </label>
-            </div>
-          </section>
-        )}
+              )}
+              </div>
+              <div className="execution-options" aria-label="Request execution options" style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  Timeout (ms):
+                  <input
+                    type="number"
+                    value={draftRequest.timeoutMs}
+                    onChange={(e) => updateDraft({ timeoutMs: parseInt(e.target.value) || 30000 })}
+                    style={{ width: '80px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px' }}
+                  />
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={draftRequest.followRedirects}
+                    onChange={(e) => updateDraft({ followRedirects: e.target.checked })}
+                  /> Follow Redirects
+                </label>
+              </div>
+            </section>
+          )}
 
-        <section className="response-layout" aria-label="Response">
-          <div className="response-viewer">
+          <section className="response-layout" aria-label="Response">
+            <div className="response-viewer">
             <div className="panel-heading">
               <div>
                 <span className="muted-label">Response</span>
@@ -1603,9 +1655,9 @@ export function App() {
             ) : (
               <pre className="response-body">{'// Send a request to see a response.'}</pre>
             )}
-          </div>
-
-        </section>
+            </div>
+          </section>
+        </div>
       </section>
 
       {confirmDialog && (
