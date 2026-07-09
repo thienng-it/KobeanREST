@@ -36,10 +36,13 @@ test("request builder UI sends selected requests and renders dynamic response st
 
   assert.match(app, /sendSelectedRequest/);
   assert.match(app, /isSending/);
+  assert.match(app, /\{isSending \? "Sending" : "Send"\}/);
   assert.match(app, /setResponseState/);
   assert.match(app, /(selectedRequest|draftRequest)\.timeoutMs/);
   assert.match(app, /responseState\.kind === "success"/);
   assert.match(app, /responseState\.kind === "error"/);
+  assert.doesNotMatch(app, /backdropFilter:\s*'blur\(2px\)'/);
+  assert.doesNotMatch(app, /responseState\.kind === "loading" && \(/);
 });
 
 test("saved request model includes MVP execution options", () => {
