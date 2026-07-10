@@ -14,7 +14,7 @@ import {
   Plus,
   Trash2,
   Edit2,
-  X
+  X, Eye
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
@@ -24,6 +24,7 @@ import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVari
 import { VariableInput, VariableTextarea } from "./components/VariableInput";
 import { MethodSelector, methodClass, resolvedMethodLabel } from "./components/MethodSelector";
 import { ScriptEditor } from "./components/ScriptEditor";
+import { ResponseViewer } from "./components/ResponseViewer";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 import { redactDiagnosticError } from "./services/redaction";
 import { checkForAppUpdate, downloadAndInstallUpdate, type AvailableUpdate } from "./services/updater";
@@ -158,9 +159,11 @@ function AddVariableRow({
 }
 
 export function App() {
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [isResizing, setIsResizing] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceSummary>(() => sampleWorkspace);
   const [selectedRequestId, setSelectedRequestId] = useState(sampleWorkspace.requests[0]?.id ?? "");
-  const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts">("body");
+  const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts" | "settings">("body");
   const [responseState, setResponseState] = useState<ResponseState>({
     kind: "idle",
   });
@@ -197,6 +200,15 @@ export function App() {
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateProgressLabel, setUpdateProgressLabel] = useState("Signed release metadata is required before install.");
   const [updateToast, setUpdateToast] = useState<{ message: string; tone: "info" | "error" } | null>(null);
+
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    target: {
+      id: string;
+      type: 'folder' | 'request';
+    } | null;
+  } | null>(null);
 
   const [scriptStatus, setScriptStatus] = useState<Record<string, boolean>>({});
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
@@ -274,6 +286,37 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = e.clientX;
+      if (newWidth > 150 && newWidth < 600) {
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  function handleResizerMouseDown() {
+    setIsResizing(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  useEffect(() => {
     const req = workspace.requests.find(r => r.id === selectedRequestId);
     setDraftRequest(req ? JSON.parse(JSON.stringify(req)) : null);
   }, [selectedRequestId, workspace.requests]);
@@ -293,6 +336,16 @@ export function App() {
     }
     void loadScripts();
   }, [selectedRequestId]);
+
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setContextMenu(null);
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => {
+      window.removeEventListener('click', handleGlobalClick);
+    };
+  }, []);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -406,16 +459,62 @@ export function App() {
     }
   }
 
-  async function handleCreateFolder() {
+  async function handleCreateFolder(collectionId?: string, parentId?: string) {
+    console.log(collectionId, parentId);
     const name = prompt("Enter folder name:");
     if (!name) return;
     try {
-      const newFolder = await createFolder(name);
+      const newFolder = await createFolder(name, collectionId, parentId);
       setWorkspace(prev => ({
         ...prev,
         folders: [...prev.folders, newFolder]
       }));
-    } catch (err) { console.error(diagnosticMessage(err)); }
+    } catch (err) { 
+      console.error("Failed to create folder:", err);
+      alert("Failed to create folder: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleCreateCollection() {
+    const name = prompt("Enter collection name:");
+    if (!name) return;
+    try {
+      console.log("Creating collection:", name);
+      const workspaceId = workspace.id || "local-workspace";
+      await createCollection(workspaceId, name);
+      console.log("Collection created successfully, reloading workspace...");
+      const updatedWorkspace = await loadWorkspace();
+      setWorkspace(updatedWorkspace);
+    } catch (err) {
+      console.error("Failed to create collection:", err);
+      alert("Failed to create collection: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleCreateWorkspace() {
+    const name = prompt("Enter workspace name:");
+    if (!name) return;
+    try {
+      console.log("Creating workspace:", name);
+      await createWorkspace(name);
+      console.log("Workspace created successfully, reloading workspace...");
+      const updatedWorkspace = await loadWorkspace();
+      setWorkspace(updatedWorkspace);
+    } catch (err) {
+      console.error("Failed to create workspace:", err);
+      alert("Failed to create workspace: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleCreateSubFolder(folderId: string) {
+    try {
+      const parentFolder = workspace.folders?.find(f => f.id === folderId);
+      const collectionId = parentFolder?.collectionId;
+      await handleCreateFolder(collectionId, folderId);
+    } catch (err) {
+      console.error("Failed to create subfolder:", err);
+      alert("Failed to create subfolder: " + diagnosticMessage(err));
+    }
   }
 
   async function handleDeleteFolder(folderId: string) {
@@ -1072,10 +1171,16 @@ export function App() {
           </div>
         )}
 
-        <button className="primary-action" type="button" onClick={handleCreateFolder}>
-          <Plus size={16} />
-          New folder
-        </button>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+          <button className="primary-action" type="button" onClick={() => void handleCreateFolder()}>
+            <Plus size={16} />
+            New folder
+          </button>
+          <button className="primary-action" type="button" onClick={handleCreateCollection} style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' }}>
+            <Plus size={16} />
+            New collection
+          </button>
+        </div>
 
         <label className="search-field">
           <Search size={15} />
@@ -1087,95 +1192,126 @@ export function App() {
             <FolderTree size={15} />
             Collections
           </h2>
-          {workspace.folders.map(folder => {
-            const folderRequests = workspace.requests.filter(r => r.folderId === folder.id);
-            return (
-              <div className="folder-group" key={folder.id}>
-                <div className="folder-title" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                  <button
-                    type="button"
-                    aria-expanded={!collapsedFolders[folder.id]}
-                    onClick={() => toggleFolder(folder.id)}
-                    style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+          {workspace.collections?.map(collection => (
+            <div className="collection-group" key={collection.id} style={{ marginBottom: '20px' }}>
+              <div className="folder-title" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', opacity: 0.8 }}>
+                <strong>{collection.name}</strong>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button 
+                    type="button" 
+                    aria-label={`New folder in ${collection.name}`} 
+                    onClick={() => void handleCreateFolder(collection.id)} 
+                    style={{ all: 'unset', cursor: 'pointer', padding: '2px' }}
                   >
-                    <ChevronDown size={14} style={{ transform: collapsedFolders[folder.id] ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
-                    {folder.name}
-                    {scriptStatus[folder.id] && (
-                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
-                    )}
+                    <Plus size={12} />
                   </button>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button type="button" aria-label="Folder auth" onClick={() => {
-                      setAuthEditorTarget({ id: folder.id, type: 'folder' });
-                      setAuthEditorOpen(true);
-                    }} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }} title="Authentication">
-                      <KeyRound size={12} />
-                    </button>
-                    <button type="button" aria-label="Folder scripts" onClick={() => void handleOpenFolderScripts(folder.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }} title="Scripts">
-                      <Edit2 size={12} />
-                    </button>
-                    <button type="button" aria-label="New request" onClick={() => handleCreateRequest(folder.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px' }}>
-                      <Plus size={12} />
-                    </button>
-                    <button type="button" aria-label="Delete folder" onClick={() => handleDeleteFolder(folder.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px' }}>
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-
                 </div>
-                {!collapsedFolders[folder.id] && folderRequests.map(request => (
-                  <div key={request.id} className={request.id === selectedRequestId ? "request-row active" : "request-row"} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {renamingRequestId === request.id ? (
-                      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
-                        <input
-                          value={renameDraft}
-                          aria-label={`Rename ${request.name}`}
-                          placeholder="Request Name"
-                          autoFocus
-                          onChange={(event) => setRenameDraft(event.target.value)}
-                          onBlur={() => applyRequestRename(request.id)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              applyRequestRename(request.id);
-                            } else if (event.key === "Escape") {
-                              event.preventDefault();
-                              stopRequestRename();
-                            }
-                          }}
-                          style={{ flex: 1, minWidth: 0, width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border-tint)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '4px 8px' }}
-                        />
-                        {scriptStatus[request.id] && (
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
-                        )}
-                      </div>
-                    ) : (
-                      <button
-                        style={{ all: 'unset', flex: 1, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                        onClick={() => setSelectedRequestId(request.id)}
-                        type="button"
-                      >
-                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
-                        <span onDoubleClick={() => startRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
-                        {scriptStatus[request.id] && (
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
-                        )}
-                      </button>
-                    )}
-                    <div style={{ display: 'flex', flexShrink: 0, gap: '4px' }}>
-                      <button type="button" aria-label={`Rename ${request.name}`} onClick={() => startRequestRename(request)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
-                        <Edit2 size={12} />
-                      </button>
-                      <button type="button" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
               </div>
-            );
-          })}
+              
+              {(() => {
+                const renderFolders = (parentId: string | undefined, depth = 0) => {
+                  const folders = workspace.folders.filter(f => 
+                    (parentId === undefined ? f.collectionId === collection.id && !f.parentId : f.parentId === parentId)
+                  );
+
+                  if (folders.length === 0) return null;
+
+                  return (
+                    <div style={{ paddingLeft: `${depth * 12}px` }}>
+                      {folders.map(folder => {
+                        const folderRequests = workspace.requests.filter(r => r.folderId === folder.id);
+                        return (
+                          <div className="folder-group" key={folder.id}>
+                            <div className="folder-title" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
+                                  onContextMenu={e => {
+                                    e.preventDefault();
+                                    setContextMenu({ x: e.clientX, y: e.clientY, target: { id: folder.id, type: 'folder' } });
+                                  }}
+                            >
+                              <button
+                                type="button"
+                                aria-expanded={!collapsedFolders[folder.id]}
+                                onClick={() => toggleFolder(folder.id)}
+                                style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                              >
+                                <ChevronDown size={14} style={{ transform: collapsedFolders[folder.id] ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
+                                {folder.name}
+                                {scriptStatus[folder.id] && (
+                                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
+                                )}
+                              </button>
+                            </div>
+                            {!collapsedFolders[folder.id] && (
+                              <>
+                                {renderFolders(folder.id, depth + 1)}
+                                {folderRequests.map(request => (
+                                  <div key={request.id} className={request.id === selectedRequestId ? "request-row active" : "request-row"} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                      onContextMenu={e => {
+                                        e.preventDefault();
+                                        setContextMenu({ x: e.clientX, y: e.clientY, target: { id: request.id, type: 'request' } });
+                                      }}
+                                >
+                                    {renamingRequestId === request.id ? (
+                                      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
+                                        <input
+                                          value={renameDraft}
+                                          aria-label={`Rename ${request.name}`}
+                                          placeholder="Request Name"
+                                          autoFocus
+                                          onChange={(event) => setRenameDraft(event.target.value)}
+                                          onBlur={() => applyRequestRename(request.id)}
+                                          onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                              event.preventDefault();
+                                              applyRequestRename(request.id);
+                                            } else if (event.key === "Escape") {
+                                              event.preventDefault();
+                                              stopRequestRename();
+                            }
+                                          }}
+                                          style={{ flex: 1, minWidth: 0, width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border-tint)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '4px 8px' }}
+                                        />
+                                        {scriptStatus[request.id] && (
+                                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <button
+                                        style={{ all: 'unset', flex: 1, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                                        onClick={() => setSelectedRequestId(request.id)}
+                                        type="button"
+                                      >
+                                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
+                                        <span onDoubleClick={() => startRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
+                                        {scriptStatus[request.id] && (
+                                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
+                                        )}
+                                      </button>
+                                    )}
+                                    <div style={{ display: 'flex', flexShrink: 0, gap: '4px' }}>
+                                      <button type="button" aria-label={`Rename ${request.name}`} onClick={() => startRequestRename(request)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
+                                        <Edit2 size={12} />
+                                      </button>
+                                      <button type="button" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                };
+
+                return renderFolders();
+              })()}
+            </div>
+          ))}
         </section>
       </aside>
 
@@ -1267,7 +1403,7 @@ export function App() {
 
               <div className="request-workspace">
                 <div className="tab-row" role="tablist" aria-label="Request configuration">
-                  {(["body", "headers", "auth", "scripts"] as const).map((tab) => (
+                  {(["body", "headers", "auth", "scripts", "settings"] as const).map((tab) => (
                     <button
                       className={activeTab === tab ? "tab active" : "tab"}
                       key={tab}
@@ -1425,25 +1561,33 @@ export function App() {
                 }} style={{ marginTop: '8px' }}>
                   <Plus size={14}/> Add Header
                 </button>
-              {activeTab === "auth" && (
-                <div className="request-tab-panel" aria-label="API request authentication">
-                  <div className="auth-grid">
-                    {authModes.map((mode) => {
-                      const modeVal = mode === "None" ? "none" : mode === "Basic Auth" ? "basic" : mode === "Bearer Token" ? "bearer" : mode === "API Key" ? "apiKey" : "oauth2";
-                      const isActive = draftRequest.authMode === modeVal;
-                      return (
-                        <button
-                          className={`auth-card ${isActive ? 'active' : ''}`}
-                          key={mode}
-                          type="button"
-                          onClick={() => updateDraft({ authMode: modeVal as import("./types").ApiAuthMode })}
-                          style={{ all: 'unset', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '16px', borderRadius: '8px', cursor: 'pointer', backgroundColor: isActive ? 'var(--color-surface-hover)' : 'var(--color-surface)', border: isActive ? '2px solid #2563eb' : '2px solid transparent' }}
-                        >
-                          <KeyRound size={18} />
-                          <span>{mode}</span>
-                        </button>
-                      );
-                    })}
+              </div>
+            </div>
+          )}
+          {activeTab === "auth" && (
+            <div className="request-tab-panel" aria-label="API request authentication">
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                      Authentication Method
+                      <select
+                        value={draftRequest.authMode}
+                        onChange={(e) => updateDraft({ authMode: e.target.value as import("./types").ApiAuthMode })}
+                        style={{
+                          padding: '8px',
+                          borderRadius: '6px',
+                          backgroundColor: 'var(--color-surface)',
+                          color: 'var(--color-text)',
+                          border: '1px solid var(--color-border)',
+                          cursor: 'pointer',
+                          fontSize: '13px'
+                        }}
+                      >
+                        {authModes.map((mode) => {
+                          const modeVal = mode === "None" ? "none" : mode === "Basic Auth" ? "basic" : mode === "Bearer Token" ? "bearer" : mode === "API Key" ? "apiKey" : "oauth2";
+                          return <option key={modeVal} value={modeVal}>{mode}</option>;
+                        })}
+                      </select>
+                    </label>
                   </div>
 
                   <div style={{ 
@@ -1494,7 +1638,7 @@ export function App() {
                         <span>Token</span>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 }} />
-                          <button type="button" onClick={async () => {
+                          <button className="primary-action" type="button" onClick={async () => {
                             try {
                               const token = await obtainOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
                               updateAuthConfig({ token });
@@ -1502,7 +1646,7 @@ export function App() {
                             } catch (err) {
                               alert("Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)));
                             }
-                          }} style={{ padding: '4px 12px', cursor: 'pointer', backgroundColor: 'var(--color-primary, #0066cc)', color: '#fff', border: 'none', borderRadius: '4px' }}>
+                          }}>
                             Get Token
                           </button>
                         </div>
@@ -1602,27 +1746,63 @@ export function App() {
                 </div>
               </div>
               )}
-              </div>
-              <div className="execution-options" aria-label="Request execution options" style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  Timeout (ms):
-                  <input
-                    type="number"
-                    value={draftRequest.timeoutMs}
-                    onChange={(e) => updateDraft({ timeoutMs: parseInt(e.target.value) || 30000 })}
-                    style={{ width: '80px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px' }}
-                  />
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    checked={draftRequest.followRedirects}
-                    onChange={(e) => updateDraft({ followRedirects: e.target.checked })}
-                  /> Follow Redirects
-                </label>
-              </div>
-            </section>
-          )}
+              {activeTab === "settings" && (
+                <div className="request-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Settings size={14} /> Request Settings
+                    </label>
+                    <div style={{ display: 'grid', gap: '12px', padding: '12px', borderRadius: '6px', background: 'var(--color-surface-muted)', border: '1px solid var(--color-border)' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
+                        <span>Timeout (ms)</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="number"
+                            value={draftRequest.timeoutMs ?? ""}
+                            onChange={(e) => updateDraft({ timeoutMs: parseInt(e.target.value) || undefined })}
+                            style={{ width: '80px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px' }}
+                          />
+                          <button 
+                            type="button" 
+                            className="ghost-button" 
+                            onClick={() => updateDraft({ timeoutMs: undefined })}
+                            disabled={draftRequest.timeoutMs === undefined}
+                            style={{ padding: '2px 6px', fontSize: '11px' }}
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
+                        <span>Follow Redirects</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="checkbox"
+                            checked={draftRequest.followRedirects ?? false}
+                            onChange={e => updateDraft({ followRedirects: e.target.checked })}
+                            style={{ cursor: 'pointer' }}
+                          />
+                          <button 
+                            type="button" 
+                            className="ghost-button" 
+                            onClick={() => updateDraft({ followRedirects: undefined })}
+                            disabled={draftRequest.followRedirects === undefined}
+                            style={{ padding: '2px 6px', fontSize: '11px' }}
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </label>
+                    </div>
+                    <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                      Values are inherited from Folder or Global settings if not overridden.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
           <section className="response-layout" aria-label="Response">
             <div className="response-viewer">
@@ -1746,12 +1926,11 @@ export function App() {
                         dangerouslySetInnerHTML={{ __html: currentResponse.bodyText || '' }} 
                       />
                     ) : (
-                      <pre className="response-body">
-                        {currentResponse.bodyText ??
-                          (currentResponse.bodyBase64
-                        ? `[binary response base64]\n${currentResponse.bodyBase64}`
-                        : "// Empty response body")}
-                      </pre>
+                      <ResponseViewer 
+                        value={currentResponse.bodyText ?? (currentResponse.bodyBase64 ? `[binary response base64]\n${currentResponse.bodyBase64}` : "// Empty response body")}
+                        contentType={currentResponse.contentType ?? "text/plain"}
+                        height="100%"
+                      />
                     )}
                   </>
                 )}
@@ -2024,6 +2203,27 @@ export function App() {
                 <option value="notice">Show a notice when update checks fail</option>
               </select>
             </label>
+
+            <div style={{ display: 'grid', gap: '12px', padding: '12px', borderRadius: '6px', backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>Network Defaults</span>
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
+                <span>Default Timeout (ms)</span>
+                <input
+                  type="number"
+                  value={appSettings.timeoutMs}
+                  onChange={(e) => updateAppSettings({ timeoutMs: parseInt(e.target.value) || 30000 })}
+                  style={{ width: '80px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px' }}
+                />
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
+                <span>Default Follow Redirects</span>
+                <input
+                  type="checkbox"
+                  checked={appSettings.followRedirects}
+                  onChange={e => updateAppSettings({ followRedirects: e.target.checked })}
+                />
+              </label>
+            </div>
 
             <div style={{ padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '6px', background: 'var(--color-surface-muted)', color: 'var(--color-muted)', fontSize: '12px', lineHeight: 1.5 }}>
               {updateStatus.lastCheckedLabel}
@@ -2455,6 +2655,211 @@ export function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {contextMenu && (
+        <div
+          className="context-menu"
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            zIndex: 9999,
+            border: '1px solid var(--color-border-modal)',
+            borderRadius: '6px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            minWidth: '160px',
+            padding: '4px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+            pointerEvents: 'auto',
+          }}
+          onClick={() => alert("Container clicked!")}
+        >
+          {contextMenu.target?.type === 'folder' && (
+            <>
+              <button 
+                className="context-menu-item" 
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  alert("Context Menu: New Request clicked!");
+                  const folderId = contextMenu.target?.id;
+                  if (folderId) void handleCreateRequest(folderId);
+                  setContextMenu(null);
+                }}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  padding: '6px 10px', 
+                  fontSize: '13px', 
+                  cursor: 'pointer', 
+                  borderRadius: '4px', 
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'auto',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <Plus size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> New Request
+              </button>
+              <button 
+                className="context-menu-item" 
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  alert("Context Menu: New Folder clicked!");
+                  const folderId = contextMenu.target?.id;
+                  if (folderId) {
+                    await handleCreateSubFolder(folderId);
+                  }
+                  setContextMenu(null);
+                }}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  padding: '6px 10px', 
+                  fontSize: '13px', 
+                  cursor: 'pointer', 
+                  borderRadius: '4px', 
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'auto',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <FolderTree size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> New Folder
+              </button>
+              <button 
+                className="context-menu-item" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const folderId = contextMenu.target?.id;
+                  if (folderId) {
+                    setAuthEditorTarget({ id: folderId, type: 'folder' });
+                    setAuthEditorOpen(true);
+                  }
+                  setContextMenu(null);
+                }}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  padding: '6px 10px', 
+                  fontSize: '13px', 
+                  cursor: 'pointer', 
+                  borderRadius: '4px', 
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'auto',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <KeyRound size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Edit Auth
+              </button>
+              <button 
+                className="context-menu-item" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const folderId = contextMenu.target?.id;
+                  if (folderId) void handleOpenFolderScripts(folderId);
+                  setContextMenu(null);
+                }}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  padding: '6px 10px', 
+                  fontSize: '13px', 
+                  cursor: 'pointer', 
+                  borderRadius: '4px', 
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'auto',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <Edit2 size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Edit Scripts
+              </button>
+              <div style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '4px 0' }} />
+              <button 
+                className="context-menu-item" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const folderId = contextMenu.target?.id;
+                  if (folderId) handleDeleteFolder(folderId);
+                  setContextMenu(null);
+                }}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  padding: '6px 10px', 
+                  fontSize: '13px', 
+                  cursor: 'pointer', 
+                  borderRadius: '4px', 
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'auto',
+                  color: '#991b1b' 
+                }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <Trash2 size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Delete Folder
+              </button>
+            </>
+          )}
+          {contextMenu.target?.type === 'request' && (
+            <>
+              <button 
+                className="context-menu-item" 
+                onClick={() => {
+                  const reqId = contextMenu.target?.id;
+                  if (reqId) startRequestRename(workspace.requests.find(r => r.id === reqId)!);
+                  setContextMenu(null);
+                }}
+                style={{ all: 'unset', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <Edit2 size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Rename
+              </button>
+              <button 
+                className="context-menu-item" 
+                onClick={() => {
+                  const reqId = contextMenu.target?.id;
+                  if (reqId) setSelectedRequestId(reqId);
+                  setContextMenu(null);
+                }}
+                style={{ all: 'unset', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <Eye size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> View Request
+              </button>
+              <div style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '4px 0' }} />
+              <button 
+                className="context-menu-item" 
+                onClick={() => {
+                  const reqId = contextMenu.target?.id;
+                  if (reqId) handleDeleteRequest(reqId);
+                  setContextMenu(null);
+                }}
+                style={{ all: 'unset', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', color: '#991b1b' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <Trash2 size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Delete Request
+              </button>
+            </>
+          )}
         </div>
       )}
     </main>

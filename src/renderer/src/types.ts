@@ -58,6 +58,9 @@ export interface FolderSummary {
   authMode?: ApiAuthMode;
   authConfig?: AuthConfig;
   collectionId?: string;
+  parentId?: string;
+  timeoutMs?: number;
+  followRedirects?: boolean;
 }
 
 export interface CollectionSummary {
@@ -96,6 +99,8 @@ export interface AppSettings {
   exportRedactionEnabled: boolean;
   diagnosticsRedactionEnabled: boolean;
   offlineBehavior: "silent" | "notice";
+  timeoutMs?: number;
+  followRedirects?: boolean;
 }
 
 export interface UpdateStatus {
