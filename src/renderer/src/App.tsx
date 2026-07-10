@@ -171,6 +171,7 @@ export function App() {
   const [renameDraft, setRenameDraft] = useState("");
   const [preScript, setPreScript] = useState("");
   const [postScript, setPostScript] = useState("");
+  const [activeRequestScript, setActiveRequestScript] = useState<"pre" | "post">("pre");
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [envEditorOpen, setEnvEditorOpen] = useState(false);
@@ -1394,56 +1395,68 @@ export function App() {
               </div>
               )}
               {activeTab === "scripts" && (
-              <div className="request-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className="request-tab-panel request-scripts-panel">
+                <div className="script-editor-header">
+                  <div className="script-type-segment" role="tablist" aria-label="Request script type">
+                    <button
+                      className={activeRequestScript === "pre" ? "script-type-option active" : "script-type-option"}
+                      onClick={() => setActiveRequestScript("pre")}
+                      role="tab"
+                      type="button"
+                    >
+                      Pre-request
+                    </button>
+                    <button
+                      className={activeRequestScript === "post" ? "script-type-option active" : "script-type-option"}
+                      onClick={() => setActiveRequestScript("post")}
+                      role="tab"
+                      type="button"
+                    >
+                      Post-request
+                    </button>
+                  </div>
+                </div>
+                <div className="script-editor-group">
                   <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
-                    Pre-request Script
+                    {activeRequestScript === "pre" ? "Pre-request Script" : "Post-request Script"}
                   </label>
-                  <ScriptEditor 
-                    value={preScript}
-                    onChange={setPreScript}
-                    variables={activeVars.map(v => v.key)}
-                    placeholder="// JavaScript only (no TypeScript types) to run before the request"
-                  />
+                  <div className="script-editor-shell">
+                    <ScriptEditor 
+                      key={activeRequestScript}
+                      value={activeRequestScript === "pre" ? preScript : postScript}
+                      onChange={activeRequestScript === "pre" ? setPreScript : setPostScript}
+                      variables={activeVars.map(v => v.key)}
+                      placeholder={activeRequestScript === "pre" ? "// JavaScript only (no TypeScript types) to run before the request" : "// JavaScript only (no TypeScript types) to run after the request"}
+                      height="100%"
+                    />
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
-                    Post-request Script
-                  </label>
-                  <ScriptEditor 
-                    value={postScript}
-                    onChange={setPostScript}
-                    variables={activeVars.map(v => v.key)}
-                    placeholder="// JavaScript only (no TypeScript types) to run after the request"
-                  />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div className="script-editor-actions">
                   <button className="ghost-button" type="button" onClick={handleSaveScripts} style={{ padding: '6px 12px', fontSize: '12px' }}>
                     <Save size={14} /> Save Scripts
                   </button>
                 </div>
               </div>
               )}
-              </div>
-              <div className="execution-options" aria-label="Request execution options" style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  Timeout (ms):
-                  <input
-                    type="number"
-                    value={draftRequest.timeoutMs}
-                    onChange={(e) => updateDraft({ timeoutMs: parseInt(e.target.value) || 30000 })}
-                    style={{ width: '80px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px' }}
-                  />
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    checked={draftRequest.followRedirects}
-                    onChange={(e) => updateDraft({ followRedirects: e.target.checked })}
-                  /> Follow Redirects
-                </label>
+                <div className="execution-options" aria-label="Request execution options" style={{ display: 'flex', gap: '16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Timeout (ms):
+                    <input
+                      type="number"
+                      value={draftRequest.timeoutMs}
+                      onChange={(e) => updateDraft({ timeoutMs: parseInt(e.target.value) || 30000 })}
+                      style={{ width: '80px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px' }}
+                    />
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={draftRequest.followRedirects}
+                      onChange={(e) => updateDraft({ followRedirects: e.target.checked })}
+                    /> Follow Redirects
+                  </label>
+                </div>
               </div>
             </section>
           )}
@@ -1528,23 +1541,13 @@ export function App() {
               </div>
             </div>
 
-            <div className="response-tabs" style={{ display: 'flex', gap: '4px', borderBottom: '1px solid var(--color-border)', marginBottom: '16px' }}>
+            <div className="response-tabs">
               {(['preview', 'headers', 'timeline'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setResponseTab(tab)}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    backgroundColor: responseTab === tab ? 'var(--color-surface)' : 'transparent',
-                    color: responseTab === tab ? 'var(--color-text)' : 'var(--color-text-muted)',
-                    border: 'none',
-                    borderBottom: responseTab === tab ? '2px solid var(--color-accent)' : '2px solid transparent',
-                    borderRadius: '4px 4px 0 0',
-                    transition: 'all 0.2s'
-                  }}
+                  className={responseTab === tab ? 'response-tab active' : 'response-tab'}
+                  type="button"
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>

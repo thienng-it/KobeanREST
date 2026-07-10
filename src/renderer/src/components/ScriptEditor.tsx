@@ -93,5 +93,5 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
     }
   }, [value]);
 
-  return <div ref={editorRef} style={{ width: '100%' }} />;
+  return <div ref={editorRef} style={{ width: '100%', height }} />;
 }
