@@ -53,7 +53,7 @@ import {
   getScripts,
   saveScript,
   saveFolderAuth,
-  saveCollectionAuth,
+  saveCollectionAuth, createCollection, createWorkspace,
 } from "./services/local-store";
 import { storeSecret } from "./services/secrets";
 import type { ApiAuthMode, AuthConfig, AppSettings, ExecuteHttpResponse, HistoryEntry, SavedRequest, UpdateStatus, WorkspaceSummary } from "./types";
@@ -480,10 +480,12 @@ export function App() {
     if (!name) return;
     try {
       console.log("Creating collection:", name);
-      const workspaceId = workspace.id || "local-workspace";
+      // Using a fallback since WorkspaceSummary doesn't have an id. 
+      // In a real app, the workspace would likely have a unique ID.
+      const workspaceId = "local-workspace"; 
       await createCollection(workspaceId, name);
       console.log("Collection created successfully, reloading workspace...");
-      const updatedWorkspace = await loadWorkspace();
+      const updatedWorkspace = await loadLocalWorkspace();
       setWorkspace(updatedWorkspace);
     } catch (err) {
       console.error("Failed to create collection:", err);
@@ -498,7 +500,7 @@ export function App() {
       console.log("Creating workspace:", name);
       await createWorkspace(name);
       console.log("Workspace created successfully, reloading workspace...");
-      const updatedWorkspace = await loadWorkspace();
+      const updatedWorkspace = await loadLocalWorkspace();
       setWorkspace(updatedWorkspace);
     } catch (err) {
       console.error("Failed to create workspace:", err);
@@ -1308,7 +1310,7 @@ export function App() {
                   );
                 };
 
-                return renderFolders();
+                return renderFolders(undefined);
               })()}
             </div>
           ))}
