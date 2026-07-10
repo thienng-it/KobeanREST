@@ -169,6 +169,8 @@ export function App() {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const [draftRequest, setDraftRequest] = useState<SavedRequest | null>(null);
+  const [renamingRequestId, setRenamingRequestId] = useState("");
+  const [renameDraft, setRenameDraft] = useState("");
   const [preScript, setPreScript] = useState("");
   const [postScript, setPostScript] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
@@ -197,6 +199,7 @@ export function App() {
   const [updateToast, setUpdateToast] = useState<{ message: string; tone: "info" | "error" } | null>(null);
 
   const [scriptStatus, setScriptStatus] = useState<Record<string, boolean>>({});
+  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [folderScriptsOpen, setFolderScriptsOpen] = useState(false);
   const [folderScriptsTarget, setFolderScriptsTarget] = useState<string>("");
   const [folderPreScript, setFolderPreScript] = useState("");
@@ -310,11 +313,42 @@ export function App() {
   const isSending = responseState.kind === "loading";
   const currentResponse = responseState.kind === "error" ? undefined : responseState.response;
   const activeVars = activeEnvironmentVariables(workspace);
-
+  const requestFolder = draftRequest
+    ? workspace.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
+    : null;
+  const requestPath = requestFolder && draftRequest ? `${requestFolder.name} / ${draftRequest.name}` : draftRequest?.name ?? "";
   function updateDraft(fields: Partial<SavedRequest>) {
     if (draftRequest) {
       setDraftRequest({ ...draftRequest, ...fields });
     }
+  }
+
+  function startRequestRename(request: SavedRequest) {
+    setSelectedRequestId(request.id);
+    setRenameDraft(draftRequest?.id === request.id ? draftRequest.name : request.name);
+    setRenamingRequestId(request.id);
+  }
+
+  function stopRequestRename() {
+    setRenamingRequestId("");
+  }
+
+  function applyRequestRename(requestId: string) {
+    const nextName = renameDraft.trim();
+    if (!nextName) {
+      const request = workspace.requests.find((item) => item.id === requestId);
+      setRenameDraft(request?.name ?? "");
+      setRenamingRequestId("");
+      return;
+    }
+
+    setDraftRequest((current) => {
+      if (!current || current.id !== requestId) {
+        return current;
+      }
+      return { ...current, name: nextName };
+    });
+    setRenamingRequestId("");
   }
 
   function updateAuthConfig(fields: Partial<import("./types").AuthConfig>) {
@@ -391,10 +425,22 @@ export function App() {
     });
   }
 
+  function toggleFolder(folderId: string) {
+    setCollapsedFolders(prev => ({
+      ...prev,
+      [folderId]: !prev[folderId],
+    }));
+  }
+
   async function confirmDeleteFolder(folderId: string) {
     setDeleteError(null);
     try {
       await deleteFolder(folderId);
+      setCollapsedFolders(prev => {
+        const next = { ...prev };
+        delete next[folderId];
+        return next;
+      });
       setWorkspace(prev => ({
         ...prev,
         folders: prev.folders.filter(f => f.id !== folderId),
@@ -540,6 +586,10 @@ export function App() {
   async function handleCreateRequest(folderId: string) {
     try {
       const newReq = await createRequest(folderId);
+      setCollapsedFolders(prev => ({
+        ...prev,
+        [folderId]: false,
+      }));
       setWorkspace(prev => ({
         ...prev,
         requests: [...prev.requests, newReq]
@@ -974,19 +1024,6 @@ export function App() {
 
   return (
     <main className="app-shell">
-      {responseState.kind === "loading" && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 1000,
-          backgroundColor: 'rgba(0, 0, 0, 0.2)',
-          backdropFilter: 'blur(2px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'not-allowed'
-        }} />
-      )}
       {updateToast && (
         <div
           className={`update-toast update-toast-${updateToast.tone}`}
@@ -1055,8 +1092,13 @@ export function App() {
             return (
               <div className="folder-group" key={folder.id}>
                 <div className="folder-title" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                  <button type="button" style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                    <ChevronDown size={14} />
+                  <button
+                    type="button"
+                    aria-expanded={!collapsedFolders[folder.id]}
+                    onClick={() => toggleFolder(folder.id)}
+                    style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                  >
+                    <ChevronDown size={14} style={{ transform: collapsedFolders[folder.id] ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
                     {folder.name}
                     {scriptStatus[folder.id] && (
                       <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
@@ -1081,22 +1123,54 @@ export function App() {
                   </div>
 
                 </div>
-                {folderRequests.map(request => (
+                {!collapsedFolders[folder.id] && folderRequests.map(request => (
                   <div key={request.id} className={request.id === selectedRequestId ? "request-row active" : "request-row"} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <button
-                      style={{ all: 'unset', flex: 1, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                      onClick={() => setSelectedRequestId(request.id)}
-                      type="button"
-                    >
-                      <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
-                      <span>{request.name}</span>
-                      {scriptStatus[request.id] && (
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
-                      )}
-                    </button>
-                    <button type="button" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
-                      <Trash2 size={12} />
-                    </button>
+                    {renamingRequestId === request.id ? (
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
+                        <input
+                          value={renameDraft}
+                          aria-label={`Rename ${request.name}`}
+                          placeholder="Request Name"
+                          autoFocus
+                          onChange={(event) => setRenameDraft(event.target.value)}
+                          onBlur={() => applyRequestRename(request.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              applyRequestRename(request.id);
+                            } else if (event.key === "Escape") {
+                              event.preventDefault();
+                              stopRequestRename();
+                            }
+                          }}
+                          style={{ flex: 1, minWidth: 0, width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border-tint)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '4px 8px' }}
+                        />
+                        {scriptStatus[request.id] && (
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        style={{ all: 'unset', flex: 1, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                        onClick={() => setSelectedRequestId(request.id)}
+                        type="button"
+                      >
+                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
+                        <span onDoubleClick={() => startRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
+                        {scriptStatus[request.id] && (
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
+                        )}
+                      </button>
+                    )}
+                    <div style={{ display: 'flex', flexShrink: 0, gap: '4px' }}>
+                      <button type="button" aria-label={`Rename ${request.name}`} onClick={() => startRequestRename(request)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
+                        <Edit2 size={12} />
+                      </button>
+                      <button type="button" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1107,10 +1181,6 @@ export function App() {
 
       <section className="workspace">
         <header className="topbar">
-          <div>
-            <span className="muted-label">Workspace</span>
-            <h1>{workspace.name}</h1>
-          </div>
           <div className="topbar-actions">
             <button className="ghost-button" type="button" onClick={() => openProductDocs()}>
               <Download size={16} />
@@ -1144,169 +1214,171 @@ export function App() {
           </div>
         </header>
 
-        {draftRequest && (
-          <section className="request-panel" aria-label="Request builder">
-            <div className="request-url-row" style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input
-                value={draftRequest.name}
-                aria-label="Request Name"
-                onChange={(e) => updateDraft({ name: e.target.value })}
-                style={{ flex: 1, padding: '6px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
-                placeholder="Request Name"
-              />
-              <button
-                className="ghost-button"
-                type="button"
-                onClick={handleSaveRequest}
-                title="Save (Cmd/Ctrl + S)"
-              >
-                <Save size={17} />
-                Save
-              </button>
-            </div>
-            <div className="request-url-row">
-              <MethodSelector
-                method={draftRequest.method}
-                customMethod={draftRequest.customMethod}
-                onChange={(m, cm) => updateDraft({ method: m, customMethod: cm })}
-              />
-              <VariableInput 
-                activeVariables={activeVars}
-                value={draftRequest.url} 
-                aria-label="Request URL" 
-                onChange={(e) => updateDraft({ url: e.target.value })}
-                placeholder="https://api.example.com"
-                containerStyle={{ flex: 1 }}
-              />
-              <button
-                className="send-button"
-                type="button"
-                onClick={sendSelectedRequest}
-                disabled={isSending}
-              >
-                <Play size={17} />
-                {isSending ? "Sending" : "Send"}
-              </button>
-            </div>
-
-            <div className="tab-row" role="tablist" aria-label="Request configuration">
-              {(["body", "headers", "auth", "scripts"] as const).map((tab) => (
-                <button
-                  className={activeTab === tab ? "tab active" : "tab"}
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  role="tab"
-                  type="button"
-                >
-                  {tab === "scripts" ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
-                      {tab}
-                    </div>
-                  ) : (
-                    tab
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {activeTab === "body" && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>Content-Type:</label>
-                  <select
-                    value={draftRequest.bodyMimeType}
-                    onChange={(e) => {
-                      const newMimeType = e.target.value;
-                      const updates: any = { bodyMimeType: newMimeType };
-                      if (["application/x-www-form-urlencoded", "multipart/form-data"].includes(newMimeType)) {
-                        updates.bodyForm = draftRequest.bodyForm ?? [];
-                      }
-                      updateDraft(updates);
-                    }}
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '12px',
-                      borderRadius: '4px',
-                      backgroundColor: 'var(--color-surface)',
-                      color: 'var(--color-text)',
-                      border: '1px solid var(--color-border)',
-                    }}
-                  >
-                    <option value="text/plain">Text (plain)</option>
-                    <option value="application/json">JSON</option>
-                    <option value="application/xml">XML</option>
-                    <option value="text/xml">XML</option>
-                    <option value="application/x-www-form-urlencoded">Form URL Encoded</option>
-                    <option value="multipart/form-data">Multipart Form Data</option>
-                    <option value="application/octet-stream">Binary</option>
-                  </select>
-                </div>
-                
-                {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
-                  <div className="table-like" aria-label="Body form data">
-                    {(draftRequest.bodyForm ?? []).map((item, idx) => (
-                      <div className="table-row" key={idx} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
-                        <input 
-                          type="checkbox" 
-                          checked={item.enabled}
-                          onChange={(e) => {
-                            const form = [...(draftRequest.bodyForm ?? [])];
-                            form[idx].enabled = e.target.checked;
-                            updateDraft({ bodyForm: form });
-                          }}
-                        />
-                        <VariableInput 
-                          activeVariables={activeVars}
-                          value={item.key} 
-                          placeholder="Key"
-                          onChange={(e) => {
-                            const form = [...(draftRequest.bodyForm ?? [])];
-                            form[idx].key = e.target.value;
-                            updateDraft({ bodyForm: form });
-                          }}
-                          style={{ backgroundColor: 'transparent', border: 'none' }}
-                          containerStyle={{ flex: 1 }}
-                        />
-                        <VariableInput 
-                          activeVariables={activeVars}
-                          value={item.value} 
-                          placeholder="Value"
-                          onChange={(e) => {
-                            const form = [...(draftRequest.bodyForm ?? [])];
-                            form[idx].value = e.target.value;
-                            updateDraft({ bodyForm: form });
-                          }}
-                          style={{ backgroundColor: 'transparent', border: 'none' }}
-                          containerStyle={{ flex: 2 }}
-                        />
-                        <button type="button" onClick={() => {
-                          const form = (draftRequest.bodyForm ?? []).filter((_, i) => i !== idx);
-                          updateDraft({ bodyForm: form });
-                        }} style={{ all: 'unset', cursor: 'pointer', padding: '4px', opacity: 0.7 }}><Trash2 size={14}/></button>
-                      </div>
-                    ))}
-                    <button type="button" className="ghost-button" onClick={() => {
-                      updateDraft({ bodyForm: [...(draftRequest.bodyForm ?? []), { key: '', value: '', enabled: true }] });
-                    }} style={{ marginTop: '8px' }}>
-                      <Plus size={14}/> Add Field
-                    </button>
+        <div className="workspace-main">
+          {draftRequest && (
+            <section className="request-panel" aria-label="Request builder">
+              <div className="request-header">
+                <div className="request-identity">
+                  <span className="muted-label">Request</span>
+                  <div className="request-title-row">
+                    <h1>{draftRequest.name}</h1>
                   </div>
-                ) : (
-                  <VariableTextarea 
-                    activeVariables={activeVars}
-                    className="editor" 
-                    aria-label="Request body"
-                    value={draftRequest.body}
-                    onChange={(e) => updateDraft({ body: e.target.value })}
-                    placeholder="// Request body"
-                    style={{ width: '100%', minHeight: '150px', padding: '12px', fontFamily: 'monospace', backgroundColor: 'var(--color-surface)', border: 'none', resize: 'vertical' }}
-                  />
-                )}
+                  <div className="request-path">{requestPath}</div>
+                </div>
+                <div className="request-header-actions">
+                  <button
+                    className="ghost-button request-save-button"
+                    type="button"
+                    onClick={handleSaveRequest}
+                    title="Save (Cmd/Ctrl + S)"
+                  >
+                    <Save size={17} />
+                    Save
+                  </button>
+                </div>
               </div>
-            )}
-            {activeTab === "headers" && (
-              <div className="table-like" aria-label="Request headers">
+
+              <div className="request-command-bar">
+                <MethodSelector
+                  method={draftRequest.method}
+                  customMethod={draftRequest.customMethod}
+                  onChange={(m, cm) => updateDraft({ method: m, customMethod: cm })}
+                />
+                <VariableInput
+                  activeVariables={activeVars}
+                  value={draftRequest.url}
+                  aria-label="Request URL"
+                  onChange={(e) => updateDraft({ url: e.target.value })}
+                  placeholder="https://api.example.com"
+                  containerClassName="request-command-input"
+                  className="request-command-input-field"
+                  containerStyle={{ flex: 1 }}
+                />
+                <button
+                  className="send-button request-send-button"
+                  type="button"
+                  onClick={sendSelectedRequest}
+                  disabled={isSending}
+                >
+                  <Play size={17} />
+                  {isSending ? "Sending" : "Send"}
+                </button>
+              </div>
+
+              <div className="request-workspace">
+                <div className="tab-row" role="tablist" aria-label="Request configuration">
+                  {(["body", "headers", "auth", "scripts"] as const).map((tab) => (
+                    <button
+                      className={activeTab === tab ? "tab active" : "tab"}
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      role="tab"
+                      type="button"
+                    >
+                      {tab === "scripts" ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
+                          {tab}
+                        </div>
+                      ) : (
+                        tab
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {activeTab === "body" && (
+                  <div className="request-tab-panel request-body-panel">
+                    <div className="request-body-toolbar">
+                      <label>Content-Type</label>
+                      <select
+                        value={draftRequest.bodyMimeType}
+                        onChange={(e) => {
+                          const newMimeType = e.target.value;
+                          const updates: any = { bodyMimeType: newMimeType };
+                          if (["application/x-www-form-urlencoded", "multipart/form-data"].includes(newMimeType)) {
+                            updates.bodyForm = draftRequest.bodyForm ?? [];
+                          }
+                          updateDraft(updates);
+                        }}
+                      >
+                        <option value="text/plain">Text (plain)</option>
+                        <option value="application/json">JSON</option>
+                        <option value="application/xml">XML</option>
+                        <option value="text/xml">XML</option>
+                        <option value="application/x-www-form-urlencoded">Form URL Encoded</option>
+                        <option value="multipart/form-data">Multipart Form Data</option>
+                        <option value="application/octet-stream">Binary</option>
+                      </select>
+                    </div>
+
+                    {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
+                      <div className="table-like" aria-label="Body form data">
+                        {(draftRequest.bodyForm ?? []).map((item, idx) => (
+                          <div className="table-row" key={idx} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
+                            <input
+                              type="checkbox"
+                              checked={item.enabled}
+                              onChange={(e) => {
+                                const form = [...(draftRequest.bodyForm ?? [])];
+                                form[idx].enabled = e.target.checked;
+                                updateDraft({ bodyForm: form });
+                              }}
+                            />
+                            <VariableInput
+                              activeVariables={activeVars}
+                              value={item.key}
+                              placeholder="Key"
+                              onChange={(e) => {
+                                const form = [...(draftRequest.bodyForm ?? [])];
+                                form[idx].key = e.target.value;
+                                updateDraft({ bodyForm: form });
+                              }}
+                              style={{ backgroundColor: 'transparent', border: 'none' }}
+                              containerStyle={{ flex: 1 }}
+                            />
+                            <VariableInput
+                              activeVariables={activeVars}
+                              value={item.value}
+                              placeholder="Value"
+                              onChange={(e) => {
+                                const form = [...(draftRequest.bodyForm ?? [])];
+                                form[idx].value = e.target.value;
+                                updateDraft({ bodyForm: form });
+                              }}
+                              style={{ backgroundColor: 'transparent', border: 'none' }}
+                              containerStyle={{ flex: 2 }}
+                            />
+                            <button type="button" onClick={() => {
+                              const form = (draftRequest.bodyForm ?? []).filter((_, i) => i !== idx);
+                              updateDraft({ bodyForm: form });
+                            }} style={{ all: 'unset', cursor: 'pointer', padding: '4px', opacity: 0.7 }}><Trash2 size={14}/></button>
+                          </div>
+                        ))}
+                        <button type="button" className="ghost-button" onClick={() => {
+                          updateDraft({ bodyForm: [...(draftRequest.bodyForm ?? []), { key: '', value: '', enabled: true }] });
+                        }} style={{ marginTop: '8px' }}>
+                          <Plus size={14}/> Add Field
+                        </button>
+                      </div>
+                    ) : (
+                      <VariableTextarea
+                        activeVariables={activeVars}
+                        className="editor request-body-editor"
+                        containerClassName="request-body-editor-shell"
+                        containerStyle={{ flex: 1, minHeight: 0 }}
+                        aria-label="Request body"
+                        value={draftRequest.body}
+                        onChange={(e) => updateDraft({ body: e.target.value })}
+                        placeholder="// Request body"
+                        style={{ width: '100%', height: '100%', minHeight: '100%', padding: '12px 14px', fontFamily: 'monospace', resize: 'none' }}
+                      />
+                    )}
+                  </div>
+                )}
+              {activeTab === "headers" && (
+                <div className="request-tab-panel">
+                  <div className="table-like" aria-label="Request headers">
                 {draftRequest.headers.map((header, idx) => (
                   <div className="table-row" key={idx} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
                     <input 
@@ -1353,160 +1425,154 @@ export function App() {
                 }} style={{ marginTop: '8px' }}>
                   <Plus size={14}/> Add Header
                 </button>
-              </div>
-            )}
-            {activeTab === "auth" && draftRequest && (
-              <div aria-label="API request authentication" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <KeyRound size={14} />
-                    Authentication Method
-                  </label>
-                  <select 
-                    value={draftRequest.authMode} 
-                    onChange={e => updateDraft({ authMode: e.target.value as import("./types").ApiAuthMode })}
-                    style={{ 
-                      padding: '8px', 
-                      borderRadius: '4px', 
-                      backgroundColor: 'var(--color-surface)', 
-                      color: 'var(--color-text)', 
-                      border: '1px solid var(--color-border)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {Object.entries(AUTH_MODE_MAP).map(([label, value]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ 
-                  fontSize: '12px', 
-                  padding: '8px 12px', 
-                  borderRadius: '6px', 
-                  backgroundColor: 'var(--color-surface-muted)', 
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text-muted)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>Effective Auth:</span>
-                  {(() => {
-                    if (draftRequest.authMode !== "none") return <span>Request Level ({AUTH_MODE_LABELS[draftRequest.authMode]})</span>;
-                    const folder = workspace.folders.find(f => f.id === draftRequest.folderId);
-                    if (folder && folder.authMode && folder.authMode !== "none") return <span>Inherited from Folder: {folder.name} ({AUTH_MODE_LABELS[folder.authMode]})</span>;
-                    const collection = workspace.collections?.find(c => folder?.collectionId === c.id);
-                    if (collection && collection.authMode && collection.authMode !== "none") return <span>Inherited from Collection: {collection.name} ({AUTH_MODE_LABELS[collection.authMode]})</span>;
-                    return <span>None</span>;
-                  })()}
-                </div>
-
-                 {draftRequest.authMode === "basic" && (
-                  <div className="auth-config-fields" aria-label="Basic auth credentials">
-                    <label>
-                      <span>Username</span>
-                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
-                    </label>
-                    <label>
-                      <span>Password</span>
-                      <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
-                    </label>
-                  </div>
-                )}
-                {draftRequest.authMode === "bearer" && (
-                  <div className="auth-config-fields" aria-label="Bearer token credential">
-                    <label>
-                      <span>Token</span>
-                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
-                    </label>
-                  </div>
-                )}
-                {draftRequest.authMode === "oauth2" && (
-                  <div className="auth-config-fields" aria-label="OAuth 2.0 credentials" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <label>
-                      <span>Token</span>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 }} />
-                        <button type="button" onClick={async () => {
-                          try {
-                            const token = await obtainOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
-                            updateAuthConfig({ token });
-                            alert("Access token obtained successfully!");
-                          } catch (err) {
-                            alert("Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)));
-                          }
-                        }} style={{ padding: '4px 12px', cursor: 'pointer', backgroundColor: 'var(--color-primary, #0066cc)', color: '#fff', border: 'none', borderRadius: '4px' }}>
-                          Get Token
+              {activeTab === "auth" && (
+                <div className="request-tab-panel" aria-label="API request authentication">
+                  <div className="auth-grid">
+                    {authModes.map((mode) => {
+                      const modeVal = mode === "None" ? "none" : mode === "Basic Auth" ? "basic" : mode === "Bearer Token" ? "bearer" : mode === "API Key" ? "apiKey" : "oauth2";
+                      const isActive = draftRequest.authMode === modeVal;
+                      return (
+                        <button
+                          className={`auth-card ${isActive ? 'active' : ''}`}
+                          key={mode}
+                          type="button"
+                          onClick={() => updateDraft({ authMode: modeVal as import("./types").ApiAuthMode })}
+                          style={{ all: 'unset', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '16px', borderRadius: '8px', cursor: 'pointer', backgroundColor: isActive ? 'var(--color-surface-hover)' : 'var(--color-surface)', border: isActive ? '2px solid #2563eb' : '2px solid transparent' }}
+                        >
+                          <KeyRound size={18} />
+                          <span>{mode}</span>
                         </button>
-                      </div>
-                    </label>
-                    <label>
-                      <span>Grant Type</span>
-                      <select value={draftRequest.authConfig?.grantType ?? "client_credentials"} onChange={e => updateAuthConfig({ grantType: e.target.value as "client_credentials" | "password" })}>
-                        <option value="client_credentials">Client Credentials</option>
-                        <option value="password">Password</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span>Access Token URL</span>
-                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.accessTokenUrl ?? ""} onChange={e => updateAuthConfig({ accessTokenUrl: e.target.value })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
-                    </label>
-                    <label>
-                      <span>Client ID</span>
-                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.clientId ?? ""} onChange={e => updateAuthConfig({ clientId: e.target.value })} placeholder="client_id or {{variable}}" autoComplete="off" />
-                    </label>
-                    <label>
-                      <span>Client Secret</span>
-                      <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.clientSecret ?? ""} onChange={e => updateAuthConfig({ clientSecret: e.target.value })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
-                    </label>
-                    {(draftRequest.authConfig?.grantType === "password") && (
-                      <>
-                        <label>
-                          <span>Username</span>
-                          <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
-                        </label>
-                        <label>
-                          <span>Password</span>
-                          <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
-                        </label>
-                      </>
-                    )}
-                    <label>
-                      <span>Scope</span>
-                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.scope ?? ""} onChange={e => updateAuthConfig({ scope: e.target.value })} placeholder="read write or {{variable}}" autoComplete="off" />
-                    </label>
-                    <label>
-                      <span>Audience</span>
-                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.audience ?? ""} onChange={e => updateAuthConfig({ audience: e.target.value })} placeholder="audience or {{variable}}" autoComplete="off" />
-                    </label>
+                      );
+                    })}
                   </div>
-                )}
-                {draftRequest.authMode === "apiKey" && (
-                  <div className="auth-config-fields" aria-label="API key credentials">
-                    <label>
-                      <span>Key name</span>
-                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.keyName ?? ""} onChange={e => updateAuthConfig({ keyName: e.target.value })} placeholder="X-API-Key or {{variable}}" autoComplete="off" />
-                    </label>
-                    <label>
-                      <span>Key value</span>
-                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.keyValue ?? ""} onChange={e => updateAuthConfig({ keyValue: e.target.value })} placeholder="value or {{variable}}" autoComplete="off" />
-                    </label>
-                    <label>
-                      <span>Add to</span>
-                      <select value={draftRequest.authConfig?.placement ?? "header"} onChange={e => updateAuthConfig({ placement: e.target.value as "header" | "query" })}>
-                        <option value="header">Header</option>
-                        <option value="query">Query parameter</option>
-                      </select>
-                    </label>
+
+                  <div style={{ 
+                    fontSize: '12px', 
+                    padding: '8px 12px', 
+                    borderRadius: '6px', 
+                    backgroundColor: 'var(--color-surface-muted)', 
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>Effective Auth:</span>
+                    {(() => {
+                      if (draftRequest.authMode !== "none") return <span>Request Level ({AUTH_MODE_LABELS[draftRequest.authMode]})</span>;
+                      const folder = workspace.folders.find(f => f.id === draftRequest.folderId);
+                      if (folder && folder.authMode && folder.authMode !== "none") return <span>Inherited from Folder: {folder.name} ({AUTH_MODE_LABELS[folder.authMode]})</span>;
+                      const collection = workspace.collections?.find(c => folder?.collectionId === c.id);
+                      if (collection && collection.authMode && collection.authMode !== "none") return <span>Inherited from Collection: {collection.name} ({AUTH_MODE_LABELS[collection.authMode]})</span>;
+                      return <span>None</span>;
+                    })()}
                   </div>
-                )}
-              </div>
-            )}
-            {activeTab === "scripts" && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                  {draftRequest.authMode === "basic" && (
+                    <div className="auth-config-fields" aria-label="Basic auth credentials">
+                      <label>
+                        <span>Username</span>
+                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
+                      </label>
+                      <label>
+                        <span>Password</span>
+                        <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
+                      </label>
+                    </div>
+                  )}
+                  {draftRequest.authMode === "bearer" && (
+                    <div className="auth-config-fields" aria-label="Bearer token credential">
+                      <label>
+                        <span>Token</span>
+                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
+                      </label>
+                    </div>
+                  )}
+                  {draftRequest.authMode === "oauth2" && (
+                    <div className="auth-config-fields" aria-label="OAuth 2.0 credentials" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <label>
+                        <span>Token</span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 }} />
+                          <button type="button" onClick={async () => {
+                            try {
+                              const token = await obtainOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
+                              updateAuthConfig({ token });
+                              alert("Access token obtained successfully!");
+                            } catch (err) {
+                              alert("Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)));
+                            }
+                          }} style={{ padding: '4px 12px', cursor: 'pointer', backgroundColor: 'var(--color-primary, #0066cc)', color: '#fff', border: 'none', borderRadius: '4px' }}>
+                            Get Token
+                          </button>
+                        </div>
+                      </label>
+                      <label>
+                        <span>Grant Type</span>
+                        <select value={draftRequest.authConfig?.grantType ?? "client_credentials"} onChange={e => updateAuthConfig({ grantType: e.target.value as "client_credentials" | "password" })}>
+                          <option value="client_credentials">Client Credentials</option>
+                          <option value="password">Password</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>Access Token URL</span>
+                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.accessTokenUrl ?? ""} onChange={e => updateAuthConfig({ accessTokenUrl: e.target.value })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
+                      </label>
+                      <label>
+                        <span>Client ID</span>
+                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.clientId ?? ""} onChange={e => updateAuthConfig({ clientId: e.target.value })} placeholder="client_id or {{variable}}" autoComplete="off" />
+                      </label>
+                      <label>
+                        <span>Client Secret</span>
+                        <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.clientSecret ?? ""} onChange={e => updateAuthConfig({ clientSecret: e.target.value })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
+                      </label>
+                      {(draftRequest.authConfig?.grantType === "password") && (
+                        <>
+                          <label>
+                            <span>Username</span>
+                            <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
+                          </label>
+                          <label>
+                            <span>Password</span>
+                            <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
+                          </label>
+                        </>
+                      )}
+                      <label>
+                        <span>Scope</span>
+                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.scope ?? ""} onChange={e => updateAuthConfig({ scope: e.target.value })} placeholder="read write or {{variable}}" autoComplete="off" />
+                      </label>
+                      <label>
+                        <span>Audience</span>
+                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.audience ?? ""} onChange={e => updateAuthConfig({ audience: e.target.value })} placeholder="audience or {{variable}}" autoComplete="off" />
+                      </label>
+                    </div>
+                  )}
+                  {draftRequest.authMode === "apiKey" && (
+                    <div className="auth-config-fields" aria-label="API key credentials">
+                      <label>
+                        <span>Key name</span>
+                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.keyName ?? ""} onChange={e => updateAuthConfig({ keyName: e.target.value })} placeholder="X-API-Key or {{variable}}" autoComplete="off" />
+                      </label>
+                      <label>
+                        <span>Key value</span>
+                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.keyValue ?? ""} onChange={e => updateAuthConfig({ keyValue: e.target.value })} placeholder="value or {{variable}}" autoComplete="off" />
+                      </label>
+                      <label>
+                        <span>Add to</span>
+                        <select value={draftRequest.authConfig?.placement ?? "header"} onChange={e => updateAuthConfig({ placement: e.target.value as "header" | "query" })}>
+                          <option value="header">Header</option>
+                          <option value="query">Query parameter</option>
+                        </select>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "scripts" && (
+              <div className="request-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
                     Pre-request Script
                   </label>
@@ -1518,7 +1584,7 @@ export function App() {
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
                     Post-request Script
                   </label>
@@ -1535,30 +1601,31 @@ export function App() {
                   </button>
                 </div>
               </div>
-            )}
-            <div className="execution-options" aria-label="Request execution options" style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Timeout (ms):
-                <input 
-                  type="number" 
-                  value={draftRequest.timeoutMs}
-                  onChange={(e) => updateDraft({ timeoutMs: parseInt(e.target.value) || 30000 })}
-                  style={{ width: '80px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px' }}
-                />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input 
-                  type="checkbox" 
-                  checked={draftRequest.followRedirects}
-                  onChange={(e) => updateDraft({ followRedirects: e.target.checked })}
-                /> Follow Redirects
-              </label>
-            </div>
-          </section>
-        )}
+              )}
+              </div>
+              <div className="execution-options" aria-label="Request execution options" style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  Timeout (ms):
+                  <input
+                    type="number"
+                    value={draftRequest.timeoutMs}
+                    onChange={(e) => updateDraft({ timeoutMs: parseInt(e.target.value) || 30000 })}
+                    style={{ width: '80px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px' }}
+                  />
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={draftRequest.followRedirects}
+                    onChange={(e) => updateDraft({ followRedirects: e.target.checked })}
+                  /> Follow Redirects
+                </label>
+              </div>
+            </section>
+          )}
 
-        <section className="response-layout" aria-label="Response">
-          <div className="response-viewer">
+          <section className="response-layout" aria-label="Response">
+            <div className="response-viewer">
             <div className="panel-heading">
               <div>
                 <span className="muted-label">Response</span>
@@ -1764,9 +1831,9 @@ export function App() {
             ) : (
               <pre className="response-body">{'// Send a request to see a response.'}</pre>
             )}
-          </div>
-
-        </section>
+            </div>
+          </section>
+        </div>
       </section>
 
       {confirmDialog && (
