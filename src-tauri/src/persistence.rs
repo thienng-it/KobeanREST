@@ -68,6 +68,23 @@ pub struct EnvironmentSummary {
 pub struct FolderSummary {
     pub id: String,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_config: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collection_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollectionSummary {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_config: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -78,6 +95,8 @@ pub struct WorkspaceSummary {
     pub environments: Vec<EnvironmentSummary>,
     pub folders: Vec<FolderSummary>,
     pub requests: Vec<SavedRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collections: Option<Vec<CollectionSummary>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -132,6 +151,8 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     ensure_auth_config_column(&connection)?;
     ensure_folder_parent_id_column(&connection)?;
     ensure_scripts_table(&connection)?;
+    ensure_folder_auth_columns(&connection)?;
+    ensure_collection_auth_columns(&connection)?;
     seed_default_workspace(&mut connection)?;
 
     Ok(PersistenceStatus {
@@ -385,6 +406,52 @@ fn ensure_auth_config_column(connection: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+fn ensure_folder_auth_columns(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(folders)")
+        .map_err(|error| format!("failed to inspect folders table: {error}"))?;
+    let columns: Vec<String> = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("failed to query folders table info: {error}"))?
+        .filter_map(|c| c.ok())
+        .collect();
+
+    if !columns.contains(&"auth_mode".to_string()) {
+        connection
+            .execute("ALTER TABLE folders ADD COLUMN auth_mode TEXT NOT NULL DEFAULT 'none'", [])
+            .map_err(|error| format!("failed to add folders.auth_mode column: {error}"))?;
+    }
+    if !columns.contains(&"auth_config".to_string()) {
+        connection
+            .execute("ALTER TABLE folders ADD COLUMN auth_config TEXT", [])
+            .map_err(|error| format!("failed to add folders.auth_config column: {error}"))?;
+    }
+    Ok(())
+}
+
+fn ensure_collection_auth_columns(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(collections)")
+        .map_err(|error| format!("failed to inspect collections table: {error}"))?;
+    let columns: Vec<String> = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("failed to query collections table info: {error}"))?
+        .filter_map(|c| c.ok())
+        .collect();
+
+    if !columns.contains(&"auth_mode".to_string()) {
+        connection
+            .execute("ALTER TABLE collections ADD COLUMN auth_mode TEXT NOT NULL DEFAULT 'none'", [])
+            .map_err(|error| format!("failed to add collections.auth_mode column: {error}"))?;
+    }
+    if !columns.contains(&"auth_config".to_string()) {
+        connection
+            .execute("ALTER TABLE collections ADD COLUMN auth_config TEXT", [])
+            .map_err(|error| format!("failed to add collections.auth_config column: {error}"))?;
+    }
+    Ok(())
+}
+
 fn ensure_secret_ref_column(connection: &Connection) -> Result<(), String> {
     let mut statement = connection
         .prepare("PRAGMA table_info(variables)")
@@ -621,6 +688,7 @@ fn load_first_workspace(connection: &Connection) -> Result<WorkspaceSummary, Str
         environments: load_environments(connection, &workspace.0)?,
         folders: load_folders(connection, &workspace.0)?,
         requests: load_requests(connection, &workspace.0)?,
+        collections: Some(load_collections(connection, &workspace.0)?),
     })
 }
 
@@ -684,7 +752,7 @@ fn load_variables(
 fn load_folders(connection: &Connection, workspace_id: &str) -> Result<Vec<FolderSummary>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT folders.id, folders.name FROM folders
+            "SELECT folders.id, folders.name, folders.auth_mode, folders.auth_config, folders.collection_id FROM folders
          JOIN collections ON collections.id = folders.collection_id
          WHERE collections.workspace_id = ?1 ORDER BY folders.position",
         )
@@ -695,11 +763,36 @@ fn load_folders(connection: &Connection, workspace_id: &str) -> Result<Vec<Folde
             Ok(FolderSummary {
                 id: row.get(0)?,
                 name: row.get(1)?,
+                auth_mode: row.get(2)?,
+                auth_config: row.get(3)?,
+                collection_id: row.get(4)?,
             })
         })
         .map_err(|e| e.to_string())?;
 
     collect_rows(rows, "folder summary")
+}
+
+fn load_collections(connection: &Connection, workspace_id: &str) -> Result<Vec<CollectionSummary>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, name, auth_mode, auth_config FROM collections
+             WHERE workspace_id = ?1 ORDER BY position",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let rows = statement
+        .query_map(rusqlite::params![workspace_id], |row| {
+            Ok(CollectionSummary {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                auth_mode: row.get(2)?,
+                auth_config: row.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    collect_rows(rows, "collection summary")
 }
 
 fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<SavedRequest>, String> {
@@ -1249,6 +1342,9 @@ pub fn create_folder(app: AppHandle, name: String) -> Result<FolderSummary, Stri
     Ok(FolderSummary {
         id: folder_id,
         name,
+        auth_mode: None,
+        auth_config: None,
+        collection_id: Some(collection_id),
     })
 }
 
@@ -1570,5 +1666,45 @@ pub fn delete_script(app: AppHandle, script_id: String) -> Result<(), String> {
     connection
         .execute("DELETE FROM scripts WHERE id = ?1", params![script_id])
         .map_err(|error| format!("failed to delete script: {error}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_folder_auth(
+    app: AppHandle,
+    folder_id: String,
+    auth_mode: String,
+    auth_config: serde_json::Value,
+) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let config_str = serde_json::to_string(&auth_config)
+        .map_err(|e| format!("failed to serialize auth config: {e}"))?;
+    connection
+        .execute(
+            "UPDATE folders SET auth_mode = ?2, auth_config = ?3, updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
+            rusqlite::params![folder_id, auth_mode, config_str],
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_collection_auth(
+    app: AppHandle,
+    collection_id: String,
+    auth_mode: String,
+    auth_config: serde_json::Value,
+) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let config_str = serde_json::to_string(&auth_config)
+        .map_err(|e| format!("failed to serialize auth config: {e}"))?;
+    connection
+        .execute(
+            "UPDATE collections SET auth_mode = ?2, auth_config = ?3, updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
+            rusqlite::params![collection_id, auth_mode, config_str],
+        )
+        .map_err(|e| e.to_string())?;
     Ok(())
 }

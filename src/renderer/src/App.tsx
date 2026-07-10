@@ -18,13 +18,13 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
-import { authModes, sampleWorkspace } from "./data/sample-workspace";
+import { authModes, sampleWorkspace, AUTH_MODE_MAP, AUTH_MODE_LABELS } from "./data/sample-workspace";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
 import { VariableInput, VariableTextarea } from "./components/VariableInput";
 import { MethodSelector, methodClass, resolvedMethodLabel } from "./components/MethodSelector";
 import { ScriptEditor } from "./components/ScriptEditor";
-import { applyAuth, resolveAuthConfig, redactAuthFromUrl } from "./services/auth";
+import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 import { redactDiagnosticError } from "./services/redaction";
 import { checkForAppUpdate, downloadAndInstallUpdate, type AvailableUpdate } from "./services/updater";
 import {
@@ -51,9 +51,11 @@ import {
   checkForUpdates,
   getScripts,
   saveScript,
+  saveFolderAuth,
+  saveCollectionAuth,
 } from "./services/local-store";
 import { storeSecret } from "./services/secrets";
-import type { AppSettings, ExecuteHttpResponse, HistoryEntry, SavedRequest, UpdateStatus, WorkspaceSummary } from "./types";
+import type { ApiAuthMode, AuthConfig, AppSettings, ExecuteHttpResponse, HistoryEntry, SavedRequest, UpdateStatus, WorkspaceSummary } from "./types";
 
 type ResponseState =
   | { kind: "idle"; response?: ExecuteHttpResponse }
@@ -199,6 +201,10 @@ export function App() {
   const [folderScriptsTarget, setFolderScriptsTarget] = useState<string>("");
   const [folderPreScript, setFolderPreScript] = useState("");
   const [folderPostScript, setFolderPostScript] = useState("");
+
+  const [authEditorOpen, setAuthEditorOpen] = useState(false);
+  const [authEditorTarget, setAuthEditorTarget] = useState<{ id: string; type: 'collection' | 'folder' } | null>(null);
+  const [authDraft, setAuthDraft] = useState<{ mode: ApiAuthMode; config: AuthConfig }>({ mode: 'none', config: {} });
 
   useEffect(() => {
     if (!updateToast) return;
@@ -718,6 +724,53 @@ export function App() {
     }
   }
 
+  useEffect(() => {
+    if (authEditorTarget) {
+      const { id, type } = authEditorTarget;
+      let currentMode: ApiAuthMode = 'none';
+      let currentConfig: AuthConfig = {};
+
+      if (type === 'folder') {
+        const folder = workspace.folders.find(f => f.id === id);
+        if (folder) {
+          currentMode = folder.authMode ?? 'none';
+          currentConfig = folder.authConfig ?? {};
+        }
+      } else {
+        const collection = workspace.collections?.find(c => c.id === id);
+        if (collection) {
+          currentMode = collection.authMode ?? 'none';
+          currentConfig = collection.authConfig ?? {};
+        }
+      }
+      setAuthDraft({ mode: currentMode, config: currentConfig });
+    }
+  }, [authEditorTarget, workspace]);
+
+  async function handleSaveEntityAuth() {
+    if (!authEditorTarget) return;
+    const { id, type } = authEditorTarget;
+    try {
+      if (type === 'folder') {
+        await saveFolderAuth(id, authDraft.mode, authDraft.config);
+        setWorkspace(prev => ({
+          ...prev,
+          folders: prev.folders.map(f => f.id === id ? { ...f, authMode: authDraft.mode, authConfig: authDraft.config } : f)
+        }));
+      } else {
+        await saveCollectionAuth(id, authDraft.mode, authDraft.config);
+        setWorkspace(prev => ({
+          ...prev,
+          collections: prev.collections?.map(c => c.id === id ? { ...c, authMode: authDraft.mode, authConfig: authDraft.config } : c) || []
+        }));
+      }
+      setAuthEditorOpen(false);
+    } catch (err) {
+      console.error("Failed to save entity auth", diagnosticMessage(err));
+      alert("Failed to save authentication: " + diagnosticMessage(err));
+    }
+  }
+
   async function runScript(content: string, context: any) {
     if (!content) return;
     try {
@@ -730,7 +783,7 @@ export function App() {
       `);
       fn(context);
     } catch (err) {
-      console.error("Failed to parse script:", err);
+      console.error("Failed to parse script:", diagnosticMessage(err));
     }
   }
 
@@ -794,10 +847,46 @@ export function App() {
       return;
     }
 
+    let finalAuthMode = requestToSend.authMode;
+    let finalAuthConfig = requestToSend.authConfig;
+
+    if (finalAuthMode === "none") {
+      const folder = workspace.folders.find(f => f.id === requestToSend.folderId);
+      if (folder && folder.authMode && folder.authMode !== "none") {
+        finalAuthMode = folder.authMode;
+        finalAuthConfig = folder.authConfig || {};
+      } else {
+        const collection = workspace.collections?.find(c => folder?.collectionId === c.id);
+        if (collection && collection.authMode && collection.authMode !== "none") {
+          finalAuthMode = collection.authMode;
+          finalAuthConfig = collection.authConfig || {};
+        }
+      }
+    }
+
     variableMap = buildVariableMap(activeEnvironmentVariables(workspace));
-    const resolvedAuth = resolveAuthConfig(requestToSend.authConfig ?? {}, variableMap);
+    const resolvedAuth = resolveAuthConfig(finalAuthConfig ?? {}, variableMap);
+
+    // Automatically obtain OAuth 2.0 token if missing
+    if (finalAuthMode === "oauth2" && !resolvedAuth.token) {
+      try {
+        const token = await obtainOAuth2Token(resolvedAuth, variableMap);
+        
+        // Update the source of truth to persist the token
+        if (requestToSend.authMode === "oauth2") {
+          updateDraft({ authConfig: { ...requestToSend.authConfig, token } });
+        } else {
+          // If inherited, we don't automatically update folder/collection auth 
+          // to avoid unexpected side effects, but we use it for this request.
+        }
+      } catch (err) {
+        setResponseState({ kind: "error", message: "OAuth 2.0 token retrieval failed: " + (err instanceof Error ? err.message : String(err)) });
+        return;
+      }
+    }
+
     const { url: authUrl, headers: authHeaders } = applyAuth(
-      requestToSend.authMode,
+      finalAuthMode,
       resolvedAuth,
       resolvedUrl,
       resolvedHeaders,
@@ -853,7 +942,7 @@ export function App() {
         console.error("Post-script execution failed", diagnosticMessage(err));
       }
 
-      const historyUrl = redactAuthFromUrl(authUrl, requestToSend.authMode, resolvedAuth);
+      const historyUrl = redactAuthFromUrl(authUrl, finalAuthMode, resolvedAuth);
       void recordRequestHistory({
         requestId: requestToSend.id,
         method: effectiveMethod,
@@ -974,6 +1063,12 @@ export function App() {
                     )}
                   </button>
                   <div style={{ display: 'flex', gap: '4px' }}>
+                    <button type="button" aria-label="Folder auth" onClick={() => {
+                      setAuthEditorTarget({ id: folder.id, type: 'folder' });
+                      setAuthEditorOpen(true);
+                    }} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }} title="Authentication">
+                      <KeyRound size={12} />
+                    </button>
                     <button type="button" aria-label="Folder scripts" onClick={() => void handleOpenFolderScripts(folder.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }} title="Scripts">
                       <Edit2 size={12} />
                     </button>
@@ -984,6 +1079,7 @@ export function App() {
                       <Trash2 size={12} />
                     </button>
                   </div>
+
                 </div>
                 {folderRequests.map(request => (
                   <div key={request.id} className={request.id === selectedRequestId ? "request-row active" : "request-row"} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1259,26 +1355,53 @@ export function App() {
                 </button>
               </div>
             )}
-            {activeTab === "auth" && (
-              <div aria-label="API request authentication">
-                <div className="auth-grid">
-                  {authModes.map((mode) => {
-                    const modeVal = mode === "None" ? "none" : mode === "Basic Auth" ? "basic" : mode === "Bearer Token" ? "bearer" : mode === "API Key" ? "apiKey" : "oauth2";
-                    const isActive = draftRequest.authMode === modeVal;
-                    return (
-                      <button
-                        className={`auth-card ${isActive ? 'active' : ''}`}
-                        key={mode}
-                        type="button"
-                        onClick={() => updateDraft({ authMode: modeVal as import("./types").ApiAuthMode })}
-                        style={{ all: 'unset', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '16px', borderRadius: '8px', cursor: 'pointer', backgroundColor: isActive ? 'var(--color-surface-hover)' : 'var(--color-surface)', border: isActive ? '2px solid #2563eb' : '2px solid transparent' }}
-                      >
-                        <KeyRound size={18} />
-                        <span>{mode}</span>
-                      </button>
-                    );
-                  })}
+            {activeTab === "auth" && draftRequest && (
+              <div aria-label="API request authentication" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <KeyRound size={14} />
+                    Authentication Method
+                  </label>
+                  <select 
+                    value={draftRequest.authMode} 
+                    onChange={e => updateDraft({ authMode: e.target.value as import("./types").ApiAuthMode })}
+                    style={{ 
+                      padding: '8px', 
+                      borderRadius: '4px', 
+                      backgroundColor: 'var(--color-surface)', 
+                      color: 'var(--color-text)', 
+                      border: '1px solid var(--color-border)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {Object.entries(AUTH_MODE_MAP).map(([label, value]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
                 </div>
+
+                <div style={{ 
+                  fontSize: '12px', 
+                  padding: '8px 12px', 
+                  borderRadius: '6px', 
+                  backgroundColor: 'var(--color-surface-muted)', 
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>Effective Auth:</span>
+                  {(() => {
+                    if (draftRequest.authMode !== "none") return <span>Request Level ({AUTH_MODE_LABELS[draftRequest.authMode]})</span>;
+                    const folder = workspace.folders.find(f => f.id === draftRequest.folderId);
+                    if (folder && folder.authMode && folder.authMode !== "none") return <span>Inherited from Folder: {folder.name} ({AUTH_MODE_LABELS[folder.authMode]})</span>;
+                    const collection = workspace.collections?.find(c => folder?.collectionId === c.id);
+                    if (collection && collection.authMode && collection.authMode !== "none") return <span>Inherited from Collection: {collection.name} ({AUTH_MODE_LABELS[collection.authMode]})</span>;
+                    return <span>None</span>;
+                  })()}
+                </div>
+
                  {draftRequest.authMode === "basic" && (
                   <div className="auth-config-fields" aria-label="Basic auth credentials">
                     <label>
@@ -1291,11 +1414,71 @@ export function App() {
                     </label>
                   </div>
                 )}
-                {(draftRequest.authMode === "bearer" || draftRequest.authMode === "oauth2") && (
+                {draftRequest.authMode === "bearer" && (
                   <div className="auth-config-fields" aria-label="Bearer token credential">
                     <label>
                       <span>Token</span>
                       <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
+                    </label>
+                  </div>
+                )}
+                {draftRequest.authMode === "oauth2" && (
+                  <div className="auth-config-fields" aria-label="OAuth 2.0 credentials" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <label>
+                      <span>Token</span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 }} />
+                        <button type="button" onClick={async () => {
+                          try {
+                            const token = await obtainOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
+                            updateAuthConfig({ token });
+                            alert("Access token obtained successfully!");
+                          } catch (err) {
+                            alert("Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)));
+                          }
+                        }} style={{ padding: '4px 12px', cursor: 'pointer', backgroundColor: 'var(--color-primary, #0066cc)', color: '#fff', border: 'none', borderRadius: '4px' }}>
+                          Get Token
+                        </button>
+                      </div>
+                    </label>
+                    <label>
+                      <span>Grant Type</span>
+                      <select value={draftRequest.authConfig?.grantType ?? "client_credentials"} onChange={e => updateAuthConfig({ grantType: e.target.value as "client_credentials" | "password" })}>
+                        <option value="client_credentials">Client Credentials</option>
+                        <option value="password">Password</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Access Token URL</span>
+                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.accessTokenUrl ?? ""} onChange={e => updateAuthConfig({ accessTokenUrl: e.target.value })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
+                    </label>
+                    <label>
+                      <span>Client ID</span>
+                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.clientId ?? ""} onChange={e => updateAuthConfig({ clientId: e.target.value })} placeholder="client_id or {{variable}}" autoComplete="off" />
+                    </label>
+                    <label>
+                      <span>Client Secret</span>
+                      <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.clientSecret ?? ""} onChange={e => updateAuthConfig({ clientSecret: e.target.value })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
+                    </label>
+                    {(draftRequest.authConfig?.grantType === "password") && (
+                      <>
+                        <label>
+                          <span>Username</span>
+                          <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
+                        </label>
+                        <label>
+                          <span>Password</span>
+                          <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
+                        </label>
+                      </>
+                    )}
+                    <label>
+                      <span>Scope</span>
+                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.scope ?? ""} onChange={e => updateAuthConfig({ scope: e.target.value })} placeholder="read write or {{variable}}" autoComplete="off" />
+                    </label>
+                    <label>
+                      <span>Audience</span>
+                      <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.audience ?? ""} onChange={e => updateAuthConfig({ audience: e.target.value })} placeholder="audience or {{variable}}" autoComplete="off" />
                     </label>
                   </div>
                 )}
@@ -1796,6 +1979,164 @@ export function App() {
                   Save settings
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {authEditorOpen && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Entity authentication editor"
+          onClick={() => setAuthEditorOpen(false)}
+        >
+          <div
+            className="modal"
+            onClick={e => e.stopPropagation()}
+            style={{ width: '500px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '16px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontSize: '16px' }}>
+                Authentication for {authEditorTarget?.type === 'folder' ? 'Folder' : 'Collection'}
+              </h2>
+              <button type="button" onClick={() => setAuthEditorOpen(false)} style={{ all: 'unset', cursor: 'pointer' }}><X size={18} /></button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <KeyRound size={14} />
+                Authentication Method
+              </label>
+              <select 
+                value={authDraft.mode} 
+                onChange={e => setAuthDraft({ ...authDraft, mode: e.target.value as ApiAuthMode })}
+                style={{ 
+                  padding: '8px', 
+                  borderRadius: '4px', 
+                  backgroundColor: 'var(--color-surface)', 
+                  color: 'var(--color-text)', 
+                  border: '1px solid var(--color-border)',
+                  cursor: 'pointer'
+                }}
+              >
+                {Object.entries(AUTH_MODE_MAP).map(([label, value]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+
+            {authDraft.mode === "basic" && (
+              <div className="auth-config-fields" aria-label="Basic auth credentials">
+                <label>
+                  <span>Username</span>
+                  <VariableInput activeVariables={activeVars} value={authDraft.config.username ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, username: v.target.value } })} placeholder="username or {{variable}}" autoComplete="off" />
+                </label>
+                <label>
+                  <span>Password</span>
+                  <VariableInput type="password" activeVariables={activeVars} value={authDraft.config.password ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, password: v.target.value } })} placeholder="password or {{variable}}" autoComplete="new-password" />
+                </label>
+              </div>
+            )}
+
+            {authDraft.mode === "bearer" && (
+              <div className="auth-config-fields" aria-label="Token credential">
+                <label>
+                  <span>Token</span>
+                  <VariableInput activeVariables={activeVars} value={authDraft.config.token ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, token: v.target.value } })} placeholder="token or {{variable}}" autoComplete="off" />
+                </label>
+              </div>
+            )}
+
+            {authDraft.mode === "oauth2" && (
+              <div className="auth-config-fields" aria-label="OAuth 2.0 credentials" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <label>
+                  <span>Token</span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <VariableInput activeVariables={activeVars} value={authDraft.config.token ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, token: v.target.value } })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 }} />
+                    <button type="button" onClick={async () => {
+                      try {
+                        const token = await obtainOAuth2Token(authDraft.config, buildVariableMap(activeVars));
+                        setAuthDraft({ ...authDraft, config: { ...authDraft.config, token } });
+                        alert("Access token obtained successfully!");
+                      } catch (err) {
+                        alert("Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)));
+                      }
+                    }} style={{ padding: '4px 12px', cursor: 'pointer', backgroundColor: 'var(--color-primary, #0066cc)', color: '#fff', border: 'none', borderRadius: '4px' }}>
+                      Get Token
+                    </button>
+                  </div>
+                </label>
+                <label>
+                  <span>Grant Type</span>
+                  <select value={authDraft.config.grantType ?? "client_credentials"} onChange={e => setAuthDraft({ ...authDraft, config: { ...authDraft.config, grantType: e.target.value as "client_credentials" | "password" } })}>
+                    <option value="client_credentials">Client Credentials</option>
+                    <option value="password">Password</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Access Token URL</span>
+                  <VariableInput activeVariables={activeVars} value={authDraft.config.accessTokenUrl ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, accessTokenUrl: v.target.value } })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
+                </label>
+                <label>
+                  <span>Client ID</span>
+                  <VariableInput activeVariables={activeVars} value={authDraft.config.clientId ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, clientId: v.target.value } })} placeholder="client_id or {{variable}}" autoComplete="off" />
+                </label>
+                <label>
+                  <span>Client Secret</span>
+                  <VariableInput type="password" activeVariables={activeVars} value={authDraft.config.clientSecret ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, clientSecret: v.target.value } })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
+                </label>
+                {(authDraft.config.grantType === "password") && (
+                  <>
+                    <label>
+                      <span>Username</span>
+                      <VariableInput activeVariables={activeVars} value={authDraft.config.username ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, username: v.target.value } })} placeholder="username or {{variable}}" autoComplete="off" />
+                    </label>
+                    <label>
+                      <span>Password</span>
+                      <VariableInput type="password" activeVariables={activeVars} value={authDraft.config.password ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, password: v.target.value } })} placeholder="password or {{variable}}" autoComplete="new-password" />
+                    </label>
+                  </>
+                )}
+                <label>
+                  <span>Scope</span>
+                  <VariableInput activeVariables={activeVars} value={authDraft.config.scope ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, scope: v.target.value } })} placeholder="read write or {{variable}}" autoComplete="off" />
+                </label>
+                <label>
+                  <span>Audience</span>
+                  <VariableInput activeVariables={activeVars} value={authDraft.config.audience ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, audience: v.target.value } })} placeholder="audience or {{variable}}" autoComplete="off" />
+                </label>
+              </div>
+            )}
+
+            {authDraft.mode === "apiKey" && (
+              <div className="auth-config-fields" aria-label="API key credentials">
+                <label>
+                  <span>Key name</span>
+                  <VariableInput activeVariables={activeVars} value={authDraft.config.keyName ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, keyName: v.target.value } })} placeholder="X-API-Key or {{variable}}" autoComplete="off" />
+                </label>
+                <label>
+                  <span>Key value</span>
+                  <VariableInput activeVariables={activeVars} value={authDraft.config.keyValue ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, keyValue: v.target.value } })} placeholder="value or {{variable}}" autoComplete="off" />
+                </label>
+                <label>
+                  <span>Add to</span>
+                  <select value={authDraft.config.placement ?? "header"} onChange={e => setAuthDraft({ ...authDraft, config: { ...authDraft.config, placement: e.target.value as "header" | "query" } })}>
+                    <option value="header">Header</option>
+                    <option value="query">Query parameter</option>
+                  </select>
+                </label>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+              <button className="modal-cancel" type="button" onClick={() => setAuthEditorOpen(false)}>
+                Cancel
+              </button>
+              <button className="modal-confirm" type="button" onClick={handleSaveEntityAuth}>
+                Save Authentication
+              </button>
             </div>
           </div>
         </div>

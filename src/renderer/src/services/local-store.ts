@@ -215,3 +215,13 @@ export async function deleteScript(scriptId: string): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("delete_script", { scriptId });
 }
+
+export async function saveFolderAuth(folderId: string, authMode: import("../types").ApiAuthMode, authConfig: import("../types").AuthConfig): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("save_folder_auth", { folderId, authMode, authConfig });
+}
+
+export async function saveCollectionAuth(collectionId: string, authMode: import("../types").ApiAuthMode, authConfig: import("../types").AuthConfig): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("save_collection_auth", { collectionId, authMode, authConfig });
+}
