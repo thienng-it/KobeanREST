@@ -28,6 +28,8 @@ export const defaultAppSettings: AppSettings = {
   exportRedactionEnabled: true,
   diagnosticsRedactionEnabled: true,
   offlineBehavior: "silent",
+  timeoutMs: 30000,
+  followRedirects: true,
 };
 
 let previewSettings = { ...defaultAppSettings };
@@ -87,11 +89,28 @@ export async function deleteRequest(requestId: string): Promise<void> {
   return invoke<void>("delete_request", { requestId });
 }
 
-export async function createFolder(name: string): Promise<import("../types").FolderSummary> {
+export async function createFolder(name: string, collectionId?: string, parentId?: string): Promise<import("../types").FolderSummary> {
   if (!isTauriRuntime()) {
-    return { id: `preview-folder-${Date.now()}`, name };
+    return { id: `preview-folder-${Date.now()}`, name, collectionId, parentId };
   }
-  return invoke<import("../types").FolderSummary>("create_folder", { name });
+  return invoke<import("../types").FolderSummary>("create_folder", { 
+    name, 
+    collection_id: collectionId, 
+    parent_id: parentId 
+  });
+}
+
+export async function createWorkspace(name: string): Promise<string> {
+  if (!isTauriRuntime()) return `preview-workspace-${Date.now()}`;
+  return invoke<string>("create_workspace", { name });
+}
+
+export async function createCollection(workspaceId: string, name: string): Promise<string> {
+  if (!isTauriRuntime()) return `preview-collection-${Date.now()}`;
+  return invoke<string>("create_collection", { 
+    workspace_id: workspaceId, 
+    name 
+  });
 }
 
 export async function updateFolder(folderId: string, name: string): Promise<void> {
@@ -214,4 +233,14 @@ export async function saveScript(entityId: string, entityType: string, scriptTyp
 export async function deleteScript(scriptId: string): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("delete_script", { scriptId });
+}
+
+export async function saveFolderAuth(folderId: string, authMode: import("../types").ApiAuthMode, authConfig: import("../types").AuthConfig): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("save_folder_auth", { folderId, authMode, authConfig });
+}
+
+export async function saveCollectionAuth(collectionId: string, authMode: import("../types").ApiAuthMode, authConfig: import("../types").AuthConfig): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("save_collection_auth", { collectionId, authMode, authConfig });
 }
