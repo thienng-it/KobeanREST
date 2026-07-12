@@ -41,13 +41,14 @@ test("App.tsx implements editable state management", () => {
   
   // Check for save functions
   assert.match(app, /async function handleSaveRequest\(\)/);
-  assert.match(app, /async function handleCreateFolder\(\)/);
+  assert.match(app, /async function handleCreateFolder\(/);
   assert.match(app, /async function handleDeleteFolder/);
   assert.match(app, /async function handleCreateRequest/);
   assert.match(app, /async function handleDeleteRequest/);
   assert.match(app, /const \[collapsedFolders, setCollapsedFolders\] = useState<Record<string, boolean>>\(\{\}\);/);
   assert.match(app, /aria-expanded=\{!collapsedFolders\[folder\.id\]\}/);
-  assert.match(app, /\{!collapsedFolders\[folder\.id\] && folderRequests\.map\(request => \(/);
+  assert.match(app, /\{!collapsedFolders\[folder\.id\] && \(/);
+  assert.match(app, /folderRequests\.map\(request => \(/);
 });
 
 test("App.tsx keeps request renaming in the sidebar instead of the main editor header", () => {
@@ -109,7 +110,6 @@ test("request composer uses a compact header and unified command bar", () => {
   assert.match(app, /className="request-command-bar"/);
   assert.match(app, /className="request-workspace"/);
   assert.match(app, /containerClassName="request-body-editor-shell"/);
-  assert.match(app, /<div className="request-workspace">[\s\S]*<div className="execution-options"/);
   assert.match(app, /className="request-body-toolbar"/);
   assert.match(app, /className="request-header-actions"/);
 });

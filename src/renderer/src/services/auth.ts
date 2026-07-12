@@ -1,5 +1,6 @@
 import type { ApiAuthMode, AuthConfig } from "../types";
 import { resolveString, containsVariables } from "./variables";
+import { executeHttpRequest } from "./http-client";
 
 type Header = { key: string; value: string; enabled: boolean };
 
@@ -32,6 +33,12 @@ export function resolveAuthConfig(
     keyName: tryResolve(authConfig.keyName, variableMap) || undefined,
     keyValue: tryResolve(authConfig.keyValue, variableMap) || undefined,
     placement: authConfig.placement,
+    grantType: authConfig.grantType,
+    accessTokenUrl: tryResolve(authConfig.accessTokenUrl, variableMap) || undefined,
+    clientId: tryResolve(authConfig.clientId, variableMap) || undefined,
+    clientSecret: tryResolve(authConfig.clientSecret, variableMap) || undefined,
+    scope: tryResolve(authConfig.scope, variableMap) || undefined,
+    audience: tryResolve(authConfig.audience, variableMap) || undefined,
   };
 }
 
@@ -136,4 +143,80 @@ export function redactAuthHeaders(
     }
     return h;
   });
+}
+
+/**
+ * Perform a POST request to obtain an Access Token via OAuth 2.0 (Client Credentials or Password grant).
+ */
+export async function obtainOAuth2Token(
+  authConfig: AuthConfig,
+  variableMap: Map<string, string>,
+): Promise<string> {
+  const url = tryResolve(authConfig.accessTokenUrl, variableMap);
+  if (!url) {
+    throw new Error("Access Token URL is required");
+  }
+
+  const grantType = authConfig.grantType ?? "client_credentials";
+  const clientId = tryResolve(authConfig.clientId, variableMap);
+  const clientSecret = tryResolve(authConfig.clientSecret, variableMap);
+  const scope = tryResolve(authConfig.scope, variableMap);
+  const audience = tryResolve(authConfig.audience, variableMap);
+
+  const params = new URLSearchParams();
+  params.append("grant_type", grantType);
+
+  if (grantType === "password") {
+    const username = tryResolve(authConfig.username, variableMap);
+    const password = tryResolve(authConfig.password, variableMap);
+    params.append("username", username);
+    params.append("password", password);
+  }
+
+  if (scope) {
+    params.append("scope", scope);
+  }
+  if (audience) {
+    params.append("audience", audience);
+  }
+
+  const headers: Array<{ key: string; value: string; enabled: boolean }> = [
+    { key: "Content-Type", value: "application/x-www-form-urlencoded", enabled: true }
+  ];
+
+  if (clientId && clientSecret) {
+    try {
+      const encoded = btoa(`${clientId}:${clientSecret}`);
+      headers.push({ key: "Authorization", value: `Basic ${encoded}`, enabled: true });
+    } catch (e) {
+      // If btoa fails, fallback to sending in body
+      params.append("client_id", clientId);
+      params.append("client_secret", clientSecret);
+    }
+  } else if (clientId) {
+    params.append("client_id", clientId);
+  }
+
+  const response = await executeHttpRequest({
+    method: "POST",
+    url,
+    headers,
+    body: params.toString(),
+    bodyMimeType: "application/x-www-form-urlencoded",
+    timeoutMs: 30000,
+    followRedirects: true,
+  });
+
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`Failed to obtain token (HTTP ${response.status}): ${response.bodyText || response.statusText}`);
+  }
+
+  const data = JSON.parse(response.bodyText || "{}");
+  if (data.access_token) {
+    return data.access_token;
+  } else if (data.token) {
+    return data.token;
+  } else {
+    throw new Error("Response did not contain an access_token");
+  }
 }

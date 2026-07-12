@@ -1,6 +1,6 @@
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "CUSTOM";
 
-export type ApiAuthMode = "none" | "basic" | "bearer" | "apiKey" | "oauth2";
+export type ApiAuthMode = "none" | "basic" | "bearer" | "apiKey" | "oauth2" | "ntlm" | "kerberos";
 
 export interface AuthConfig {
   username?: string;
@@ -9,6 +9,13 @@ export interface AuthConfig {
   keyName?: string;
   keyValue?: string;
   placement?: "header" | "query";
+  // OAuth 2.0 fields
+  grantType?: "client_credentials" | "password";
+  accessTokenUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
+  scope?: string;
+  audience?: string;
 }
 
 export interface Script {
@@ -48,6 +55,19 @@ export interface EnvironmentVariable {
 export interface FolderSummary {
   id: string;
   name: string;
+  authMode?: ApiAuthMode;
+  authConfig?: AuthConfig;
+  collectionId?: string;
+  parentId?: string;
+  timeoutMs?: number;
+  followRedirects?: boolean;
+}
+
+export interface CollectionSummary {
+  id: string;
+  name: string;
+  authMode?: ApiAuthMode;
+  authConfig?: AuthConfig;
 }
 
 export interface WorkspaceSummary {
@@ -59,6 +79,7 @@ export interface WorkspaceSummary {
   }>;
   folders: FolderSummary[];
   requests: SavedRequest[];
+  collections?: CollectionSummary[];
 }
 
 export interface HistoryEntry {
@@ -78,6 +99,8 @@ export interface AppSettings {
   exportRedactionEnabled: boolean;
   diagnosticsRedactionEnabled: boolean;
   offlineBehavior: "silent" | "notice";
+  timeoutMs?: number;
+  followRedirects?: boolean;
 }
 
 export interface UpdateStatus {
