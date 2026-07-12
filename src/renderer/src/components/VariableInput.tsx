@@ -203,9 +203,6 @@ export function VariableInput({
           overflow: "hidden",
           boxSizing: "border-box",
           backgroundColor: "transparent",
-          border: "1px solid transparent",
-          display: "flex",
-          alignItems: "center",
         }}
       >
         {renderHighlightedText()}

@@ -169,6 +169,10 @@ export function App() {
   });
   const [previewMode, setPreviewMode] = useState<'rendered' | 'xml' | 'html' | 'json' | 'raw'>('rendered');
   const [responseTab, setResponseTab] = useState<'preview' | 'headers' | 'timeline' | 'download' | 'copy'>('preview');
+  const [responseWindowOpen, setResponseWindowOpen] = useState(false);
+  const [activeBottomDock, setActiveBottomDock] = useState<'response' | null>('response');
+  const [bottomDockHeight, setBottomDockHeight] = useState(320);
+  const [isResponsePanelResizing, setIsResponsePanelResizing] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const [draftRequest, setDraftRequest] = useState<SavedRequest | null>(null);
@@ -318,6 +322,37 @@ export function App() {
   }
 
   useEffect(() => {
+    if (!isResponsePanelResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const nextHeight = window.innerHeight - e.clientY - 24;
+      if (nextHeight >= 180 && nextHeight <= 720) {
+        setBottomDockHeight(nextHeight);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResponsePanelResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResponsePanelResizing]);
+
+  function handleResponsePanelResizerMouseDown() {
+    setIsResponsePanelResizing(true);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  useEffect(() => {
     const req = workspace.requests.find(r => r.id === selectedRequestId);
     setDraftRequest(req ? JSON.parse(JSON.stringify(req)) : null);
   }, [selectedRequestId, workspace.requests]);
@@ -366,6 +401,17 @@ export function App() {
 
   const isSending = responseState.kind === "loading";
   const currentResponse = responseState.kind === "error" ? undefined : responseState.response;
+  const responseTitle = responseState.kind === "error"
+    ? "Request failed"
+    : currentResponse
+      ? `${currentResponse.status} ${currentResponse.statusText}`
+      : "No response";
+  const responseTitleColor = responseState.kind === 'error'
+    ? '#991b1b'
+    : currentResponse
+      ? statusColor(currentResponse.status)
+      : 'var(--color-text)';
+  const bottomDockStripHeight = 36;
   const activeVars = activeEnvironmentVariables(workspace);
   const requestFolder = draftRequest
     ? workspace.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
@@ -417,6 +463,278 @@ export function App() {
 
   function diagnosticMessage(error: unknown) {
     return redactDiagnosticError(error);
+  }
+
+  function downloadCurrentResponse() {
+    if (!currentResponse) return;
+
+    const blob = new Blob([currentResponse.bodyText || ''], {
+      type: currentResponse.contentType || 'text/plain',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `response_${currentResponse.status}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyCurrentResponse() {
+    if (!currentResponse) return;
+    await navigator.clipboard.writeText(currentResponse.bodyText || '');
+    alert('Response body copied to clipboard!');
+  }
+
+  function renderResponseBody() {
+    if (responseState.kind === "error") {
+      return <pre className="response-body">{'// No response — see error above.'}</pre>;
+    }
+
+    if (!currentResponse) {
+      return <pre className="response-body">{'// Send a request to see a response.'}</pre>;
+    }
+
+    return (
+      <div className="response-body-container">
+        {responseTab === 'preview' && (
+          <>
+            {previewMode === 'rendered' ? (
+              <div
+                className="response-body rendered"
+                dangerouslySetInnerHTML={{ __html: currentResponse.bodyText || '' }}
+              />
+            ) : (
+              <ResponseViewer
+                value={currentResponse.bodyText ?? (currentResponse.bodyBase64 ? `[binary response base64]\n${currentResponse.bodyBase64}` : "// Empty response body")}
+                contentType={currentResponse.contentType ?? "text/plain"}
+                height="100%"
+              />
+            )}
+          </>
+        )}
+        {responseTab === 'headers' && (
+          <div className="response-body" style={{
+            display: 'grid',
+            gap: '8px',
+            fontSize: '13px',
+            color: 'var(--color-text)'
+          }}>
+            {currentResponse.headers.map((h, i) => (
+              <div key={i} style={{
+                display: 'flex',
+                gap: '12px',
+                borderBottom: '1px solid var(--color-border)',
+                paddingBottom: '6px',
+                paddingTop: '4px'
+              }}>
+                <span style={{
+                  fontWeight: 600,
+                  color: 'var(--color-text-muted)',
+                  minWidth: '140px',
+                  flexShrink: 0
+                }}>{h.key}:</span>
+                <span style={{
+                  color: 'var(--color-text)',
+                  wordBreak: 'break-all'
+                }}>{h.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {responseTab === 'timeline' && (
+          <div className="response-body" style={{
+            fontSize: '13px',
+            color: 'var(--color-text)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '8px 12px',
+              backgroundColor: 'var(--color-surface-muted)',
+              borderRadius: '6px',
+              border: '1px solid var(--color-border)'
+            }}>
+              <span>Total Duration:</span>
+              <span style={{ fontWeight: 600, color: 'var(--color-accent)' }}>{currentResponse.durationMs} ms</span>
+            </div>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}>
+              {[
+                { label: 'DNS Lookup', value: currentResponse.dnsMs },
+                { label: 'TCP Connection', value: currentResponse.connectMs },
+                { label: 'TLS Handshake', value: currentResponse.tlsMs },
+                { label: 'Request/Response', value: currentResponse.requestMs },
+              ].map(item => (
+                <div key={item.label} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '4px 0'
+                }}>
+                  <span style={{ color: 'var(--color-text-muted)' }}>{item.label}</span>
+                  <span style={{ fontWeight: 500 }}>{item.value} ms</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderResponsePanel({ modal }: { modal: boolean }) {
+    const shell = (
+      <div className={modal ? "response-viewer response-viewer-window" : "response-viewer"}>
+        <div className="panel-heading">
+          <div>
+            <span className="muted-label">Response</span>
+            <h2 style={{ color: responseTitleColor }}>
+              {responseTitle}
+            </h2>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {!modal && (
+              <button
+                className="ghost-button"
+                type="button"
+                onClick={() => setResponseWindowOpen(true)}
+                style={{ padding: '4px 8px', fontSize: '11px' }}
+              >
+                <Eye size={12} /> Open in Window
+              </button>
+            )}
+            {currentResponse && responseState.kind !== "error" && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  className="ghost-button"
+                  type="button"
+                  onClick={downloadCurrentResponse}
+                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                >
+                  <Download size={12} /> Download
+                </button>
+                <button
+                  className="ghost-button"
+                  type="button"
+                  onClick={() => void copyCurrentResponse()}
+                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                >
+                  <span style={{ fontSize: '10px' }}>📋</span> Copy
+                </button>
+              </div>
+            )}
+            {currentResponse && responseState.kind !== "error" && responseTab === 'preview' && (
+              <select
+                value={previewMode}
+                onChange={(e) => setPreviewMode(e.target.value as typeof previewMode)}
+                style={{
+                  fontSize: '12px',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--color-surface-muted)',
+                  color: 'var(--color-text)',
+                  border: '1px solid var(--color-border)',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="rendered">Rendered</option>
+                <option value="json">JSON</option>
+                <option value="xml">XML</option>
+                <option value="html">HTML</option>
+                <option value="raw">Raw</option>
+              </select>
+            )}
+            {currentResponse && responseState.kind !== "error" && (
+              <div className="response-stats">
+                <span>
+                  <Clock3 size={14} />
+                  {currentResponse.durationMs} ms
+                </span>
+                <span>{formatBytes(currentResponse.sizeBytes)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="response-tabs">
+          {(['preview', 'headers', 'timeline'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setResponseTab(tab)}
+              className={responseTab === tab ? 'response-tab active' : 'response-tab'}
+              type="button"
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {responseState.kind === "success" && (
+          <div className="response-banner success">Response received from the native HTTP engine.</div>
+        )}
+        {responseState.kind === "error" && (
+          <div className="response-banner error">{responseState.message}</div>
+        )}
+
+        {renderResponseBody()}
+      </div>
+    );
+
+    if (modal) {
+      return <div className="response-window-shell" aria-label="Response window">{shell}</div>;
+    }
+
+    return (
+      <section
+        className={activeBottomDock === 'response' ? "response-layout" : "response-layout hidden"}
+        aria-label="Response"
+      >
+        <button
+          className="response-panel-resizer"
+          type="button"
+          aria-label="Resize response panel"
+          onMouseDown={handleResponsePanelResizerMouseDown}
+        />
+        {shell}
+      </section>
+    );
+  }
+
+  function renderBottomDock() {
+    return (
+      <section
+        className="bottom-dock"
+        aria-label="Bottom dock"
+        style={{ height: activeBottomDock === 'response' ? `${bottomDockHeight + bottomDockStripHeight}px` : `${bottomDockStripHeight}px` }}
+      >
+        <div className="bottom-dock-strip">
+          <button
+            className={activeBottomDock === 'response' ? 'bottom-dock-tab active' : 'bottom-dock-tab'}
+            type="button"
+            onClick={() => setActiveBottomDock('response')}
+          >
+            <Eye size={14} /> Response
+          </button>
+          <button
+            className={activeBottomDock === 'response' ? 'bottom-dock-collapse expanded' : 'bottom-dock-collapse collapsed'}
+            type="button"
+            aria-label={activeBottomDock === 'response' ? "Collapse response dock" : "Expand response dock"}
+            onClick={() => setActiveBottomDock(activeBottomDock === 'response' ? null : 'response')}
+          >
+            <ChevronDown size={14} />
+          </button>
+        </div>
+        <div className="bottom-dock-panels">
+          {renderResponsePanel({ modal: false })}
+        </div>
+      </section>
+    );
   }
 
   async function handleSaveRequest() {
@@ -940,6 +1258,7 @@ export function App() {
 
   async function sendSelectedRequest() {
     if (!draftRequest) return;
+    setActiveBottomDock('response');
     
     let variableMap = buildVariableMap(activeEnvironmentVariables(workspace));
 
@@ -1352,7 +1671,10 @@ export function App() {
           </div>
         </header>
 
-        <div className="workspace-main">
+        <div
+          className="workspace-main"
+          style={{ gridTemplateRows: activeBottomDock === 'response' ? `minmax(0, 1fr) ${bottomDockHeight + bottomDockStripHeight}px` : `minmax(0, 1fr) ${bottomDockStripHeight}px` }}
+        >
           {draftRequest && (
             <section className="request-panel" aria-label="Request builder">
               <div className="request-header">
@@ -1818,206 +2140,41 @@ export function App() {
           </section>
         )}
 
-          <section className="response-layout" aria-label="Response">
-            <div className="response-viewer">
-            <div className="panel-heading">
-              <div>
-                <span className="muted-label">Response</span>
-                <h2 style={{
-                  color: responseState.kind === 'error' ? '#991b1b'
-                    : currentResponse ? statusColor(currentResponse.status)
-                    : 'var(--color-text)'
-                }}>
-                  {responseState.kind === "error"
-                    ? "Request failed"
-                    : currentResponse
-                      ? `${currentResponse.status} ${currentResponse.statusText}`
-                      : "No response"}
-                </h2>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                {currentResponse && responseState.kind !== "error" && (
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                      className="ghost-button" 
-                      onClick={() => {
-                        const blob = new Blob([currentResponse.bodyText || ''], { type: currentResponse.contentType || 'text/plain' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `response_${currentResponse.status}.txt`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }}
-                      style={{ padding: '4px 8px', fontSize: '11px' }}
-                    >
-                      <Download size={12} /> Download
-                    </button>
-                    <button 
-                      className="ghost-button" 
-                      onClick={() => {
-                        navigator.clipboard.writeText(currentResponse.bodyText || '');
-                        alert('Response body copied to clipboard!');
-                      }}
-                      style={{ padding: '4px 8px', fontSize: '11px' }}
-                    >
-                      <span style={{ fontSize: '10px' }}>📋</span> Copy
-                    </button>
-                  </div>
-                )}
-                {currentResponse && responseState.kind !== "error" && responseTab === 'preview' && (
-                  <select 
-                    value={previewMode} 
-                    onChange={(e) => setPreviewMode(e.target.value as any)}
-                    style={{ 
-                      fontSize: '12px', 
-                      padding: '2px 6px', 
-                      borderRadius: '4px', 
-                      backgroundColor: 'var(--color-surface-muted)', 
-                      color: 'var(--color-text)', 
-                      border: '1px solid var(--color-border)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="rendered">Rendered</option>
-                    <option value="json">JSON</option>
-                    <option value="xml">XML</option>
-                    <option value="html">HTML</option>
-                    <option value="raw">Raw</option>
-                  </select>
-                )}
-                {currentResponse && responseState.kind !== "error" && (
-                  <div className="response-stats">
-                    <span>
-                      <Clock3 size={14} />
-                      {currentResponse.durationMs} ms
-                    </span>
-                    <span>{formatBytes(currentResponse.sizeBytes)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="response-tabs">
-              {(['preview', 'headers', 'timeline'] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setResponseTab(tab)}
-                  className={responseTab === tab ? 'response-tab active' : 'response-tab'}
-                  type="button"
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </div>
-
-            {responseState.kind === "success" && (
-              <div className="response-banner success">Response received from the native HTTP engine.</div>
-            )}
-            {responseState.kind === "error" && (
-              <div className="response-banner error">{responseState.message}</div>
-            )}
-
-            {responseState.kind === "error" ? (
-              <pre className="response-body">{'// No response — see error above.'}</pre>
-            ) : currentResponse ? (
-              <div className="response-body-container">
-                {responseTab === 'preview' && (
-                  <>
-                    {previewMode === 'rendered' ? (
-                      <div 
-                        className="response-body rendered" 
-                        dangerouslySetInnerHTML={{ __html: currentResponse.bodyText || '' }} 
-                      />
-                    ) : (
-                      <ResponseViewer 
-                        value={currentResponse.bodyText ?? (currentResponse.bodyBase64 ? `[binary response base64]\n${currentResponse.bodyBase64}` : "// Empty response body")}
-                        contentType={currentResponse.contentType ?? "text/plain"}
-                        height="100%"
-                      />
-                    )}
-                  </>
-                )}
-                {responseTab === 'headers' && (
-                  <div className="response-body" style={{ 
-                    display: 'grid', 
-                    gap: '8px', 
-                    fontSize: '13px', 
-                    color: 'var(--color-text)'
-                  }}>
-                    {currentResponse.headers.map((h, i) => (
-                      <div key={i} style={{ 
-                        display: 'flex', 
-                        gap: '12px', 
-                        borderBottom: '1px solid var(--color-border)', 
-                        paddingBottom: '6px',
-                        paddingTop: '4px'
-                      }}>
-                        <span style={{ 
-                          fontWeight: 600, 
-                          color: 'var(--color-text-muted)', 
-                          minWidth: '140px',
-                          flexShrink: 0
-                        }}>{h.key}:</span>
-                        <span style={{ 
-                          color: 'var(--color-text)', 
-                          wordBreak: 'break-all' 
-                        }}>{h.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {responseTab === 'timeline' && (
-                  <div className="response-body" style={{ 
-                    fontSize: '13px', 
-                    color: 'var(--color-text)',
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '12px' 
-                  }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      padding: '8px 12px',
-                      backgroundColor: 'var(--color-surface-muted)',
-                      borderRadius: '6px',
-                      border: '1px solid var(--color-border)'
-                    }}>
-                      <span>Total Duration:</span>
-                      <span style={{ fontWeight: 600, color: 'var(--color-accent)' }}>{currentResponse.durationMs} ms</span>
-                    </div>
-                    <div style={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      gap: '4px'
-                    }}>
-                      {[
-                        { label: 'DNS Lookup', value: currentResponse.dnsMs },
-                        { label: 'TCP Connection', value: currentResponse.connectMs },
-                        { label: 'TLS Handshake', value: currentResponse.tlsMs },
-                        { label: 'Request/Response', value: currentResponse.requestMs },
-                      ].map(item => (
-                        <div key={item.label} style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          padding: '4px 0'
-                        }}>
-                          <span style={{ color: 'var(--color-text-muted)' }}>{item.label}</span>
-                          <span style={{ fontWeight: 500 }}>{item.value} ms</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <pre className="response-body">{'// Send a request to see a response.'}</pre>
-            )}
-            </div>
-          </section>
+          {renderBottomDock()}
         </div>
       </section>
+
+      {responseWindowOpen && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Response window"
+          onClick={() => setResponseWindowOpen(false)}
+        >
+          <div
+            className="modal response-window-modal"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="response-window-titlebar">
+              <div>
+                <span className="response-window-kicker">Response window</span>
+                <h2 className="response-window-title" style={{ color: responseTitleColor }}>
+                  {responseTitle}
+                </h2>
+              </div>
+              <button
+                className="response-window-close"
+                type="button"
+                onClick={() => setResponseWindowOpen(false)}
+              >
+                <X size={15} /> Close
+              </button>
+            </div>
+            {renderResponsePanel({ modal: true })}
+          </div>
+        </div>
+      )}
 
       {confirmDialog && (
         <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Confirm action" onClick={() => setConfirmDialog(null)}>
@@ -2140,100 +2297,135 @@ export function App() {
           onClick={() => setSettingsOpen(false)}
         >
           <div
-            className="modal"
+            className="modal settings-modal"
             onClick={e => e.stopPropagation()}
-            style={{ width: '560px', maxWidth: '95vw', display: 'flex', flexDirection: 'column', gap: '16px' }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: '16px' }}>App settings</h2>
-              <button type="button" onClick={() => setSettingsOpen(false)} style={{ all: 'unset', cursor: 'pointer' }}><X size={18} /></button>
+            <div className="settings-header">
+              <div>
+                <span className="settings-kicker">Preferences</span>
+                <h2>App settings</h2>
+                <p>Control startup checks, privacy defaults, and request behavior.</p>
+              </div>
+              <button className="settings-close" type="button" aria-label="Close settings" onClick={() => setSettingsOpen(false)}>
+                <X size={18} />
+              </button>
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
-              <span>Update checks after launch</span>
-              <input
-                type="checkbox"
-                checked={appSettings.updateChecksEnabled}
-                onChange={e => updateAppSettings({ updateChecksEnabled: e.target.checked })}
-              />
-            </label>
+            <div className="settings-content">
+              <section className="settings-section">
+                <div className="settings-section-heading">
+                  <h3>General</h3>
+                  <p>Launch behavior and appearance.</p>
+                </div>
+                <label className="settings-row">
+                  <span>
+                    <strong>Update checks after launch</strong>
+                    <small>Look for signed app updates automatically when KobeanREST starts.</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={appSettings.updateChecksEnabled}
+                    onChange={e => updateAppSettings({ updateChecksEnabled: e.target.checked })}
+                  />
+                </label>
+                <label className="settings-field">
+                  <span>Theme</span>
+                  <select
+                    className="settings-control"
+                    value={appSettings.theme}
+                    onChange={e => updateAppSettings({ theme: e.target.value as AppSettings["theme"] })}
+                  >
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </label>
+                <div className="settings-field">
+                  <span>Data location</span>
+                  <code className="settings-path">{databasePath}</code>
+                </div>
+              </section>
 
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: 'var(--color-text)' }}>
-              <span>Theme</span>
-              <select
-                value={appSettings.theme}
-                onChange={e => updateAppSettings({ theme: e.target.value as AppSettings["theme"] })}
-                style={{ minHeight: '38px', border: '1px solid var(--color-border)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '0 10px' }}
-              >
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </label>
+              <section className="settings-section">
+                <div className="settings-section-heading">
+                  <h3>Privacy</h3>
+                  <p>Keep exported files and diagnostics safe by default.</p>
+                </div>
+                <label className="settings-row">
+                  <span>
+                    <strong>Export redaction</strong>
+                    <small>Remove secret values from exported workspace data.</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={appSettings.exportRedactionEnabled}
+                    onChange={e => updateAppSettings({ exportRedactionEnabled: e.target.checked })}
+                  />
+                </label>
+                <label className="settings-row">
+                  <span>
+                    <strong>Diagnostics redaction</strong>
+                    <small>Sanitize URLs, headers, and tokens from error reports.</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={appSettings.diagnosticsRedactionEnabled}
+                    onChange={e => updateAppSettings({ diagnosticsRedactionEnabled: e.target.checked })}
+                  />
+                </label>
+              </section>
 
-            <div style={{ display: 'grid', gap: '6px' }}>
-              <span style={{ fontSize: '13px', color: 'var(--color-text)' }}>Data location</span>
-              <code style={{ padding: '10px 12px', borderRadius: '6px', background: 'var(--color-surface-muted)', color: 'var(--color-text)', border: '1px solid var(--color-border)', wordBreak: 'break-all' }}>
-                {databasePath}
-              </code>
+              <section className="settings-section">
+                <div className="settings-section-heading">
+                  <h3>Updates</h3>
+                  <p>Choose how the app behaves when update checks cannot reach the network.</p>
+                </div>
+                <label className="settings-field">
+                  <span>Offline behavior</span>
+                  <select
+                    className="settings-control"
+                    value={appSettings.offlineBehavior}
+                    onChange={e => updateAppSettings({ offlineBehavior: e.target.value as AppSettings["offlineBehavior"] })}
+                  >
+                    <option value="silent">Stay quiet when offline</option>
+                    <option value="notice">Show a notice when update checks fail</option>
+                  </select>
+                </label>
+                <div className="settings-status">{updateStatus.lastCheckedLabel}</div>
+              </section>
+
+              <section className="settings-section">
+                <div className="settings-section-heading">
+                  <h3>Network defaults</h3>
+                  <p>Defaults applied to newly created requests.</p>
+                </div>
+                <label className="settings-row">
+                  <span>
+                    <strong>Default timeout</strong>
+                    <small>Maximum request duration in milliseconds.</small>
+                  </span>
+                  <input
+                    className="settings-number"
+                    type="number"
+                    value={appSettings.timeoutMs}
+                    onChange={(e) => updateAppSettings({ timeoutMs: parseInt(e.target.value) || 30000 })}
+                  />
+                </label>
+                <label className="settings-row">
+                  <span>
+                    <strong>Default follow redirects</strong>
+                    <small>Automatically follow HTTP redirects for new requests.</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={appSettings.followRedirects}
+                    onChange={e => updateAppSettings({ followRedirects: e.target.checked })}
+                  />
+                </label>
+              </section>
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
-              <span>Export redaction</span>
-              <input
-                type="checkbox"
-                checked={appSettings.exportRedactionEnabled}
-                onChange={e => updateAppSettings({ exportRedactionEnabled: e.target.checked })}
-              />
-            </label>
-
-            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
-              <span>Diagnostics redaction</span>
-              <input
-                type="checkbox"
-                checked={appSettings.diagnosticsRedactionEnabled}
-                onChange={e => updateAppSettings({ diagnosticsRedactionEnabled: e.target.checked })}
-              />
-            </label>
-
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: 'var(--color-text)' }}>
-              <span>Offline behavior</span>
-              <select
-                value={appSettings.offlineBehavior}
-                onChange={e => updateAppSettings({ offlineBehavior: e.target.value as AppSettings["offlineBehavior"] })}
-                style={{ minHeight: '38px', border: '1px solid var(--color-border)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '0 10px' }}
-              >
-                <option value="silent">Stay quiet when offline</option>
-                <option value="notice">Show a notice when update checks fail</option>
-              </select>
-            </label>
-
-            <div style={{ display: 'grid', gap: '12px', padding: '12px', borderRadius: '6px', backgroundColor: 'var(--color-surface-muted)', border: '1px solid var(--color-border)' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>Network Defaults</span>
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
-                <span>Default Timeout (ms)</span>
-                <input
-                  type="number"
-                  value={appSettings.timeoutMs}
-                  onChange={(e) => updateAppSettings({ timeoutMs: parseInt(e.target.value) || 30000 })}
-                  style={{ width: '80px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px' }}
-                />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
-                <span>Default Follow Redirects</span>
-                <input
-                  type="checkbox"
-                  checked={appSettings.followRedirects}
-                  onChange={e => updateAppSettings({ followRedirects: e.target.checked })}
-                />
-              </label>
-            </div>
-
-            <div style={{ padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '6px', background: 'var(--color-surface-muted)', color: 'var(--color-muted)', fontSize: '12px', lineHeight: 1.5 }}>
-              {updateStatus.lastCheckedLabel}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+            <div className="settings-footer">
               <button
                 type="button"
                 className="ghost-button"
@@ -2242,7 +2434,7 @@ export function App() {
                 <RefreshCw size={14} />
                 Check now
               </button>
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div className="settings-footer-actions">
                 <button className="modal-cancel" type="button" onClick={() => setSettingsOpen(false)}>
                   Cancel
                 </button>
