@@ -41,13 +41,14 @@ test("App.tsx implements editable state management", () => {
   
   // Check for save functions
   assert.match(app, /async function handleSaveRequest\(\)/);
-  assert.match(app, /async function handleCreateFolder\(\)/);
+  assert.match(app, /async function handleCreateFolder\(/);
   assert.match(app, /async function handleDeleteFolder/);
   assert.match(app, /async function handleCreateRequest/);
   assert.match(app, /async function handleDeleteRequest/);
   assert.match(app, /const \[collapsedFolders, setCollapsedFolders\] = useState<Record<string, boolean>>\(\{\}\);/);
   assert.match(app, /aria-expanded=\{!collapsedFolders\[folder\.id\]\}/);
-  assert.match(app, /\{!collapsedFolders\[folder\.id\] && folderRequests\.map\(request => \(/);
+  assert.match(app, /\{!collapsedFolders\[folder\.id\] && \(/);
+  assert.match(app, /folderRequests\.map\(request => \(/);
 });
 
 test("App.tsx keeps request renaming in the sidebar instead of the main editor header", () => {
@@ -86,7 +87,8 @@ test("styles keep the main shell inside the default desktop window", () => {
   assert.match(styles, /\.workspace\s*\{[\s\S]*min-height:\s*0;/);
   assert.match(styles, /\.workspace\s*\{[\s\S]*overflow:\s*hidden;/);
   assert.match(styles, /\.workspace-main\s*\{[\s\S]*min-height:\s*0;/);
-  assert.match(styles, /\.workspace-main\s*\{[\s\S]*grid-template-rows:\s*minmax\(0,\s*1\.1fr\)\s+minmax\(0,\s*0\.9fr\);/);
+  assert.match(styles, /\.workspace-main\s*\{[\s\S]*grid-template-rows:\s*auto\s+minmax\(280px,\s*1fr\);/);
+  assert.match(styles, /\.workspace-main\s*\{[\s\S]*overflow-y:\s*auto;/);
   assert.match(styles, /\.request-panel\s*\{[\s\S]*min-height:\s*0;/);
   assert.match(styles, /\.response-layout\s*\{[\s\S]*min-height:\s*0;/);
   assert.match(styles, /\.response-viewer\s*\{[\s\S]*min-height:\s*0;/);
@@ -96,7 +98,7 @@ test("styles keep the main shell inside the default desktop window", () => {
 test("request composer uses a compact header and unified command bar", () => {
   const app = read("src/renderer/src/App.tsx");
 
-  assert.match(app, /<div className="workspace-main">/);
+  assert.match(app, /className="workspace-main"/);
   assert.match(app, /className="request-header"/);
   assert.match(app, /className="request-identity"/);
   assert.match(app, /const requestFolder = draftRequest/);
@@ -132,4 +134,174 @@ test("request composer styles define the redesigned header, command bar, and bod
   assert.match(styles, /\.request-command-input\s*\{/);
   assert.match(styles, /\.request-workspace\s*\{/);
   assert.match(styles, /\.request-body-toolbar\s*\{/);
+  assert.match(styles, /\.execution-options\s*\{[\s\S]*padding-top:\s*12px;/);
+  assert.match(styles, /\.execution-options\s*\{[\s\S]*border-top:\s*1px solid var\(--color-border\);/);
+  assert.match(styles, /\.request-body-panel\s*\{[\s\S]*min-height:\s*220px;/);
+  assert.match(styles, /\.request-body-editor-shell\s*\{[\s\S]*min-height:\s*220px;/);
+  assert.match(styles, /\.editor\.request-body-editor\s*\{[\s\S]*min-height:\s*220px;/);
+});
+
+test("variable-backed request URL text uses the same vertical layout as the caret", () => {
+  const variableInput = read("src/renderer/src/components/VariableInput.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(styles, /\.request-command-input-field\s*\{[\s\S]*line-height:\s*1\.4;/);
+  assert.doesNotMatch(
+    variableInput,
+    /className="variable-input-backdrop"[\s\S]*display:\s*"flex"[\s\S]*alignItems:\s*"center"/
+  );
+});
+
+test("scripts tab uses one editor with a pre/post selector", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+  const scriptEditor = read("src/renderer/src/components/ScriptEditor.tsx");
+
+  assert.match(app, /const \[activeRequestScript, setActiveRequestScript\] = useState<"pre" \| "post">\("pre"\);/);
+  assert.match(app, /className="request-tab-panel request-scripts-panel"/);
+  assert.match(app, /className="script-editor-header"/);
+  assert.match(app, /className="script-type-segment"/);
+  assert.match(app, /setActiveRequestScript\("pre"\)/);
+  assert.match(app, /setActiveRequestScript\("post"\)/);
+  assert.match(app, /className="script-editor-group"/);
+  assert.match(app, /className="script-editor-shell"/);
+  assert.match(app, /key=\{activeRequestScript\}/);
+  assert.match(app, /value=\{activeRequestScript === "pre" \? preScript : postScript\}/);
+  assert.match(app, /onChange=\{activeRequestScript === "pre" \? setPreScript : setPostScript\}/);
+  assert.match(app, /<ScriptEditor[\s\S]*height="100%"/);
+  assert.match(app, /className="script-editor-actions"/);
+  assert.match(styles, /\.request-scripts-panel\s*\{[\s\S]*flex:\s*1;/);
+  assert.match(styles, /\.request-scripts-panel\s*\{[\s\S]*min-height:\s*0;/);
+  assert.match(styles, /\.request-scripts-panel\s*\{[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /\.script-type-segment\s*\{/);
+  assert.match(styles, /\.script-type-option\.active\s*\{/);
+  assert.match(styles, /\.script-editor-group\s*\{[\s\S]*flex:\s*1;/);
+  assert.match(styles, /\.script-editor-group\s*\{[\s\S]*min-height:\s*0;/);
+  assert.match(styles, /\.script-editor-shell\s*\{[\s\S]*flex:\s*1;/);
+  assert.match(styles, /\.script-editor-shell\s*\{[\s\S]*min-height:\s*168px;/);
+  assert.match(styles, /\.script-editor-actions\s*\{[\s\S]*flex-shrink:\s*0;/);
+  assert.match(scriptEditor, /return <div ref=\{editorRef\} style=\{\{ width: '100%', height \}\} \/>;/);
+});
+
+test("request tabs keep visible hover and active contrast", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(app, /<div className="tab-row" role="tablist" aria-label="Request configuration">/);
+  assert.match(app, /className=\{activeTab === tab \? "tab active" : "tab"\}/);
+  assert.match(styles, /\.tab\s*\{[\s\S]*border:\s*1px solid transparent;/);
+  assert.match(styles, /\.tab:hover\s*\{[\s\S]*background:\s*var\(--color-surface-hover\);/);
+  assert.match(styles, /\.tab:hover\s*\{[\s\S]*border-color:\s*var\(--color-border-tint\);/);
+  assert.match(styles, /\.tab\.active\s*\{[\s\S]*background:\s*var\(--color-tab-active\);/);
+  assert.match(styles, /\.tab\.active\s*\{[\s\S]*border-color:\s*var\(--color-border-tint\);/);
+  assert.match(styles, /\.tab:focus-visible\s*\{[\s\S]*outline:\s*2px solid var\(--color-text-active\);/);
+});
+
+test("response tabs use explicit class-based hover and active styles", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(app, /<div className="response-tabs">/);
+  assert.match(app, /className=\{responseTab === tab \? 'response-tab active' : 'response-tab'\}/);
+  assert.match(styles, /\.response-tabs\s*\{/);
+  assert.match(styles, /\.response-tab\s*\{[\s\S]*color:\s*var\(--color-muted\);/);
+  assert.match(styles, /\.response-tab:hover\s*\{[\s\S]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.82\);/);
+  assert.match(styles, /\.response-tab:hover\s*\{[\s\S]*color:\s*var\(--color-text\);/);
+  assert.match(styles, /\.response-tab\.active\s*\{[\s\S]*border-bottom-color:\s*var\(--color-text-active\);/);
+});
+
+test("response panel can open in a larger modal window without duplicating state", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(app, /const \[responseWindowOpen, setResponseWindowOpen\] = useState\(false\);/);
+  assert.match(app, /Open in Window/);
+  assert.match(app, /renderResponsePanel\(\{ modal: false \}\)/);
+  assert.match(app, /renderResponsePanel\(\{ modal: true \}\)/);
+  assert.match(app, /aria-label="Response window"/);
+  assert.match(app, /className="response-window-titlebar"/);
+  assert.match(app, /className="response-window-close"/);
+  assert.match(app, /className=\{modal \? "response-viewer response-viewer-window" : "response-viewer"\}/);
+  assert.match(styles, /\.modal\.response-window-modal\s*\{/);
+  assert.match(styles, /\.modal\.response-window-modal\s*\{[\s\S]*max-width:\s*min\(1180px, 96vw\);/);
+  assert.match(styles, /\.response-viewer-window \.panel-heading\s*\{[\s\S]*display:\s*none;/);
+  assert.match(styles, /\.response-window-titlebar\s*\{/);
+  assert.match(styles, /\.response-window-close\s*\{/);
+  assert.match(styles, /\.response-window-shell\s*\{/);
+});
+
+test("settings modal uses structured sections and stable modal chrome", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(app, /className="modal settings-modal"/);
+  assert.match(app, /className="settings-header"/);
+  assert.match(app, /className="settings-content"/);
+  assert.match(app, /className="settings-section"/);
+  assert.match(app, /className="settings-row"/);
+  assert.match(app, /className="settings-field"/);
+  assert.match(app, /className="settings-path"/);
+  assert.match(app, /className="settings-status"/);
+  assert.match(app, /className="settings-footer"/);
+  assert.match(styles, /\.modal\.settings-modal\s*\{/);
+  assert.match(styles, /\.modal\.settings-modal\s*\{[\s\S]*max-width:\s*min\(760px, 94vw\);/);
+  assert.match(styles, /\.settings-content\s*\{[\s\S]*overflow:\s*auto;/);
+  assert.match(styles, /\.settings-footer\s*\{[\s\S]*position:\s*sticky;/);
+});
+
+test("response panel behaves like a bottom dock manager with a persistent dock tab", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(app, /const \[activeBottomDock, setActiveBottomDock\] = useState<'response' \| null>\('response'\);/);
+  assert.match(app, /const \[bottomDockHeight, setBottomDockHeight\] = useState\(320\);/);
+  assert.match(app, /const bottomDockStripHeight = 36;/);
+  assert.match(app, /function handleResponsePanelResizerMouseDown\(\)/);
+  assert.match(app, /className="bottom-dock-strip"/);
+  assert.match(app, /<div className="bottom-dock-strip">[\s\S]*<div className="bottom-dock-panels">/);
+  assert.match(app, /className=\{activeBottomDock === 'response' \? 'bottom-dock-tab active' : 'bottom-dock-tab'\}/);
+  assert.match(app, /onClick=\{\(\) => setActiveBottomDock\('response'\)\}/);
+  assert.match(app, /className=\{activeBottomDock === 'response' \? 'bottom-dock-collapse expanded' : 'bottom-dock-collapse collapsed'\}/);
+  assert.match(app, /aria-label=\{activeBottomDock === 'response' \? "Collapse response dock" : "Expand response dock"\}/);
+  assert.match(app, /onClick=\{\(\) => setActiveBottomDock\(activeBottomDock === 'response' \? null : 'response'\)\}/);
+  assert.match(app, /setActiveBottomDock\('response'\);/);
+  assert.doesNotMatch(app, /Show Response/);
+  assert.match(app, /className="response-panel-resizer"/);
+  assert.match(app, /className=\{activeBottomDock === 'response' \? "response-layout" : "response-layout hidden"\}/);
+  assert.match(styles, /\.bottom-dock\s*\{[\s\S]*border:\s*1px solid var\(--color-border\);/);
+  assert.match(styles, /\.bottom-dock\s*\{[\s\S]*box-shadow:\s*none;/);
+  assert.match(styles, /\.bottom-dock-strip\s*\{[\s\S]*border-bottom:\s*1px solid var\(--color-border\);/);
+  assert.match(styles, /\.bottom-dock-strip\s*\{[\s\S]*min-height:\s*36px;/);
+  assert.match(styles, /\.bottom-dock-tab\s*\{/);
+  assert.match(styles, /\.bottom-dock-tab\s*\{[\s\S]*border-radius:\s*0;/);
+  assert.match(styles, /\.bottom-dock-tab\.active\s*\{/);
+  assert.match(styles, /\.bottom-dock-tab\.active\s*\{[\s\S]*border-bottom-color:\s*var\(--color-text-active\);/);
+  assert.match(styles, /\.bottom-dock-collapse svg\s*\{[\s\S]*transition:\s*transform 180ms ease;/);
+  assert.match(styles, /\.bottom-dock-collapse\.collapsed svg\s*\{[\s\S]*transform:\s*rotate\(180deg\);/);
+  assert.match(styles, /\.bottom-dock \.response-viewer\s*\{[\s\S]*box-shadow:\s*none;/);
+  assert.match(styles, /\.response-panel-resizer\s*\{/);
+  assert.match(styles, /\.response-layout\.hidden\s*\{/);
+});
+
+test("method selector dropdown uses a viewport-aware portal overlay", () => {
+  const selector = read("src/renderer/src/components/MethodSelector.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(selector, /import \{ ChevronDown \} from "lucide-react";/);
+  assert.match(selector, /import \{ createPortal \} from "react-dom";/);
+  assert.match(selector, /export function getMethodDropdownLayout/);
+  assert.match(selector, /window\.addEventListener\("resize", updateLayout\)/);
+  assert.match(selector, /window\.addEventListener\("scroll", updateLayout, true\)/);
+  assert.match(selector, /createPortal\(/);
+  assert.match(selector, /data-placement=\{dropdownLayout\?\.placement \?\? "bottom"\}/);
+  assert.match(selector, /className=\{`method-selector-btn method-\$\{cls\} \$\{open \? "open" : ""\}`\}/);
+  assert.match(selector, /<ChevronDown[\s\S]*className=\{`method-selector-caret \$\{open \? "open" : ""\}`\}[\s\S]*size=\{18\}/);
+  assert.match(styles, /\.method-selector-dropdown\s*\{[\s\S]*position:\s*fixed;/);
+  assert.match(styles, /\.method-selector-dropdown\s*\{[\s\S]*overflow-y:\s*auto;/);
+  assert.match(styles, /\.method-selector-dropdown\s*\{[\s\S]*max-height:\s*min\(360px,\s*calc\(100vh - 32px\)\);/);
+  assert.match(styles, /\.method-selector-caret\s*\{[\s\S]*width:\s*18px;/);
+  assert.match(styles, /\.method-selector-caret\s*\{[\s\S]*height:\s*18px;/);
+  assert.match(styles, /\.method-selector-caret\s*\{[\s\S]*opacity:\s*0\.72;/);
+  assert.match(styles, /\.method-selector-caret\s*\{[\s\S]*transition:\s*transform 180ms cubic-bezier\(0\.22, 1, 0\.36, 1\), opacity 180ms ease;/);
+  assert.match(styles, /\.method-selector-btn\.open \.method-selector-caret,/);
 });

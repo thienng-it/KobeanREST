@@ -23,6 +23,16 @@ test("package scripts expose native verification commands", () => {
   assert.equal(manifest.scripts["tauri:build"], "tauri build");
 });
 
+test("Tauri window defaults give the request and response workspace a usable launch size", () => {
+  const config = JSON.parse(read("src-tauri/tauri.conf.json"));
+  const mainWindow = config.app.windows[0];
+
+  assert.equal(mainWindow.width, 1440);
+  assert.equal(mainWindow.height, 960);
+  assert.equal(mainWindow.minWidth, 1280);
+  assert.equal(mainWindow.minHeight, 860);
+});
+
 test("native readiness docs explain the macOS Xcode license prerequisite", () => {
   assert.equal(hasFile("docs/native-readiness.md"), true);
 

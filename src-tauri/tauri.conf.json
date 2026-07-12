@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "KobeanREST",
-        "width": 1280,
-        "height": 820,
-        "minWidth": 1040,
-        "minHeight": 680
+        "width": 1440,
+        "height": 960,
+        "minWidth": 1280,
+        "minHeight": 860
       }
     ],
     "security": {
