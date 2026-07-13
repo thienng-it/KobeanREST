@@ -18,7 +18,15 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
-import { authModes, sampleWorkspace, AUTH_MODE_MAP, AUTH_MODE_LABELS } from "./data/sample-workspace";
+const authModes = ["None", "Basic Auth", "Bearer Token", "API Key", "OAuth 2.0", "NTLM", "Kerberos"];
+const AUTH_MODE_LABELS: Record<string, string> = {
+  none: "None", basic: "Basic Auth", bearer: "Bearer Token",
+  apiKey: "API Key", oauth2: "OAuth 2.0", ntlm: "NTLM", kerberos: "Kerberos"
+};
+const AUTH_MODE_MAP: Record<string, string> = {
+  "None": "none", "Basic Auth": "basic", "Bearer Token": "bearer",
+  "API Key": "apiKey", "OAuth 2.0": "oauth2", "NTLM": "ntlm", "Kerberos": "kerberos"
+};
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
 import { VariableInput, VariableTextarea } from "./components/VariableInput";
@@ -53,7 +61,11 @@ import {
   getScripts,
   saveScript,
   saveFolderAuth,
-  saveCollectionAuth, createCollection, createWorkspace,
+  saveCollectionAuth,
+  createCollection,
+  createWorkspace,
+  updateCollection,
+  deleteCollection,
 } from "./services/local-store";
 import { storeSecret } from "./services/secrets";
 import type { ApiAuthMode, AuthConfig, AppSettings, ExecuteHttpResponse, HistoryEntry, SavedRequest, UpdateStatus, WorkspaceSummary } from "./types";
@@ -161,8 +173,8 @@ function AddVariableRow({
 export function App() {
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
-  const [workspace, setWorkspace] = useState<WorkspaceSummary>(() => sampleWorkspace);
-  const [selectedRequestId, setSelectedRequestId] = useState(sampleWorkspace.requests[0]?.id ?? "");
+  const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts" | "settings">("body");
   const [responseState, setResponseState] = useState<ResponseState>({
     kind: "idle",
@@ -211,7 +223,7 @@ export function App() {
     y: number;
     target: {
       id: string;
-      type: 'folder' | 'request';
+      type: 'collection' | 'folder' | 'request';
     } | null;
   } | null>(null);
 
@@ -233,6 +245,7 @@ export function App() {
   }, [updateToast]);
 
   async function handleLoadScriptStatuses() {
+    if (!workspace) return;
     try {
       const statuses: Record<string, boolean> = {};
       
@@ -271,10 +284,11 @@ export function App() {
           channel: "stable",
         });
         setSelectedRequestId((currentRequestId) => {
-          if (localWorkspace.requests.some((request) => request.id === currentRequestId)) {
+          const requests = localWorkspace.requests ?? [];
+          if (requests.some((request) => request.id === currentRequestId)) {
             return currentRequestId;
           }
-          return localWorkspace.requests[0]?.id ?? currentRequestId;
+          return requests[0]?.id ?? currentRequestId;
         });
         if (loadedSettings.updateChecksEnabled) {
           void handleCheckForUpdates("automatic", loadedSettings);
@@ -353,9 +367,10 @@ export function App() {
   }
 
   useEffect(() => {
+    if (!workspace) return;
     const req = workspace.requests.find(r => r.id === selectedRequestId);
     setDraftRequest(req ? JSON.parse(JSON.stringify(req)) : null);
-  }, [selectedRequestId, workspace.requests]);
+  }, [selectedRequestId, workspace]);
 
   useEffect(() => {
     async function loadScripts() {
@@ -414,7 +429,7 @@ export function App() {
   const bottomDockStripHeight = 36;
   const activeVars = activeEnvironmentVariables(workspace);
   const requestFolder = draftRequest
-    ? workspace.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
+    ? (workspace?.folders ?? []).find((folder) => folder.id === draftRequest.folderId) ?? null
     : null;
   const requestPath = requestFolder && draftRequest ? `${requestFolder.name} / ${draftRequest.name}` : draftRequest?.name ?? "";
   function updateDraft(fields: Partial<SavedRequest>) {
@@ -436,7 +451,7 @@ export function App() {
   function applyRequestRename(requestId: string) {
     const nextName = renameDraft.trim();
     if (!nextName) {
-      const request = workspace.requests.find((item) => item.id === requestId);
+      const request = (workspace?.requests ?? []).find((item) => item.id === requestId);
       setRenameDraft(request?.name ?? "");
       setRenamingRequestId("");
       return;
@@ -741,10 +756,13 @@ export function App() {
     if (!draftRequest) return;
     try {
       await saveRequest(draftRequest);
-      setWorkspace(prev => ({
-        ...prev,
-        requests: prev.requests.map(r => r.id === draftRequest.id ? draftRequest : r)
-      }));
+      setWorkspace(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          requests: prev.requests.map(r => r.id === draftRequest.id ? draftRequest : r)
+        };
+      });
     } catch (err) {
       console.error("Failed to save request", diagnosticMessage(err));
       alert("Failed to save request: " + diagnosticMessage(err));
@@ -759,16 +777,18 @@ export function App() {
   }
 
   async function confirmDeleteRequest(reqId: string) {
+    if (!workspace) return;
     setDeleteError(null);
     try {
       await deleteRequest(reqId);
-      setWorkspace(prev => ({
+      setWorkspace(prev => prev ? {
         ...prev,
         requests: prev.requests.filter(r => r.id !== reqId)
-      }));
+      } : prev);
       if (selectedRequestId === reqId) {
         setSelectedRequestId(prev => {
-          const remaining = workspace.requests.filter(r => r.id !== reqId);
+          const requests = workspace.requests ?? [];
+          const remaining = requests.filter(r => r.id !== reqId);
           return remaining.find(r => r.id !== prev)?.id ?? remaining[0]?.id ?? "";
         });
       }
@@ -779,14 +799,19 @@ export function App() {
   }
 
   async function handleCreateFolder(collectionId?: string, parentId?: string) {
+    if (!workspace) return;
+    if (!collectionId && (!workspace.collections || workspace.collections.length === 0)) {
+      alert("Please create a collection first before creating a folder.");
+      return;
+    }
     const name = prompt("Enter folder name:");
     if (!name) return;
     try {
       const newFolder = await createFolder(name, collectionId, parentId);
-      setWorkspace(prev => ({
-        ...prev,
-        folders: [...prev.folders, newFolder]
-      }));
+      setWorkspace(prev => {
+        if (!prev) return prev;
+        return { ...prev, folders: [...prev.folders, newFolder] };
+      });
     } catch (err) {
       console.error("Failed to create folder", diagnosticMessage(err));
       alert("Failed to create folder: " + diagnosticMessage(err));
@@ -794,21 +819,59 @@ export function App() {
   }
 
   async function handleCreateCollection() {
+    if (!workspace) return;
     const name = prompt("Enter collection name:");
     if (!name) return;
     try {
-      console.log("Creating collection:", name);
-      // Using a fallback since WorkspaceSummary doesn't have an id. 
-      // In a real app, the workspace would likely have a unique ID.
-      const workspaceId = "local-workspace"; 
-      await createCollection(workspaceId, name);
-      console.log("Collection created successfully, reloading workspace...");
+      await createCollection(workspace.id, name);
       const updatedWorkspace = await loadLocalWorkspace();
       setWorkspace(updatedWorkspace);
     } catch (err) {
       console.error("Failed to create collection", diagnosticMessage(err));
       alert("Failed to create collection: " + diagnosticMessage(err));
     }
+  }
+
+  async function handleRenameCollection(collectionId: string, oldName: string) {
+    const newName = prompt("Enter new collection name:", oldName);
+    if (!newName || newName === oldName) return;
+    try {
+      await updateCollection(collectionId, newName);
+      setWorkspace(prev => prev ? {
+        ...prev,
+        collections: prev.collections?.map(c => c.id === collectionId ? { ...c, name: newName } : c) || []
+      } : prev);
+    } catch (err) {
+      console.error("Failed to rename collection", diagnosticMessage(err));
+      alert("Failed to rename collection: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleDeleteCollection(collectionId: string) {
+    setConfirmDialog({
+      message: 'Are you sure you want to delete this collection and all its folders and requests?',
+      onConfirm: async () => {
+        setDeleteError(null);
+        try {
+          await deleteCollection(collectionId);
+          setWorkspace(prev => {
+            if (!prev) return prev;
+            const nextFolders = prev.folders.filter(f => f.collectionId !== collectionId);
+            const folderIds = new Set(nextFolders.map(f => f.id));
+            const nextRequests = prev.requests.filter(r => folderIds.has(r.folderId));
+            return {
+              ...prev,
+              collections: prev.collections?.filter(c => c.id !== collectionId) || [],
+              folders: nextFolders,
+              requests: nextRequests
+            };
+          });
+        } catch (err) {
+          console.error(diagnosticMessage(err));
+          setDeleteError("Failed to delete collection: " + diagnosticMessage(err));
+        }
+      }
+    });
   }
 
   async function handleCreateWorkspace() {
@@ -827,6 +890,7 @@ export function App() {
   }
 
   async function handleCreateSubFolder(folderId: string) {
+    if (!workspace) return;
     try {
       const parentFolder = workspace.folders?.find(f => f.id === folderId);
       const collectionId = parentFolder?.collectionId;
@@ -860,11 +924,11 @@ export function App() {
         delete next[folderId];
         return next;
       });
-      setWorkspace(prev => ({
+      setWorkspace(prev => prev ? {
         ...prev,
         folders: prev.folders.filter(f => f.id !== folderId),
         requests: prev.requests.filter(r => r.folderId !== folderId)
-      }));
+      } : prev);
     } catch (err) {
       console.error(diagnosticMessage(err));
       setDeleteError("Failed to delete folder: " + diagnosticMessage(err));
@@ -874,7 +938,7 @@ export function App() {
   async function handleSetActiveEnvironment(name: string) {
     try {
       await setActiveEnvironment(name);
-      setWorkspace(prev => ({ ...prev, activeEnvironment: name }));
+      setWorkspace(prev => prev ? { ...prev, activeEnvironment: name } : prev);
     } catch (err) {
       console.error("Failed to set active environment", diagnosticMessage(err));
     }
@@ -885,10 +949,10 @@ export function App() {
     if (!name) return;
     try {
       await createEnvironment(name);
-      setWorkspace(prev => ({
+      setWorkspace(prev => prev ? {
         ...prev,
         environments: [...prev.environments, { name, variables: [] }],
-      }));
+      } : prev);
       setEnvEditorTarget(name);
     } catch (err) {
       console.error("Failed to create environment", diagnosticMessage(err));
@@ -901,13 +965,13 @@ export function App() {
     if (!newName || newName === oldName) return;
     try {
       await renameEnvironment(oldName, newName);
-      setWorkspace(prev => ({
+      setWorkspace(prev => prev ? {
         ...prev,
         activeEnvironment: prev.activeEnvironment === oldName ? newName : prev.activeEnvironment,
         environments: prev.environments.map(e =>
           e.name === oldName ? { ...e, name: newName } : e
         ),
-      }));
+      } : prev);
       if (envEditorTarget === oldName) setEnvEditorTarget(newName);
     } catch (err) {
       console.error("Failed to rename environment", diagnosticMessage(err));
@@ -916,15 +980,16 @@ export function App() {
   }
 
   async function handleDeleteEnvironment(name: string) {
+    if (!workspace) return;
     setConfirmDialog({
       message: `Delete environment "${name}" and all its variables?`,
       onConfirm: async () => {
         try {
           await deleteEnvironment(name);
-          setWorkspace(prev => ({
+          setWorkspace(prev => prev ? {
             ...prev,
             environments: prev.environments.filter(e => e.name !== name),
-          }));
+          } : prev);
           if (envEditorTarget === name) {
             setEnvEditorTarget(prev => {
               const remaining = workspace.environments.filter(e => e.name !== name);
@@ -942,7 +1007,7 @@ export function App() {
   async function handleSaveVariable(envName: string, key: string, value: string) {
     try {
       await saveVariable(envName, key, value);
-      setWorkspace(prev => ({
+      setWorkspace(prev => prev ? {
         ...prev,
         environments: prev.environments.map(e => {
           if (e.name !== envName) return e;
@@ -954,7 +1019,7 @@ export function App() {
               : [...e.variables, { key, value }],
           };
         }),
-      }));
+      } : prev);
     } catch (err) {
       console.error("Failed to save variable", diagnosticMessage(err));
       alert("Failed to save variable: " + diagnosticMessage(err));
@@ -964,14 +1029,14 @@ export function App() {
   async function handleDeleteVariable(envName: string, key: string) {
     try {
       await deleteVariable(envName, key);
-      setWorkspace(prev => ({
+      setWorkspace(prev => prev ? {
         ...prev,
         environments: prev.environments.map(e =>
           e.name === envName
             ? { ...e, variables: e.variables.filter(v => v.key !== key) }
             : e
         ),
-      }));
+      } : prev);
     } catch (err) {
       console.error("Failed to delete variable", diagnosticMessage(err));
       alert("Failed to delete variable: " + diagnosticMessage(err));
@@ -982,7 +1047,7 @@ export function App() {
     try {
       const { refId } = await storeSecret({ scope: envName, key, value });
       await saveSecretVariable(envName, key, refId);
-      setWorkspace(prev => ({
+      setWorkspace(prev => prev ? {
         ...prev,
         environments: prev.environments.map(e => {
           if (e.name !== envName) return e;
@@ -995,7 +1060,7 @@ export function App() {
               : [...e.variables, updated],
           };
         }),
-      }));
+      } : prev);
     } catch (err) {
       console.error("Failed to save secret variable", diagnosticMessage(err));
       alert("Failed to save secret variable: " + diagnosticMessage(err));
@@ -1009,10 +1074,10 @@ export function App() {
         ...prev,
         [folderId]: false,
       }));
-      setWorkspace(prev => ({
+      setWorkspace(prev => prev ? {
         ...prev,
         requests: [...prev.requests, newReq]
-      }));
+      } : prev);
       setSelectedRequestId(newReq.id);
     } catch (err) { console.error(diagnosticMessage(err)); }
   }
@@ -1040,7 +1105,9 @@ export function App() {
   }
 
   function handleReplayFromHistory(entry: HistoryEntry) {
-    const exists = workspace.requests.some(r => r.id === entry.requestId);
+    if (!workspace) return;
+    const requests = workspace.requests ?? [];
+    const exists = requests.some(r => r.id === entry.requestId);
     if (exists) {
       setSelectedRequestId(entry.requestId);
       setHistoryOpen(false);
@@ -1200,13 +1267,13 @@ export function App() {
       let currentConfig: AuthConfig = {};
 
       if (type === 'folder') {
-        const folder = workspace.folders.find(f => f.id === id);
+        const folder = (workspace?.folders ?? []).find(f => f.id === id);
         if (folder) {
           currentMode = folder.authMode ?? 'none';
           currentConfig = folder.authConfig ?? {};
         }
       } else {
-        const collection = workspace.collections?.find(c => c.id === id);
+        const collection = (workspace?.collections ?? []).find(c => c.id === id);
         if (collection) {
           currentMode = collection.authMode ?? 'none';
           currentConfig = collection.authConfig ?? {};
@@ -1222,16 +1289,16 @@ export function App() {
     try {
       if (type === 'folder') {
         await saveFolderAuth(id, authDraft.mode, authDraft.config);
-        setWorkspace(prev => ({
+        setWorkspace(prev => prev ? {
           ...prev,
           folders: prev.folders.map(f => f.id === id ? { ...f, authMode: authDraft.mode, authConfig: authDraft.config } : f)
-        }));
+        } : prev);
       } else {
         await saveCollectionAuth(id, authDraft.mode, authDraft.config);
-        setWorkspace(prev => ({
+        setWorkspace(prev => prev ? {
           ...prev,
           collections: prev.collections?.map(c => c.id === id ? { ...c, authMode: authDraft.mode, authConfig: authDraft.config } : c) || []
-        }));
+        } : prev);
       }
       setAuthEditorOpen(false);
     } catch (err) {
@@ -1259,7 +1326,8 @@ export function App() {
   async function sendSelectedRequest() {
     if (!draftRequest) return;
     setActiveBottomDock('response');
-    
+
+    if (!workspace) return;
     let variableMap = buildVariableMap(activeEnvironmentVariables(workspace));
 
     // 1. Execute Pre-scripts (Hierarchy: Folder -> Request)
@@ -1321,12 +1389,12 @@ export function App() {
     let finalAuthConfig = requestToSend.authConfig;
 
     if (finalAuthMode === "none") {
-      const folder = workspace.folders.find(f => f.id === requestToSend.folderId);
+      const folder = (workspace?.folders ?? []).find(f => f.id === requestToSend.folderId);
       if (folder && folder.authMode && folder.authMode !== "none") {
         finalAuthMode = folder.authMode;
         finalAuthConfig = folder.authConfig || {};
       } else {
-        const collection = workspace.collections?.find(c => folder?.collectionId === c.id);
+        const collection = (workspace?.collections ?? []).find(c => folder?.collectionId === c.id);
         if (collection && collection.authMode && collection.authMode !== "none") {
           finalAuthMode = collection.authMode;
           finalAuthConfig = collection.authConfig || {};
@@ -1442,6 +1510,14 @@ export function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [draftRequest]);
 
+  if (!workspace) {
+    return (
+      <main className="app-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--color-text-muted)' }}>
+        Loading workspace...
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       {updateToast && (
@@ -1531,7 +1607,7 @@ export function App() {
               
               {(() => {
                 const renderFolders = (parentId: string | undefined, depth = 0) => {
-                  const folders = workspace.folders.filter(f => 
+                  const folders = (workspace.folders ?? []).filter(f =>
                     (parentId === undefined ? f.collectionId === collection.id && !f.parentId : f.parentId === parentId)
                   );
 
@@ -1540,7 +1616,7 @@ export function App() {
                   return (
                     <div style={{ paddingLeft: `${depth * 12}px` }}>
                       {folders.map(folder => {
-                        const folderRequests = workspace.requests.filter(r => r.folderId === folder.id);
+                        const folderRequests = (workspace.requests ?? []).filter(r => r.folderId === folder.id);
                         return (
                           <div className="folder-group" key={folder.id}>
                             <div className="folder-title" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
@@ -1928,9 +2004,9 @@ export function App() {
                     <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>Effective Auth:</span>
                     {(() => {
                       if (draftRequest.authMode !== "none") return <span>Request Level ({AUTH_MODE_LABELS[draftRequest.authMode]})</span>;
-                      const folder = workspace.folders.find(f => f.id === draftRequest.folderId);
+                      const folder = (workspace?.folders ?? []).find(f => f.id === draftRequest.folderId);
                       if (folder && folder.authMode && folder.authMode !== "none") return <span>Inherited from Folder: {folder.name} ({AUTH_MODE_LABELS[folder.authMode]})</span>;
-                      const collection = workspace.collections?.find(c => folder?.collectionId === c.id);
+                      const collection = (workspace?.collections ?? []).find(c => folder?.collectionId === c.id);
                       if (collection && collection.authMode && collection.authMode !== "none") return <span>Inherited from Collection: {collection.name} ({AUTH_MODE_LABELS[collection.authMode]})</span>;
                       return <span>None</span>;
                     })()}
@@ -2253,7 +2329,7 @@ export function App() {
                   return <p style={{ textAlign: 'center', opacity: 0.5, fontSize: '13px', padding: '24px 0' }}>No history yet.</p>;
                 }
                 return filtered.map(entry => {
-                  const canReplay = workspace.requests.some(r => r.id === entry.requestId);
+                  const canReplay = (workspace.requests ?? []).some(r => r.id === entry.requestId);
                   return (
                     <div
                       key={entry.id}
@@ -2874,6 +2950,71 @@ export function App() {
           }}
           onClick={() => alert("Container clicked!")}
         >
+          {contextMenu.target?.type === 'collection' && (
+            <>
+              <button
+                className="context-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const colId = contextMenu.target?.id;
+                  if (colId) handleCreateFolder(colId);
+                  setContextMenu(null);
+                }}
+                style={{ background: 'transparent', border: 'none', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', textAlign: 'left', display: 'flex', alignItems: 'center', pointerEvents: 'auto' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <FolderTree size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> New Folder
+              </button>
+              <button
+                className="context-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const colId = contextMenu.target?.id;
+                  if (colId) {
+                    setAuthEditorTarget({ id: colId, type: 'collection' });
+                    setAuthEditorOpen(true);
+                  }
+                  setContextMenu(null);
+                }}
+                style={{ background: 'transparent', border: 'none', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', textAlign: 'left', display: 'flex', alignItems: 'center', pointerEvents: 'auto' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <KeyRound size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Edit Auth
+              </button>
+              <button
+                className="context-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const colId = contextMenu.target?.id;
+                  const col = workspace.collections?.find(c => c.id === colId);
+                  if (colId && col) handleRenameCollection(colId, col.name);
+                  setContextMenu(null);
+                }}
+                style={{ background: 'transparent', border: 'none', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', textAlign: 'left', display: 'flex', alignItems: 'center', pointerEvents: 'auto' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <Edit2 size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Rename
+              </button>
+              <div style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '4px 0' }} />
+              <button
+                className="context-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const colId = contextMenu.target?.id;
+                  if (colId) handleDeleteCollection(colId);
+                  setContextMenu(null);
+                }}
+                style={{ background: 'transparent', border: 'none', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', textAlign: 'left', display: 'flex', alignItems: 'center', pointerEvents: 'auto', color: '#991b1b' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <Trash2 size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Delete Collection
+              </button>
+            </>
+          )}
           {contextMenu.target?.type === 'folder' && (
             <>
               <button 
@@ -3014,11 +3155,14 @@ export function App() {
           )}
           {contextMenu.target?.type === 'request' && (
             <>
-              <button 
-                className="context-menu-item" 
+              <button
+                className="context-menu-item"
                 onClick={() => {
                   const reqId = contextMenu.target?.id;
-                  if (reqId) startRequestRename(workspace.requests.find(r => r.id === reqId)!);
+                  if (reqId) {
+                    const req = (workspace?.requests ?? []).find(r => r.id === reqId);
+                    if (req) startRequestRename(req);
+                  }
                   setContextMenu(null);
                 }}
                 style={{ all: 'unset', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px' }}
