@@ -16,7 +16,8 @@ import {
   Edit2,
   X, Eye
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
 import { authModes, sampleWorkspace, AUTH_MODE_MAP, AUTH_MODE_LABELS } from "./data/sample-workspace";
 import { executeHttpRequest } from "./services/http-client";
@@ -35,6 +36,9 @@ import {
   saveRequest,
   deleteRequest,
   createFolder,
+  updateFolder,
+  updateCollection,
+  deleteCollection,
   deleteFolder,
   createRequest,
   createEnvironment,
@@ -57,6 +61,25 @@ import {
 } from "./services/local-store";
 import { storeSecret } from "./services/secrets";
 import type { ApiAuthMode, AuthConfig, AppSettings, ExecuteHttpResponse, HistoryEntry, SavedRequest, UpdateStatus, WorkspaceSummary } from "./types";
+
+type RequestHeader = SavedRequest["headers"][number];
+
+const HEADER_PRESET_MENU_GAP = 6;
+const HEADER_PRESET_MENU_PADDING = 16;
+const HEADER_PRESET_MENU_MIN_WIDTH = 212;
+const HEADER_PRESET_MENU_MIN_HEIGHT = 120;
+const HEADER_PRESET_MENU_MAX_HEIGHT = 280;
+
+const commonHeaderPresets = [
+  { label: "Accept", key: "Accept", value: "application/json" },
+  { label: "Content-Type", key: "Content-Type", value: "application/json" },
+  { label: "Authorization", key: "Authorization", value: "Bearer " },
+  { label: "X-Request-Id", key: "X-Request-Id", value: "" },
+];
+
+const SIDEBAR_MIN_WIDTH = 220;
+const SIDEBAR_DEFAULT_WIDTH = 280;
+const SIDEBAR_MAX_WIDTH = 460;
 
 type ResponseState =
   | { kind: "idle"; response?: ExecuteHttpResponse }
@@ -98,6 +121,111 @@ function openProductDocs() {
   }
 }
 
+function createBlankHeader(): RequestHeader {
+  return { key: "", value: "", enabled: true };
+}
+
+interface HeaderPresetMenuLayout {
+  left: number;
+  top: number;
+  width: number;
+  maxHeight: number;
+  placement: "top" | "bottom";
+}
+
+function getHeaderPresetMenuLayout(
+  triggerRect: Pick<DOMRect, "top" | "bottom" | "left" | "right" | "width">,
+  menuHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
+): HeaderPresetMenuLayout {
+  const width = Math.max(Math.round(triggerRect.width), HEADER_PRESET_MENU_MIN_WIDTH);
+  const left = Math.min(
+    Math.max(HEADER_PRESET_MENU_PADDING, Math.round(triggerRect.right - width)),
+    Math.max(HEADER_PRESET_MENU_PADDING, viewportWidth - width - HEADER_PRESET_MENU_PADDING),
+  );
+  const availableBelow = Math.max(viewportHeight - triggerRect.bottom - HEADER_PRESET_MENU_PADDING, 0);
+  const availableAbove = Math.max(triggerRect.top - HEADER_PRESET_MENU_PADDING, 0);
+  const placement =
+    availableBelow < Math.min(menuHeight, 220) && availableAbove > availableBelow
+      ? "top"
+      : "bottom";
+  const availableSpace = placement === "top" ? availableAbove : availableBelow;
+  const maxHeight = Math.max(
+    HEADER_PRESET_MENU_MIN_HEIGHT,
+    Math.min(HEADER_PRESET_MENU_MAX_HEIGHT, Math.floor(availableSpace)),
+  );
+  const renderedHeight = Math.min(menuHeight, maxHeight);
+  const top =
+    placement === "top"
+      ? Math.max(HEADER_PRESET_MENU_PADDING, Math.round(triggerRect.top - HEADER_PRESET_MENU_GAP - renderedHeight))
+      : Math.min(
+          Math.round(triggerRect.bottom + HEADER_PRESET_MENU_GAP),
+          Math.max(HEADER_PRESET_MENU_PADDING, viewportHeight - HEADER_PRESET_MENU_PADDING - renderedHeight),
+        );
+
+  return { left, top, width, maxHeight, placement };
+}
+
+function parsePastedHeaders(text: string): RequestHeader[] {
+  const parsed: RequestHeader[] = [];
+
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const separatorIndex = trimmed.indexOf(":");
+    if (separatorIndex <= 0) continue;
+
+    parsed.push({
+      key: trimmed.slice(0, separatorIndex).trim(),
+      value: trimmed.slice(separatorIndex + 1).trim(),
+      enabled: true,
+    });
+  }
+
+  return parsed;
+}
+
+function getEffectiveAuth(request: SavedRequest, workspace: WorkspaceSummary) {
+  if (request.authMode !== "none") {
+    return { mode: request.authMode, config: request.authConfig, source: "Request level" };
+  }
+
+  const folder = workspace.folders.find((item) => item.id === request.folderId);
+  if (folder?.authMode && folder.authMode !== "none") {
+    return { mode: folder.authMode, config: folder.authConfig ?? {}, source: `Inherited from folder: ${folder.name}` };
+  }
+
+  const collection = workspace.collections?.find((item) => folder?.collectionId === item.id);
+  if (collection?.authMode && collection.authMode !== "none") {
+    return { mode: collection.authMode, config: collection.authConfig ?? {}, source: `Inherited from collection: ${collection.name}` };
+  }
+
+  return { mode: "none" as const, config: {}, source: "No inherited auth" };
+}
+
+function describeAuthTarget(mode: ApiAuthMode, config: AuthConfig): string {
+  switch (mode) {
+    case "basic":
+      return config.username || config.password ? "Authorization header" : "Username or password missing";
+    case "bearer":
+      return config.token ? "Authorization: Bearer [hidden]" : "Token missing";
+    case "oauth2":
+      if (config.token) return "Authorization: Bearer [hidden]";
+      return config.accessTokenUrl ? "Token requested before send" : "Access token missing";
+    case "apiKey":
+      if (!config.keyName) return "Key name missing";
+      if (!config.keyValue) return `${config.keyName} value missing`;
+      return config.placement === "query" ? `Query param: ${config.keyName}` : `Header: ${config.keyName}`;
+    case "ntlm":
+    case "kerberos":
+      return "Not applied by sender yet";
+    default:
+      return "No auth will be sent";
+  }
+}
+
 interface AddVariableRowProps {
   envName: string;
   newVarKey: string;
@@ -119,17 +247,13 @@ function AddVariableRow({
   onSave,
 }: AddVariableRowProps) {
   return (
-    <div
-      aria-label="Add variable"
-      style={{ padding: '8px', background: 'var(--color-surface-muted)', borderTop: '1px solid var(--color-border)' }}
-    >
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+    <div className="env-add-variable" aria-label="Add variable">
+      <div className="env-add-variable-fields">
         <input
           value={newVarKey}
           onChange={e => setNewVarKey(e.target.value)}
           placeholder="New key"
           aria-label="Variable key"
-          style={{ flex: 1, fontSize: '12px', fontFamily: 'monospace', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '3px', padding: '4px 6px' }}
         />
         <input
           value={newVarValue}
@@ -137,11 +261,10 @@ function AddVariableRow({
           placeholder={newVarSecret ? 'Secret value' : 'Value'}
           aria-label="Variable value"
           type={newVarSecret ? 'password' : 'text'}
-          style={{ flex: 2, fontSize: '12px', fontFamily: 'monospace', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '3px', padding: '4px 6px' }}
         />
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#64748b', cursor: 'pointer' }}>
+      <div className="env-add-variable-actions">
+        <label className="env-secret-toggle">
           <input type="checkbox" checked={newVarSecret} onChange={e => setNewVarSecret(e.target.checked)} />
           Secret
         </label>
@@ -149,7 +272,6 @@ function AddVariableRow({
           type="button"
           className="ghost-button"
           onClick={() => void onSave(newVarKey, newVarValue, newVarSecret)}
-          style={{ minHeight: '30px', padding: '0 10px', fontSize: '12px' }}
         >
           <Plus size={12} /> Add
         </button>
@@ -159,8 +281,8 @@ function AddVariableRow({
 }
 
 export function App() {
-  const [sidebarWidth, setSidebarWidth] = useState(280);
-  const [isResizing, setIsResizing] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [isSidebarResizing, setIsSidebarResizing] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceSummary>(() => sampleWorkspace);
   const [selectedRequestId, setSelectedRequestId] = useState(sampleWorkspace.requests[0]?.id ?? "");
   const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts" | "settings">("body");
@@ -169,6 +291,7 @@ export function App() {
   });
   const [previewMode, setPreviewMode] = useState<'rendered' | 'xml' | 'html' | 'json' | 'raw'>('rendered');
   const [responseTab, setResponseTab] = useState<'preview' | 'headers' | 'timeline' | 'download' | 'copy'>('preview');
+  const [isResponseTabPending, startResponseTabTransition] = useTransition();
   const [responseWindowOpen, setResponseWindowOpen] = useState(false);
   const [activeBottomDock, setActiveBottomDock] = useState<'response' | null>('response');
   const [bottomDockHeight, setBottomDockHeight] = useState(320);
@@ -178,13 +301,18 @@ export function App() {
   const [draftRequest, setDraftRequest] = useState<SavedRequest | null>(null);
   const [renamingRequestId, setRenamingRequestId] = useState("");
   const [renameDraft, setRenameDraft] = useState("");
+  const [renamingSidebarItem, setRenamingSidebarItem] = useState<{ id: string; type: "folder" | "collection" } | null>(null);
+  const [sidebarNameDraft, setSidebarNameDraft] = useState("");
   const [preScript, setPreScript] = useState("");
   const [postScript, setPostScript] = useState("");
   const [activeRequestScript, setActiveRequestScript] = useState<"pre" | "post">("pre");
+  const [headersPresetMenuOpen, setHeadersPresetMenuOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [envEditorOpen, setEnvEditorOpen] = useState(false);
   const [envEditorTarget, setEnvEditorTarget] = useState<string>("");
+  const [renamingEnvironment, setRenamingEnvironment] = useState("");
+  const [environmentNameDraft, setEnvironmentNameDraft] = useState("");
   const [newVarKey, setNewVarKey] = useState("");
   const [newVarValue, setNewVarValue] = useState("");
   const [newVarSecret, setNewVarSecret] = useState(false);
@@ -217,14 +345,20 @@ export function App() {
 
   const [scriptStatus, setScriptStatus] = useState<Record<string, boolean>>({});
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
+  const [collectionSearch, setCollectionSearch] = useState("");
   const [folderScriptsOpen, setFolderScriptsOpen] = useState(false);
   const [folderScriptsTarget, setFolderScriptsTarget] = useState<string>("");
   const [folderPreScript, setFolderPreScript] = useState("");
   const [folderPostScript, setFolderPostScript] = useState("");
+  const [headersPresetMenuLayout, setHeadersPresetMenuLayout] = useState<HeaderPresetMenuLayout | null>(null);
+  const scriptEditorActionsRef = useRef<{ insertText: (text: string) => void } | null>(null);
 
   const [authEditorOpen, setAuthEditorOpen] = useState(false);
   const [authEditorTarget, setAuthEditorTarget] = useState<{ id: string; type: 'collection' | 'folder' } | null>(null);
   const [authDraft, setAuthDraft] = useState<{ mode: ApiAuthMode; config: AuthConfig }>({ mode: 'none', config: {} });
+  const headersPresetMenuRef = useRef<HTMLDivElement | null>(null);
+  const headersPresetTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const headersPresetDropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!updateToast) return;
@@ -291,34 +425,39 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!isResizing) return;
+    if (!isSidebarResizing) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = e.clientX;
-      if (newWidth > 150 && newWidth < 600) {
-        setSidebarWidth(newWidth);
-      }
+    const handleMouseMove = (event: MouseEvent) => {
+      setSidebarWidth(Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, event.clientX)));
     };
 
     const handleMouseUp = () => {
-      setIsResizing(false);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      setIsSidebarResizing(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isResizing]);
+  }, [isSidebarResizing]);
 
-  function handleResizerMouseDown() {
-    setIsResizing(true);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+  function handleSidebarResizerMouseDown() {
+    setIsSidebarResizing(true);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
+  function handleSidebarResizerKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+    event.preventDefault();
+    const delta = event.key === "ArrowLeft" ? -16 : 16;
+    setSidebarWidth((width) => Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width + delta)));
   }
 
   useEffect(() => {
@@ -384,6 +523,63 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!headersPresetMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (headersPresetMenuRef.current?.contains(target) || headersPresetDropdownRef.current?.contains(target)) {
+        return;
+      }
+      setHeadersPresetMenuOpen(false);
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [headersPresetMenuOpen]);
+
+  useEffect(() => {
+    if (!headersPresetMenuOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setHeadersPresetMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [headersPresetMenuOpen]);
+
+  useEffect(() => {
+    if (!headersPresetMenuOpen) return;
+
+    const updateLayout = () => {
+      if (!headersPresetTriggerRef.current) return;
+      const triggerRect = headersPresetTriggerRef.current.getBoundingClientRect();
+      const menuHeight = headersPresetDropdownRef.current?.scrollHeight ?? 220;
+      setHeadersPresetMenuLayout(
+        getHeaderPresetMenuLayout(triggerRect, menuHeight, window.innerWidth, window.innerHeight),
+      );
+    };
+
+    updateLayout();
+    const frame = window.requestAnimationFrame(updateLayout);
+    window.addEventListener("resize", updateLayout);
+    window.addEventListener("scroll", updateLayout, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", updateLayout);
+      window.removeEventListener("scroll", updateLayout, true);
+    };
+  }, [headersPresetMenuOpen]);
+
+  useEffect(() => {
+    if (!headersPresetMenuOpen) {
+      setHeadersPresetMenuLayout(null);
+    }
+  }, [headersPresetMenuOpen]);
+
+  useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const applyTheme = () => {
       const resolvedTheme =
@@ -413,17 +609,128 @@ export function App() {
       : 'var(--color-text)';
   const bottomDockStripHeight = 36;
   const activeVars = activeEnvironmentVariables(workspace);
+  const scriptRuntimeTokens = activeRequestScript === "pre"
+    ? ["request", "variables"]
+    : ["request", "response", "variables"];
+  const scriptVariableTokens = activeVars.map((variable) => `{{${variable.key}}}`);
+  const currentScriptValue = activeRequestScript === "pre" ? preScript : postScript;
+  const currentScriptTitle = activeRequestScript === "pre" ? "Pre-request Script" : "Post-request Script";
   const requestFolder = draftRequest
     ? workspace.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
     : null;
   const requestPath = requestFolder && draftRequest ? `${requestFolder.name} / ${draftRequest.name}` : draftRequest?.name ?? "";
+  const deferredCollectionSearch = useDeferredValue(collectionSearch);
+  const normalizedCollectionSearch = deferredCollectionSearch.trim().toLowerCase();
+  const isCollectionSearchActive = normalizedCollectionSearch.length > 0;
+
+  function matchesCollectionSearch(value: string | undefined) {
+    return !isCollectionSearchActive || value?.toLowerCase().includes(normalizedCollectionSearch);
+  }
+
+  function requestMatchesCollectionSearch(request: SavedRequest) {
+    return (
+      matchesCollectionSearch(request.name) ||
+      matchesCollectionSearch(request.url) ||
+      matchesCollectionSearch(resolvedMethodLabel(request.method, request.customMethod))
+    );
+  }
+
+  function folderMatchesCollectionSearch(folderId: string): boolean {
+    const folder = workspace.folders.find((item) => item.id === folderId);
+    if (!folder) return false;
+    if (matchesCollectionSearch(folder.name)) return true;
+    if (workspace.requests.some((request) => request.folderId === folderId && requestMatchesCollectionSearch(request))) return true;
+    return workspace.folders.some((child) => child.parentId === folderId && folderMatchesCollectionSearch(child.id));
+  }
+
+  const visibleCollections = (workspace.collections ?? []).filter((collection) => {
+    if (matchesCollectionSearch(collection.name)) return true;
+    return workspace.folders.some((folder) => folder.collectionId === collection.id && folderMatchesCollectionSearch(folder.id));
+  });
+  const effectiveAuth = draftRequest ? getEffectiveAuth(draftRequest, workspace) : null;
+
   function updateDraft(fields: Partial<SavedRequest>) {
     if (draftRequest) {
       setDraftRequest({ ...draftRequest, ...fields });
     }
   }
 
+  function updateHeaderField(index: number, field: "key" | "value", value: string) {
+    if (!draftRequest) return;
+    const headers = [...draftRequest.headers];
+    headers[index] = { ...headers[index], [field]: value };
+    updateDraft({ headers });
+  }
+
+  function toggleHeaderEnabled(index: number, enabled: boolean) {
+    if (!draftRequest) return;
+    const headers = [...draftRequest.headers];
+    headers[index] = { ...headers[index], enabled };
+    updateDraft({ headers });
+  }
+
+  function removeHeader(index: number) {
+    if (!draftRequest) return;
+    updateDraft({ headers: draftRequest.headers.filter((_, headerIndex) => headerIndex !== index) });
+  }
+
+  function addHeader(nextHeader: RequestHeader = createBlankHeader()) {
+    if (!draftRequest) return;
+    updateDraft({ headers: [...draftRequest.headers, nextHeader] });
+  }
+
+  function insertCommonHeader(key: string, value: string) {
+    addHeader({ key, value, enabled: true });
+    setHeadersPresetMenuOpen(false);
+  }
+
+  function insertScriptToken(token: string) {
+    if (scriptEditorActionsRef.current) {
+      scriptEditorActionsRef.current.insertText(token);
+      return;
+    }
+
+    const nextValue = currentScriptValue.trimEnd()
+      ? `${currentScriptValue.trimEnd()}${currentScriptValue.endsWith("\n") ? "" : "\n"}${token}`
+      : token;
+
+    if (activeRequestScript === "pre") {
+      setPreScript(nextValue);
+      return;
+    }
+
+    setPostScript(nextValue);
+  }
+
+  function handleHeaderPaste(index: number, event: ClipboardEvent<HTMLInputElement>) {
+    if (!draftRequest) return;
+
+    const text = event.clipboardData.getData("text");
+    if (!text) return;
+
+    const parsedHeaders = parsePastedHeaders(text);
+    const looksLikeStructuredPaste =
+      parsedHeaders.length > 1 ||
+      (parsedHeaders.length === 1 &&
+        (text.includes("\n") ||
+          (draftRequest.headers[index].key.trim() === "" && draftRequest.headers[index].value.trim() === "")));
+
+    if (!looksLikeStructuredPaste || parsedHeaders.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const headers = [...draftRequest.headers];
+    headers[index] = parsedHeaders[0];
+    if (parsedHeaders.length > 1) {
+      headers.splice(index + 1, 0, ...parsedHeaders.slice(1));
+    }
+    updateDraft({ headers });
+  }
+
   function startRequestRename(request: SavedRequest) {
+    setRenamingSidebarItem(null);
     setSelectedRequestId(request.id);
     setRenameDraft(draftRequest?.id === request.id ? draftRequest.name : request.name);
     setRenamingRequestId(request.id);
@@ -449,6 +756,52 @@ export function App() {
       return { ...current, name: nextName };
     });
     setRenamingRequestId("");
+  }
+
+  function startSidebarRename(type: "folder" | "collection", id: string, name: string) {
+    setRenamingRequestId("");
+    setRenamingSidebarItem({ id, type });
+    setSidebarNameDraft(name);
+  }
+
+  function cancelSidebarRename() {
+    setRenamingSidebarItem(null);
+    setSidebarNameDraft("");
+  }
+
+  async function applySidebarRename() {
+    const target = renamingSidebarItem;
+    if (!target) return;
+
+    const nextName = sidebarNameDraft.trim();
+    if (!nextName) {
+      cancelSidebarRename();
+      return;
+    }
+
+    try {
+      if (target.type === "folder") {
+        await updateFolder(target.id, nextName);
+        setWorkspace((prev) => ({
+          ...prev,
+          folders: prev.folders.map((folder) =>
+            folder.id === target.id ? { ...folder, name: nextName } : folder,
+          ),
+        }));
+      } else {
+        await updateCollection(target.id, nextName);
+        setWorkspace((prev) => ({
+          ...prev,
+          collections: prev.collections?.map((collection) =>
+            collection.id === target.id ? { ...collection, name: nextName } : collection,
+          ) ?? [],
+        }));
+      }
+      cancelSidebarRename();
+    } catch (err) {
+      console.error("Failed to rename sidebar item", diagnosticMessage(err));
+      alert("Failed to rename: " + diagnosticMessage(err));
+    }
   }
 
   function updateAuthConfig(fields: Partial<import("./types").AuthConfig>) {
@@ -485,6 +838,11 @@ export function App() {
     alert('Response body copied to clipboard!');
   }
 
+  function handleResponseTabChange(tab: typeof responseTab) {
+    if (tab === responseTab) return;
+    startResponseTabTransition(() => setResponseTab(tab));
+  }
+
   function renderResponseBody() {
     if (responseState.kind === "error") {
       return <pre className="response-body">{'// No response — see error above.'}</pre>;
@@ -495,7 +853,10 @@ export function App() {
     }
 
     return (
-      <div className="response-body-container">
+      <div
+        className={isResponseTabPending ? "response-body-container transitioning" : "response-body-container"}
+        aria-busy={isResponseTabPending}
+      >
         {responseTab === 'preview' && (
           <>
             {previewMode === 'rendered' ? (
@@ -666,7 +1027,7 @@ export function App() {
           {(['preview', 'headers', 'timeline'] as const).map(tab => (
             <button
               key={tab}
-              onClick={() => setResponseTab(tab)}
+              onClick={() => handleResponseTabChange(tab)}
               className={responseTab === tab ? 'response-tab active' : 'response-tab'}
               type="button"
             >
@@ -779,10 +1140,10 @@ export function App() {
   }
 
   async function handleCreateFolder(collectionId?: string, parentId?: string) {
-    const name = prompt("Enter folder name:");
-    if (!name) return;
+    const name = "New Folder";
     try {
-      const newFolder = await createFolder(name, collectionId, parentId);
+      const targetCollectionId = collectionId ?? workspace.collections?.[0]?.id;
+      const newFolder = await createFolder(name, targetCollectionId, parentId);
       setWorkspace(prev => ({
         ...prev,
         folders: [...prev.folders, newFolder]
@@ -794,17 +1155,13 @@ export function App() {
   }
 
   async function handleCreateCollection() {
-    const name = prompt("Enter collection name:");
-    if (!name) return;
+    const name = "New Collection";
     try {
-      console.log("Creating collection:", name);
-      // Using a fallback since WorkspaceSummary doesn't have an id. 
-      // In a real app, the workspace would likely have a unique ID.
-      const workspaceId = "local-workspace"; 
-      await createCollection(workspaceId, name);
-      console.log("Collection created successfully, reloading workspace...");
-      const updatedWorkspace = await loadLocalWorkspace();
-      setWorkspace(updatedWorkspace);
+      const collectionId = await createCollection(name);
+      setWorkspace(prev => ({
+        ...prev,
+        collections: [...(prev.collections ?? []), { id: collectionId, name }]
+      }));
     } catch (err) {
       console.error("Failed to create collection", diagnosticMessage(err));
       alert("Failed to create collection: " + diagnosticMessage(err));
@@ -844,6 +1201,13 @@ export function App() {
     });
   }
 
+  async function handleDeleteCollection(collectionId: string) {
+    setConfirmDialog({
+      message: 'Delete this collection and all folders and requests inside it?',
+      onConfirm: () => confirmDeleteCollection(collectionId),
+    });
+  }
+
   function toggleFolder(folderId: string) {
     setCollapsedFolders(prev => ({
       ...prev,
@@ -871,6 +1235,44 @@ export function App() {
     }
   }
 
+  async function confirmDeleteCollection(collectionId: string) {
+    setDeleteError(null);
+    const folderIds = new Set(
+      workspace.folders
+        .filter((folder) => folder.collectionId === collectionId)
+        .map((folder) => folder.id),
+    );
+
+    try {
+      await deleteCollection(collectionId);
+      setRenamingSidebarItem((current) => (
+        current?.type === "collection" && current.id === collectionId ? null : current
+      ));
+      setCollapsedFolders((prev) => {
+        const next = { ...prev };
+        for (const folderId of folderIds) {
+          delete next[folderId];
+        }
+        return next;
+      });
+      setWorkspace((prev) => ({
+        ...prev,
+        collections: prev.collections?.filter((collection) => collection.id !== collectionId) ?? [],
+        folders: prev.folders.filter((folder) => folder.collectionId !== collectionId),
+        requests: prev.requests.filter((request) => !folderIds.has(request.folderId)),
+      }));
+      if (draftRequest && folderIds.has(draftRequest.folderId)) {
+        setDraftRequest(null);
+      }
+      if (selectedRequestId && workspace.requests.some((request) => request.id === selectedRequestId && folderIds.has(request.folderId))) {
+        setSelectedRequestId("");
+      }
+    } catch (err) {
+      console.error(diagnosticMessage(err));
+      setDeleteError("Failed to delete collection: " + diagnosticMessage(err));
+    }
+  }
+
   async function handleSetActiveEnvironment(name: string) {
     try {
       await setActiveEnvironment(name);
@@ -881,8 +1283,15 @@ export function App() {
   }
 
   async function handleCreateEnvironment() {
-    const name = prompt("Enter environment name:");
-    if (!name) return;
+    const existingNames = new Set(workspace.environments.map((environment) => environment.name));
+    const baseName = "New Environment";
+    let name = baseName;
+    let suffix = 2;
+    while (existingNames.has(name)) {
+      name = `${baseName} ${suffix}`;
+      suffix += 1;
+    }
+
     try {
       await createEnvironment(name);
       setWorkspace(prev => ({
@@ -896,9 +1305,32 @@ export function App() {
     }
   }
 
+  function startEnvironmentRename(name: string) {
+    setRenamingEnvironment(name);
+    setEnvironmentNameDraft(name);
+  }
+
+  function cancelEnvironmentRename() {
+    setRenamingEnvironment("");
+    setEnvironmentNameDraft("");
+  }
+
   async function handleRenameEnvironment(oldName: string) {
-    const newName = prompt("Enter new name:", oldName);
-    if (!newName || newName === oldName) return;
+    startEnvironmentRename(oldName);
+  }
+
+  async function applyEnvironmentRename(oldName: string) {
+    const newName = environmentNameDraft.trim();
+    if (!newName || newName === oldName) {
+      cancelEnvironmentRename();
+      return;
+    }
+
+    if (workspace.environments.some((environment) => environment.name === newName && environment.name !== oldName)) {
+      alert(`Environment "${newName}" already exists.`);
+      return;
+    }
+
     try {
       await renameEnvironment(oldName, newName);
       setWorkspace(prev => ({
@@ -909,6 +1341,7 @@ export function App() {
         ),
       }));
       if (envEditorTarget === oldName) setEnvEditorTarget(newName);
+      cancelEnvironmentRename();
     } catch (err) {
       console.error("Failed to rename environment", diagnosticMessage(err));
       alert("Failed to rename environment: " + diagnosticMessage(err));
@@ -921,10 +1354,14 @@ export function App() {
       onConfirm: async () => {
         try {
           await deleteEnvironment(name);
-          setWorkspace(prev => ({
-            ...prev,
-            environments: prev.environments.filter(e => e.name !== name),
-          }));
+          setWorkspace(prev => {
+            const environments = prev.environments.filter(e => e.name !== name);
+            return {
+              ...prev,
+              activeEnvironment: prev.activeEnvironment === name ? environments[0]?.name ?? "" : prev.activeEnvironment,
+              environments,
+            };
+          });
           if (envEditorTarget === name) {
             setEnvEditorTarget(prev => {
               const remaining = workspace.environments.filter(e => e.name !== name);
@@ -1443,7 +1880,10 @@ export function App() {
   }, [draftRequest]);
 
   return (
-    <main className="app-shell">
+    <main
+      className={isSidebarResizing ? "app-shell sidebar-resizing" : "app-shell"}
+      style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
+    >
       {updateToast && (
         <div
           className={`update-toast update-toast-${updateToast.tone}`}
@@ -1456,19 +1896,22 @@ export function App() {
       <aside className="sidebar" aria-label="Workspace navigation">
         <div className="brand-row">
           <div className="brand-mark">KR</div>
-          <div>
+          <div className="brand-copy">
             <strong>KobeanREST</strong>
             <span>{PRODUCT_AUTHENTICATION_MODEL.headline}</span>
           </div>
         </div>
 
-        <div style={{ padding: '0 10px 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Globe size={14} style={{ flexShrink: 0, opacity: 0.6 }} />
+        <div
+          className="sidebar-content"
+        >
+        <div className="environment-switcher">
+          <Globe size={15} className="environment-switcher-icon" />
           <select
+            className="environment-select"
             aria-label="Active environment"
             value={workspace.activeEnvironment}
             onChange={e => handleSetActiveEnvironment(e.target.value)}
-            style={{ flex: 1, fontSize: '12px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '3px 4px' }}
           >
             {workspace.environments.map(env => (
               <option key={env.name} value={env.name}>{env.name}</option>
@@ -1476,10 +1919,9 @@ export function App() {
           </select>
           <button
             type="button"
-            className="ghost-button"
+            className="environment-manage-button"
             aria-label="Manage environments"
             onClick={() => { setEnvEditorTarget(workspace.activeEnvironment); setEnvEditorOpen(true); }}
-            style={{ padding: '3px 6px', fontSize: '11px' }}
           >
             Manage
           </button>
@@ -1503,70 +1945,188 @@ export function App() {
           </button>
         </div>
 
-        <label className="search-field">
+        <label className={collectionSearch ? "search-field has-value" : "search-field"}>
           <Search size={15} />
-          <input placeholder="Search collections" aria-label="Search collections" />
+          <input
+            placeholder="Search collections, folders, requests"
+            aria-label="Search collections"
+            value={collectionSearch}
+            onChange={(event) => setCollectionSearch(event.target.value)}
+          />
+          {collectionSearch && (
+            <button
+              type="button"
+              className="search-clear-button"
+              aria-label="Clear collection search"
+              onClick={() => setCollectionSearch("")}
+            >
+              <X size={13} />
+            </button>
+          )}
         </label>
+        {isCollectionSearchActive && (
+          <div className="search-status" role="status">
+            {visibleCollections.length === 0 ? "No matches" : `${visibleCollections.length} collection${visibleCollections.length === 1 ? "" : "s"} found`}
+          </div>
+        )}
 
         <section className="nav-section">
           <h2>
             <FolderTree size={15} />
             Collections
           </h2>
-          {workspace.collections?.map(collection => (
+          {visibleCollections.map(collection => (
             <div className="collection-group" key={collection.id} style={{ marginBottom: '20px' }}>
-              <div className="folder-title" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', opacity: 0.8 }}>
-                <strong>{collection.name}</strong>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <button 
-                    type="button" 
-                    aria-label={`New folder in ${collection.name}`} 
-                    onClick={() => void handleCreateFolder(collection.id)} 
-                    style={{ all: 'unset', cursor: 'pointer', padding: '2px' }}
+              <div className="folder-title sidebar-tree-row collection-title">
+                {renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id ? (
+                  <input
+                    value={sidebarNameDraft}
+                    aria-label={`Rename collection ${collection.name}`}
+                    autoFocus
+                    onChange={(event) => setSidebarNameDraft(event.target.value)}
+                    onBlur={() => void applySidebarRename()}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        event.currentTarget.blur();
+                      } else if (event.key === "Escape") {
+                        event.preventDefault();
+                        cancelSidebarRename();
+                      }
+                    }}
+                    style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-tint)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '4px 8px', fontWeight: 700 }}
+                  />
+                ) : (
+                  <strong onDoubleClick={() => startSidebarRename("collection", collection.id, collection.name)}>{collection.name}</strong>
+                )}
+                <div className="sidebar-row-actions">
+                  <button
+                    type="button"
+                    className="sidebar-icon-button"
+                    aria-label={`Rename collection ${collection.name}`}
+                    onClick={() => startSidebarRename("collection", collection.id, collection.name)}
                   >
-                    <Plus size={12} />
+                    <Edit2 size={12} />
                   </button>
-                </div>
-              </div>
+		                  <button 
+		                    type="button" 
+		                    className="sidebar-icon-button"
+		                    aria-label={`New folder in ${collection.name}`} 
+		                    onClick={() => void handleCreateFolder(collection.id)} 
+		                  >
+		                    <Plus size={12} />
+		                  </button>
+		                  <button
+		                    type="button"
+		                    className="sidebar-icon-button danger"
+		                    aria-label={`Delete collection ${collection.name}`}
+		                    onClick={() => void handleDeleteCollection(collection.id)}
+		                  >
+		                    <Trash2 size={12} />
+		                  </button>
+	                </div>
+	              </div>
               
-              {(() => {
-                const renderFolders = (parentId: string | undefined, depth = 0) => {
-                  const folders = workspace.folders.filter(f => 
-                    (parentId === undefined ? f.collectionId === collection.id && !f.parentId : f.parentId === parentId)
-                  );
+	              {(() => {
+	                const collectionNameMatches = matchesCollectionSearch(collection.name);
+	                const renderFolders = (parentId: string | undefined, depth = 0, forceShowAll = false) => {
+	                  const folders = workspace.folders
+	                    .filter(f => (parentId === undefined ? f.collectionId === collection.id && !f.parentId : f.parentId === parentId))
+	                    .filter(f => forceShowAll || folderMatchesCollectionSearch(f.id));
 
                   if (folders.length === 0) return null;
 
                   return (
                     <div style={{ paddingLeft: `${depth * 12}px` }}>
-                      {folders.map(folder => {
-                        const folderRequests = workspace.requests.filter(r => r.folderId === folder.id);
+	                      {folders.map(folder => {
+	                        const folderNameMatches = matchesCollectionSearch(folder.name);
+	                        const showFolderContents = forceShowAll || folderNameMatches;
+	                        const isFolderCollapsed = !isCollectionSearchActive && collapsedFolders[folder.id];
+	                        const folderRequests = workspace.requests
+	                          .filter(r => r.folderId === folder.id)
+	                          .filter(r => showFolderContents || requestMatchesCollectionSearch(r));
                         return (
                           <div className="folder-group" key={folder.id}>
-                            <div className="folder-title" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
+	                            <div className="folder-title sidebar-tree-row"
                                   onContextMenu={e => {
                                     e.preventDefault();
                                     setContextMenu({ x: e.clientX, y: e.clientY, target: { id: folder.id, type: 'folder' } });
                                   }}
-                            >
-                              <button
-                                type="button"
-                                aria-expanded={!collapsedFolders[folder.id]}
-                                onClick={() => toggleFolder(folder.id)}
-                                style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                              >
-                                <ChevronDown size={14} style={{ transform: collapsedFolders[folder.id] ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
-                                {folder.name}
-                                {scriptStatus[folder.id] && (
-                                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
-                                )}
-                              </button>
-                            </div>
-                            {!collapsedFolders[folder.id] && (
-                              <>
-                                {renderFolders(folder.id, depth + 1)}
-                                {folderRequests.map(request => (
-                                  <div key={request.id} className={request.id === selectedRequestId ? "request-row active" : "request-row"} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+	                            >
+		                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+			                                <button
+			                                  type="button"
+				                                  aria-expanded={!isFolderCollapsed}
+			                                  onClick={() => toggleFolder(folder.id)}
+			                                  className="folder-toggle-button"
+			                                >
+			                                  <ChevronDown
+			                                    size={14}
+			                                    className={isFolderCollapsed ? "folder-chevron collapsed" : "folder-chevron"}
+			                                  />
+			                                </button>
+		                                {renamingSidebarItem?.type === "folder" && renamingSidebarItem.id === folder.id ? (
+		                                  <input
+		                                    value={sidebarNameDraft}
+		                                    aria-label={`Rename folder ${folder.name}`}
+		                                    autoFocus
+		                                    onChange={(event) => setSidebarNameDraft(event.target.value)}
+		                                    onBlur={() => void applySidebarRename()}
+		                                    onKeyDown={(event) => {
+		                                      if (event.key === "Enter") {
+		                                        event.preventDefault();
+		                                        event.currentTarget.blur();
+		                                      } else if (event.key === "Escape") {
+		                                        event.preventDefault();
+		                                        cancelSidebarRename();
+		                                      }
+		                                    }}
+		                                    style={{ minWidth: 0, width: '120px', border: '1px solid var(--color-border-tint)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '4px 8px', fontWeight: 700 }}
+		                                  />
+		                                ) : (
+		                                  <button
+		                                    type="button"
+		                                    onClick={() => toggleFolder(folder.id)}
+		                                    onDoubleClick={(event) => {
+		                                      event.stopPropagation();
+		                                      startSidebarRename("folder", folder.id, folder.name);
+		                                    }}
+		                                    style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+		                                  >
+		                                    {folder.name}
+		                                    {scriptStatus[folder.id] && (
+		                                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
+		                                    )}
+		                                  </button>
+		                                )}
+		                              </div>
+		                              <div className="sidebar-row-actions">
+		                              <button
+		                                type="button"
+		                                className="sidebar-icon-button"
+		                                aria-label={`Rename folder ${folder.name}`}
+		                                onClick={() => startSidebarRename("folder", folder.id, folder.name)}
+		                              >
+		                                <Edit2 size={12} />
+		                              </button>
+		                              <button
+		                                type="button"
+		                                className="sidebar-icon-button danger"
+		                                aria-label={`Delete folder ${folder.name}`}
+		                                onClick={() => void handleDeleteFolder(folder.id)}
+		                              >
+		                                <Trash2 size={12} />
+		                              </button>
+		                              </div>
+		                            </div>
+	                            <div
+		                              className={isFolderCollapsed ? "folder-children collapsed" : "folder-children"}
+		                              aria-hidden={isFolderCollapsed}
+		                            >
+		                              <div className="folder-children-inner">
+		                                {renderFolders(folder.id, depth + 1, showFolderContents)}
+	                                {folderRequests.map(request => (
+	                                  <div key={request.id} className={request.id === selectedRequestId ? "request-row sidebar-tree-row active" : "request-row sidebar-tree-row"} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                                       onContextMenu={e => {
                                         e.preventDefault();
                                         setContextMenu({ x: e.clientX, y: e.clientY, target: { id: request.id, type: 'request' } });
@@ -1610,18 +2170,18 @@ export function App() {
                                         )}
                                       </button>
                                     )}
-                                    <div style={{ display: 'flex', flexShrink: 0, gap: '4px' }}>
-                                      <button type="button" aria-label={`Rename ${request.name}`} onClick={() => startRequestRename(request)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
-                                        <Edit2 size={12} />
-                                      </button>
-                                      <button type="button" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)} style={{ all: 'unset', cursor: 'pointer', padding: '2px', opacity: 0.6 }}>
-                                        <Trash2 size={12} />
-                                      </button>
-                                    </div>
+	                                    <div className="sidebar-row-actions">
+	                                      <button type="button" className="sidebar-icon-button" aria-label={`Rename ${request.name}`} onClick={() => startRequestRename(request)}>
+	                                        <Edit2 size={12} />
+	                                      </button>
+	                                      <button type="button" className="sidebar-icon-button danger" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)}>
+	                                        <Trash2 size={12} />
+	                                      </button>
+	                                    </div>
                                   </div>
-                                ))}
-                              </>
-                            )}
+	                                ))}
+	                              </div>
+	                            </div>
                           </div>
                         );
                       })}
@@ -1629,12 +2189,26 @@ export function App() {
                   );
                 };
 
-                return renderFolders(undefined);
-              })()}
+	                return renderFolders(undefined, 0, collectionNameMatches);
+	              })()}
             </div>
           ))}
         </section>
+        </div>
       </aside>
+
+      <div
+        className={isSidebarResizing ? "sidebar-resizer active" : "sidebar-resizer"}
+        role="separator"
+        aria-label="Resize sidebar"
+        aria-orientation="vertical"
+        aria-valuemin={SIDEBAR_MIN_WIDTH}
+        aria-valuemax={SIDEBAR_MAX_WIDTH}
+        aria-valuenow={sidebarWidth}
+        tabIndex={0}
+        onMouseDown={handleSidebarResizerMouseDown}
+        onKeyDown={handleSidebarResizerKeyDown}
+      />
 
       <section className="workspace">
         <header className="topbar">
@@ -1838,102 +2412,142 @@ export function App() {
                 )}
               {activeTab === "headers" && (
                 <div className="request-tab-panel">
-                  <div className="table-like" aria-label="Request headers">
-                {draftRequest.headers.map((header, idx) => (
-                  <div className="table-row" key={idx} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={header.enabled}
-                      onChange={(e) => {
-                        const h = [...draftRequest.headers];
-                        h[idx].enabled = e.target.checked;
-                        updateDraft({ headers: h });
-                      }}
-                    />
-                    <VariableInput 
-                      activeVariables={activeVars}
-                      value={header.key} 
-                      placeholder="Header key"
-                      onChange={(e) => {
-                        const h = [...draftRequest.headers];
-                        h[idx].key = e.target.value;
-                        updateDraft({ headers: h });
-                      }}
-                      style={{ backgroundColor: 'transparent', border: 'none' }}
-                      containerStyle={{ flex: 1 }}
-                    />
-                    <VariableInput 
-                      activeVariables={activeVars}
-                      value={header.value} 
-                      placeholder="Header value"
-                      onChange={(e) => {
-                        const h = [...draftRequest.headers];
-                        h[idx].value = e.target.value;
-                        updateDraft({ headers: h });
-                      }}
-                      style={{ backgroundColor: 'transparent', border: 'none' }}
-                      containerStyle={{ flex: 2 }}
-                    />
-                    <button type="button" onClick={() => {
-                      const h = draftRequest.headers.filter((_, i) => i !== idx);
-                      updateDraft({ headers: h });
-                    }} style={{ all: 'unset', cursor: 'pointer', padding: '4px', opacity: 0.7 }}><Trash2 size={14}/></button>
+                  <div className="headers-editor" aria-label="Request headers">
+                    <div className="headers-table">
+                      <div className="headers-table-toolbar">
+                        <div className="headers-toolbar-actions">
+                          <div className="headers-common-menu-wrap" ref={headersPresetMenuRef}>
+                            <button
+                              ref={headersPresetTriggerRef}
+                              type="button"
+                              className="ghost-button"
+                              aria-label="Common header presets"
+                              aria-haspopup="listbox"
+                              aria-expanded={headersPresetMenuOpen}
+                              onClick={() => setHeadersPresetMenuOpen((open) => !open)}
+                            >
+                              Common
+                              <ChevronDown size={14} />
+                            </button>
+                            {headersPresetMenuOpen && createPortal(
+                              <div
+                                ref={headersPresetDropdownRef}
+                                className="headers-common-menu"
+                                role="listbox"
+                                aria-label="Common header presets"
+                                data-placement={headersPresetMenuLayout?.placement ?? "bottom"}
+                                style={{
+                                  top: headersPresetMenuLayout?.top ?? 0,
+                                  left: headersPresetMenuLayout?.left ?? 0,
+                                  width: headersPresetMenuLayout?.width,
+                                  maxHeight: headersPresetMenuLayout?.maxHeight,
+                                  visibility: headersPresetMenuLayout ? "visible" : "hidden",
+                                }}
+                              >
+                                {commonHeaderPresets.map((preset) => (
+                                  <button
+                                    key={preset.label}
+                                    type="button"
+                                    className="headers-common-option"
+                                    onClick={() => insertCommonHeader(preset.key, preset.value)}
+                                  >
+                                    <span>{preset.label}</span>
+                                    <small>{preset.value || "Custom value"}</small>
+                                  </button>
+                                ))}
+                              </div>,
+                              document.body,
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className="ghost-button headers-add-button"
+                            onClick={() => addHeader()}
+                          >
+                            <Plus size={14} /> Add Header
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="headers-grid-body">
+                        <div className="headers-grid-header" aria-hidden="true">
+                          <span>On</span>
+                          <span>Key</span>
+                          <span>Value</span>
+                          <span>Actions</span>
+                        </div>
+
+                        <div className="headers-rows">
+                          {draftRequest.headers.map((header, idx) => {
+                            return (
+                              <div className={header.enabled ? "headers-row" : "headers-row headers-row-disabled"} key={idx}>
+                                <label className="headers-toggle">
+                                  <input
+                                    type="checkbox"
+                                    checked={header.enabled}
+                                    onChange={(e) => toggleHeaderEnabled(idx, e.target.checked)}
+                                  />
+                                </label>
+
+                                <VariableInput
+                                  activeVariables={activeVars}
+                                  value={header.key}
+                                  placeholder="Header key"
+                                  onChange={(e) => updateHeaderField(idx, "key", e.target.value)}
+                                  onPaste={(e) => handleHeaderPaste(idx, e)}
+                                  className="headers-row-input-field"
+                                  containerClassName="headers-row-input"
+                                />
+
+                                <VariableInput
+                                  activeVariables={activeVars}
+                                  value={header.value}
+                                  placeholder="Header value"
+                                  onChange={(e) => updateHeaderField(idx, "value", e.target.value)}
+                                  onPaste={(e) => handleHeaderPaste(idx, e)}
+                                  className="headers-row-input-field"
+                                  containerClassName="headers-row-input"
+                                />
+
+                                <div className="headers-actions">
+                                  <button
+                                    type="button"
+                                    className="icon-button headers-delete-button"
+                                    aria-label={`Delete header ${header.key || idx + 1}`}
+                                    onClick={() => removeHeader(idx)}
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                ))}
-                <button type="button" className="ghost-button" onClick={() => {
-                  updateDraft({ headers: [...draftRequest.headers, { key: '', value: '', enabled: true }] });
-                }} style={{ marginTop: '8px' }}>
-                  <Plus size={14}/> Add Header
-                </button>
-              </div>
-            </div>
-          )}
+                </div>
+              )}
           {activeTab === "auth" && (
-            <div className="request-tab-panel" aria-label="API request authentication">
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                      Authentication Method
+            <div className="request-tab-panel auth-panel" aria-label="API request authentication">
+                  <div className="auth-panel-grid">
+                    <label className="auth-method-card">
+                      <span>Authentication Method</span>
                       <select
                         value={draftRequest.authMode}
                         onChange={(e) => updateDraft({ authMode: e.target.value as import("./types").ApiAuthMode })}
-                        style={{
-                          padding: '8px',
-                          borderRadius: '6px',
-                          backgroundColor: 'var(--color-surface)',
-                          color: 'var(--color-text)',
-                          border: '1px solid var(--color-border)',
-                          cursor: 'pointer',
-                          fontSize: '13px'
-                        }}
                       >
-                        {authModes.map((mode) => {
-                          const modeVal = mode === "None" ? "none" : mode === "Basic Auth" ? "basic" : mode === "Bearer Token" ? "bearer" : mode === "API Key" ? "apiKey" : "oauth2";
-                          return <option key={modeVal} value={modeVal}>{mode}</option>;
-                        })}
+                        {authModes.map((mode) => (
+                          <option key={AUTH_MODE_MAP[mode]} value={AUTH_MODE_MAP[mode]}>{mode}</option>
+                        ))}
                       </select>
                     </label>
-                  </div>
 
-                  <div style={{ 
-                    fontSize: '12px', 
-                    padding: '8px 12px', 
-                    borderRadius: '6px', 
-                    backgroundColor: 'var(--color-surface-muted)', 
-                    border: '1px solid var(--color-border)',
-                    color: 'var(--color-text-muted)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>Effective Auth:</span>
-                    {(() => {
-                      if (draftRequest.authMode !== "none") return <span>Request Level ({AUTH_MODE_LABELS[draftRequest.authMode]})</span>;
-                      const folder = workspace.folders.find(f => f.id === draftRequest.folderId);
-                      if (folder && folder.authMode && folder.authMode !== "none") return <span>Inherited from Folder: {folder.name} ({AUTH_MODE_LABELS[folder.authMode]})</span>;
-                      const collection = workspace.collections?.find(c => folder?.collectionId === c.id);
-                      if (collection && collection.authMode && collection.authMode !== "none") return <span>Inherited from Collection: {collection.name} ({AUTH_MODE_LABELS[collection.authMode]})</span>;
-                      return <span>None</span>;
-                    })()}
+                    <div className="auth-effective-card">
+                      <span>Will Send</span>
+                      <strong>{effectiveAuth ? describeAuthTarget(effectiveAuth.mode, effectiveAuth.config) : "No auth will be sent"}</strong>
+                      {effectiveAuth && <small>{effectiveAuth.source} · {AUTH_MODE_LABELS[effectiveAuth.mode]}</small>}
+                    </div>
                   </div>
 
                   {draftRequest.authMode === "basic" && (
@@ -2039,46 +2653,71 @@ export function App() {
               )}
               {activeTab === "scripts" && (
               <div className="request-tab-panel request-scripts-panel">
-                <div className="script-editor-header">
-                  <div className="script-type-segment" role="tablist" aria-label="Request script type">
+                <div className="script-workspace">
+                  <div className="script-workspace-toolbar">
+                    <div className="script-type-segment" role="tablist" aria-label="Request script type">
+                      <button
+                        className={activeRequestScript === "pre" ? "script-type-option active" : "script-type-option"}
+                        onClick={() => setActiveRequestScript("pre")}
+                        role="tab"
+                        type="button"
+                      >
+                        Pre-request
+                      </button>
+                      <button
+                        className={activeRequestScript === "post" ? "script-type-option active" : "script-type-option"}
+                        onClick={() => setActiveRequestScript("post")}
+                        role="tab"
+                        type="button"
+                      >
+                        Post-request
+                      </button>
+                    </div>
+                    <div className="script-helper-strip" aria-label={`${currentScriptTitle} helpers`}>
+                      {scriptRuntimeTokens.map((token) => (
+                        <button
+                          key={token}
+                          type="button"
+                          className="script-helper-chip"
+                          onClick={() => insertScriptToken(token)}
+                        >
+                          {token}
+                        </button>
+                      ))}
+                      {scriptVariableTokens.map((token) => (
+                        <button
+                          key={token}
+                          type="button"
+                          className="script-helper-chip"
+                          onClick={() => insertScriptToken(token)}
+                        >
+                          {token}
+                        </button>
+                      ))}
+                    </div>
                     <button
-                      className={activeRequestScript === "pre" ? "script-type-option active" : "script-type-option"}
-                      onClick={() => setActiveRequestScript("pre")}
-                      role="tab"
+                      className="ghost-button script-workspace-save"
                       type="button"
+                      onClick={handleSaveScripts}
+                      aria-label={`Save ${currentScriptTitle}`}
                     >
-                      Pre-request
-                    </button>
-                    <button
-                      className={activeRequestScript === "post" ? "script-type-option active" : "script-type-option"}
-                      onClick={() => setActiveRequestScript("post")}
-                      role="tab"
-                      type="button"
-                    >
-                      Post-request
+                      <Save size={14} />
+                      <span>Save Scripts</span>
                     </button>
                   </div>
-                </div>
-                <div className="script-editor-group">
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
-                    {activeRequestScript === "pre" ? "Pre-request Script" : "Post-request Script"}
-                  </label>
                   <div className="script-editor-shell">
                     <ScriptEditor 
                       key={activeRequestScript}
-                      value={activeRequestScript === "pre" ? preScript : postScript}
+                      value={currentScriptValue}
                       onChange={activeRequestScript === "pre" ? setPreScript : setPostScript}
                       variables={activeVars.map(v => v.key)}
                       placeholder={activeRequestScript === "pre" ? "// JavaScript only (no TypeScript types) to run before the request" : "// JavaScript only (no TypeScript types) to run after the request"}
                       height="100%"
+                      onReady={(actions) => {
+                        scriptEditorActionsRef.current = actions;
+                      }}
                     />
                   </div>
-                </div>
-                <div className="script-editor-actions">
-                  <button className="ghost-button" type="button" onClick={handleSaveScripts} style={{ padding: '6px 12px', fontSize: '12px' }}>
-                    <Save size={14} /> Save Scripts
-                  </button>
                 </div>
               </div>
               )}
@@ -2177,7 +2816,7 @@ export function App() {
       )}
 
       {confirmDialog && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Confirm action" onClick={() => setConfirmDialog(null)}>
+        <div className="modal-overlay confirm-modal-overlay" role="dialog" aria-modal="true" aria-label="Confirm action" onClick={() => setConfirmDialog(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <p className="modal-message">{confirmDialog.message}</p>
             <div className="modal-actions">
@@ -2683,86 +3322,107 @@ export function App() {
           onClick={() => setEnvEditorOpen(false)}
         >
           <div
-            className="modal"
+            className="modal env-modal"
             onClick={e => e.stopPropagation()}
-            style={{ width: '680px', maxWidth: '95vw', maxHeight: '80vh', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ margin: 0, fontSize: '15px' }}>Environments</h2>
-              <button type="button" onClick={() => setEnvEditorOpen(false)} style={{ all: 'unset', cursor: 'pointer' }}><X size={18} /></button>
+            <div className="env-modal-header">
+              <div>
+                <span className="env-modal-kicker">Workspace settings</span>
+                <h2>Environments</h2>
+                <p>Manage variables for request URLs, headers, auth, and scripts.</p>
+              </div>
+              <button
+                type="button"
+                className="env-modal-close"
+                aria-label="Close environment editor"
+                onClick={() => setEnvEditorOpen(false)}
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
-              {/* Environment list */}
-              <div style={{ width: '170px', flexShrink: 0 }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', opacity: 0.5, marginBottom: '6px' }}>Environments</div>
+            <div className="env-modal-body">
+              <aside className="env-list-panel">
+                <div className="env-section-label">Environments</div>
                 {workspace.environments.map(env => (
                   <div
                     key={env.name}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}
+                    className={envEditorTarget === env.name ? "env-list-row selected" : "env-list-row"}
                   >
-                    <button
-                      type="button"
-                      onClick={() => setEnvEditorTarget(env.name)}
-                      style={{
-                        all: 'unset',
-                        flex: 1,
-                        padding: '5px 8px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '13px',
-                        backgroundColor: envEditorTarget === env.name ? 'var(--color-surface-hover)' : 'transparent',
-                        fontWeight: workspace.activeEnvironment === env.name ? 700 : 400,
-                      }}
-                    >
-                      {env.name}
-                      {workspace.activeEnvironment === env.name && (
-                        <span style={{ fontSize: '9px', marginLeft: '4px', opacity: 0.5 }}>●</span>
-                      )}
-                    </button>
-                    <button type="button" aria-label={`Rename ${env.name}`} onClick={() => handleRenameEnvironment(env.name)} style={{ all: 'unset', cursor: 'pointer', opacity: 0.5 }}><Edit2 size={11} /></button>
-                    <button type="button" aria-label={`Delete ${env.name}`} onClick={() => handleDeleteEnvironment(env.name)} style={{ all: 'unset', cursor: 'pointer', opacity: 0.5 }}><Trash2 size={11} /></button>
+                    {renamingEnvironment === env.name ? (
+                      <input
+                        className="env-rename-input"
+                        value={environmentNameDraft}
+                        aria-label={`Rename ${env.name}`}
+                        autoFocus
+                        onChange={(event) => setEnvironmentNameDraft(event.target.value)}
+                        onBlur={() => void applyEnvironmentRename(env.name)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            event.currentTarget.blur();
+                          } else if (event.key === "Escape") {
+                            event.preventDefault();
+                            cancelEnvironmentRename();
+                          }
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEnvEditorTarget(env.name)}
+                        className="env-list-button"
+                      >
+                        {env.name}
+                        {workspace.activeEnvironment === env.name && (
+                          <span className="env-active-dot" aria-label="Active environment" />
+                        )}
+                      </button>
+                    )}
+                    <div className="env-row-actions">
+                      <button type="button" className="env-icon-button" aria-label={`Rename ${env.name}`} onClick={() => handleRenameEnvironment(env.name)}><Edit2 size={12} /></button>
+                      <button type="button" className="env-icon-button danger" aria-label={`Delete ${env.name}`} onClick={() => handleDeleteEnvironment(env.name)}><Trash2 size={12} /></button>
+                    </div>
                   </div>
                 ))}
                 <button
                   type="button"
-                  className="ghost-button"
+                  className="ghost-button env-wide-button"
                   onClick={handleCreateEnvironment}
-                  style={{ width: '100%', marginTop: '8px', fontSize: '12px' }}
                 >
                   <Plus size={12} /> New
                 </button>
                 {envEditorTarget && workspace.activeEnvironment !== envEditorTarget && (
                   <button
                     type="button"
-                    className="ghost-button"
+                    className="ghost-button env-wide-button"
                     onClick={() => handleSetActiveEnvironment(envEditorTarget)}
-                    style={{ width: '100%', marginTop: '4px', fontSize: '12px' }}
                   >
                     Set active
                   </button>
                 )}
-              </div>
+              </aside>
 
-              {/* Variable editor */}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <section className="env-variable-panel">
                 {envEditorTarget ? (() => {
                   const env = workspace.environments.find(e => e.name === envEditorTarget);
                   if (!env) return null;
                   return (
                     <>
-                      <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', opacity: 0.5, marginBottom: '6px' }}>
-                        Variables — {env.name}
+                      <div className="env-variable-header">
+                        <span className="env-section-label">Variables</span>
+                        <strong>{env.name}</strong>
+                        <span>{env.variables.length} {env.variables.length === 1 ? "variable" : "variables"}</span>
                       </div>
-                      <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'visible' }}>
+                      <div className="env-variable-card">
                         {env.variables.map(v => (
-                          <div key={v.key} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', borderBottom: '1px solid var(--color-border)' }}>
-                            <span style={{ flex: '0 0 140px', fontSize: '12px', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.key}</span>
-                            <span style={{ flex: 1, fontSize: '12px', fontFamily: 'monospace', opacity: v.secret ? 0.5 : 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <div key={v.key} className="env-variable-row">
+                            <span className="env-variable-key">{v.key}</span>
+                            <span className={v.secret ? "env-variable-value secret" : "env-variable-value"}>
                               {v.secret ? '[secret stored outside SQLite]' : v.value}
                             </span>
-                            <span style={{ fontSize: '10px', opacity: 0.4 }}>{v.secret ? 'secret' : ''}</span>
-                            <button type="button" aria-label={`Delete variable ${v.key}`} onClick={() => handleDeleteVariable(env.name, v.key)} style={{ all: 'unset', cursor: 'pointer', opacity: 0.5 }}><Trash2 size={12} /></button>
+                            {v.secret && <span className="env-secret-badge">Secret</span>}
+                            <button type="button" className="env-icon-button danger" aria-label={`Delete variable ${v.key}`} onClick={() => handleDeleteVariable(env.name, v.key)}><Trash2 size={12} /></button>
                           </div>
                         ))}
                         <AddVariableRow
@@ -2789,9 +3449,9 @@ export function App() {
                     </>
                   );
                 })() : (
-                  <p style={{ opacity: 0.5, fontSize: '13px' }}>Select an environment to edit its variables.</p>
+                  <p className="env-empty-state">Select an environment to edit its variables.</p>
                 )}
-              </div>
+              </section>
             </div>
           </div>
         </div>

@@ -105,17 +105,24 @@ export async function createWorkspace(name: string): Promise<string> {
   return invoke<string>("create_workspace", { name });
 }
 
-export async function createCollection(workspaceId: string, name: string): Promise<string> {
+export async function createCollection(name: string): Promise<string> {
   if (!isTauriRuntime()) return `preview-collection-${Date.now()}`;
-  return invoke<string>("create_collection", { 
-    workspace_id: workspaceId, 
-    name 
-  });
+  return invoke<string>("create_collection", { name });
 }
 
 export async function updateFolder(folderId: string, name: string): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("update_folder", { folderId, name });
+}
+
+export async function updateCollection(collectionId: string, name: string): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("update_collection", { collectionId, name });
+}
+
+export async function deleteCollection(collectionId: string): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("delete_collection", { collectionId });
 }
 
 export async function deleteFolder(folderId: string): Promise<void> {

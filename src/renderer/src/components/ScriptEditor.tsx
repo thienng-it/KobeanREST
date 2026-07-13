@@ -11,9 +11,10 @@ interface ScriptEditorProps {
   variables: string[];
   placeholder?: string;
   height?: string;
+  onReady?: (actions: { insertText: (text: string) => void } | null) => void;
 }
 
-export function ScriptEditor({ value, onChange, variables, placeholder, height = '120px' }: ScriptEditorProps) {
+export function ScriptEditor({ value, onChange, variables, placeholder, height = '120px', onReady }: ScriptEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
 
@@ -78,8 +79,20 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
     });
 
     viewRef.current = view;
+    onReady?.({
+      insertText: (text: string) => {
+        const selection = view.state.selection.main;
+        view.dispatch({
+          changes: { from: selection.from, to: selection.to, insert: text },
+          selection: { anchor: selection.from + text.length },
+          scrollIntoView: true,
+        });
+        view.focus();
+      },
+    });
 
     return () => {
+      onReady?.(null);
       view.destroy();
     };
   }, []);
