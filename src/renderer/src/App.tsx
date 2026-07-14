@@ -1,6 +1,7 @@
 import {
   ChevronDown,
   Clock3,
+  Code2,
   Download,
   FolderTree,
   Globe,
@@ -11,6 +12,7 @@ import {
   Save,
   Search,
   Settings,
+  WandSparkles,
   Plus,
   Trash2,
   Edit2,
@@ -29,6 +31,14 @@ import { ResponseViewer } from "./components/ResponseViewer";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 import { redactDiagnosticError } from "./services/redaction";
 import { checkForAppUpdate, downloadAndInstallUpdate, type AvailableUpdate } from "./services/updater";
+import {
+  SCRIPT_EDITOR_MODES,
+  SCRIPT_SNIPPETS,
+  generateRequestCodeSnippet,
+  prettifyScriptContent,
+  type RequestCodeSnippetTarget,
+  type ScriptEditorMode,
+} from "./services/script-tools";
 import {
   initializeLocalStore,
   loadLocalWorkspace,
@@ -60,9 +70,10 @@ import {
   saveCollectionAuth, createCollection, createWorkspace,
 } from "./services/local-store";
 import { storeSecret } from "./services/secrets";
-import type { ApiAuthMode, AuthConfig, AppSettings, ExecuteHttpResponse, HistoryEntry, SavedRequest, UpdateStatus, WorkspaceSummary } from "./types";
+import type { ApiAuthMode, AuthConfig, AppSettings, EnvironmentVariable, ExecuteHttpResponse, HistoryEntry, SavedRequest, UpdateStatus, WorkspaceSummary } from "./types";
 
 type RequestHeader = SavedRequest["headers"][number];
+type ScriptOutputEntry = { tone: "info" | "error"; message: string };
 
 const HEADER_PRESET_MENU_GAP = 6;
 const HEADER_PRESET_MENU_PADDING = 16;
@@ -123,6 +134,23 @@ function openProductDocs() {
 
 function createBlankHeader(): RequestHeader {
   return { key: "", value: "", enabled: true };
+}
+
+function createScriptVariablesObject(variables: EnvironmentVariable[]): Record<string, string> {
+  return Object.fromEntries(
+    variables
+      .filter((variable) => !(variable.secret && variable.secretRef))
+      .map((variable) => [variable.key, variable.value]),
+  );
+}
+
+function formatScriptLogValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 interface HeaderPresetMenuLayout {
@@ -306,6 +334,12 @@ export function App() {
   const [preScript, setPreScript] = useState("");
   const [postScript, setPostScript] = useState("");
   const [activeRequestScript, setActiveRequestScript] = useState<"pre" | "post">("pre");
+  const [scriptEditorMode, setScriptEditorMode] = useState<ScriptEditorMode>("javascript");
+  const [activeSnippetId, setActiveSnippetId] = useState("set-header");
+  const [requestCodeTarget, setRequestCodeTarget] = useState<RequestCodeSnippetTarget>("curl");
+  const [scriptOutputLog, setScriptOutputLog] = useState<ScriptOutputEntry[]>([]);
+  const [requestCodeOpen, setRequestCodeOpen] = useState(false);
+  const [scriptOutputExpanded, setScriptOutputExpanded] = useState(false);
   const [headersPresetMenuOpen, setHeadersPresetMenuOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -615,6 +649,8 @@ export function App() {
   const scriptVariableTokens = activeVars.map((variable) => `{{${variable.key}}}`);
   const currentScriptValue = activeRequestScript === "pre" ? preScript : postScript;
   const currentScriptTitle = activeRequestScript === "pre" ? "Pre-request Script" : "Post-request Script";
+  const selectedScriptSnippet = SCRIPT_SNIPPETS.find((snippet) => snippet.id === activeSnippetId) ?? SCRIPT_SNIPPETS[0];
+  const requestCodeSnippet = draftRequest ? generateRequestCodeSnippet(draftRequest, requestCodeTarget) : "";
   const requestFolder = draftRequest
     ? workspace.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
     : null;
@@ -700,6 +736,36 @@ export function App() {
     }
 
     setPostScript(nextValue);
+  }
+
+  function setCurrentScriptValue(nextValue: string) {
+    if (activeRequestScript === "pre") {
+      setPreScript(nextValue);
+      return;
+    }
+
+    setPostScript(nextValue);
+  }
+
+  function handlePrettifyScript() {
+    try {
+      const nextValue = prettifyScriptContent(currentScriptValue, scriptEditorMode);
+      setCurrentScriptValue(nextValue);
+      setScriptOutputLog([{ tone: "info", message: `Prettified ${scriptEditorMode.toUpperCase()} content.` }]);
+    } catch (error) {
+      setScriptOutputLog([{ tone: "error", message: `Prettify failed: ${diagnosticMessage(error)}` }]);
+    }
+  }
+
+  function insertSelectedScriptSnippet() {
+    if (!selectedScriptSnippet) return;
+    setScriptEditorMode(selectedScriptSnippet.mode);
+    insertScriptToken(selectedScriptSnippet.body);
+  }
+
+  function insertRequestCodeSnippet() {
+    if (!requestCodeSnippet) return;
+    insertScriptToken(requestCodeSnippet);
   }
 
   function handleHeaderPaste(index: number, event: ClipboardEvent<HTMLInputElement>) {
@@ -1677,33 +1743,52 @@ export function App() {
     }
   }
 
-  async function runScript(content: string, context: any) {
-    if (!content) return;
+  async function runScript(content: string, context: any, label: string): Promise<ScriptOutputEntry[]> {
+    if (!content) return [];
+    const entries: ScriptOutputEntry[] = [];
+    const scriptConsole = {
+      log: (...values: unknown[]) => {
+        entries.push({ tone: "info", message: `[${label}] ${values.map(formatScriptLogValue).join(" ")}` });
+      },
+      warn: (...values: unknown[]) => {
+        entries.push({ tone: "info", message: `[${label}] ${values.map(formatScriptLogValue).join(" ")}` });
+      },
+      error: (...values: unknown[]) => {
+        entries.push({ tone: "error", message: `[${label}] ${values.map(formatScriptLogValue).join(" ")}` });
+      },
+    };
+
     try {
-      const fn = new Function("context", `
-        try {
+      const fn = new Function("context", "console", `
+        const request = context.request;
+        const response = context.response;
+        const variables = context.variables;
+        return (async () => {
           ${content}
-        } catch (e) {
-          console.error("Script execution error:", e);
-        }
+        })();
       `);
-      fn(context);
+      await fn(context, scriptConsole);
     } catch (err) {
       console.error("Failed to parse script:", diagnosticMessage(err));
+      entries.push({ tone: "error", message: `[${label}] ${diagnosticMessage(err)}` });
     }
+
+    return entries;
   }
 
   async function sendSelectedRequest() {
     if (!draftRequest) return;
     setActiveBottomDock('response');
+    setScriptOutputLog([]);
     
     let variableMap = buildVariableMap(activeEnvironmentVariables(workspace));
+    const scriptOutputEntries: ScriptOutputEntry[] = [];
 
     // 1. Execute Pre-scripts (Hierarchy: Folder -> Request)
     // Note: Collection level is not yet fully implemented in the store, focusing on Folder -> Request
     const preScriptsContext = { 
       request: { ...draftRequest },
-      variables: { ...activeVars } 
+      variables: createScriptVariablesObject(activeVars),
     };
     
     try {
@@ -1711,21 +1796,23 @@ export function App() {
       const preFolder = folderScripts.find(s => s.scriptType === 'pre')?.content;
       if (preFolder) {
         const resolved = resolveString(preFolder, variableMap).resolved;
-        await runScript(resolved, preScriptsContext);
+        scriptOutputEntries.push(...(await runScript(resolved, preScriptsContext, "Folder pre-request")));
       }
       
       const reqScripts = await getScripts(draftRequest.id, 'request');
       const preReq = reqScripts.find(s => s.scriptType === 'pre')?.content;
       if (preReq) {
         const resolved = resolveString(preReq, variableMap).resolved;
-        await runScript(resolved, preScriptsContext);
+        scriptOutputEntries.push(...(await runScript(resolved, preScriptsContext, "Request pre-request")));
       }
     } catch (err) {
       console.error("Pre-script execution failed", diagnosticMessage(err));
       if (err instanceof UnresolvedVariableError) {
         setResponseState({ kind: "error", message: err.message });
+        setScriptOutputLog([...scriptOutputEntries, { tone: "error", message: err.message }]);
         return;
       }
+      scriptOutputEntries.push({ tone: "error", message: `Pre-script execution failed: ${diagnosticMessage(err)}` });
     }
 
     // Use the modified request from scripts
@@ -1828,7 +1915,7 @@ export function App() {
       const postScriptsContext = {
         request: requestToSend,
         response: response,
-        variables: { ...activeVars }
+        variables: createScriptVariablesObject(activeVars),
       };
       
       try {
@@ -1836,18 +1923,20 @@ export function App() {
         const postReq = reqScripts.find(s => s.scriptType === 'post')?.content;
         if (postReq) {
           const resolved = resolveString(postReq, variableMap).resolved;
-          await runScript(resolved, postScriptsContext);
+          scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Request post-response")));
         }
         
         const folderScripts = await getScripts(requestToSend.folderId, 'folder');
         const postFolder = folderScripts.find(s => s.scriptType === 'post')?.content;
         if (postFolder) {
           const resolved = resolveString(postFolder, variableMap).resolved;
-          await runScript(resolved, postScriptsContext);
+          scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Folder post-response")));
         }
       } catch (err) {
         console.error("Post-script execution failed", diagnosticMessage(err));
+        scriptOutputEntries.push({ tone: "error", message: `Post-script execution failed: ${diagnosticMessage(err)}` });
       }
+      setScriptOutputLog(scriptOutputEntries);
 
       const historyUrl = redactAuthFromUrl(authUrl, finalAuthMode, resolvedAuth);
       void recordRequestHistory({
@@ -1864,6 +1953,7 @@ export function App() {
       } else {
         setResponseState({ kind: "error", message: error instanceof Error ? error.message : String(error) });
       }
+      setScriptOutputLog(scriptOutputEntries);
       setAbortController(null);
     }
   }
@@ -2309,14 +2399,7 @@ export function App() {
                       role="tab"
                       type="button"
                     >
-                      {tab === "scripts" ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
-                          {tab}
-                        </div>
-                      ) : (
-                        tab
-                      )}
+                      {tab}
                     </button>
                   ))}
                 </div>
@@ -2661,6 +2744,7 @@ export function App() {
                         onClick={() => setActiveRequestScript("pre")}
                         role="tab"
                         type="button"
+                        aria-selected={activeRequestScript === "pre"}
                       >
                         Pre-request
                       </button>
@@ -2669,31 +2753,10 @@ export function App() {
                         onClick={() => setActiveRequestScript("post")}
                         role="tab"
                         type="button"
+                        aria-selected={activeRequestScript === "post"}
                       >
                         Post-request
                       </button>
-                    </div>
-                    <div className="script-helper-strip" aria-label={`${currentScriptTitle} helpers`}>
-                      {scriptRuntimeTokens.map((token) => (
-                        <button
-                          key={token}
-                          type="button"
-                          className="script-helper-chip"
-                          onClick={() => insertScriptToken(token)}
-                        >
-                          {token}
-                        </button>
-                      ))}
-                      {scriptVariableTokens.map((token) => (
-                        <button
-                          key={token}
-                          type="button"
-                          className="script-helper-chip"
-                          onClick={() => insertScriptToken(token)}
-                        >
-                          {token}
-                        </button>
-                      ))}
                     </div>
                     <button
                       className="ghost-button script-workspace-save"
@@ -2705,18 +2768,120 @@ export function App() {
                       <span>Save Scripts</span>
                     </button>
                   </div>
-                  <div className="script-editor-shell">
-                    <ScriptEditor 
-                      key={activeRequestScript}
-                      value={currentScriptValue}
-                      onChange={activeRequestScript === "pre" ? setPreScript : setPostScript}
-                      variables={activeVars.map(v => v.key)}
-                      placeholder={activeRequestScript === "pre" ? "// JavaScript only (no TypeScript types) to run before the request" : "// JavaScript only (no TypeScript types) to run after the request"}
-                      height="100%"
-                      onReady={(actions) => {
-                        scriptEditorActionsRef.current = actions;
+                  <div className="script-tool-row">
+                    <label className="script-tool-group">
+                      <span className="script-tool-label">Language</span>
+                      <select
+                        className="script-tool-select"
+                        value={scriptEditorMode}
+                        onChange={(event) => setScriptEditorMode(event.target.value as ScriptEditorMode)}
+                        aria-label="Script editor type"
+                      >
+                        {SCRIPT_EDITOR_MODES.map((mode) => (
+                          <option key={mode.value} value={mode.value}>{mode.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      className="ghost-button script-tool-action"
+                      type="button"
+                      onClick={handlePrettifyScript}
+                      aria-label="Prettify current script"
+                    >
+                      <WandSparkles size={14} />
+                      Prettify
+                    </button>
+                    <label className="script-tool-group script-tool-group-fill">
+                      <span className="script-tool-label">Snippet</span>
+                      <select
+                        className="script-tool-select"
+                        value={activeSnippetId}
+                        onChange={(event) => setActiveSnippetId(event.target.value)}
+                        aria-label="Script snippet"
+                      >
+                        {SCRIPT_SNIPPETS.map((snippet) => (
+                          <option key={snippet.id} value={snippet.id}>{snippet.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      className="ghost-button script-tool-action script-tool-action-primary"
+                      type="button"
+                      onClick={insertSelectedScriptSnippet}
+                      aria-label="Insert selected script snippet"
+                    >
+                      Insert
+                    </button>
+                    <select
+                      className="script-helper-select"
+                      value=""
+                      onChange={(event) => {
+                        if (event.target.value) insertScriptToken(event.target.value);
                       }}
-                    />
+                      aria-label="Insert script helper"
+                    >
+                      <option value="">Insert helper…</option>
+                      <optgroup label="Runtime">
+                        {scriptRuntimeTokens.map((token) => (
+                          <option key={token} value={token}>{token}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Variables">
+                        {scriptVariableTokens.map((token) => (
+                          <option key={token} value={token}>{token}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                    <button
+                      className="ghost-button script-tool-action script-code-button"
+                      type="button"
+                      onClick={() => setRequestCodeOpen(true)}
+                      aria-label="Open request code"
+                    >
+                      <Code2 size={14} />
+                      Code
+                    </button>
+                  </div>
+                  <div className="script-editor-frame">
+                    <div className="script-editor-shell">
+                      <ScriptEditor
+                        key={activeRequestScript}
+                        value={currentScriptValue}
+                        onChange={activeRequestScript === "pre" ? setPreScript : setPostScript}
+                        variables={activeVars.map(v => v.key)}
+                        placeholder={activeRequestScript === "pre" ? "// Runs before the request. Use request and variables." : "// Runs after the response. Use request, response, and variables."}
+                        height="100%"
+                        onReady={(actions) => {
+                          scriptEditorActionsRef.current = actions;
+                        }}
+                      />
+                    </div>
+                    <section className="script-console" aria-label="Script console">
+                      <button
+                        className="script-console-toggle"
+                        type="button"
+                        aria-expanded={scriptOutputExpanded}
+                        aria-controls="script-console-content"
+                        onClick={() => setScriptOutputExpanded((expanded) => !expanded)}
+                      >
+                        <span>Console</span>
+                        <span>{scriptOutputLog.length}</span>
+                        <ChevronDown className={scriptOutputExpanded ? "script-console-chevron open" : "script-console-chevron"} size={14} />
+                      </button>
+                      {scriptOutputExpanded && (
+                        <div id="script-console-content" className="script-console-content">
+                          {scriptOutputLog.length === 0 ? (
+                            <span className="script-output-empty">Script output will appear here after prettify or send.</span>
+                          ) : (
+                            scriptOutputLog.map((entry, index) => (
+                              <div key={`${entry.message}-${index}`} className={`script-output-line ${entry.tone}`}>
+                                {entry.message}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </section>
                   </div>
                 </div>
               </div>
@@ -3453,6 +3618,54 @@ export function App() {
                 )}
               </section>
             </div>
+          </div>
+        </div>
+      )}
+
+      {requestCodeOpen && (
+        <div
+          className="modal-overlay script-code-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Request code"
+          onClick={() => setRequestCodeOpen(false)}
+        >
+          <div className="modal script-code-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="script-code-modal-header">
+              <div>
+                <span className="script-code-modal-kicker">Generated client</span>
+                <h2>Request code</h2>
+              </div>
+              <button
+                type="button"
+                className="script-code-modal-close"
+                aria-label="Close request code"
+                onClick={() => setRequestCodeOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="script-code-modal-toolbar">
+              <select
+                className="script-tool-select"
+                value={requestCodeTarget}
+                onChange={(event) => setRequestCodeTarget(event.target.value as RequestCodeSnippetTarget)}
+                aria-label="Request code snippet target"
+              >
+                <option value="curl">cURL</option>
+                <option value="fetch">Fetch</option>
+                <option value="node">Node</option>
+              </select>
+              <button
+                className="ghost-button script-tool-action"
+                type="button"
+                onClick={insertRequestCodeSnippet}
+                aria-label="Insert request code snippet"
+              >
+                Insert into script
+              </button>
+            </div>
+            <pre className="script-code-modal-preview">{requestCodeSnippet}</pre>
           </div>
         </div>
       )}
