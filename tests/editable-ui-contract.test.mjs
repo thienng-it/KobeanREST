@@ -349,6 +349,7 @@ test("scripts tab uses one editor with a pre/post selector", () => {
   const app = read("src/renderer/src/App.tsx");
   const styles = read("src/renderer/src/styles.css");
   const scriptEditor = read("src/renderer/src/components/ScriptEditor.tsx");
+  const refinement = styles.slice(styles.indexOf("/* Flat Scripts workspace"));
 
   assert.match(app, /const \[activeRequestScript, setActiveRequestScript\] = useState<"pre" \| "post">\("pre"\);/);
   assert.match(app, /const scriptRuntimeTokens = activeRequestScript === "pre"/);
@@ -360,8 +361,7 @@ test("scripts tab uses one editor with a pre/post selector", () => {
   assert.match(app, /setActiveRequestScript\("post"\)/);
   assert.match(app, /className="script-workspace"/);
   assert.match(app, /className="script-workspace-toolbar"/);
-  assert.match(app, /className="script-helper-strip"/);
-  assert.match(app, /className="script-helper-chip"/);
+  assert.match(app, /className="script-helper-select"/);
   assert.match(app, /className="script-editor-shell"/);
   assert.match(app, /key=\{activeRequestScript\}/);
   assert.match(app, /const currentScriptValue = activeRequestScript === "pre" \? preScript : postScript;/);
@@ -376,24 +376,20 @@ test("scripts tab uses one editor with a pre/post selector", () => {
   assert.doesNotMatch(app, /Click a helper/);
   assert.doesNotMatch(app, /className="script-editor-header"/);
   assert.doesNotMatch(app, /className="script-editor-actions"/);
-  assert.match(styles, /\.request-scripts-panel\s*\{[\s\S]*flex:\s*1;/);
-  assert.match(styles, /\.request-scripts-panel\s*\{[\s\S]*min-height:\s*0;/);
-  assert.match(styles, /\.request-scripts-panel\s*\{[\s\S]*overflow-y:\s*auto;/);
+  assert.match(refinement, /\.request-scripts-panel\s*\{[^}]*flex:\s*1 1 auto;/);
+  assert.match(refinement, /\.request-scripts-panel\s*\{[^}]*min-height:\s*0;/);
+  assert.match(refinement, /\.request-scripts-panel\s*\{[^}]*overflow:\s*hidden;/);
   assert.match(styles, /\.script-type-segment\s*\{/);
   assert.match(styles, /\.script-type-option\.active\s*\{/);
   assert.match(styles, /\.script-workspace\s*\{/);
-  assert.match(styles, /\.script-workspace\s*\{[\s\S]*min-height:\s*280px;/);
+  assert.match(refinement, /\.script-workspace\s*\{[^}]*min-height:\s*0;/);
   assert.match(styles, /\.script-workspace-toolbar\s*\{/);
-  assert.match(styles, /\.script-helper-strip\s*\{/);
-  assert.match(styles, /\.script-helper-strip\s*\{[\s\S]*flex-wrap:\s*nowrap;/);
-  assert.match(styles, /\.script-helper-strip\s*\{[\s\S]*overflow-x:\s*auto;/);
-  assert.match(styles, /\.script-helper-chip\s*\{/);
-  assert.match(styles, /\.script-helper-chip\s*\{[\s\S]*border-radius:\s*8px;/);
+  assert.match(styles, /\.script-helper-select\s*\{/);
   assert.match(styles, /\.script-editor-shell\s*\{[\s\S]*flex:\s*1;/);
   assert.match(styles, /\.script-editor-shell\s*\{[\s\S]*display:\s*flex;/);
-  assert.match(styles, /\.script-editor-shell\s*\{[\s\S]*min-height:\s*220px;/);
+  assert.match(refinement, /\.script-editor-shell\s*\{[^}]*min-height:\s*0;/);
   assert.match(styles, /\.script-editor-shell > div\s*\{[\s\S]*min-height:\s*0;/);
-  assert.match(styles, /\.script-editor-shell > div\s*\{[\s\S]*height:\s*auto !important;/);
+  assert.match(styles, /\.script-editor-shell > div\s*\{[\s\S]*height:\s*100% !important;/);
   assert.doesNotMatch(styles, /\.script-workspace-header\s*\{/);
   assert.doesNotMatch(styles, /\.script-workspace-hint\s*\{/);
   assert.doesNotMatch(styles, /\.script-editor-actions\s*\{/);
@@ -402,6 +398,123 @@ test("scripts tab uses one editor with a pre/post selector", () => {
   assert.match(scriptEditor, /view\.dispatch\(\{/);
   assert.match(scriptEditor, /onReady\?\.\(null\);/);
   assert.match(scriptEditor, /return <div ref=\{editorRef\} style=\{\{ width: '100%', height \}\} \/>;/);
+});
+
+test("scripts tab supports typed helpers, prettify, snippets, and generated request code", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.equal(hasFile("src/renderer/src/services/script-tools.ts"), true);
+  const scriptTools = read("src/renderer/src/services/script-tools.ts");
+
+  assert.match(scriptTools, /export type ScriptEditorMode = "javascript" \| "json" \| "xml" \| "text" \| "mcp";/);
+  assert.match(scriptTools, /export const SCRIPT_EDITOR_MODES/);
+  assert.match(scriptTools, /label: "JSON"/);
+  assert.match(scriptTools, /label: "XML"/);
+  assert.match(scriptTools, /label: "MCP"/);
+  assert.match(scriptTools, /export function prettifyScriptContent/);
+  assert.match(scriptTools, /JSON\.stringify\(JSON\.parse\(content\), null, 2\)/);
+  assert.match(scriptTools, /function prettifyXml/);
+  assert.match(scriptTools, /export const SCRIPT_SNIPPETS/);
+  assert.match(scriptTools, /id: "set-header"/);
+  assert.match(scriptTools, /id: "response-json"/);
+  assert.match(scriptTools, /id: "status-test"/);
+  assert.match(scriptTools, /id: "mcp-initialize"/);
+  assert.match(scriptTools, /id: "mcp-tools-list"/);
+  assert.match(scriptTools, /export type RequestCodeSnippetTarget = "curl" \| "fetch" \| "node";/);
+  assert.match(scriptTools, /export function generateRequestCodeSnippet/);
+
+  assert.match(app, /SCRIPT_EDITOR_MODES/);
+  assert.match(app, /SCRIPT_SNIPPETS/);
+  assert.match(app, /prettifyScriptContent/);
+  assert.match(app, /generateRequestCodeSnippet/);
+  assert.match(app, /const \[scriptEditorMode, setScriptEditorMode\] = useState<ScriptEditorMode>\("javascript"\);/);
+  assert.match(app, /const \[activeSnippetId, setActiveSnippetId\] = useState\("set-header"\);/);
+  assert.match(app, /const \[requestCodeTarget, setRequestCodeTarget\] = useState<RequestCodeSnippetTarget>\("curl"\);/);
+  assert.match(app, /function handlePrettifyScript\(\)/);
+  assert.match(app, /function insertSelectedScriptSnippet\(\)/);
+  assert.match(app, /const requestCodeSnippet = draftRequest \? generateRequestCodeSnippet/);
+  assert.match(app, /className="script-tool-row"/);
+  assert.match(app, /aria-label="Script editor type"/);
+  assert.match(app, /aria-label="Prettify current script"/);
+  assert.match(app, /aria-label="Script snippet"/);
+  assert.match(app, /aria-label="Insert selected script snippet"/);
+  assert.match(app, /className="ghost-button script-tool-action script-code-button"/);
+  assert.match(app, /className="modal script-code-modal"/);
+  assert.match(app, /className="script-code-modal-preview"/);
+
+  assert.match(styles, /\.script-tool-row\s*\{/);
+  assert.match(styles, /\.script-tool-group,\s*\n\.script-tool-group-fill\s*\{/);
+  assert.match(styles, /\.script-tool-select\s*\{/);
+  assert.match(styles, /\.script-code-modal\s*\{/);
+  assert.match(styles, /\.script-code-modal-preview\s*\{/);
+  assert.match(styles, /\.script-code-modal-overlay\s*\{[\s\S]*z-index:\s*1300;/);
+});
+
+test("scripts workspace uses accessible flat controls and console structure", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+  const scriptEditor = read("src/renderer/src/components/ScriptEditor.tsx");
+
+  assert.match(app, /Code2,/);
+  assert.match(app, /WandSparkles,/);
+  assert.match(app, /const \[requestCodeOpen, setRequestCodeOpen\] = useState\(false\);/);
+  assert.match(app, /const \[scriptOutputExpanded, setScriptOutputExpanded\] = useState\(false\);/);
+  assert.match(app, /aria-selected=\{activeRequestScript === "pre"\}/);
+  assert.match(app, /aria-selected=\{activeRequestScript === "post"\}/);
+  assert.match(app, /className="ghost-button script-tool-action script-tool-action-primary"/);
+  assert.match(app, /className="script-console-toggle"[\s\S]*aria-expanded=\{scriptOutputExpanded\}[\s\S]*aria-controls="script-console-content"/);
+  assert.match(app, /id="script-console-content"[\s\S]*className="script-console-content"/);
+  assert.match(app, /className=\{scriptOutputExpanded \? "script-console-chevron open" : "script-console-chevron"\}/);
+  assert.match(app, /role="dialog"[\s\S]*aria-modal="true"[\s\S]*aria-label="Request code"/);
+  assert.match(styles, /\.script-workspace\s*\{[\s\S]*backdrop-filter:\s*none;/);
+  assert.match(styles, /\.script-workspace-toolbar\s*\{[\s\S]*border-bottom:/);
+  assert.match(styles, /\.script-tool-select,[\s\S]*\.script-helper-select\s*\{[\s\S]*min-height:\s*32px;/);
+  assert.match(styles, /\.script-editor-shell:focus-within\s*\{/);
+  assert.match(styles, /\.script-console\s*\{/);
+  assert.match(styles, /\.script-console-chevron\.open\s*\{[\s\S]*rotate\(180deg\)/);
+  assert.match(styles, /@media \(max-width:\s*760px\)\s*\{[\s\S]*\.script-tool-row/);
+  assert.match(styles, /:root\[data-theme="dark"\][\s\S]*\.script-editor-shell/);
+  assert.match(styles, /@media \(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*\.script-console-chevron/);
+  assert.match(scriptEditor, /border:\s*"0"/);
+  assert.match(scriptEditor, /borderRadius:\s*"6px"/);
+  assert.match(scriptEditor, /"\.cm-content":\s*\{/);
+  assert.match(scriptEditor, /"&\.cm-focused":\s*\{/);
+});
+
+test("scripts workspace fits the request pane without a panel scrollbar", () => {
+  const styles = read("src/renderer/src/styles.css");
+  const refinement = styles.slice(styles.indexOf("/* Flat Scripts workspace"));
+
+  assert.ok(styles.indexOf("/* Flat Scripts workspace") > styles.lastIndexOf("/* Scripts workspace refinement */"));
+  assert.match(refinement, /\.request-scripts-panel\s*\{[^}]*overflow:\s*hidden;/);
+  assert.match(refinement, /\.script-workspace\s*\{[^}]*flex:\s*1 1 auto;/);
+  assert.match(refinement, /\.script-workspace\s*\{[^}]*min-height:\s*0;/);
+  assert.match(refinement, /\.script-tool-row\s*\{[^}]*flex-wrap:\s*nowrap;/);
+  assert.match(refinement, /\.script-editor-frame\s*\{[^}]*min-height:\s*0;/);
+  assert.match(refinement, /\.script-editor-shell\s*\{[^}]*min-height:\s*0;/);
+  assert.match(refinement, /\.script-editor-shell > div\s*\{[^}]*height:\s*100% !important;/);
+});
+
+test("scripts tab uses a flat Postman-style editor workflow", () => {
+  const app = read("src/renderer/src/App.tsx");
+
+  assert.match(app, /const \[requestCodeOpen, setRequestCodeOpen\] = useState\(false\);/);
+  assert.doesNotMatch(app, /requestCodeExpanded/);
+  assert.match(app, /className="script-helper-select"/);
+  assert.match(app, /aria-label="Insert script helper"/);
+  assert.match(app, /if \(event\.target\.value\) insertScriptToken\(event\.target\.value\);/);
+  assert.match(app, /className="ghost-button script-tool-action script-code-button"/);
+  assert.match(app, /aria-label="Open request code"/);
+  assert.match(app, /className="script-editor-frame"/);
+  assert.match(app, /className="script-console"/);
+  assert.match(app, /className="script-console-toggle"[\s\S]*aria-expanded=\{scriptOutputExpanded\}[\s\S]*aria-controls="script-console-content"/);
+  assert.match(app, /id="script-console-content"[\s\S]*className="script-console-content"/);
+  assert.match(app, /className="modal-overlay script-code-modal-overlay"[\s\S]*role="dialog"[\s\S]*aria-modal="true"[\s\S]*aria-label="Request code"/);
+  assert.match(app, /className="modal script-code-modal"/);
+  assert.doesNotMatch(app, /className="script-helper-strip"/);
+  assert.doesNotMatch(app, /className="script-helper-chip"/);
+  assert.doesNotMatch(app, /className="script-disclosure-card/);
 });
 
 test("request tabs keep visible hover and active contrast", () => {

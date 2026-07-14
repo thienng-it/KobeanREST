@@ -51,20 +51,37 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
         EditorView.theme({
           "&": {
             height: height,
-            fontSize: "12px",
-            fontFamily: "monospace",
-            backgroundColor: "var(--color-surface)",
+            fontSize: "12.5px",
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+            backgroundColor: "transparent",
             color: "var(--color-text)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "4px",
+            border: "0",
+            borderRadius: "6px",
+            overflow: "hidden",
+          },
+          "&.cm-focused": {
+            outline: "none",
+          },
+          ".cm-scroller": {
+            fontFamily: "inherit",
+            lineHeight: "1.65",
+          },
+          ".cm-content": {
+            padding: "12px 0 20px",
+            caretColor: "var(--color-text-active)",
           },
           ".cm-gutters": {
-            backgroundColor: "var(--color-surface-muted)",
+            backgroundColor: "rgba(148, 163, 184, 0.07)",
             borderRight: "1px solid var(--color-border)",
             color: "var(--color-text-muted)",
+            paddingTop: "4px",
           },
           ".cm-activeLine": {
-            backgroundColor: "var(--color-surface-hover)",
+            backgroundColor: "rgba(59, 130, 246, 0.055)",
+          },
+          ".cm-activeLineGutter": {
+            backgroundColor: "rgba(59, 130, 246, 0.08)",
+            color: "var(--color-text-active)",
           },
           ".cm-editor": {
             height: height,
