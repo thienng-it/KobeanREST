@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { sampleWorkspace } from "../data/sample-workspace";
 import type { AppSettings, UpdateCheckPreview, WorkspaceSummary } from "../types";
 
 declare global {
@@ -51,7 +50,7 @@ export async function initializeLocalStore(): Promise<PersistenceStatus> {
 
 export async function loadLocalWorkspace(): Promise<WorkspaceSummary> {
   if (!isTauriRuntime()) {
-    return sampleWorkspace;
+    throw new Error("Workspace loading is not available in browser preview");
   }
 
   return invoke<WorkspaceSummary>("load_workspace");
@@ -95,8 +94,8 @@ export async function createFolder(name: string, collectionId?: string, parentId
   }
   return invoke<import("../types").FolderSummary>("create_folder", { 
     name, 
-    collection_id: collectionId, 
-    parent_id: parentId 
+    collectionId, 
+    parentId 
   });
 }
 
@@ -105,12 +104,23 @@ export async function createWorkspace(name: string): Promise<string> {
   return invoke<string>("create_workspace", { name });
 }
 
-export async function createCollection(workspaceId: string, name: string): Promise<string> {
-  if (!isTauriRuntime()) return `preview-collection-${Date.now()}`;
-  return invoke<string>("create_collection", { 
-    workspace_id: workspaceId, 
+export async function createCollection(workspaceId: string, name: string): Promise<WorkspaceSummary> {
+  if (!isTauriRuntime()) return { id: `preview-collection-${Date.now()}`, name } as any;
+  console.log(`Creating collection in workspace ${workspaceId} with name ${name}`);
+  return invoke<WorkspaceSummary>("create_collection", { 
+    workspaceId, 
     name 
   });
+}
+
+export async function updateCollection(collectionId: string, name: string): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("update_collection", { collectionId, name });
+}
+
+export async function deleteCollection(collectionId: string): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("delete_collection", { collectionId });
 }
 
 export async function updateFolder(folderId: string, name: string): Promise<void> {

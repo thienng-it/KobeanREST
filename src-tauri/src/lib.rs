@@ -12,7 +12,7 @@ use persistence::{
     record_request_history, rename_environment, save_app_settings, save_request,
     save_secret_variable, save_variable, set_active_environment, update_folder,
     get_scripts, save_script, delete_script, save_folder_auth, save_collection_auth,
-    create_workspace, create_collection
+    create_workspace, create_collection, update_collection, delete_collection
 };
 use secrets::{delete_secret, store_secret};
 use tauri::Manager;
@@ -66,6 +66,8 @@ pub fn run() {
             save_app_settings,
             create_workspace,
             create_collection,
+            update_collection,
+            delete_collection,
             get_scripts,
             save_script,
             delete_script,

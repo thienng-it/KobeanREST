@@ -92,6 +92,7 @@ pub struct CollectionSummary {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSummary {
+    pub id: String,
     pub name: String,
     pub active_environment: String,
     pub environments: Vec<EnvironmentSummary>,
@@ -245,8 +246,8 @@ pub fn create_workspace(app: AppHandle, name: String) -> Result<String, String> 
     Ok(workspace_id)
 }
 
-#[tauri::command]
-pub fn create_collection(app: AppHandle, workspace_id: String, name: String) -> Result<String, String> {
+	#[tauri::command]
+pub fn create_collection(app: AppHandle, workspace_id: String, name: String) -> Result<WorkspaceSummary, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
     let collection_id = format!("collection-{}", uuid::Uuid::new_v4());
@@ -256,7 +257,94 @@ pub fn create_collection(app: AppHandle, workspace_id: String, name: String) -> 
             params![collection_id, workspace_id, name],
         )
         .map_err(|error| format!("failed to create collection: {error}"))?;
-    Ok(collection_id)
+
+    // Reload and return updated workspace with new collection included
+    let workspace_id = &load_first_workspace(&connection)?;
+    Ok(load_first_workspace(&connection))
+}
+
+#[tauri::command]
+pub fn update_collection(app: AppHandle, collection_id: String, name: String) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    connection
+        .execute(
+            "UPDATE collections SET name = ?2 WHERE id = ?1",
+            params![collection_id, name],
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_collection(app: AppHandle, collection_id: String) -> Result<(), String> {
+    ensure_database(&app)?;
+    let mut connection = open_database(&app)?;
+    let transaction = connection.transaction().map_err(|e| e.to_string())?;
+
+    let mut statement = transaction
+        .prepare("SELECT id FROM folders WHERE collection_id = ?1")
+        .map_err(|e| e.to_string())?;
+    let folder_ids = statement
+        .query_map(params![&collection_id], |r| r.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
+    
+    let mut f_ids = Vec::new();
+    for id in folder_ids {
+        if let Ok(fid) = id {
+            f_ids.push(fid);
+        }
+    }
+    drop(statement);
+
+    for fid in f_ids {
+        let mut req_stmt = transaction
+            .prepare("SELECT id FROM requests WHERE folder_id = ?1")
+            .map_err(|e| e.to_string())?;
+        let req_ids = req_stmt
+            .query_map(params![&fid], |r| r.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+        
+        let mut r_ids = Vec::new();
+        for id in req_ids {
+            if let Ok(rid) = id {
+                r_ids.push(rid);
+            }
+        }
+        drop(req_stmt);
+
+        for rid in r_ids {
+            transaction
+                .execute(
+                    "DELETE FROM request_headers WHERE request_id = ?1",
+                    params![&rid],
+                )
+                .map_err(|e| e.to_string())?;
+            transaction
+                .execute(
+                    "DELETE FROM requests WHERE id = ?1",
+                    params![&rid],
+                )
+                .map_err(|e| e.to_string())?;
+        }
+        
+        transaction
+            .execute(
+                "DELETE FROM folders WHERE id = ?1",
+                params![&fid],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+
+    transaction
+        .execute(
+            "DELETE FROM collections WHERE id = ?1",
+            params![&collection_id],
+        )
+        .map_err(|e| e.to_string())?;
+
+    transaction.commit().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -524,170 +612,6 @@ fn seed_default_workspace(connection: &mut Connection) -> Result<(), String> {
             params!["local-workspace", "Local Workspace", "Development"],
         )
         .map_err(|error| format!("failed to seed workspace: {error}"))?;
-    transaction
-        .execute(
-            "INSERT INTO collections (id, workspace_id, name, position) VALUES (?1, ?2, ?3, ?4)",
-            params!["default-collection", "local-workspace", "KobeanREST", 0],
-        )
-        .map_err(|error| format!("failed to seed collection: {error}"))?;
-
-    for (position, folder) in ["System", "Users API", "Orders API"].iter().enumerate() {
-        transaction
-            .execute(
-                "INSERT INTO folders (id, collection_id, name, position) VALUES (?1, ?2, ?3, ?4)",
-                params![
-                    format!("folder-{}", uuid::Uuid::new_v4()),
-                    "default-collection",
-                    folder,
-                    position as i64
-                ],
-            )
-            .map_err(|error| format!("failed to seed folder '{folder}': {error}"))?;
-    }
-
-
-    let requests = [
-        (
-            "req-health",
-            "Health check",
-            "GET",
-            "{{baseUrl}}/health",
-            "System",
-            "none",
-            "",
-            vec![("Accept", "application/json", true)],
-        ),
-        (
-            "req-profile",
-            "Fetch profile",
-            "GET",
-            "{{baseUrl}}/v1/profile",
-            "Users API",
-            "bearer",
-            "",
-            vec![("Authorization", "Bearer {{token}}", true)],
-        ),
-        (
-            "req-create-order",
-            "Create order",
-            "POST",
-            "{{baseUrl}}/v1/orders",
-            "Orders API",
-            "apiKey",
-            "{\n  \"sku\": \"kobean-rest-pro\",\n  \"quantity\": 1\n}",
-            vec![
-                ("Content-Type", "application/json", true),
-                ("X-API-Key", "{{token}}", true),
-            ],
-        ),
-    ];
-
-    for (position, request) in requests.iter().enumerate() {
-        transaction
-            .execute(
-                "INSERT INTO requests (
-                    id,
-                    workspace_id,
-                    folder_id,
-                    name,
-                    method,
-                    url,
-                    auth_mode,
-                    body,
-                    timeout_ms,
-                    follow_redirects,
-                    position
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-                params![
-                    request.0,
-                    "local-workspace",
-                    format!("folder-{}", request.4.to_lowercase().replace(" ", "-")),
-                    request.1,
-                    request.2,
-                    request.3,
-                    request.5,
-                    request.6,
-                    30_000_i64,
-                    1_i64,
-                    position as i64
-                ],
-            )
-            .map_err(|error| format!("failed to seed request '{}': {error}", request.1))?;
-
-        for (header_position, header) in request.7.iter().enumerate() {
-            transaction
-                .execute(
-                    "INSERT INTO request_headers (
-                        request_id,
-                        header_key,
-                        header_value,
-                        enabled,
-                        position
-                    ) VALUES (?1, ?2, ?3, ?4, ?5)",
-                    params![
-                        request.0,
-                        header.0,
-                        header.1,
-                        if header.2 { 1_i64 } else { 0_i64 },
-                        header_position as i64
-                    ],
-                )
-                .map_err(|error| {
-                    format!("failed to seed request header '{}': {error}", header.0)
-                })?;
-        }
-    }
-
-    for (position, environment) in ["Development", "Production"].iter().enumerate() {
-        let environment_id = environment_id(environment);
-        let base_url = if *environment == "Development" {
-            "https://api.example.local"
-        } else {
-            "https://api.example.com"
-        };
-
-        transaction
-            .execute(
-                "INSERT INTO environments (id, workspace_id, name, position) VALUES (?1, ?2, ?3, ?4)",
-                params![environment_id, "local-workspace", environment, position as i64],
-            )
-            .map_err(|error| format!("failed to seed environment '{environment}': {error}"))?;
-        for (variable_position, variable) in [
-            ("baseUrl", base_url, None),
-            (
-                "token",
-                REDACTED_SECRET_VALUE,
-                Some(format!(
-                    "kobeanrest://secrets/{}/token",
-                    environment.to_lowercase()
-                )),
-            ),
-        ]
-        .iter()
-        .enumerate()
-        {
-            transaction
-                .execute(
-                    "INSERT INTO variables (
-                        environment_id,
-                        variable_key,
-                        variable_value,
-                        secret_ref,
-                        secret,
-                        position
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                    params![
-                        environment_id,
-                        variable.0,
-                        variable.1,
-                        variable.2,
-                        if variable.2.is_some() { 1_i64 } else { 0_i64 },
-                        variable_position as i64
-                    ],
-                )
-                .map_err(|error| format!("failed to seed variable '{}': {error}", variable.0))?;
-        }
-    }
 
     transaction
         .commit()
@@ -713,13 +637,16 @@ fn load_first_workspace(connection: &Connection) -> Result<WorkspaceSummary, Str
         .map_err(|error| format!("failed to load workspace: {error}"))?
         .ok_or_else(|| "local workspace is not initialized".to_string())?;
 
+    let workspace_id = &workspace.0.clone();
+
     Ok(WorkspaceSummary {
+        id: workspace.0,
         name: workspace.1,
         active_environment: workspace.2,
-        environments: load_environments(connection, &workspace.0)?,
-        folders: load_folders(connection, &workspace.0)?,
-        requests: load_requests(connection, &workspace.0)?,
-        collections: Some(load_collections(connection, &workspace.0)?),
+        environments: load_environments(connection, workspace_id)?,
+        folders: load_folders(connection, workspace_id)?,
+        requests: load_requests(connection, workspace_id)?,
+        collections: Some(load_collections(connection, workspace_id)?),
     })
 }
 
@@ -831,20 +758,20 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
     let mut statement = connection
         .prepare(
             "SELECT
-                requests.id,
-                requests.name,
-                requests.method,
-                requests.url,
-                requests.folder_id,
-                requests.auth_mode,
-                requests.body,
-                requests.timeout_ms,
-                requests.follow_redirects,
-                requests.auth_config
-             FROM requests
-             JOIN folders ON folders.id = requests.folder_id
-             WHERE requests.workspace_id = ?1
-             ORDER BY folders.position, requests.position, requests.name",
+                r.id,
+                r.name,
+                r.method,
+                r.url,
+                r.folder_id,
+                r.auth_mode,
+                r.body,
+                r.timeout_ms,
+                r.follow_redirects,
+                r.auth_config
+             FROM requests r
+             LEFT JOIN folders f ON f.id = r.folder_id
+             WHERE r.workspace_id = ?1
+             ORDER BY f.position, r.position, r.name",
         )
         .map_err(|error| format!("failed to prepare requests query: {error}"))?;
     let rows = statement

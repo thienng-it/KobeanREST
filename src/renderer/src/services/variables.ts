@@ -23,6 +23,7 @@ export class UnresolvedVariableError extends Error {
  */
 export function activeEnvironmentVariables(workspace: WorkspaceSummary | null): EnvironmentVariable[] {
   if (!workspace) return [];
+  if (!workspace.activeEnvironment) return [];
   const environment = workspace.environments.find(
     (env) => env.name === workspace.activeEnvironment,
   );

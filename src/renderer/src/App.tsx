@@ -368,6 +368,7 @@ export function App() {
 
   useEffect(() => {
     if (!workspace) return;
+    if (!workspace.requests) return;
     const req = workspace.requests.find(r => r.id === selectedRequestId);
     setDraftRequest(req ? JSON.parse(JSON.stringify(req)) : null);
   }, [selectedRequestId, workspace]);
@@ -804,7 +805,7 @@ export function App() {
       alert("Please create a collection first before creating a folder.");
       return;
     }
-    const name = prompt("Enter folder name:");
+    const name = "New folder " + Date.now();
     if (!name) return;
     try {
       const newFolder = await createFolder(name, collectionId, parentId);
@@ -820,11 +821,10 @@ export function App() {
 
   async function handleCreateCollection() {
     if (!workspace) return;
-    const name = prompt("Enter collection name:");
+    const name = "New collection " + Date.now();
     if (!name) return;
     try {
-      await createCollection(workspace.id, name);
-      const updatedWorkspace = await loadLocalWorkspace();
+      const updatedWorkspace = await createCollection(workspace.id, name);
       setWorkspace(updatedWorkspace);
     } catch (err) {
       console.error("Failed to create collection", diagnosticMessage(err));
@@ -1541,21 +1541,37 @@ export function App() {
         <div style={{ padding: '0 10px 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Globe size={14} style={{ flexShrink: 0, opacity: 0.6 }} />
           <select
-            aria-label="Active environment"
-            value={workspace.activeEnvironment}
-            onChange={e => handleSetActiveEnvironment(e.target.value)}
-            style={{ flex: 1, fontSize: '12px', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '3px 4px' }}
+              aria-label="Active environment"
+              // Fallback to empty string if no activeEnvironment is set
+              value={workspace.activeEnvironment || ""}
+              onChange={e => handleSetActiveEnvironment(e.target.value)}
+              style={{
+                flex: 1,
+                fontSize: '12px',
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '4px',
+                padding: '3px 4px'
+              }}
           >
-            {workspace.environments.map(env => (
-              <option key={env.name} value={env.name}>{env.name}</option>
-            ))}
+            {workspace.environments && workspace.environments.length > 0 ? (
+                workspace.environments.map(env => (
+                    <option key={env.name} value={env.name}>{env.name}</option>
+                ))
+            ) : (
+                <option value="" disabled>No environments</option>
+            )}
           </select>
           <button
-            type="button"
-            className="ghost-button"
-            aria-label="Manage environments"
-            onClick={() => { setEnvEditorTarget(workspace.activeEnvironment); setEnvEditorOpen(true); }}
-            style={{ padding: '3px 6px', fontSize: '11px' }}
+              type="button"
+              className="ghost-button"
+              aria-label="Manage environments"
+              onClick={() => {
+                setEnvEditorTarget(workspace.activeEnvironment);
+                setEnvEditorOpen(true);
+              }}
+              style={{ padding: '3px 6px', fontSize: '11px' }}
           >
             Manage
           </button>
@@ -1569,10 +1585,6 @@ export function App() {
         )}
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <button className="primary-action" type="button" onClick={() => void handleCreateFolder()}>
-            <Plus size={16} />
-            New folder
-          </button>
           <button className="primary-action" type="button" onClick={handleCreateCollection} style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' }}>
             <Plus size={16} />
             New collection
@@ -1596,9 +1608,19 @@ export function App() {
                 <div style={{ display: 'flex', gap: '4px' }}>
                   <button 
                     type="button" 
-                    aria-label={`New folder in ${collection.name}`} 
-                    onClick={() => void handleCreateFolder(collection.id)} 
+                    aria-label="delete-collection"
+                    onClick={() => void handleDeleteCollection(collection.id)}
                     style={{ all: 'unset', cursor: 'pointer', padding: '2px' }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                      type="button"
+                      aria-label={`New folder in ${collection.name}`}
+                      onClick={() => void handleCreateFolder(collection.id)}
+                      style={{ all: 'unset', cursor: 'pointer', padding: '2px' }}
                   >
                     <Plus size={12} />
                   </button>
@@ -3004,7 +3026,8 @@ export function App() {
                 onClick={(e) => {
                   e.stopPropagation();
                   const colId = contextMenu.target?.id;
-                  if (colId) handleDeleteCollection(colId);
+                  console.log(colId);
+                  if (colId) void handleDeleteCollection(colId);
                   setContextMenu(null);
                 }}
                 style={{ background: 'transparent', border: 'none', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', textAlign: 'left', display: 'flex', alignItems: 'center', pointerEvents: 'auto', color: '#991b1b' }}
