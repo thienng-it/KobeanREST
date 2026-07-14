@@ -1,7 +1,7 @@
 # KobeanREST Postman-Style Scripts Design
 
 **Date:** 2026-07-14
-**Status:** Approved
+**Status:** Approved with no-scroll refinement
 **Supersedes:** `2026-07-14-kobeanrest-scripts-ui-refinement-design.md`
 
 ## Objective
@@ -11,7 +11,7 @@ Replace the visually heavy Scripts tab with a flat, editor-first workspace inspi
 ## Design Principles
 
 - One primary editor surface
-- One vertical scroll owner
+- No Scripts panel-level vertical scrollbar
 - Thin separators instead of nested cards
 - Neutral surfaces instead of glass effects, gradients, and large shadows
 - Secondary tools appear on demand rather than occupying the document flow
@@ -27,7 +27,7 @@ The Scripts tab contains four layers in this order:
 3. The code editor
 4. A console drawer attached to the editor bottom
 
-The tab itself owns vertical sizing. The inner workspace fills the available area without adding a second page-like card or competing scrollbar.
+The tab and inner workspace fill the available request-pane height without a vertical scrollbar. The editor consumes the remaining height after the fixed header, toolbar, and collapsed console header. Only CodeMirror content and the expanded console body may scroll internally.
 
 ## Script-Type Header
 
@@ -50,13 +50,13 @@ Controls use 32-pixel heights, 6- to 8-pixel radii, neutral backgrounds, and min
 
 The Insert helper menu replaces the visible row of runtime and environment-variable pills. It lists the same runtime helpers and current variable tokens and inserts the selected item through the existing editor insertion path. This preserves capability while removing a persistent row of visual noise.
 
-On narrow widths, toolbar groups wrap in their existing logical order. Selectors receive flexible width before action buttons wrap.
+The desktop toolbar remains one row. Flexible selectors shrink before actions, labels may hide at constrained widths, and controls use bounded widths so Code and Insert never force a second row. At genuinely narrow mobile widths, the toolbar may wrap rather than create horizontal page overflow.
 
 ## Editor
 
 The CodeMirror editor fills the remaining Scripts workspace height. It uses a thin border, a neutral background, a restrained active-line tint, and a visible focus-within border. It has no floating card shadow or oversized radius.
 
-The editor and console drawer form one bounded editor shell. The editor remains the flexible region; the console header stays attached to its bottom. The request tab panel remains the sole vertical overflow owner when the available application height is small.
+The editor and console drawer form one bounded editor shell. The editor remains the flexible region; the console header stays attached to its bottom. The Scripts request tab panel uses `overflow: hidden`, and every flex ancestor in the chain uses `min-height: 0`, preventing content minimums from creating a nested vertical scrollbar.
 
 Existing editor values, placeholders, variable completion, snippet insertion, formatting, and ready callbacks remain unchanged.
 
@@ -76,7 +76,7 @@ Opening or closing the modal only changes local presentation state. Generated co
 
 ## Console Drawer
 
-Script output becomes a console drawer attached to the editor bottom. Its collapsed header displays `Console` and the current entry count. It expands upward within the editor shell to a bounded height and never pushes unrelated request controls below the response dock.
+Script output becomes a console drawer attached to the editor bottom. It is collapsed by default and its header displays `Console` and the current entry count. It expands upward within the editor shell to a bounded height and never increases the workspace's total height or pushes unrelated request controls below the response dock.
 
 The drawer retains empty, informational, and error states. Expanding or collapsing it does not clear output. The toggle is a native button with `aria-expanded` and `aria-controls`.
 
@@ -94,11 +94,12 @@ The drawer retains empty, informational, and error states. Expanding or collapsi
 ## Responsive Behavior
 
 - The header keeps script tabs and Save Scripts readable.
-- The toolbar wraps without horizontal page overflow.
+- The desktop toolbar stays on one row without horizontal overflow.
 - The editor retains a practical minimum height.
 - The console drawer remains attached to the editor.
 - The Code modal fits within the viewport and scrolls internally when required.
 - The response dock never overlaps Scripts content.
+- The Scripts request panel never displays its own vertical scrollbar.
 
 ## Accessibility
 
@@ -126,7 +127,8 @@ Presentation state for the Code modal, helper menu, and Console drawer never mod
 
 - Add source contracts for the flat header, single toolbar, helper menu, Code modal, and attached Console drawer.
 - Add layout contracts that forbid Scripts workspace backdrop blur, gradients, large shadows, visible helper-chip rows, and inline request-code cards.
-- Retain contracts for one vertical scroll owner and non-overlapping response-dock behavior.
+- Add contracts requiring `overflow: hidden` on the Scripts request panel and a zero-minimum flex sizing chain through the workspace and editor frame.
+- Add a contract that keeps the desktop toolbar on one line.
 - Run the full Node test suite.
 - Run the TypeScript and Vite production build.
 - Inspect the live Scripts tab at normal, narrow, and short window sizes in light and dark themes.
