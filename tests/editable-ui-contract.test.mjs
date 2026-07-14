@@ -13,6 +13,7 @@ test("Rust native core exposes fine-grained editing commands", () => {
   assert.match(lib, /create_folder/);
   assert.match(lib, /update_folder/);
   assert.match(lib, /delete_folder/);
+  assert.match(lib, /delete_collection/);
   assert.match(lib, /create_request/);
 });
 
@@ -26,12 +27,18 @@ test("frontend API client invokes native editing commands", () => {
   assert.match(localStore, /invoke<void>\("delete_request", \{ requestId \}\)/);
 
   assert.match(localStore, /export async function createFolder/);
+  assert.match(localStore, /export async function updateFolder/);
+  assert.match(localStore, /export async function updateCollection/);
+  assert.match(localStore, /invoke<void>\("update_collection", \{ collectionId, name \}\)/);
+  assert.match(localStore, /export async function deleteCollection/);
+  assert.match(localStore, /invoke<void>\("delete_collection", \{ collectionId \}\)/);
   assert.match(localStore, /export async function deleteFolder/);
   assert.match(localStore, /export async function createRequest/);
 });
 
 test("App.tsx implements editable state management", () => {
   const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
 
   // Check for the draft request state
   assert.match(app, /const \[draftRequest, setDraftRequest\] = useState<SavedRequest \| null>\(null\);/);
@@ -43,12 +50,66 @@ test("App.tsx implements editable state management", () => {
   assert.match(app, /async function handleSaveRequest\(\)/);
   assert.match(app, /async function handleCreateFolder\(/);
   assert.match(app, /async function handleDeleteFolder/);
+  assert.match(app, /async function handleDeleteCollection/);
+  assert.match(app, /async function confirmDeleteCollection/);
   assert.match(app, /async function handleCreateRequest/);
   assert.match(app, /async function handleDeleteRequest/);
+  const createFolderBlock = app.match(/async function handleCreateFolder\([\s\S]*?\n  \}/);
+  const createCollectionBlock = app.match(/async function handleCreateCollection\([\s\S]*?\n  \}/);
+  assert.ok(createFolderBlock);
+  assert.ok(createCollectionBlock);
+  assert.doesNotMatch(createFolderBlock[0], /prompt\(/);
+  assert.doesNotMatch(createCollectionBlock[0], /prompt\(/);
+  assert.match(createFolderBlock[0], /const name = "New Folder";/);
+  assert.match(createCollectionBlock[0], /const name = "New Collection";/);
+  assert.match(app, /const targetCollectionId = collectionId \?\? workspace\.collections\?\.\[0\]\?\.id;/);
+  assert.match(app, /await createFolder\(name, targetCollectionId, parentId\)/);
+  assert.match(app, /const collectionId = await createCollection\(name\);/);
+  assert.match(app, /collections: \[\.\.\.\(prev\.collections \?\? \[\]\), \{ id: collectionId, name \}\]/);
+  assert.doesNotMatch(app, /const workspaceId = "local-workspace";/);
   assert.match(app, /const \[collapsedFolders, setCollapsedFolders\] = useState<Record<string, boolean>>\(\{\}\);/);
-  assert.match(app, /aria-expanded=\{!collapsedFolders\[folder\.id\]\}/);
-  assert.match(app, /\{!collapsedFolders\[folder\.id\] && \(/);
+  assert.match(app, /aria-expanded=\{!isFolderCollapsed\}/);
+  assert.match(app, /className=\{isFolderCollapsed \? "folder-children collapsed" : "folder-children"\}/);
+  assert.match(app, /className=\{isFolderCollapsed \? "folder-chevron collapsed" : "folder-chevron"\}/);
+  assert.match(app, /<div className="folder-children-inner">/);
+  assert.doesNotMatch(app, /\{!collapsedFolders\[folder\.id\] && \(/);
   assert.match(app, /folderRequests\.map\(request => \(/);
+  assert.match(styles, /\.folder-children\s*\{[\s\S]*grid-template-rows:\s*1fr;/);
+  assert.match(styles, /\.folder-children\.collapsed\s*\{[\s\S]*grid-template-rows:\s*0fr;/);
+  assert.match(styles, /\.folder-chevron\.collapsed\s*\{[\s\S]*rotate\(-90deg\)/);
+});
+
+test("preview workspace matches collection sidebar creation paths", () => {
+  const types = read("src/renderer/src/types.ts");
+  const sample = read("src/renderer/src/data/sample-workspace.ts");
+  const localStore = read("src/renderer/src/services/local-store.ts");
+
+  assert.match(types, /collections\?: CollectionSummary\[\];/);
+  assert.match(sample, /collections: \[/);
+  assert.match(sample, /id: "default-collection"/);
+  assert.match(sample, /collectionId: "default-collection"/);
+  assert.match(localStore, /export async function createCollection\(name: string\): Promise<string>/);
+  assert.match(localStore, /invoke<string>\("create_collection", \{\s*name\s*\}\)/);
+  assert.doesNotMatch(localStore, /workspace_id: workspaceId/);
+});
+
+test("sidebar search filters collections, folders, and requests", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(app, /const \[collectionSearch, setCollectionSearch\] = useState\(""\);/);
+  assert.match(app, /const deferredCollectionSearch = useDeferredValue\(collectionSearch\);/);
+  assert.match(app, /function requestMatchesCollectionSearch\(request: SavedRequest\)/);
+  assert.match(app, /function folderMatchesCollectionSearch\(folderId: string\): boolean/);
+  assert.match(app, /const visibleCollections = \(workspace\.collections \?\? \[\]\)\.filter/);
+  assert.match(app, /value=\{collectionSearch\}/);
+  assert.match(app, /onChange=\{\(event\) => setCollectionSearch\(event\.target\.value\)\}/);
+  assert.match(app, /onClick=\{\(\) => setCollectionSearch\(""\)\}/);
+  assert.match(app, /\{visibleCollections\.map\(collection => \(/);
+  assert.match(app, /const isFolderCollapsed = !isCollectionSearchActive && collapsedFolders\[folder\.id\];/);
+  assert.match(styles, /\.search-field:focus-within\s*\{[\s\S]*transform:\s*translateY\(-1px\);/);
+  assert.match(styles, /\.search-clear-button\s*\{/);
+  assert.match(styles, /\.search-status\s*\{/);
 });
 
 test("App.tsx keeps request renaming in the sidebar instead of the main editor header", () => {
@@ -56,6 +117,21 @@ test("App.tsx keeps request renaming in the sidebar instead of the main editor h
 
   assert.match(app, /const \[renamingRequestId, setRenamingRequestId\] = useState\(""\);/);
   assert.match(app, /const \[renameDraft, setRenameDraft\] = useState\(""\);/);
+  assert.match(app, /const \[renamingSidebarItem, setRenamingSidebarItem\] = useState<\{ id: string; type: "folder" \| "collection" \} \| null>\(null\);/);
+  assert.match(app, /const \[sidebarNameDraft, setSidebarNameDraft\] = useState\(""\);/);
+  assert.match(app, /function startSidebarRename\(type: "folder" \| "collection", id: string, name: string\)/);
+  assert.match(app, /async function applySidebarRename\(\)/);
+  assert.match(app, /await updateFolder\(target\.id, nextName\)/);
+  assert.match(app, /await updateCollection\(target\.id, nextName\)/);
+  assert.match(app, /aria-label=\{`Rename collection \$\{collection\.name\}`\}/);
+  assert.match(app, /aria-label=\{`Delete collection \$\{collection\.name\}`\}/);
+  assert.match(app, /aria-label=\{`Rename folder \$\{folder\.name\}`\}/);
+  assert.match(app, /aria-label=\{`Delete folder \$\{folder\.name\}`\}/);
+  assert.match(app, /className="folder-title sidebar-tree-row collection-title"/);
+  assert.match(app, /className="folder-title sidebar-tree-row"/);
+  assert.match(app, /className=\{request\.id === selectedRequestId \? "request-row sidebar-tree-row active" : "request-row sidebar-tree-row"\}/);
+  assert.match(app, /className="sidebar-row-actions"/);
+  assert.match(app, /className="sidebar-icon-button danger"/);
   assert.match(app, /onDoubleClick=\{\(\) => startRequestRename\(request\)\}/);
   assert.match(app, /aria-label=\{`Rename \$\{request\.name\}`\}/);
   assert.match(app, /value=\{renameDraft\}/);
@@ -63,6 +139,45 @@ test("App.tsx keeps request renaming in the sidebar instead of the main editor h
   assert.match(app, /style=\{\{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' \}\}/);
   assert.match(app, /boxSizing: 'border-box'/);
   assert.doesNotMatch(app, /aria-label="Request Name"/);
+});
+
+test("sidebar CRUD actions stay contextual instead of always-visible icon clutter", () => {
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(styles, /\.sidebar-row-actions\s*\{[\s\S]*opacity:\s*0;/);
+  assert.match(styles, /\.sidebar-row-actions\s*\{[\s\S]*pointer-events:\s*none;/);
+  assert.match(styles, /\.sidebar-tree-row:hover \.sidebar-row-actions,/);
+  assert.match(styles, /\.sidebar-tree-row:focus-within \.sidebar-row-actions\s*\{[\s\S]*opacity:\s*1;/);
+  assert.match(styles, /\.sidebar-icon-button\s*\{/);
+  assert.match(styles, /\.sidebar-icon-button\.danger:hover,/);
+});
+
+test("sidebar uses an interactive resizer instead of hiding into a rail", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(app, /const \[sidebarWidth, setSidebarWidth\] = useState\(SIDEBAR_DEFAULT_WIDTH\);/);
+  assert.match(app, /const \[isSidebarResizing, setIsSidebarResizing\] = useState\(false\);/);
+  assert.match(app, /function handleSidebarResizerMouseDown\(\)/);
+  assert.match(app, /function handleSidebarResizerKeyDown\(event: ReactKeyboardEvent<HTMLDivElement>\)/);
+  assert.match(app, /className=\{isSidebarResizing \? "app-shell sidebar-resizing" : "app-shell"\}/);
+  assert.match(app, /style=\{\{ "--sidebar-width": `\$\{sidebarWidth\}px` \} as CSSProperties\}/);
+  assert.match(app, /className=\{isSidebarResizing \? "sidebar-resizer active" : "sidebar-resizer"\}/);
+  assert.match(app, /role="separator"/);
+  assert.match(app, /aria-label="Resize sidebar"/);
+  assert.match(app, /aria-valuemin=\{SIDEBAR_MIN_WIDTH\}/);
+  assert.match(app, /aria-valuemax=\{SIDEBAR_MAX_WIDTH\}/);
+  assert.match(app, /aria-valuenow=\{sidebarWidth\}/);
+  assert.match(app, /onMouseDown=\{handleSidebarResizerMouseDown\}/);
+  assert.match(app, /onKeyDown=\{handleSidebarResizerKeyDown\}/);
+  assert.doesNotMatch(app, /sidebarCollapsed|PanelLeftClose|PanelLeftOpen|sidebar-collapse-button/);
+  assert.match(styles, /grid-template-columns:\s*var\(--sidebar-width, 280px\) 10px minmax\(0, 1fr\);/);
+  assert.match(styles, /\.sidebar-resizing\s*\{[\s\S]*transition:\s*none;/);
+  assert.match(styles, /\.sidebar-resizer\s*\{/);
+  assert.match(styles, /\.sidebar-resizer::before\s*\{/);
+  assert.match(styles, /\.sidebar-resizer:hover::before,/);
+  assert.doesNotMatch(styles, /sidebar-collapsed|sidebar-collapse-button|sidebar-collapsible-content/);
+  assert.match(styles, /@media \(prefers-reduced-motion:\s*reduce\)/);
 });
 
 test("App.tsx topbar no longer renders the workspace title block", () => {
@@ -141,10 +256,88 @@ test("request composer styles define the redesigned header, command bar, and bod
   assert.match(styles, /\.editor\.request-body-editor\s*\{[\s\S]*min-height:\s*220px;/);
 });
 
+test("headers tab stays minimal and postman-like instead of introducing heavy section chrome", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(app, /const \[headersPresetMenuOpen, setHeadersPresetMenuOpen\] = useState\(false\);/);
+  assert.match(app, /const commonHeaderPresets = \[/);
+  assert.match(app, /function parsePastedHeaders\(/);
+  assert.match(app, /className="headers-editor"/);
+  assert.match(app, /className="headers-table"/);
+  assert.match(app, /className="headers-table-toolbar"/);
+  assert.match(app, /className="headers-grid-body"/);
+  assert.match(app, /Common/);
+  assert.match(app, /Add Header/);
+  assert.match(app, /className="headers-grid-header"/);
+  assert.match(app, />On<\/span>/);
+  assert.match(app, />Key<\/span>/);
+  assert.match(app, />Value<\/span>/);
+  assert.match(app, /className=\{header\.enabled \? "headers-row" : "headers-row headers-row-disabled"\}/);
+  assert.match(app, /className="headers-common-menu"/);
+  assert.doesNotMatch(app, /className="headers-summary"/);
+  assert.doesNotMatch(app, /Use variables in keys or values\./);
+  assert.doesNotMatch(app, /Duplicate enabled header name/);
+
+  assert.match(styles, /\.headers-editor\s*\{/);
+  assert.match(styles, /\.headers-table\s*\{/);
+  assert.match(styles, /\.headers-table-toolbar\s*\{/);
+  assert.match(styles, /\.headers-grid-body\s*\{/);
+  assert.match(styles, /\.headers-grid-header\s*\{/);
+  assert.match(styles, /\.headers-row\s*\{/);
+  assert.match(styles, /\.headers-row-disabled\s*\{/);
+  assert.match(styles, /\.headers-toggle\s*\{/);
+  assert.match(styles, /\.headers-actions\s*\{/);
+  assert.match(styles, /\.headers-common-menu\s*\{/);
+  assert.match(styles, /\.headers-add-button\s*\{/);
+  assert.doesNotMatch(styles, /\.headers-summary\s*\{/);
+  assert.doesNotMatch(styles, /\.headers-row-duplicate\s*\{/);
+});
+
+test("headers common menu is not clipped by the framed table container", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+  const tableBlock = styles.match(/\.headers-table\s*\{([\s\S]*?)\n\}/);
+
+  assert.ok(tableBlock);
+  assert.doesNotMatch(tableBlock[1], /overflow:\s*hidden;/);
+  assert.match(app, /import \{ createPortal \} from "react-dom";/);
+  assert.match(app, /function getHeaderPresetMenuLayout\(/);
+  assert.match(app, /headersPresetDropdownRef/);
+  assert.match(app, /createPortal\(/);
+  assert.match(styles, /\.headers-common-menu\s*\{[\s\S]*position:\s*fixed;/);
+  assert.match(styles, /\.headers-common-menu\s*\{[\s\S]*overflow-y:\s*auto;/);
+});
+
+test("headers variable inputs avoid full-height text controls so caret height matches visible text", () => {
+  const styles = read("src/renderer/src/styles.css");
+  const selector = "\n\n.headers-row-input-field {";
+  const start = styles.indexOf(selector);
+
+  assert.notEqual(start, -1);
+  const blockStart = start + selector.length;
+  const blockEnd = styles.indexOf("}", blockStart);
+  const fieldBlock = styles.slice(blockStart, blockEnd);
+
+  assert.match(fieldBlock, /min-height:\s*40px;/);
+  assert.match(fieldBlock, /display:\s*block;/);
+  assert.doesNotMatch(fieldBlock, /height:\s*100%;/);
+});
+
+test("styles do not leave stray CSS fragments after tooltip arrow rules", () => {
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(styles, /\.variable-tooltip-arrow\s*\{/);
+  assert.doesNotMatch(styles, /\n0%;\n/);
+});
+
 test("variable-backed request URL text uses the same vertical layout as the caret", () => {
   const variableInput = read("src/renderer/src/components/VariableInput.tsx");
   const styles = read("src/renderer/src/styles.css");
 
+  assert.ok(variableInput.includes('const hasVariables = /\\{\\{[^{}]+\\}\\}/.test(strValue);'));
+  assert.match(variableInput, /color: hasVariables \? "transparent" : "inherit"/);
+  assert.match(variableInput, /onMouseMove=\{hasVariables \? handleInputMouseMove : undefined\}/);
   assert.match(styles, /\.request-command-input-field\s*\{[\s\S]*line-height:\s*1\.4;/);
   assert.doesNotMatch(
     variableInput,
@@ -158,28 +351,56 @@ test("scripts tab uses one editor with a pre/post selector", () => {
   const scriptEditor = read("src/renderer/src/components/ScriptEditor.tsx");
 
   assert.match(app, /const \[activeRequestScript, setActiveRequestScript\] = useState<"pre" \| "post">\("pre"\);/);
+  assert.match(app, /const scriptRuntimeTokens = activeRequestScript === "pre"/);
+  assert.match(app, /const scriptVariableTokens = activeVars\.map\(\(variable\) => `\{\{\$\{variable\.key\}\}\}`\);/);
+  assert.match(app, /function insertScriptToken\(token: string\)/);
   assert.match(app, /className="request-tab-panel request-scripts-panel"/);
-  assert.match(app, /className="script-editor-header"/);
   assert.match(app, /className="script-type-segment"/);
   assert.match(app, /setActiveRequestScript\("pre"\)/);
   assert.match(app, /setActiveRequestScript\("post"\)/);
-  assert.match(app, /className="script-editor-group"/);
+  assert.match(app, /className="script-workspace"/);
+  assert.match(app, /className="script-workspace-toolbar"/);
+  assert.match(app, /className="script-helper-strip"/);
+  assert.match(app, /className="script-helper-chip"/);
   assert.match(app, /className="script-editor-shell"/);
   assert.match(app, /key=\{activeRequestScript\}/);
-  assert.match(app, /value=\{activeRequestScript === "pre" \? preScript : postScript\}/);
+  assert.match(app, /const currentScriptValue = activeRequestScript === "pre" \? preScript : postScript;/);
+  assert.match(app, /value=\{currentScriptValue\}/);
   assert.match(app, /onChange=\{activeRequestScript === "pre" \? setPreScript : setPostScript\}/);
+  assert.match(app, /onReady=\{\(actions\) => \{\s*scriptEditorActionsRef\.current = actions;\s*\}\}/);
   assert.match(app, /<ScriptEditor[\s\S]*height="100%"/);
-  assert.match(app, /className="script-editor-actions"/);
+  assert.match(app, /className="ghost-button script-workspace-save"/);
+  assert.match(app, /request/);
+  assert.match(app, /variables/);
+  assert.match(app, /response/);
+  assert.doesNotMatch(app, /Click a helper/);
+  assert.doesNotMatch(app, /className="script-editor-header"/);
+  assert.doesNotMatch(app, /className="script-editor-actions"/);
   assert.match(styles, /\.request-scripts-panel\s*\{[\s\S]*flex:\s*1;/);
   assert.match(styles, /\.request-scripts-panel\s*\{[\s\S]*min-height:\s*0;/);
-  assert.match(styles, /\.request-scripts-panel\s*\{[\s\S]*overflow:\s*hidden;/);
+  assert.match(styles, /\.request-scripts-panel\s*\{[\s\S]*overflow-y:\s*auto;/);
   assert.match(styles, /\.script-type-segment\s*\{/);
   assert.match(styles, /\.script-type-option\.active\s*\{/);
-  assert.match(styles, /\.script-editor-group\s*\{[\s\S]*flex:\s*1;/);
-  assert.match(styles, /\.script-editor-group\s*\{[\s\S]*min-height:\s*0;/);
+  assert.match(styles, /\.script-workspace\s*\{/);
+  assert.match(styles, /\.script-workspace\s*\{[\s\S]*min-height:\s*280px;/);
+  assert.match(styles, /\.script-workspace-toolbar\s*\{/);
+  assert.match(styles, /\.script-helper-strip\s*\{/);
+  assert.match(styles, /\.script-helper-strip\s*\{[\s\S]*flex-wrap:\s*nowrap;/);
+  assert.match(styles, /\.script-helper-strip\s*\{[\s\S]*overflow-x:\s*auto;/);
+  assert.match(styles, /\.script-helper-chip\s*\{/);
+  assert.match(styles, /\.script-helper-chip\s*\{[\s\S]*border-radius:\s*8px;/);
   assert.match(styles, /\.script-editor-shell\s*\{[\s\S]*flex:\s*1;/);
-  assert.match(styles, /\.script-editor-shell\s*\{[\s\S]*min-height:\s*168px;/);
-  assert.match(styles, /\.script-editor-actions\s*\{[\s\S]*flex-shrink:\s*0;/);
+  assert.match(styles, /\.script-editor-shell\s*\{[\s\S]*display:\s*flex;/);
+  assert.match(styles, /\.script-editor-shell\s*\{[\s\S]*min-height:\s*220px;/);
+  assert.match(styles, /\.script-editor-shell > div\s*\{[\s\S]*min-height:\s*0;/);
+  assert.match(styles, /\.script-editor-shell > div\s*\{[\s\S]*height:\s*auto !important;/);
+  assert.doesNotMatch(styles, /\.script-workspace-header\s*\{/);
+  assert.doesNotMatch(styles, /\.script-workspace-hint\s*\{/);
+  assert.doesNotMatch(styles, /\.script-editor-actions\s*\{/);
+  assert.match(scriptEditor, /onReady\?: \(actions: \{ insertText: \(text: string\) => void \} \| null\) => void;/);
+  assert.match(scriptEditor, /insertText: \(text: string\) => \{/);
+  assert.match(scriptEditor, /view\.dispatch\(\{/);
+  assert.match(scriptEditor, /onReady\?\.\(null\);/);
   assert.match(scriptEditor, /return <div ref=\{editorRef\} style=\{\{ width: '100%', height \}\} \/>;/);
 });
 
@@ -202,12 +423,17 @@ test("response tabs use explicit class-based hover and active styles", () => {
   const styles = read("src/renderer/src/styles.css");
 
   assert.match(app, /<div className="response-tabs">/);
+  assert.match(app, /useTransition/);
+  assert.match(app, /startResponseTabTransition\(\(\) => setResponseTab\(tab\)\)/);
+  assert.match(app, /onClick=\{\(\) => handleResponseTabChange\(tab\)\}/);
   assert.match(app, /className=\{responseTab === tab \? 'response-tab active' : 'response-tab'\}/);
   assert.match(styles, /\.response-tabs\s*\{/);
   assert.match(styles, /\.response-tab\s*\{[\s\S]*color:\s*var\(--color-muted\);/);
   assert.match(styles, /\.response-tab:hover\s*\{[\s\S]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.82\);/);
   assert.match(styles, /\.response-tab:hover\s*\{[\s\S]*color:\s*var\(--color-text\);/);
   assert.match(styles, /\.response-tab\.active\s*\{[\s\S]*border-bottom-color:\s*var\(--color-text-active\);/);
+  assert.match(styles, /\.response-body-container\s*\{[\s\S]*contain:\s*layout paint;/);
+  assert.match(styles, /\.response-body-container\.transitioning\s*\{[\s\S]*opacity:\s*0\.74;/);
 });
 
 test("response panel can open in a larger modal window without duplicating state", () => {
@@ -252,6 +478,7 @@ test("settings modal uses structured sections and stable modal chrome", () => {
 test("response panel behaves like a bottom dock manager with a persistent dock tab", () => {
   const app = read("src/renderer/src/App.tsx");
   const styles = read("src/renderer/src/styles.css");
+  const bottomDockBlock = styles.match(/\.bottom-dock\s*\{([^}]*)\}/);
 
   assert.match(app, /const \[activeBottomDock, setActiveBottomDock\] = useState<'response' \| null>\('response'\);/);
   assert.match(app, /const \[bottomDockHeight, setBottomDockHeight\] = useState\(320\);/);
@@ -268,8 +495,10 @@ test("response panel behaves like a bottom dock manager with a persistent dock t
   assert.doesNotMatch(app, /Show Response/);
   assert.match(app, /className="response-panel-resizer"/);
   assert.match(app, /className=\{activeBottomDock === 'response' \? "response-layout" : "response-layout hidden"\}/);
-  assert.match(styles, /\.bottom-dock\s*\{[\s\S]*border:\s*1px solid var\(--color-border\);/);
-  assert.match(styles, /\.bottom-dock\s*\{[\s\S]*box-shadow:\s*none;/);
+  assert.ok(bottomDockBlock);
+  assert.match(bottomDockBlock[1], /border:\s*1px solid var\(--color-border\);/);
+  assert.match(bottomDockBlock[1], /border-radius:\s*16px;/);
+  assert.match(bottomDockBlock[1], /box-shadow:\s*none;/);
   assert.match(styles, /\.bottom-dock-strip\s*\{[\s\S]*border-bottom:\s*1px solid var\(--color-border\);/);
   assert.match(styles, /\.bottom-dock-strip\s*\{[\s\S]*min-height:\s*36px;/);
   assert.match(styles, /\.bottom-dock-tab\s*\{/);

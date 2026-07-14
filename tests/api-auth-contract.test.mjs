@@ -81,8 +81,19 @@ test("SavedRequest type includes authConfig and auth service has AuthConfig type
 
 test("auth tab UI shows config fields for the active mode", () => {
   const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
 
   assert.match(app, /aria-label="API request authentication"/);
+  assert.match(app, /className="request-tab-panel auth-panel"/);
+  assert.match(app, /className="auth-method-card"/);
+  assert.match(app, /className="auth-effective-card"/);
+  assert.match(app, /getEffectiveAuth\(draftRequest, workspace\)/);
+  assert.match(app, /describeAuthTarget\(effectiveAuth\.mode, effectiveAuth\.config\)/);
+  assert.match(app, /Will Send/);
+  assert.match(app, /AUTH_MODE_MAP\[mode\]/);
+  assert.doesNotMatch(app, /className="auth-panel-header"/);
+  assert.doesNotMatch(app, /className="auth-empty-card"/);
+  assert.doesNotMatch(app, /className="auth-pill"/);
   assert.match(app, /aria-label="Basic auth credentials"/);
   assert.match(app, /aria-label="Bearer token credential"/);
   assert.match(app, /aria-label="API key credentials"/);
@@ -91,6 +102,12 @@ test("auth tab UI shows config fields for the active mode", () => {
   assert.match(app, /authConfig\?\.token/);
   assert.match(app, /authConfig\?\.keyName/);
   assert.match(app, /authConfig\?\.placement/);
+  assert.match(styles, /\.auth-panel-grid\s*\{/);
+  assert.match(styles, /\.auth-method-card,\n\.auth-effective-card\s*\{/);
+  assert.match(styles, /\.auth-effective-card small\s*\{/);
+  assert.doesNotMatch(styles, /\.auth-pill\s*\{/);
+  assert.doesNotMatch(styles, /\.auth-empty-card\s*\{/);
+  assert.match(styles, /\.auth-method-card select:focus-visible\s*\{/);
 });
 
 test("Rust persistence stores auth_config on requests", () => {

@@ -7,10 +7,10 @@ use http_client::execute_http_request;
 use local_only::{app_contract, check_for_update, local_storage_status, request_auth_modes};
 use persistence::{
     clear_request_history, create_environment, create_folder, create_request, delete_environment,
-    delete_folder, delete_request, delete_variable, export_workspace_data, import_workspace_data,
+    delete_collection, delete_folder, delete_request, delete_variable, export_workspace_data, import_workspace_data,
     initialize_persistence, load_app_settings, load_request_history, load_workspace,
     record_request_history, rename_environment, save_app_settings, save_request,
-    save_secret_variable, save_variable, set_active_environment, update_folder,
+    save_secret_variable, save_variable, set_active_environment, update_collection, update_folder,
     get_scripts, save_script, delete_script, save_folder_auth, save_collection_auth,
     create_workspace, create_collection, update_collection, delete_collection
 };
@@ -51,6 +51,8 @@ pub fn run() {
             delete_request,
             create_folder,
             update_folder,
+            update_collection,
+            delete_collection,
             delete_folder,
             create_request,
             create_environment,
