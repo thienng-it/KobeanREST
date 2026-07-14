@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { sampleWorkspace } from "../data/sample-workspace";
 import type { AppSettings, UpdateCheckPreview, WorkspaceSummary } from "../types";
 
 declare global {
@@ -51,7 +50,7 @@ export async function initializeLocalStore(): Promise<PersistenceStatus> {
 
 export async function loadLocalWorkspace(): Promise<WorkspaceSummary> {
   if (!isTauriRuntime()) {
-    return sampleWorkspace;
+    throw new Error("Workspace loading is not available in browser preview");
   }
 
   return invoke<WorkspaceSummary>("load_workspace");

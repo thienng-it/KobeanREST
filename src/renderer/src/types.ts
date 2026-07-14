@@ -71,6 +71,7 @@ export interface CollectionSummary {
 }
 
 export interface WorkspaceSummary {
+  id: string;
   name: string;
   activeEnvironment: string;
   environments: Array<{
