@@ -53,7 +53,7 @@ test("Rust native core exposes SQLite persistence commands", () => {
   assert.match(lib, /record_request_history/);
 });
 
-test("renderer local store service invokes persistence commands with preview fallback", () => {
+test("renderer local store service invokes persistence commands without sample-data fallback", () => {
   assert.equal(hasFile("src/renderer/src/services/local-store.ts"), true);
 
   const service = read("src/renderer/src/services/local-store.ts");
@@ -61,7 +61,8 @@ test("renderer local store service invokes persistence commands with preview fal
   assert.match(service, /invoke<WorkspaceSummary>\("load_workspace"/);
   assert.match(service, /invoke<void>\("record_request_history"/);
   assert.match(service, /window\.__TAURI_INTERNALS__/);
-  assert.match(service, /sampleWorkspace/);
+  assert.match(service, /throw new Error\("Workspace loading is not available in browser preview"\)/);
+  assert.doesNotMatch(service, /sampleWorkspace/);
 });
 
 test("request UI loads workspace data and records request history after send", () => {

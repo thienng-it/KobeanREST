@@ -79,15 +79,15 @@ test("App.tsx implements editable state management", () => {
   assert.match(styles, /\.folder-chevron\.collapsed\s*\{[\s\S]*rotate\(-90deg\)/);
 });
 
-test("preview workspace matches collection sidebar creation paths", () => {
+test("production workspace loading supports collection sidebar creation paths", () => {
   const types = read("src/renderer/src/types.ts");
-  const sample = read("src/renderer/src/data/sample-workspace.ts");
+  const app = read("src/renderer/src/App.tsx");
   const localStore = read("src/renderer/src/services/local-store.ts");
 
   assert.match(types, /collections\?: CollectionSummary\[\];/);
-  assert.match(sample, /collections: \[/);
-  assert.match(sample, /id: "default-collection"/);
-  assert.match(sample, /collectionId: "default-collection"/);
+  assert.equal(hasFile("src/renderer/src/data/sample-workspace.ts"), false);
+  assert.match(app, /useState<WorkspaceSummary \| null>\(null\)/);
+  assert.match(app, /loadLocalWorkspace\(\)/);
   assert.match(localStore, /export async function createCollection\(name: string\): Promise<string>/);
   assert.match(localStore, /invoke<string>\("create_collection", \{\s*name\s*\}\)/);
   assert.doesNotMatch(localStore, /workspace_id: workspaceId/);
@@ -101,7 +101,7 @@ test("sidebar search filters collections, folders, and requests", () => {
   assert.match(app, /const deferredCollectionSearch = useDeferredValue\(collectionSearch\);/);
   assert.match(app, /function requestMatchesCollectionSearch\(request: SavedRequest\)/);
   assert.match(app, /function folderMatchesCollectionSearch\(folderId: string\): boolean/);
-  assert.match(app, /const visibleCollections = \(workspace\.collections \?\? \[\]\)\.filter/);
+  assert.match(app, /const visibleCollections = \(workspace\?\.collections \?\? \[\]\)\.filter/);
   assert.match(app, /value=\{collectionSearch\}/);
   assert.match(app, /onChange=\{\(event\) => setCollectionSearch\(event\.target\.value\)\}/);
   assert.match(app, /onClick=\{\(\) => setCollectionSearch\(""\)\}/);

@@ -176,22 +176,22 @@ export function App() {
 
   // Lines 900-2000: UI Components and Rendering (1000+ lines)
   if (!workspace) { return (<main>...</main>); }
-  
+
   // Sidebar rendering (Lines 1000-1300)
   // Environment switcher and search
   // Collection/folder/request tree with search
   // Context menu handling
-  
-  // Workspace management panel (Lines 1300-1600) 
+
+  // Workspace management panel (Lines 1300-1600)
   // Environment variables editor
-  
+
   // Request panel (Lines 1600-2700)
   // Request composer UI (URL, method, headers, body, auth, scripts, settings)
-  
+
   // Response panel (Lines 2700-1100)
   // Response viewer with tabs (preview/headers/timeline)
   // Response window modal
-  
+
   // Modal dialogs (Lines 1100-1000)
   // // Confirmation dialogs
   // // History modal

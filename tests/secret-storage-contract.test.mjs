@@ -37,17 +37,14 @@ test("native core exposes keychain-backed secret commands", () => {
   assert.match(lib, /delete_secret/);
 });
 
-test("renderer has a local secret service and redacts secret values in browser preview", () => {
+test("renderer has a local secret service and returns opaque references in browser preview", () => {
   assert.equal(hasFile("src/renderer/src/services/secrets.ts"), true);
 
   const service = read("src/renderer/src/services/secrets.ts");
   assert.match(service, /invoke<SecretReference>\("store_secret"/);
   assert.match(service, /invoke<void>\("delete_secret"/);
   assert.match(service, /window\.__TAURI_INTERNALS__/);
+  assert.match(service, /return \{ refId: previewSecretRef\(input\) \}/);
+  assert.match(service, /kobeanrest:\/\/secrets\//);
   assert.doesNotMatch(service, /console\.log/);
-
-  const sampleWorkspace = read("src/renderer/src/data/sample-workspace.ts");
-  assert.match(sampleWorkspace, /secretRef/);
-  assert.match(sampleWorkspace, /\[secret stored outside SQLite\]/);
-  assert.doesNotMatch(sampleWorkspace, /Stored in OS keychain/);
 });
