@@ -27,6 +27,7 @@ import { VariableInput, VariableTextarea } from "./components/VariableInput";
 import { MethodSelector, methodClass, resolvedMethodLabel } from "./components/MethodSelector";
 import { ScriptEditor } from "./components/ScriptEditor";
 import { ResponseViewer } from "./components/ResponseViewer";
+import { Sidebar } from "./components/Sidebar";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 import { redactDiagnosticError } from "./services/redaction";
 import { checkForAppUpdate, downloadAndInstallUpdate, type AvailableUpdate } from "./services/updater";
