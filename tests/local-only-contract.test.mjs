@@ -18,14 +18,14 @@ test("KobeanREST declares a local-only product contract with no user account aut
 });
 
 test("app source exposes API request authentication without creating app-user auth", () => {
-  assert.equal(hasFile("src/renderer/src/data/sample-workspace.ts"), true);
+  assert.equal(hasFile("src/renderer/src/constants.ts"), true);
 
-  const workspace = read("src/renderer/src/data/sample-workspace.ts");
-  assert.match(workspace, /Basic Auth/);
-  assert.match(workspace, /Bearer Token/);
-  assert.match(workspace, /API Key/);
-  assert.match(workspace, /OAuth 2\.0/);
-  assert.doesNotMatch(workspace, /login|logout|register|sign in|sign up/i);
+  const constants = read("src/renderer/src/constants.ts");
+  assert.match(constants, /Basic Auth/);
+  assert.match(constants, /Bearer Token/);
+  assert.match(constants, /API Key/);
+  assert.match(constants, /OAuth 2\.0/);
+  assert.doesNotMatch(constants, /login|logout|register|sign in|sign up/i);
 });
 
 test("download documentation points users to GitHub Release artifacts for all desktop platforms", () => {

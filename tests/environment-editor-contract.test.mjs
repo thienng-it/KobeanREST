@@ -77,7 +77,7 @@ test("App.tsx implements environment editor state management", () => {
 
   // Active environment switching
   assert.match(app, /async function handleSetActiveEnvironment/);
-  assert.match(app, /setWorkspace.*activeEnvironment.*name/);
+  assert.match(app, /return \{ \.\.\.prev, activeEnvironment: name \};/);
 
   // Environment CRUD
   assert.match(app, /async function handleCreateEnvironment/);

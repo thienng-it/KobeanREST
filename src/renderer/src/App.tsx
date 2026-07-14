@@ -19,6 +19,7 @@ import {
 import { useDeferredValue, useEffect, useRef, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
+import { authModes, AUTH_MODE_LABELS, AUTH_MODE_MAP } from "./constants";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
 import { VariableInput, VariableTextarea } from "./components/VariableInput";
@@ -28,16 +29,6 @@ import { ResponseViewer } from "./components/ResponseViewer";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 import { redactDiagnosticError } from "./services/redaction";
 import { checkForAppUpdate, downloadAndInstallUpdate, type AvailableUpdate } from "./services/updater";
-
-const authModes = ["None", "Basic Auth", "Bearer Token", "API Key", "OAuth 2.0", "NTLM", "Kerberos"] as const;
-const AUTH_MODE_LABELS: Record<string, string> = {
-  none: "None", basic: "Basic Auth", bearer: "Bearer Token",
-  apiKey: "API Key", oauth2: "OAuth 2.0", ntlm: "NTLM", kerberos: "Kerberos"
-};
-const AUTH_MODE_MAP: Record<string, string> = {
-  "None": "none", "Basic Auth": "basic", "Bearer Token": "bearer",
-  "API Key": "apiKey", "OAuth 2.0": "oauth2", "NTLM": "ntlm", "Kerberos": "kerberos"
-};
 import {
   initializeLocalStore,
   loadLocalWorkspace,

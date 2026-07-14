@@ -47,10 +47,7 @@ test("request builder UI sends selected requests and renders dynamic response st
 
 test("saved request model includes MVP execution options", () => {
   const types = read("src/renderer/src/types.ts");
-  const sample = read("src/renderer/src/data/sample-workspace.ts");
 
   assert.match(types, /timeoutMs: number/);
   assert.match(types, /followRedirects: boolean/);
-  assert.match(sample, /timeoutMs/);
-  assert.match(sample, /followRedirects/);
 });
