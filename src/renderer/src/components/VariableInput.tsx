@@ -42,6 +42,7 @@ export function VariableInput({
   const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
 
   const strValue = String(value);
+  const hasVariables = /\{\{[^{}]+\}\}/.test(strValue);
 
   // Sync scroll position
   const syncScroll = () => {
@@ -192,12 +193,14 @@ export function VariableInput({
       <div
         ref={backdropRef}
         className="variable-input-backdrop"
+        aria-hidden="true"
         style={{
           position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
+          display: hasVariables ? "block" : "none",
           pointerEvents: "none",
           whiteSpace: "pre",
           overflow: "hidden",
@@ -205,7 +208,7 @@ export function VariableInput({
           backgroundColor: "transparent",
         }}
       >
-        {renderHighlightedText()}
+        {hasVariables ? renderHighlightedText() : null}
       </div>
 
       {/* Input */}
@@ -244,14 +247,14 @@ export function VariableInput({
           syncScroll();
           if (onSelect) onSelect(e);
         }}
-        onMouseMove={handleInputMouseMove}
-        onMouseLeave={handleInputMouseLeave}
+        onMouseMove={hasVariables ? handleInputMouseMove : undefined}
+        onMouseLeave={hasVariables ? handleInputMouseLeave : undefined}
         style={{
           width: "100%",
           background: "transparent",
           border: "none",
           outline: "none",
-          color: strValue ? "transparent" : "inherit",
+          color: hasVariables ? "transparent" : "inherit",
           caretColor: "var(--color-text)",
           boxSizing: "border-box",
           position: "relative",

@@ -83,6 +83,27 @@ test("App.tsx implements environment editor state management", () => {
   assert.match(app, /async function handleCreateEnvironment/);
   assert.match(app, /async function handleRenameEnvironment/);
   assert.match(app, /async function handleDeleteEnvironment/);
+  assert.match(app, /const \[renamingEnvironment, setRenamingEnvironment\] = useState\(""\);/);
+  assert.match(app, /const \[environmentNameDraft, setEnvironmentNameDraft\] = useState\(""\);/);
+  assert.match(app, /function startEnvironmentRename\(name: string\)/);
+  assert.match(app, /async function applyEnvironmentRename\(oldName: string\)/);
+  const createEnvironmentBlock = app.match(/async function handleCreateEnvironment\(\) \{[\s\S]*?\n  \}/);
+  const renameEnvironmentBlock = app.match(/async function handleRenameEnvironment\(oldName: string\) \{[\s\S]*?\n  \}/);
+  const applyEnvironmentRenameBlock = app.match(/async function applyEnvironmentRename\(oldName: string\) \{[\s\S]*?\n  \}/);
+  const deleteEnvironmentBlock = app.match(/async function handleDeleteEnvironment\(name: string\) \{[\s\S]*?\n  \}/);
+  assert.ok(createEnvironmentBlock);
+  assert.ok(renameEnvironmentBlock);
+  assert.ok(applyEnvironmentRenameBlock);
+  assert.ok(deleteEnvironmentBlock);
+  assert.match(createEnvironmentBlock[0], /const baseName = "New Environment";/);
+  assert.match(createEnvironmentBlock[0], /while \(existingNames\.has\(name\)\)/);
+  assert.match(createEnvironmentBlock[0], /await createEnvironment\(name\);/);
+  assert.match(createEnvironmentBlock[0], /setEnvEditorTarget\(name\);/);
+  assert.doesNotMatch(createEnvironmentBlock[0], /prompt\(/);
+  assert.match(renameEnvironmentBlock[0], /startEnvironmentRename\(oldName\);/);
+  assert.doesNotMatch(renameEnvironmentBlock[0], /prompt\(/);
+  assert.match(applyEnvironmentRenameBlock[0], /environment\.name === newName && environment\.name !== oldName/);
+  assert.match(deleteEnvironmentBlock[0], /activeEnvironment: prev\.activeEnvironment === name \?/);
 
   // Variable CRUD
   assert.match(app, /async function handleSaveVariable/);
@@ -97,6 +118,64 @@ test("App.tsx implements environment editor state management", () => {
   assert.match(app, /aria-label="Active environment"/);
   assert.match(app, /aria-label="Manage environments"/);
   assert.match(app, /aria-label="Environment editor"/);
+});
+
+test("environment switcher uses polished class-based controls", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+  const switcherBlock = app.match(/<div className="environment-switcher">[\s\S]*?<\/div>/);
+
+  assert.ok(switcherBlock);
+  assert.match(switcherBlock[0], /className="environment-switcher-icon"/);
+  assert.match(switcherBlock[0], /className="environment-select"/);
+  assert.match(switcherBlock[0], /className="environment-manage-button"/);
+  assert.doesNotMatch(switcherBlock[0], /style=\{\{/);
+  assert.match(styles, /\.environment-switcher\s*\{/);
+  assert.match(styles, /\.environment-select:focus-visible/);
+  assert.match(styles, /\.environment-manage-button:hover/);
+});
+
+test("environment editor uses modern modal structure instead of inline chrome", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(app, /className="modal env-modal"/);
+  assert.match(app, /className="env-modal-header"/);
+  assert.match(app, /className="env-modal-close"/);
+  assert.match(app, /className="env-modal-body"/);
+  assert.match(app, /className="env-list-panel"/);
+  assert.match(app, /className=\{envEditorTarget === env\.name \? "env-list-row selected" : "env-list-row"\}/);
+  assert.match(app, /className="env-row-actions"/);
+  assert.match(app, /className="env-rename-input"/);
+  assert.match(app, /className="env-variable-panel"/);
+  assert.match(app, /className="env-variable-card"/);
+  assert.match(app, /className="env-add-variable"/);
+
+  assert.match(styles, /\.modal\.env-modal\s*\{/);
+  assert.match(styles, /\.env-modal-header\s*\{/);
+  assert.match(styles, /\.env-modal-body\s*\{[\s\S]*grid-template-columns:\s*230px minmax\(0, 1fr\);/);
+  assert.match(styles, /\.env-list-row\.selected\s*\{/);
+  assert.match(styles, /\.env-rename-input\s*\{/);
+  assert.match(styles, /\.env-variable-card\s*\{/);
+  assert.match(styles, /\.env-add-variable-fields\s*\{/);
+  assert.match(styles, /@media \(max-width:\s*1120px\)\s*\{[\s\S]*\.env-modal-body\s*\{[\s\S]*grid-template-columns:\s*1fr;/);
+});
+
+test("environment edit and delete actions are always clickable", () => {
+  const styles = read("src/renderer/src/styles.css");
+  const actionsBlock = styles.match(/\.env-row-actions\s*\{([\s\S]*?)\n\}/);
+
+  assert.ok(actionsBlock);
+  assert.doesNotMatch(actionsBlock[1], /opacity:\s*0;/);
+  assert.doesNotMatch(actionsBlock[1], /pointer-events:\s*none;/);
+});
+
+test("environment delete confirmation renders above the editor modal", () => {
+  const app = read("src/renderer/src/App.tsx");
+  const styles = read("src/renderer/src/styles.css");
+
+  assert.match(app, /className="modal-overlay confirm-modal-overlay"/);
+  assert.match(styles, /\.confirm-modal-overlay\s*\{[\s\S]*z-index:\s*1100;/);
 });
 
 test("secret variable writes go through secret service boundary in App.tsx", () => {

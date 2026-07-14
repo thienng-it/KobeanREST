@@ -246,9 +246,13 @@ pub fn create_workspace(app: AppHandle, name: String) -> Result<String, String> 
 }
 
 #[tauri::command]
-pub fn create_collection(app: AppHandle, workspace_id: String, name: String) -> Result<String, String> {
+pub fn create_collection(app: AppHandle, name: String, workspace_id: Option<String>) -> Result<String, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
+    let workspace_id = match workspace_id {
+        Some(id) => id,
+        None => first_workspace_id(&connection)?,
+    };
     let collection_id = format!("collection-{}", uuid::Uuid::new_v4());
     connection
         .execute(
@@ -1392,6 +1396,75 @@ pub fn update_folder(app: AppHandle, folder_id: String, name: String) -> Result<
 }
 
 #[tauri::command]
+pub fn update_collection(app: AppHandle, collection_id: String, name: String) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    connection
+        .execute(
+            "UPDATE collections SET name = ?2 WHERE id = ?1",
+            rusqlite::params![collection_id, name],
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_collection(app: AppHandle, collection_id: String) -> Result<(), String> {
+    ensure_database(&app)?;
+    let mut connection = open_database(&app)?;
+    let transaction = connection.transaction().map_err(|e| e.to_string())?;
+
+    transaction
+        .execute(
+            "DELETE FROM request_headers WHERE request_id IN (
+                SELECT requests.id FROM requests
+                JOIN folders ON folders.id = requests.folder_id
+                WHERE folders.collection_id = ?1
+            )",
+            rusqlite::params![&collection_id],
+        )
+        .map_err(|e| e.to_string())?;
+    transaction
+        .execute(
+            "DELETE FROM scripts WHERE
+                (entity_type = 'collection' AND entity_id = ?1)
+                OR (entity_type = 'folder' AND entity_id IN (
+                    SELECT id FROM folders WHERE collection_id = ?1
+                ))
+                OR (entity_type = 'request' AND entity_id IN (
+                    SELECT requests.id FROM requests
+                    JOIN folders ON folders.id = requests.folder_id
+                    WHERE folders.collection_id = ?1
+                ))",
+            rusqlite::params![&collection_id],
+        )
+        .map_err(|e| e.to_string())?;
+    transaction
+        .execute(
+            "DELETE FROM requests WHERE folder_id IN (
+                SELECT id FROM folders WHERE collection_id = ?1
+            )",
+            rusqlite::params![&collection_id],
+        )
+        .map_err(|e| e.to_string())?;
+    transaction
+        .execute(
+            "DELETE FROM folders WHERE collection_id = ?1",
+            rusqlite::params![&collection_id],
+        )
+        .map_err(|e| e.to_string())?;
+    transaction
+        .execute(
+            "DELETE FROM collections WHERE id = ?1",
+            rusqlite::params![&collection_id],
+        )
+        .map_err(|e| e.to_string())?;
+
+    transaction.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn delete_folder(app: AppHandle, folder_id: String) -> Result<(), String> {
     ensure_database(&app)?;
     let mut connection = open_database(&app)?;
@@ -1497,16 +1570,31 @@ pub fn rename_environment(
     let connection = open_database(&app)?;
     let workspace_id = first_workspace_id(&connection)?;
     let env_id = find_environment_id(&connection, &workspace_id, &old_name)?;
+    let next_name = new_name.trim();
+    if next_name.is_empty() {
+        return Err("environment name cannot be blank".to_string());
+    }
+    let duplicate_env_id = connection
+        .query_row(
+            "SELECT id FROM environments WHERE workspace_id = ?1 AND name = ?2 AND id != ?3",
+            params![workspace_id, next_name, env_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| format!("failed to check environment name: {error}"))?;
+    if duplicate_env_id.is_some() {
+        return Err(format!("environment '{next_name}' already exists"));
+    }
     connection
         .execute(
             "UPDATE environments SET name = ?2 WHERE id = ?1",
-            params![env_id, new_name],
+            params![env_id, next_name],
         )
         .map_err(|error| format!("failed to rename environment: {error}"))?;
     connection
         .execute(
             "UPDATE workspaces SET active_environment = ?2 WHERE id = ?3 AND active_environment = ?1",
-            params![old_name, new_name, workspace_id],
+            params![old_name, next_name, workspace_id],
         )
         .map_err(|error| format!("failed to update active environment reference: {error}"))?;
     Ok(())
@@ -1527,6 +1615,22 @@ pub fn delete_environment(app: AppHandle, name: String) -> Result<(), String> {
     connection
         .execute("DELETE FROM environments WHERE id = ?1", params![env_id])
         .map_err(|error| format!("failed to delete environment: {error}"))?;
+    let next_active_environment = connection
+        .query_row(
+            "SELECT name FROM environments WHERE workspace_id = ?1 ORDER BY position, name LIMIT 1",
+            params![workspace_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| format!("failed to load next active environment: {error}"))?;
+    if let Some(next_name) = next_active_environment {
+        connection
+            .execute(
+                "UPDATE workspaces SET active_environment = ?1 WHERE id = ?2 AND active_environment = ?3",
+                params![next_name, workspace_id, name],
+            )
+            .map_err(|error| format!("failed to update active environment reference: {error}"))?;
+    }
     Ok(())
 }
 

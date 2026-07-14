@@ -51,10 +51,13 @@ export const sampleWorkspace: WorkspaceSummary = {
       ],
     },
   ],
+  collections: [
+    { id: "default-collection", name: "KobeanREST" },
+  ],
   folders: [
-    { id: "folder-system", name: "System" },
-    { id: "folder-users-api", name: "Users API" },
-    { id: "folder-orders-api", name: "Orders API" },
+    { id: "folder-system", name: "System", collectionId: "default-collection" },
+    { id: "folder-users-api", name: "Users API", collectionId: "default-collection" },
+    { id: "folder-orders-api", name: "Orders API", collectionId: "default-collection" },
   ],
   requests: [
     {
