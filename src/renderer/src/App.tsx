@@ -19,7 +19,6 @@ import {
 import { useDeferredValue, useEffect, useRef, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
-import { authModes, sampleWorkspace, AUTH_MODE_MAP, AUTH_MODE_LABELS } from "./data/sample-workspace";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
 import { VariableInput, VariableTextarea } from "./components/VariableInput";
@@ -29,6 +28,16 @@ import { ResponseViewer } from "./components/ResponseViewer";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 import { redactDiagnosticError } from "./services/redaction";
 import { checkForAppUpdate, downloadAndInstallUpdate, type AvailableUpdate } from "./services/updater";
+
+const authModes = ["None", "Basic Auth", "Bearer Token", "API Key", "OAuth 2.0", "NTLM", "Kerberos"] as const;
+const AUTH_MODE_LABELS: Record<string, string> = {
+  none: "None", basic: "Basic Auth", bearer: "Bearer Token",
+  apiKey: "API Key", oauth2: "OAuth 2.0", ntlm: "NTLM", kerberos: "Kerberos"
+};
+const AUTH_MODE_MAP: Record<string, string> = {
+  "None": "none", "Basic Auth": "basic", "Bearer Token": "bearer",
+  "API Key": "apiKey", "OAuth 2.0": "oauth2", "NTLM": "ntlm", "Kerberos": "kerberos"
+};
 import {
   initializeLocalStore,
   loadLocalWorkspace,
@@ -187,17 +196,21 @@ function parsePastedHeaders(text: string): RequestHeader[] {
   return parsed;
 }
 
-function getEffectiveAuth(request: SavedRequest, workspace: WorkspaceSummary) {
+function getEffectiveAuth(request: SavedRequest, workspace: WorkspaceSummary | null) {
+  if (!workspace) {
+    return { mode: "none" as const, config: {}, source: "No workspace loaded" };
+  }
+
   if (request.authMode !== "none") {
     return { mode: request.authMode, config: request.authConfig, source: "Request level" };
   }
 
-  const folder = workspace.folders.find((item) => item.id === request.folderId);
+  const folder = workspace?.folders.find((item) => item.id === request.folderId);
   if (folder?.authMode && folder.authMode !== "none") {
     return { mode: folder.authMode, config: folder.authConfig ?? {}, source: `Inherited from folder: ${folder.name}` };
   }
 
-  const collection = workspace.collections?.find((item) => folder?.collectionId === item.id);
+  const collection = workspace?.collections?.find((item) => folder?.collectionId === item.id);
   if (collection?.authMode && collection.authMode !== "none") {
     return { mode: collection.authMode, config: collection.authConfig ?? {}, source: `Inherited from collection: ${collection.name}` };
   }
@@ -283,8 +296,8 @@ function AddVariableRow({
 export function App() {
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [isSidebarResizing, setIsSidebarResizing] = useState(false);
-  const [workspace, setWorkspace] = useState<WorkspaceSummary>(() => sampleWorkspace);
-  const [selectedRequestId, setSelectedRequestId] = useState(sampleWorkspace.requests[0]?.id ?? "");
+  const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts" | "settings">("body");
   const [responseState, setResponseState] = useState<ResponseState>({
     kind: "idle",
@@ -492,9 +505,10 @@ export function App() {
   }
 
   useEffect(() => {
+    if (!workspace) return;
     const req = workspace.requests.find(r => r.id === selectedRequestId);
     setDraftRequest(req ? JSON.parse(JSON.stringify(req)) : null);
-  }, [selectedRequestId, workspace.requests]);
+  }, [selectedRequestId, workspace?.requests]);
 
   useEffect(() => {
     async function loadScripts() {
@@ -514,6 +528,7 @@ export function App() {
 
   useEffect(() => {
     const handleGlobalClick = () => {
+      if (!workspace) return;
       setContextMenu(null);
     };
     window.addEventListener('click', handleGlobalClick);
@@ -1910,10 +1925,10 @@ export function App() {
           <select
             className="environment-select"
             aria-label="Active environment"
-            value={workspace.activeEnvironment}
+            value={workspace?.activeEnvironment || ""}
             onChange={e => handleSetActiveEnvironment(e.target.value)}
           >
-            {workspace.environments.map(env => (
+            {workspace?.environments?.map(env => (
               <option key={env.name} value={env.name}>{env.name}</option>
             ))}
           </select>
@@ -1921,7 +1936,7 @@ export function App() {
             type="button"
             className="environment-manage-button"
             aria-label="Manage environments"
-            onClick={() => { setEnvEditorTarget(workspace.activeEnvironment); setEnvEditorOpen(true); }}
+            onClick={() => { setEnvEditorTarget(workspace?.activeEnvironment); setEnvEditorOpen(true); }}
           >
             Manage
           </button>
@@ -1935,10 +1950,6 @@ export function App() {
         )}
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <button className="primary-action" type="button" onClick={() => void handleCreateFolder()}>
-            <Plus size={16} />
-            New folder
-          </button>
           <button className="primary-action" type="button" onClick={handleCreateCollection} style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' }}>
             <Plus size={16} />
             New collection
