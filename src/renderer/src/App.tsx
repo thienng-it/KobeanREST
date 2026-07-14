@@ -383,6 +383,8 @@ export function App() {
     try {
       const statuses: Record<string, boolean> = {};
       
+      if (!workspace) return;
+
       for (const folder of workspace.folders) {
         const scripts = await getScripts(folder.id, 'folder');
         statuses[folder.id] = scripts.length > 0;
@@ -401,6 +403,7 @@ export function App() {
 
   useEffect(() => {
     let isActive = true;
+
     async function loadWorkspace() {
       try {
         const persistence = await initializeLocalStore();
@@ -631,7 +634,7 @@ export function App() {
   const currentScriptValue = activeRequestScript === "pre" ? preScript : postScript;
   const currentScriptTitle = activeRequestScript === "pre" ? "Pre-request Script" : "Post-request Script";
   const requestFolder = draftRequest
-    ? workspace.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
+    ? workspace?.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
     : null;
   const requestPath = requestFolder && draftRequest ? `${requestFolder.name} / ${draftRequest.name}` : draftRequest?.name ?? "";
   const deferredCollectionSearch = useDeferredValue(collectionSearch);
@@ -655,7 +658,7 @@ export function App() {
     if (!folder) return false;
     if (matchesCollectionSearch(folder.name)) return true;
     if (workspace?.requests.some((request) => request.folderId === folderId && requestMatchesCollectionSearch(request))) return true;
-    return workspace?.folders.some((child) => child.parentId === folderId && folderMatchesCollectionSearch(child.id));
+    return workspace?.folders.some((child) => child.parentId === folderId && folderMatchesCollectionSearch(child.id)) ?? false;
   }
 
   const visibleCollections = (workspace?.collections ?? []).filter((collection) => {
@@ -758,7 +761,7 @@ export function App() {
   function applyRequestRename(requestId: string) {
     const nextName = renameDraft.trim();
     if (!nextName) {
-      const request = workspace.requests.find((item) => item.id === requestId);
+      const request = workspace?.requests.find((item) => item.id === requestId);
       setRenameDraft(request?.name ?? "");
       setRenamingRequestId("");
       return;
@@ -797,20 +800,26 @@ export function App() {
     try {
       if (target.type === "folder") {
         await updateFolder(target.id, nextName);
-        setWorkspace((prev) => ({
-          ...prev,
-          folders: prev.folders.map((folder) =>
-            folder.id === target.id ? { ...folder, name: nextName } : folder,
-          ),
-        }));
+        setWorkspace((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            folders: prev.folders.map((folder) =>
+              folder.id === target.id ? { ...folder, name: nextName } : folder,
+            ),
+          };
+        });
       } else {
         await updateCollection(target.id, nextName);
-        setWorkspace((prev) => ({
-          ...prev,
-          collections: prev.collections?.map((collection) =>
-            collection.id === target.id ? { ...collection, name: nextName } : collection,
-          ) ?? [],
-        }));
+        setWorkspace((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            collections: prev.collections?.map((collection) =>
+              collection.id === target.id ? { ...collection, name: nextName } : collection,
+            ) ?? [],
+          };
+        });
       }
       cancelSidebarRename();
     } catch (err) {
@@ -1117,10 +1126,13 @@ export function App() {
     if (!draftRequest) return;
     try {
       await saveRequest(draftRequest);
-      setWorkspace(prev => ({
-        ...prev,
-        requests: prev.requests.map(r => r.id === draftRequest.id ? draftRequest : r)
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          requests: prev.requests.map(r => r.id === draftRequest.id ? draftRequest : r)
+        };
+      });
     } catch (err) {
       console.error("Failed to save request", diagnosticMessage(err));
       alert("Failed to save request: " + diagnosticMessage(err));
@@ -1138,12 +1150,16 @@ export function App() {
     setDeleteError(null);
     try {
       await deleteRequest(reqId);
-      setWorkspace(prev => ({
-        ...prev,
-        requests: prev.requests.filter(r => r.id !== reqId)
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          requests: prev.requests.filter(r => r.id !== reqId)
+        };
+      });
       if (selectedRequestId === reqId) {
         setSelectedRequestId(prev => {
+          if (!workspace) return "";
           const remaining = workspace.requests.filter(r => r.id !== reqId);
           return remaining.find(r => r.id !== prev)?.id ?? remaining[0]?.id ?? "";
         });
@@ -1155,14 +1171,18 @@ export function App() {
   }
 
   async function handleCreateFolder(collectionId?: string, parentId?: string) {
+    if (!workspace) return;
     const name = "New Folder";
     try {
       const targetCollectionId = collectionId ?? workspace.collections?.[0]?.id;
       const newFolder = await createFolder(name, targetCollectionId, parentId);
-      setWorkspace(prev => ({
-        ...prev,
-        folders: [...prev.folders, newFolder]
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          folders: [...prev.folders, newFolder]
+        };
+      });
     } catch (err) {
       console.error("Failed to create folder", diagnosticMessage(err));
       alert("Failed to create folder: " + diagnosticMessage(err));
@@ -1173,10 +1193,13 @@ export function App() {
     const name = "New Collection";
     try {
       const collectionId = await createCollection(name);
-      setWorkspace(prev => ({
-        ...prev,
-        collections: [...(prev.collections ?? []), { id: collectionId, name }]
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          collections: [...(prev.collections ?? []), { id: collectionId, name }]
+        };
+      });
     } catch (err) {
       console.error("Failed to create collection", diagnosticMessage(err));
       alert("Failed to create collection: " + diagnosticMessage(err));
@@ -1199,6 +1222,7 @@ export function App() {
   }
 
   async function handleCreateSubFolder(folderId: string) {
+    if (!workspace) return;
     try {
       const parentFolder = workspace.folders?.find(f => f.id === folderId);
       const collectionId = parentFolder?.collectionId;
@@ -1239,11 +1263,14 @@ export function App() {
         delete next[folderId];
         return next;
       });
-      setWorkspace(prev => ({
-        ...prev,
-        folders: prev.folders.filter(f => f.id !== folderId),
-        requests: prev.requests.filter(r => r.folderId !== folderId)
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          folders: prev.folders.filter(f => f.id !== folderId),
+          requests: prev.requests.filter(r => r.folderId !== folderId)
+        };
+      });
     } catch (err) {
       console.error(diagnosticMessage(err));
       setDeleteError("Failed to delete folder: " + diagnosticMessage(err));
@@ -1252,6 +1279,7 @@ export function App() {
 
   async function confirmDeleteCollection(collectionId: string) {
     setDeleteError(null);
+    if (!workspace) return;
     const folderIds = new Set(
       workspace.folders
         .filter((folder) => folder.collectionId === collectionId)
@@ -1270,12 +1298,15 @@ export function App() {
         }
         return next;
       });
-      setWorkspace((prev) => ({
-        ...prev,
-        collections: prev.collections?.filter((collection) => collection.id !== collectionId) ?? [],
-        folders: prev.folders.filter((folder) => folder.collectionId !== collectionId),
-        requests: prev.requests.filter((request) => !folderIds.has(request.folderId)),
-      }));
+      setWorkspace((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          collections: prev.collections?.filter((collection) => collection.id !== collectionId) ?? [],
+          folders: prev.folders.filter((folder) => folder.collectionId !== collectionId),
+          requests: prev.requests.filter((request) => !folderIds.has(request.folderId)),
+        };
+      });
       if (draftRequest && folderIds.has(draftRequest.folderId)) {
         setDraftRequest(null);
       }
@@ -1291,13 +1322,17 @@ export function App() {
   async function handleSetActiveEnvironment(name: string) {
     try {
       await setActiveEnvironment(name);
-      setWorkspace(prev => ({ ...prev, activeEnvironment: name }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return { ...prev, activeEnvironment: name };
+      });
     } catch (err) {
       console.error("Failed to set active environment", diagnosticMessage(err));
     }
   }
 
   async function handleCreateEnvironment() {
+    if (!workspace) return;
     const existingNames = new Set(workspace.environments.map((environment) => environment.name));
     const baseName = "New Environment";
     let name = baseName;
@@ -1309,10 +1344,13 @@ export function App() {
 
     try {
       await createEnvironment(name);
-      setWorkspace(prev => ({
-        ...prev,
-        environments: [...prev.environments, { name, variables: [] }],
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          environments: [...prev.environments, { name, variables: [] }],
+        };
+      });
       setEnvEditorTarget(name);
     } catch (err) {
       console.error("Failed to create environment", diagnosticMessage(err));
@@ -1341,20 +1379,23 @@ export function App() {
       return;
     }
 
-    if (workspace.environments.some((environment) => environment.name === newName && environment.name !== oldName)) {
+    if (!workspace || workspace.environments.some((environment) => environment.name === newName && environment.name !== oldName)) {
       alert(`Environment "${newName}" already exists.`);
       return;
     }
 
     try {
       await renameEnvironment(oldName, newName);
-      setWorkspace(prev => ({
-        ...prev,
-        activeEnvironment: prev.activeEnvironment === oldName ? newName : prev.activeEnvironment,
-        environments: prev.environments.map(e =>
-          e.name === oldName ? { ...e, name: newName } : e
-        ),
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          activeEnvironment: prev.activeEnvironment === oldName ? newName : prev.activeEnvironment,
+          environments: prev.environments.map(e =>
+            e.name === oldName ? { ...e, name: newName } : e
+          ),
+        };
+      });
       if (envEditorTarget === oldName) setEnvEditorTarget(newName);
       cancelEnvironmentRename();
     } catch (err) {
@@ -1370,6 +1411,7 @@ export function App() {
         try {
           await deleteEnvironment(name);
           setWorkspace(prev => {
+            if (!prev) return null;
             const environments = prev.environments.filter(e => e.name !== name);
             return {
               ...prev,
@@ -1379,6 +1421,7 @@ export function App() {
           });
           if (envEditorTarget === name) {
             setEnvEditorTarget(prev => {
+              if (!workspace) return "";
               const remaining = workspace.environments.filter(e => e.name !== name);
               return remaining[0]?.name ?? "";
             });
@@ -1394,19 +1437,22 @@ export function App() {
   async function handleSaveVariable(envName: string, key: string, value: string) {
     try {
       await saveVariable(envName, key, value);
-      setWorkspace(prev => ({
-        ...prev,
-        environments: prev.environments.map(e => {
-          if (e.name !== envName) return e;
-          const exists = e.variables.some(v => v.key === key);
-          return {
-            ...e,
-            variables: exists
-              ? e.variables.map(v => v.key === key ? { ...v, value, secret: false, secretRef: undefined } : v)
-              : [...e.variables, { key, value }],
-          };
-        }),
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          environments: prev.environments.map(e => {
+            if (e.name !== envName) return e;
+            const exists = e.variables.some(v => v.key === key);
+            return {
+              ...e,
+              variables: exists
+                ? e.variables.map(v => v.key === key ? { ...v, value, secret: false, secretRef: undefined } : v)
+                : [...e.variables, { key, value }],
+            };
+          }),
+        };
+      });
     } catch (err) {
       console.error("Failed to save variable", diagnosticMessage(err));
       alert("Failed to save variable: " + diagnosticMessage(err));
@@ -1416,14 +1462,17 @@ export function App() {
   async function handleDeleteVariable(envName: string, key: string) {
     try {
       await deleteVariable(envName, key);
-      setWorkspace(prev => ({
-        ...prev,
-        environments: prev.environments.map(e =>
-          e.name === envName
-            ? { ...e, variables: e.variables.filter(v => v.key !== key) }
-            : e
-        ),
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          environments: prev.environments.map(e =>
+            e.name === envName
+              ? { ...e, variables: e.variables.filter(v => v.key !== key) }
+              : e
+          ),
+        };
+      });
     } catch (err) {
       console.error("Failed to delete variable", diagnosticMessage(err));
       alert("Failed to delete variable: " + diagnosticMessage(err));
@@ -1434,20 +1483,23 @@ export function App() {
     try {
       const { refId } = await storeSecret({ scope: envName, key, value });
       await saveSecretVariable(envName, key, refId);
-      setWorkspace(prev => ({
-        ...prev,
-        environments: prev.environments.map(e => {
-          if (e.name !== envName) return e;
-          const exists = e.variables.some(v => v.key === key);
-          const updated = { key, value: "[secret stored outside SQLite]", secret: true, secretRef: refId };
-          return {
-            ...e,
-            variables: exists
-              ? e.variables.map(v => v.key === key ? updated : v)
-              : [...e.variables, updated],
-          };
-        }),
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          environments: prev.environments.map(e => {
+            if (e.name !== envName) return e;
+            const exists = e.variables.some(v => v.key === key);
+            const updated = { key, value: "[secret stored outside SQLite]", secret: true, secretRef: refId };
+            return {
+              ...e,
+              variables: exists
+                ? e.variables.map(v => v.key === key ? updated : v)
+                : [...e.variables, updated],
+            };
+          }),
+        };
+      });
     } catch (err) {
       console.error("Failed to save secret variable", diagnosticMessage(err));
       alert("Failed to save secret variable: " + diagnosticMessage(err));
@@ -1461,10 +1513,13 @@ export function App() {
         ...prev,
         [folderId]: false,
       }));
-      setWorkspace(prev => ({
-        ...prev,
-        requests: [...prev.requests, newReq]
-      }));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          requests: [...prev.requests, newReq]
+        };
+      });
       setSelectedRequestId(newReq.id);
     } catch (err) { console.error(diagnosticMessage(err)); }
   }
@@ -1492,6 +1547,7 @@ export function App() {
   }
 
   function handleReplayFromHistory(entry: HistoryEntry) {
+    if (!workspace) return;
     const exists = workspace.requests.some(r => r.id === entry.requestId);
     if (exists) {
       setSelectedRequestId(entry.requestId);
@@ -1646,7 +1702,7 @@ export function App() {
   }
 
   useEffect(() => {
-    if (authEditorTarget) {
+    if (authEditorTarget && workspace) {
       const { id, type } = authEditorTarget;
       let currentMode: ApiAuthMode = 'none';
       let currentConfig: AuthConfig = {};
@@ -1674,16 +1730,22 @@ export function App() {
     try {
       if (type === 'folder') {
         await saveFolderAuth(id, authDraft.mode, authDraft.config);
-        setWorkspace(prev => ({
-          ...prev,
-          folders: prev.folders.map(f => f.id === id ? { ...f, authMode: authDraft.mode, authConfig: authDraft.config } : f)
-        }));
+        setWorkspace(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            folders: prev.folders.map(f => f.id === id ? { ...f, authMode: authDraft.mode, authConfig: authDraft.config } : f)
+          };
+        });
       } else {
         await saveCollectionAuth(id, authDraft.mode, authDraft.config);
-        setWorkspace(prev => ({
-          ...prev,
-          collections: prev.collections?.map(c => c.id === id ? { ...c, authMode: authDraft.mode, authConfig: authDraft.config } : c) || []
-        }));
+        setWorkspace(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            collections: prev.collections?.map(c => c.id === id ? { ...c, authMode: authDraft.mode, authConfig: authDraft.config } : c) || []
+          };
+        });
       }
       setAuthEditorOpen(false);
     } catch (err) {
@@ -1755,7 +1817,7 @@ export function App() {
         requestToSend.url,
         requestToSend.headers,
         requestToSend.body || undefined,
-        workspace,
+        workspace ?? { id: "tmp", name: "Temporary", activeEnvironment: "", environments: [], folders: [], requests: [] },
       );
       resolvedUrl = resolved.url;
       resolvedHeaders = resolved.headers;
@@ -1773,12 +1835,12 @@ export function App() {
     let finalAuthConfig = requestToSend.authConfig;
 
     if (finalAuthMode === "none") {
-      const folder = workspace.folders.find(f => f.id === requestToSend.folderId);
+      const folder = workspace?.folders.find(f => f.id === requestToSend.folderId);
       if (folder && folder.authMode && folder.authMode !== "none") {
         finalAuthMode = folder.authMode;
         finalAuthConfig = folder.authConfig || {};
       } else {
-        const collection = workspace.collections?.find(c => folder?.collectionId === c.id);
+        const collection = workspace?.collections?.find(c => folder?.collectionId === c.id);
         if (collection && collection.authMode && collection.authMode !== "none") {
           finalAuthMode = collection.authMode;
           finalAuthConfig = collection.authConfig || {};
@@ -1936,7 +1998,7 @@ export function App() {
             type="button"
             className="environment-manage-button"
             aria-label="Manage environments"
-            onClick={() => { setEnvEditorTarget(workspace?.activeEnvironment); setEnvEditorOpen(true); }}
+            onClick={() => { setEnvEditorTarget(workspace?.activeEnvironment ?? ""); setEnvEditorOpen(true); }}
           >
             Manage
           </button>
@@ -2041,7 +2103,7 @@ export function App() {
 	              {(() => {
 	                const collectionNameMatches = matchesCollectionSearch(collection.name);
 	                const renderFolders = (parentId: string | undefined, depth = 0, forceShowAll = false) => {
-	                  const folders = workspace.folders
+	                  const folders = (workspace?.folders ?? [])
 	                    .filter(f => (parentId === undefined ? f.collectionId === collection.id && !f.parentId : f.parentId === parentId))
 	                    .filter(f => forceShowAll || folderMatchesCollectionSearch(f.id));
 
@@ -2053,7 +2115,7 @@ export function App() {
 	                        const folderNameMatches = matchesCollectionSearch(folder.name);
 	                        const showFolderContents = forceShowAll || folderNameMatches;
 	                        const isFolderCollapsed = !isCollectionSearchActive && collapsedFolders[folder.id];
-	                        const folderRequests = workspace.requests
+	                        const folderRequests = (workspace?.requests ?? [])
 	                          .filter(r => r.folderId === folder.id)
 	                          .filter(r => showFolderContents || requestMatchesCollectionSearch(r));
                         return (
@@ -2903,7 +2965,7 @@ export function App() {
                   return <p style={{ textAlign: 'center', opacity: 0.5, fontSize: '13px', padding: '24px 0' }}>No history yet.</p>;
                 }
                 return filtered.map(entry => {
-                  const canReplay = workspace.requests.some(r => r.id === entry.requestId);
+                  const canReplay = workspace?.requests.some(r => r.id === entry.requestId) ?? false;
                   return (
                     <div
                       key={entry.id}
@@ -3355,7 +3417,7 @@ export function App() {
             <div className="env-modal-body">
               <aside className="env-list-panel">
                 <div className="env-section-label">Environments</div>
-                {workspace.environments.map(env => (
+                {workspace?.environments.map(env => (
                   <div
                     key={env.name}
                     className={envEditorTarget === env.name ? "env-list-row selected" : "env-list-row"}
@@ -3385,7 +3447,7 @@ export function App() {
                         className="env-list-button"
                       >
                         {env.name}
-                        {workspace.activeEnvironment === env.name && (
+                        {workspace?.activeEnvironment === env.name && (
                           <span className="env-active-dot" aria-label="Active environment" />
                         )}
                       </button>
@@ -3403,7 +3465,7 @@ export function App() {
                 >
                   <Plus size={12} /> New
                 </button>
-                {envEditorTarget && workspace.activeEnvironment !== envEditorTarget && (
+                {envEditorTarget && workspace?.activeEnvironment !== envEditorTarget && (
                   <button
                     type="button"
                     className="ghost-button env-wide-button"
@@ -3416,7 +3478,7 @@ export function App() {
 
               <section className="env-variable-panel">
                 {envEditorTarget ? (() => {
-                  const env = workspace.environments.find(e => e.name === envEditorTarget);
+                  const env = workspace?.environments.find(e => e.name === envEditorTarget);
                   if (!env) return null;
                   return (
                     <>
@@ -3689,7 +3751,7 @@ export function App() {
                 className="context-menu-item" 
                 onClick={() => {
                   const reqId = contextMenu.target?.id;
-                  if (reqId) startRequestRename(workspace.requests.find(r => r.id === reqId)!);
+                  if (reqId) startRequestRename(workspace?.requests.find(r => r.id === reqId)!);
                   setContextMenu(null);
                 }}
                 style={{ all: 'unset', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px' }}
