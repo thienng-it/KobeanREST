@@ -651,16 +651,16 @@ export function App() {
   }
 
   function folderMatchesCollectionSearch(folderId: string): boolean {
-    const folder = workspace.folders.find((item) => item.id === folderId);
+    const folder = workspace?.folders.find((item) => item.id === folderId);
     if (!folder) return false;
     if (matchesCollectionSearch(folder.name)) return true;
-    if (workspace.requests.some((request) => request.folderId === folderId && requestMatchesCollectionSearch(request))) return true;
-    return workspace.folders.some((child) => child.parentId === folderId && folderMatchesCollectionSearch(child.id));
+    if (workspace?.requests.some((request) => request.folderId === folderId && requestMatchesCollectionSearch(request))) return true;
+    return workspace?.folders.some((child) => child.parentId === folderId && folderMatchesCollectionSearch(child.id));
   }
 
-  const visibleCollections = (workspace.collections ?? []).filter((collection) => {
+  const visibleCollections = (workspace?.collections ?? []).filter((collection) => {
     if (matchesCollectionSearch(collection.name)) return true;
-    return workspace.folders.some((folder) => folder.collectionId === collection.id && folderMatchesCollectionSearch(folder.id));
+    return workspace?.folders.some((folder) => folder.collectionId === collection.id && folderMatchesCollectionSearch(folder.id));
   });
   const effectiveAuth = draftRequest ? getEffectiveAuth(draftRequest, workspace) : null;
 
