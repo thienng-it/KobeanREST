@@ -22,6 +22,7 @@ import { VariableInput, VariableTextarea } from "./components/VariableInput";
 import { MethodSelector, methodClass } from "./components/MethodSelector";
 import { ScriptEditor } from "./components/ScriptEditor";
 import { ResponsePanel, type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { formatBytes, statusColor, type ResponseState } from "./response-utils";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
@@ -1744,29 +1745,7 @@ export function App() {
         </div>
       )}
 
-      {confirmDialog && (
-        <div className="modal-overlay confirm-modal-overlay" role="dialog" aria-modal="true" aria-label="Confirm action" onClick={() => setConfirmDialog(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <p className="modal-message">{confirmDialog.message}</p>
-            <div className="modal-actions">
-              <button
-                className="modal-cancel"
-                type="button"
-                onClick={() => setConfirmDialog(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="modal-confirm"
-                type="button"
-                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog dialog={confirmDialog} onCancel={() => setConfirmDialog(null)} />
 
       {historyOpen && (
         <div
