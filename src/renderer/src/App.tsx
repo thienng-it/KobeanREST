@@ -1,29 +1,25 @@
 import {
   ChevronDown,
-  Code2,
   Download,
   FolderTree,
-  Globe,
   History,
   KeyRound,
-  Play,
   RefreshCw,
   Save,
   Search,
   Settings,
-  WandSparkles,
   Plus,
   Trash2,
   Edit2,
   X, Eye
 } from "lucide-react";
-import { useDeferredValue, useEffect, useRef, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
 import { VariableInput, VariableTextarea } from "./components/VariableInput";
-import { MethodSelector, methodClass, resolvedMethodLabel } from "./components/MethodSelector";
+import { MethodSelector, methodClass } from "./components/MethodSelector";
 import { ScriptEditor } from "./components/ScriptEditor";
 import { ResponsePanel, type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
 import { formatBytes, statusColor, type ResponseState } from "./response-utils";
@@ -484,34 +480,6 @@ export function App() {
     ? workspace?.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
     : null;
   const requestPath = requestFolder && draftRequest ? `${requestFolder.name} / ${draftRequest.name}` : draftRequest?.name ?? "";
-  const deferredCollectionSearch = useDeferredValue(collectionSearch);
-  const normalizedCollectionSearch = deferredCollectionSearch.trim().toLowerCase();
-  const isCollectionSearchActive = normalizedCollectionSearch.length > 0;
-
-  function matchesCollectionSearch(value: string | undefined) {
-    return !isCollectionSearchActive || value?.toLowerCase().includes(normalizedCollectionSearch);
-  }
-
-  function requestMatchesCollectionSearch(request: SavedRequest) {
-    return (
-      matchesCollectionSearch(request.name) ||
-      matchesCollectionSearch(request.url) ||
-      matchesCollectionSearch(resolvedMethodLabel(request.method, request.customMethod))
-    );
-  }
-
-  function folderMatchesCollectionSearch(folderId: string): boolean {
-    const folder = workspace?.folders.find((item) => item.id === folderId);
-    if (!folder) return false;
-    if (matchesCollectionSearch(folder.name)) return true;
-    if (workspace?.requests.some((request) => request.folderId === folderId && requestMatchesCollectionSearch(request))) return true;
-    return workspace?.folders.some((child) => child.parentId === folderId && folderMatchesCollectionSearch(child.id)) ?? false;
-  }
-
-  const visibleCollections = (workspace?.collections ?? []).filter((collection) => {
-    if (matchesCollectionSearch(collection.name)) return true;
-    return workspace?.folders.some((folder) => folder.collectionId === collection.id && folderMatchesCollectionSearch(folder.id));
-  });
   const effectiveAuth = draftRequest ? getEffectiveAuth(draftRequest, workspace) : null;
 
   function updateDraft(fields: Partial<SavedRequest>) {
@@ -1555,305 +1523,44 @@ export function App() {
           {updateToast.message}
         </div>
       )}
-      <aside className="sidebar" aria-label="Workspace navigation">
-        <div className="brand-row">
-          <div className="brand-mark">KR</div>
-          <div className="brand-copy">
-            <strong>KobeanREST</strong>
-            <span>{PRODUCT_AUTHENTICATION_MODEL.headline}</span>
-          </div>
-        </div>
-
-        <div
-          className="sidebar-content"
-        >
-        <div className="environment-switcher">
-          <Globe size={15} className="environment-switcher-icon" />
-          <select
-            className="environment-select"
-            aria-label="Active environment"
-            value={workspace?.activeEnvironment || ""}
-            onChange={e => handleSetActiveEnvironment(e.target.value)}
-          >
-            {workspace?.environments?.map(env => (
-              <option key={env.name} value={env.name}>{env.name}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="environment-manage-button"
-            aria-label="Manage environments"
-            onClick={() => { setEnvEditorTarget(workspace?.activeEnvironment ?? ""); setEnvEditorOpen(true); }}
-          >
-            Manage
-          </button>
-        </div>
-
-        {deleteError && (
-          <div role="alert" style={{ padding: '8px 10px', borderRadius: '6px', background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-            <span>{deleteError}</span>
-            <button type="button" aria-label="Dismiss error" onClick={() => setDeleteError(null)} style={{ all: 'unset', cursor: 'pointer', fontWeight: 700 }}>✕</button>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <button className="primary-action" type="button" onClick={handleCreateCollection} style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' }}>
-            <Plus size={16} />
-            New collection
-          </button>
-        </div>
-
-        <label className={collectionSearch ? "search-field has-value" : "search-field"}>
-          <Search size={15} />
-          <input
-            placeholder="Search collections, folders, requests"
-            aria-label="Search collections"
-            value={collectionSearch}
-            onChange={(event) => setCollectionSearch(event.target.value)}
-          />
-          {collectionSearch && (
-            <button
-              type="button"
-              className="search-clear-button"
-              aria-label="Clear collection search"
-              onClick={() => setCollectionSearch("")}
-            >
-              <X size={13} />
-            </button>
-          )}
-        </label>
-        {isCollectionSearchActive && (
-          <div className="search-status" role="status">
-            {visibleCollections.length === 0 ? "No matches" : `${visibleCollections.length} collection${visibleCollections.length === 1 ? "" : "s"} found`}
-          </div>
-        )}
-
-        <section className="nav-section">
-          <h2>
-            <FolderTree size={15} />
-            Collections
-          </h2>
-          {visibleCollections.map(collection => (
-            <div className="collection-group" key={collection.id} style={{ marginBottom: '20px' }}>
-              <div className="folder-title sidebar-tree-row collection-title">
-                {renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id ? (
-                  <input
-                    value={sidebarNameDraft}
-                    aria-label={`Rename collection ${collection.name}`}
-                    autoFocus
-                    onChange={(event) => setSidebarNameDraft(event.target.value)}
-                    onBlur={() => void applySidebarRename()}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        event.currentTarget.blur();
-                      } else if (event.key === "Escape") {
-                        event.preventDefault();
-                        cancelSidebarRename();
-                      }
-                    }}
-                    style={{ flex: 1, minWidth: 0, border: '1px solid var(--color-border-tint)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '4px 8px', fontWeight: 700 }}
-                  />
-                ) : (
-                  <strong onDoubleClick={() => startSidebarRename("collection", collection.id, collection.name)}>{collection.name}</strong>
-                )}
-                <div className="sidebar-row-actions">
-                  <button
-                    type="button"
-                    className="sidebar-icon-button"
-                    aria-label={`Rename collection ${collection.name}`}
-                    onClick={() => startSidebarRename("collection", collection.id, collection.name)}
-                  >
-                    <Edit2 size={12} />
-                  </button>
-		                  <button 
-		                    type="button" 
-		                    className="sidebar-icon-button"
-		                    aria-label={`New folder in ${collection.name}`} 
-		                    onClick={() => void handleCreateFolder(collection.id)} 
-		                  >
-		                    <Plus size={12} />
-		                  </button>
-		                  <button
-		                    type="button"
-		                    className="sidebar-icon-button danger"
-		                    aria-label={`Delete collection ${collection.name}`}
-		                    onClick={() => void handleDeleteCollection(collection.id)}
-		                  >
-		                    <Trash2 size={12} />
-		                  </button>
-	                </div>
-	              </div>
-              
-	              {(() => {
-	                const collectionNameMatches = matchesCollectionSearch(collection.name);
-	                const renderFolders = (parentId: string | undefined, depth = 0, forceShowAll = false) => {
-	                  const folders = (workspace?.folders ?? [])
-	                    .filter(f => (parentId === undefined ? f.collectionId === collection.id && !f.parentId : f.parentId === parentId))
-	                    .filter(f => forceShowAll || folderMatchesCollectionSearch(f.id));
-
-                  if (folders.length === 0) return null;
-
-                  return (
-                    <div style={{ paddingLeft: `${depth * 12}px` }}>
-	                      {folders.map(folder => {
-	                        const folderNameMatches = matchesCollectionSearch(folder.name);
-	                        const showFolderContents = forceShowAll || folderNameMatches;
-	                        const isFolderCollapsed = !isCollectionSearchActive && collapsedFolders[folder.id];
-	                        const folderRequests = (workspace?.requests ?? [])
-	                          .filter(r => r.folderId === folder.id)
-	                          .filter(r => showFolderContents || requestMatchesCollectionSearch(r));
-                        return (
-                          <div className="folder-group" key={folder.id}>
-	                            <div className="folder-title sidebar-tree-row"
-                                  onContextMenu={e => {
-                                    e.preventDefault();
-                                    setContextMenu({ x: e.clientX, y: e.clientY, target: { id: folder.id, type: 'folder' } });
-                                  }}
-	                            >
-		                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-			                                <button
-			                                  type="button"
-				                                  aria-expanded={!isFolderCollapsed}
-			                                  onClick={() => toggleFolder(folder.id)}
-			                                  className="folder-toggle-button"
-			                                >
-			                                  <ChevronDown
-			                                    size={14}
-			                                    className={isFolderCollapsed ? "folder-chevron collapsed" : "folder-chevron"}
-			                                  />
-			                                </button>
-		                                {renamingSidebarItem?.type === "folder" && renamingSidebarItem.id === folder.id ? (
-		                                  <input
-		                                    value={sidebarNameDraft}
-		                                    aria-label={`Rename folder ${folder.name}`}
-		                                    autoFocus
-		                                    onChange={(event) => setSidebarNameDraft(event.target.value)}
-		                                    onBlur={() => void applySidebarRename()}
-		                                    onKeyDown={(event) => {
-		                                      if (event.key === "Enter") {
-		                                        event.preventDefault();
-		                                        event.currentTarget.blur();
-		                                      } else if (event.key === "Escape") {
-		                                        event.preventDefault();
-		                                        cancelSidebarRename();
-		                                      }
-		                                    }}
-		                                    style={{ minWidth: 0, width: '120px', border: '1px solid var(--color-border-tint)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '4px 8px', fontWeight: 700 }}
-		                                  />
-		                                ) : (
-		                                  <button
-		                                    type="button"
-		                                    onClick={() => toggleFolder(folder.id)}
-		                                    onDoubleClick={(event) => {
-		                                      event.stopPropagation();
-		                                      startSidebarRename("folder", folder.id, folder.name);
-		                                    }}
-		                                    style={{ all: 'unset', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-		                                  >
-		                                    {folder.name}
-		                                    {scriptStatus[folder.id] && (
-		                                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
-		                                    )}
-		                                  </button>
-		                                )}
-		                              </div>
-		                              <div className="sidebar-row-actions">
-		                              <button
-		                                type="button"
-		                                className="sidebar-icon-button"
-		                                aria-label={`Rename folder ${folder.name}`}
-		                                onClick={() => startSidebarRename("folder", folder.id, folder.name)}
-		                              >
-		                                <Edit2 size={12} />
-		                              </button>
-		                              <button
-		                                type="button"
-		                                className="sidebar-icon-button danger"
-		                                aria-label={`Delete folder ${folder.name}`}
-		                                onClick={() => void handleDeleteFolder(folder.id)}
-		                              >
-		                                <Trash2 size={12} />
-		                              </button>
-		                              </div>
-		                            </div>
-	                            <div
-		                              className={isFolderCollapsed ? "folder-children collapsed" : "folder-children"}
-		                              aria-hidden={isFolderCollapsed}
-		                            >
-		                              <div className="folder-children-inner">
-		                                {renderFolders(folder.id, depth + 1, showFolderContents)}
-	                                {folderRequests.map(request => (
-	                                  <div key={request.id} className={request.id === selectedRequestId ? "request-row sidebar-tree-row active" : "request-row sidebar-tree-row"} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                                      onContextMenu={e => {
-                                        e.preventDefault();
-                                        setContextMenu({ x: e.clientX, y: e.clientY, target: { id: request.id, type: 'request' } });
-                                      }}
-                                >
-                                    {renamingRequestId === request.id ? (
-                                      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
-                                        <input
-                                          value={renameDraft}
-                                          aria-label={`Rename ${request.name}`}
-                                          placeholder="Request Name"
-                                          autoFocus
-                                          onChange={(event) => setRenameDraft(event.target.value)}
-                                          onBlur={() => applyRequestRename(request.id)}
-                                          onKeyDown={(event) => {
-                                            if (event.key === "Enter") {
-                                              event.preventDefault();
-                                              applyRequestRename(request.id);
-                                            } else if (event.key === "Escape") {
-                                              event.preventDefault();
-                                              stopRequestRename();
-                            }
-                                          }}
-                                          style={{ flex: 1, minWidth: 0, width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border-tint)', borderRadius: '6px', background: 'var(--color-surface)', color: 'var(--color-text)', padding: '4px 8px' }}
-                                        />
-                                        {scriptStatus[request.id] && (
-                                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <button
-                                        style={{ all: 'unset', flex: 1, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                                        onClick={() => setSelectedRequestId(request.id)}
-                                        type="button"
-                                      >
-                                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
-                                        <span onDoubleClick={() => startRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
-                                        {scriptStatus[request.id] && (
-                                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', marginLeft: '4px' }} title="Has scripts" />
-                                        )}
-                                      </button>
-                                    )}
-	                                    <div className="sidebar-row-actions">
-	                                      <button type="button" className="sidebar-icon-button" aria-label={`Rename ${request.name}`} onClick={() => startRequestRename(request)}>
-	                                        <Edit2 size={12} />
-	                                      </button>
-	                                      <button type="button" className="sidebar-icon-button danger" aria-label="Delete request" onClick={() => handleDeleteRequest(request.id)}>
-	                                        <Trash2 size={12} />
-	                                      </button>
-	                                    </div>
-                                  </div>
-	                                ))}
-	                              </div>
-	                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                };
-
-	                return renderFolders(undefined, 0, collectionNameMatches);
-	              })()}
-            </div>
-          ))}
-        </section>
-        </div>
-      </aside>
+      <Sidebar
+        workspace={workspace}
+        selectedRequestId={selectedRequestId}
+        activeEnvironment={workspace?.activeEnvironment || ""}
+        sidebarWidth={sidebarWidth}
+        isResizing={isSidebarResizing}
+        collectionSearch={collectionSearch}
+        collapsedFolders={collapsedFolders}
+        scriptStatus={scriptStatus}
+        draftRequest={draftRequest}
+        renamingSidebarItem={renamingSidebarItem}
+        sidebarNameDraft={sidebarNameDraft}
+        renamingRequestId={renamingRequestId}
+        renameDraft={renameDraft}
+        deleteError={deleteError}
+        headline={PRODUCT_AUTHENTICATION_MODEL.headline}
+        onCreateFolder={handleCreateFolder}
+        onDeleteFolder={handleDeleteFolder}
+        onCreateCollection={handleCreateCollection}
+        onDeleteCollection={handleDeleteCollection}
+        onSelectRequest={setSelectedRequestId}
+        onDeleteRequest={handleDeleteRequest}
+        onCreateRequest={handleCreateRequest}
+        onStartSidebarRename={startSidebarRename}
+        onCancelSidebarRename={cancelSidebarRename}
+        onApplySidebarRename={applySidebarRename}
+        onSidebarNameDraftChange={setSidebarNameDraft}
+        onStartRequestRename={startRequestRename}
+        onStopRequestRename={stopRequestRename}
+        onApplyRequestRename={applyRequestRename}
+        onRenameDraftChange={setRenameDraft}
+        onSetActiveEnvironment={handleSetActiveEnvironment}
+        onOpenEnvironment={() => { setEnvEditorTarget(workspace?.activeEnvironment ?? ""); setEnvEditorOpen(true); }}
+        onCollectionSearchChange={setCollectionSearch}
+        onToggleFolder={toggleFolder}
+        onContextMenu={(target, x, y) => setContextMenu({ x, y, target })}
+        onDismissDeleteError={() => setDeleteError(null)}
+      />
 
       <div
         className={isSidebarResizing ? "sidebar-resizer active" : "sidebar-resizer"}

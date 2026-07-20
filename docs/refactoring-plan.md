@@ -35,9 +35,18 @@
 
 ## Refactoring Phases
 
-### Phase 2: Sidebar Extraction
+### Phase 2: Sidebar Extraction ✅ COMPLETE (re-integrated)
 
 **Goal**: Extract sidebar UI into `components/Sidebar.tsx`
+
+**Status**: Done (properly). The original Phase 2 commit (f9c5fca) only added an
+import of `<Sidebar>` but never rendered it — the sidebar stayed inline in
+App.tsx. Re-integrated: rewrote `Sidebar.tsx` to faithfully reproduce the inline
+block including rename-in-place inputs (collection/folder/request), the
+`deleteError` banner, right-click context-menu triggers, and live draft request
+names. App retains the rename state + handlers and the floating context-menu
+render (which is triggered from the sidebar). App.tsx reduced to ~2,704 lines.
+
 
 #### Current Sidebar Code (Lines ~2063-2360)
 - Environment switcher
