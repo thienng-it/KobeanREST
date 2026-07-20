@@ -115,7 +115,7 @@ export function Sidebar({
     );
   }
 
-  function folderMatchesCollectionSearch(folderId: string): boolean {
+  function folderMatchesCollectionSearch(folderId: string): boolean | undefined {
     const folder = workspace?.folders.find((item) => item.id === folderId);
     if (!folder) return false;
     if (matchesCollectionSearch(folder.name)) return true;
