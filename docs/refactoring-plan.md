@@ -104,9 +104,14 @@ interface SidebarProps {
 
 ---
 
-### Phase 3: Request Panel Extraction
+### Phase 3: Request Panel Extraction ✅ COMPLETE
 
 **Goal**: Extract request composer into `components/RequestPanel.tsx`
+
+**Status**: Done. App.tsx reduced from 4,009 → 3,215 lines. `<RequestPanel />`
+mounted in `workspace-main`, owning the body/headers/auth/scripts/settings tabs,
+header preset menu (+refs/effects), and local editing helpers. App retains
+cross-cutting state (drafts, scripts, script-insertion handlers) passed as props.
 
 #### Current Request Panel Code (Lines ~2415-3016)
 - URL, method, headers, body editors
@@ -173,9 +178,16 @@ interface RequestPanelProps {
 
 ---
 
-### Phase 4: Response Panel Extraction
+### Phase 4: Response Panel Extraction ✅ COMPLETE
 
 **Goal**: Extract response viewer into `components/ResponsePanel.tsx`
+
+**Status**: Done. App.tsx reduced from 3,215 → 2,993 lines. `renderResponseBody`,
+`renderResponsePanel`, and `renderBottomDock` collapsed into a single presentational
+`<ResponsePanel variant="dock" | "modal" />`. Shared `ResponseState` type and
+`formatBytes`/`statusColor` helpers moved to `response-utils.ts`. App retains layout
+(bottom dock strip, resize effect, window modal shell) and passes response state +
+handlers as props.
 
 #### Current Response Panel Code (Lines ~1042-1189)
 - Response display with syntax highlighting
