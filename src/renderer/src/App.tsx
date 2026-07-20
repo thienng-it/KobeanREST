@@ -23,6 +23,7 @@ import { MethodSelector, methodClass } from "./components/MethodSelector";
 import { ScriptEditor } from "./components/ScriptEditor";
 import { ResponsePanel, type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { RequestCodeModal } from "./components/RequestCodeModal";
 import { formatBytes, statusColor, type ResponseState } from "./response-utils";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
@@ -2365,53 +2366,14 @@ export function App() {
         </div>
       )}
 
-      {requestCodeOpen && (
-        <div
-          className="modal-overlay script-code-modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Request code"
-          onClick={() => setRequestCodeOpen(false)}
-        >
-          <div className="modal script-code-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="script-code-modal-header">
-              <div>
-                <span className="script-code-modal-kicker">Generated client</span>
-                <h2>Request code</h2>
-              </div>
-              <button
-                type="button"
-                className="script-code-modal-close"
-                aria-label="Close request code"
-                onClick={() => setRequestCodeOpen(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="script-code-modal-toolbar">
-              <select
-                className="script-tool-select"
-                value={requestCodeTarget}
-                onChange={(event) => setRequestCodeTarget(event.target.value as RequestCodeSnippetTarget)}
-                aria-label="Request code snippet target"
-              >
-                <option value="curl">cURL</option>
-                <option value="fetch">Fetch</option>
-                <option value="node">Node</option>
-              </select>
-              <button
-                className="ghost-button script-tool-action"
-                type="button"
-                onClick={insertRequestCodeSnippet}
-                aria-label="Insert request code snippet"
-              >
-                Insert into script
-              </button>
-            </div>
-            <pre className="script-code-modal-preview">{requestCodeSnippet}</pre>
-          </div>
-        </div>
-      )}
+      <RequestCodeModal
+        open={requestCodeOpen}
+        codeSnippet={requestCodeSnippet}
+        codeTarget={requestCodeTarget}
+        onClose={() => setRequestCodeOpen(false)}
+        onTargetChange={setRequestCodeTarget}
+        onInsert={insertRequestCodeSnippet}
+      />
 
       {folderScriptsOpen && (
         <div
