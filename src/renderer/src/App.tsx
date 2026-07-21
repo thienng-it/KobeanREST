@@ -10,23 +10,15 @@ import {
   Plus,
   Trash2,
   Edit2,
-  X, Eye
+  Eye
 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { createPortal } from "react-dom";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
 import { MethodSelector } from "./components/MethodSelector";
 import { ResponsePanel, type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
-import { ConfirmDialog } from "./components/ConfirmDialog";
-import { RequestCodeModal } from "./components/RequestCodeModal";
-import { FolderScriptsModal } from "./components/FolderScriptsModal";
-import { UpdateDialogModal } from "./components/UpdateDialogModal";
-import { AuthEditorModal } from "./components/AuthEditorModal";
-import { SettingsModal } from "./components/SettingsModal";
-import { HistoryModal } from "./components/HistoryModal";
-import { EnvironmentEditorModal } from "./components/EnvironmentEditorModal";
+import { ModalManager } from "./components/ModalManager";
 import { statusColor, type ResponseState } from "./response-utils";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
@@ -1697,144 +1689,110 @@ export function App() {
         </div>
       </section>
 
-      {responseWindowOpen && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Response window"
-          onClick={() => setResponseWindowOpen(false)}
-        >
-          <div
-            className="modal response-window-modal"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="response-window-titlebar">
-              <div>
-                <span className="response-window-kicker">Response window</span>
-                <h2 className="response-window-title" style={{ color: responseTitleColor }}>
-                  {responseTitle}
-                </h2>
-              </div>
-              <button
-                className="response-window-close"
-                type="button"
-                onClick={() => setResponseWindowOpen(false)}
-              >
-                <X size={15} /> Close
-              </button>
-            </div>
-            <ResponsePanel
-              variant="modal"
-              responseState={responseState}
-              currentResponse={currentResponse}
-              responseTitle={responseTitle}
-              responseTitleColor={responseTitleColor}
-              isResponseTabPending={isResponseTabPending}
-              responseTab={responseTab}
-              previewMode={previewMode}
-              activeBottomDock={activeBottomDock}
-              onTabChange={handleResponseTabChange}
-              onPreviewModeChange={setPreviewMode}
-              onDownload={downloadCurrentResponse}
-              onCopy={() => void copyCurrentResponse()}
-              onOpenWindow={() => setResponseWindowOpen(true)}
-              onResizerMouseDown={handleResponsePanelResizerMouseDown}
-            />
-          </div>
-        </div>
-      )}
-
-      <ConfirmDialog dialog={confirmDialog} onCancel={() => setConfirmDialog(null)} />
-
-      <HistoryModal
-        open={historyOpen}
-        historyEntries={historyEntries}
-        historySearch={historySearch}
-        historyLoading={historyLoading}
-        workspace={workspace}
-        onClose={() => setHistoryOpen(false)}
-        onSearchChange={setHistorySearch}
-        onClear={handleClearHistory}
-        onReplay={handleReplayFromHistory}
-        formatTimestamp={formatTimestamp}
-      />
-
-      <SettingsModal
-        open={settingsOpen}
-        appSettings={appSettings}
-        databasePath={databasePath}
-        updateStatus={updateStatus}
-        onClose={() => setSettingsOpen(false)}
-        onSettingsChange={updateAppSettings}
-        onCheckForUpdates={() => void handleCheckForUpdates("manual")}
-        onSave={handleSaveSettings}
-      />
-
-      <AuthEditorModal
-        open={authEditorOpen}
-        target={authEditorTarget}
-        draft={authDraft}
-        activeVars={activeVars}
-        onClose={() => setAuthEditorOpen(false)}
-        onDraftChange={setAuthDraft}
-        onSave={handleSaveEntityAuth}
-      />
-
-      <UpdateDialogModal
-        open={updateDialogOpen}
-        availableUpdate={availableUpdate}
-        updateBusy={updateBusy}
-        progressLabel={updateProgressLabel}
-        publishedDateLabel={availableUpdate?.date ? formatTimestamp(availableUpdate.date) : null}
-        onClose={() => setUpdateDialogOpen(false)}
-        onInstall={handleInstallUpdate}
-      />
-
-      <EnvironmentEditorModal
-        open={envEditorOpen}
-        workspace={workspace}
-        envEditorTarget={envEditorTarget}
-        renamingEnvironment={renamingEnvironment}
-        environmentNameDraft={environmentNameDraft}
-        newVarKey={newVarKey}
-        newVarValue={newVarValue}
-        newVarSecret={newVarSecret}
-        onClose={() => setEnvEditorOpen(false)}
-        onEnvEditorTargetChange={setEnvEditorTarget}
-        onRenameEnvironment={handleRenameEnvironment}
-        onApplyEnvironmentRename={applyEnvironmentRename}
-        onCancelEnvironmentRename={cancelEnvironmentRename}
-        onEnvironmentNameDraftChange={setEnvironmentNameDraft}
-        onCreateEnvironment={handleCreateEnvironment}
-        onDeleteEnvironment={handleDeleteEnvironment}
-        onSetActiveEnvironment={handleSetActiveEnvironment}
-        onDeleteVariable={handleDeleteVariable}
-        onNewVarKeyChange={setNewVarKey}
-        onNewVarValueChange={setNewVarValue}
-        onNewVarSecretChange={setNewVarSecret}
-        onSaveVariable={handleSaveVariable}
-        onAddSecretVariable={handleAddSecretVariable}
-      />
-
-      <RequestCodeModal
-        open={requestCodeOpen}
-        codeSnippet={requestCodeSnippet}
-        codeTarget={requestCodeTarget}
-        onClose={() => setRequestCodeOpen(false)}
-        onTargetChange={setRequestCodeTarget}
-        onInsert={insertRequestCodeSnippet}
-      />
-
-      <FolderScriptsModal
-        open={folderScriptsOpen}
-        preScript={folderPreScript}
-        postScript={folderPostScript}
-        activeVars={activeVars}
-        onClose={() => setFolderScriptsOpen(false)}
-        onPreScriptChange={setFolderPreScript}
-        onPostScriptChange={setFolderPostScript}
-        onSave={handleSaveFolderScripts}
+      <ModalManager
+        confirmDialog={confirmDialog}
+        onCancelConfirmDialog={() => setConfirmDialog(null)}
+        history={{
+          open: historyOpen,
+          historyEntries,
+          historySearch,
+          historyLoading,
+          workspace,
+          onClose: () => setHistoryOpen(false),
+          onSearchChange: setHistorySearch,
+          onClear: handleClearHistory,
+          onReplay: handleReplayFromHistory,
+          formatTimestamp,
+        }}
+        settings={{
+          open: settingsOpen,
+          appSettings,
+          databasePath,
+          updateStatus,
+          onClose: () => setSettingsOpen(false),
+          onSettingsChange: updateAppSettings,
+          onCheckForUpdates: () => void handleCheckForUpdates("manual"),
+          onSave: handleSaveSettings,
+        }}
+        auth={{
+          open: authEditorOpen,
+          target: authEditorTarget,
+          draft: authDraft,
+          activeVars,
+          onClose: () => setAuthEditorOpen(false),
+          onDraftChange: setAuthDraft,
+          onSave: handleSaveEntityAuth,
+        }}
+        update={{
+          open: updateDialogOpen,
+          availableUpdate,
+          updateBusy,
+          progressLabel: updateProgressLabel,
+          publishedDateLabel: availableUpdate?.date ? formatTimestamp(availableUpdate.date) : null,
+          onClose: () => setUpdateDialogOpen(false),
+          onInstall: handleInstallUpdate,
+        }}
+        env={{
+          open: envEditorOpen,
+          workspace,
+          envEditorTarget,
+          renamingEnvironment,
+          environmentNameDraft,
+          newVarKey,
+          newVarValue,
+          newVarSecret,
+          onClose: () => setEnvEditorOpen(false),
+          onEnvEditorTargetChange: setEnvEditorTarget,
+          onRenameEnvironment: handleRenameEnvironment,
+          onApplyEnvironmentRename: applyEnvironmentRename,
+          onCancelEnvironmentRename: cancelEnvironmentRename,
+          onEnvironmentNameDraftChange: setEnvironmentNameDraft,
+          onCreateEnvironment: handleCreateEnvironment,
+          onDeleteEnvironment: handleDeleteEnvironment,
+          onSetActiveEnvironment: handleSetActiveEnvironment,
+          onDeleteVariable: handleDeleteVariable,
+          onNewVarKeyChange: setNewVarKey,
+          onNewVarValueChange: setNewVarValue,
+          onNewVarSecretChange: setNewVarSecret,
+          onSaveVariable: handleSaveVariable,
+          onAddSecretVariable: handleAddSecretVariable,
+        }}
+        requestCode={{
+          open: requestCodeOpen,
+          codeSnippet: requestCodeSnippet,
+          codeTarget: requestCodeTarget,
+          onClose: () => setRequestCodeOpen(false),
+          onTargetChange: setRequestCodeTarget,
+          onInsert: insertRequestCodeSnippet,
+        }}
+        folderScripts={{
+          open: folderScriptsOpen,
+          preScript: folderPreScript,
+          postScript: folderPostScript,
+          activeVars,
+          onClose: () => setFolderScriptsOpen(false),
+          onPreScriptChange: setFolderPreScript,
+          onPostScriptChange: setFolderPostScript,
+          onSave: handleSaveFolderScripts,
+        }}
+        responseWindow={{
+          open: responseWindowOpen,
+          responseState,
+          currentResponse,
+          responseTitle,
+          responseTitleColor,
+          isResponseTabPending,
+          responseTab,
+          previewMode,
+          activeBottomDock,
+          onTabChange: handleResponseTabChange,
+          onPreviewModeChange: setPreviewMode,
+          onDownload: downloadCurrentResponse,
+          onCopy: () => void copyCurrentResponse(),
+          onOpenWindow: () => setResponseWindowOpen(true),
+          onResizerMouseDown: handleResponsePanelResizerMouseDown,
+          onClose: () => setResponseWindowOpen(false),
+        }}
       />
 
       {contextMenu && (
