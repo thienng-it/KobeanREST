@@ -1,14 +1,10 @@
-import {
-  Plus
-} from "lucide-react";
-import { useEffect, useRef, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
-import { MethodSelector } from "./components/MethodSelector";
 import { type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
-import { ContextMenu, type ContextMenuState } from "./components/ContextMenu";
+import { ContextMenu } from "./components/ContextMenu";
 import { Topbar } from "./components/Topbar";
 import { BottomDock } from "./components/BottomDock";
 import { statusColor, type ResponseState } from "./response-utils";
@@ -16,127 +12,49 @@ import {
   formatTimestamp,
   openProductDocs,
   createScriptVariablesObject,
-  formatScriptLogValue,
   getEffectiveAuth,
   diagnosticMessage,
 } from "./app-utils";
+import { useWorkspace } from "./hooks/useWorkspace";
+import { useAppSettings } from "./hooks/useAppSettings";
+import { useHistory } from "./hooks/useHistory";
+import { useScripts } from "./hooks/useScripts";
+import { useAuth } from "./hooks/useAuth";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
-import { checkForAppUpdate, downloadAndInstallUpdate, type AvailableUpdate } from "./services/updater";
 
-const authModes = ["None", "Basic Auth", "Bearer Token", "API Key", "OAuth 2.0", "NTLM", "Kerberos"] as const;
-const AUTH_MODE_LABELS: Record<string, string> = {
-  none: "None", basic: "Basic Auth", bearer: "Bearer Token",
-  apiKey: "API Key", oauth2: "OAuth 2.0", ntlm: "NTLM", kerberos: "Kerberos"
-};
 import {
-  SCRIPT_EDITOR_MODES,
   SCRIPT_SNIPPETS,
   generateRequestCodeSnippet,
-  prettifyScriptContent,
-  type RequestCodeSnippetTarget,
-  type ScriptEditorMode,
 } from "./services/script-tools";
 import {
-  initializeLocalStore,
-  loadLocalWorkspace,
   recordRequestHistory,
-  saveRequest,
-  deleteRequest,
-  createFolder,
-  updateFolder,
-  updateCollection,
-  deleteCollection,
-  deleteFolder,
-  createRequest,
-  createEnvironment,
-  renameEnvironment,
-  deleteEnvironment,
-  setActiveEnvironment,
-  saveVariable,
-  deleteVariable,
-  saveSecretVariable,
-  loadHistory,
-  clearHistory,
-  defaultAppSettings,
-  loadAppSettings,
-  saveAppSettings,
-  checkForUpdates,
   getScripts,
-  saveScript,
-  saveFolderAuth,
-  saveCollectionAuth, createCollection, createWorkspace,
 } from "./services/local-store";
-import { storeSecret } from "./services/secrets";
-import type { ApiAuthMode, AuthConfig, AppSettings, EnvironmentVariable, ExecuteHttpResponse, HistoryEntry, SavedRequest, UpdateStatus, WorkspaceSummary } from "./types";
+import type { SavedRequest } from "./types";
 
-type RequestHeader = SavedRequest["headers"][number];
 type ScriptOutputEntry = { tone: "info" | "error"; message: string };
 
 const SIDEBAR_MIN_WIDTH = 220;
 const SIDEBAR_DEFAULT_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 460;
 
-interface AddVariableRowProps {
-  envName: string;
-  newVarKey: string;
-  newVarValue: string;
-  newVarSecret: boolean;
-  setNewVarKey: (v: string) => void;
-  setNewVarValue: (v: string) => void;
-  setNewVarSecret: (v: boolean) => void;
-  onSave: (key: string, value: string, secret: boolean) => Promise<void>;
-}
-
-function AddVariableRow({
-  newVarKey,
-  newVarValue,
-  newVarSecret,
-  setNewVarKey,
-  setNewVarValue,
-  setNewVarSecret,
-  onSave,
-}: AddVariableRowProps) {
-  return (
-    <div className="env-add-variable" aria-label="Add variable">
-      <div className="env-add-variable-fields">
-        <input
-          value={newVarKey}
-          onChange={e => setNewVarKey(e.target.value)}
-          placeholder="New key"
-          aria-label="Variable key"
-        />
-        <input
-          value={newVarValue}
-          onChange={e => setNewVarValue(e.target.value)}
-          placeholder={newVarSecret ? 'Secret value' : 'Value'}
-          aria-label="Variable value"
-          type={newVarSecret ? 'password' : 'text'}
-        />
-      </div>
-      <div className="env-add-variable-actions">
-        <label className="env-secret-toggle">
-          <input type="checkbox" checked={newVarSecret} onChange={e => setNewVarSecret(e.target.checked)} />
-          Secret
-        </label>
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={() => void onSave(newVarKey, newVarValue, newVarSecret)}
-        >
-          <Plus size={12} /> Add
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function App() {
+  const {
+    settingsOpen, setSettingsOpen,
+    appSettings, setAppSettings, updateAppSettings, handleSaveSettings,
+    updateStatus, setUpdateStatus,
+    availableUpdate,
+    updateDialogOpen, setUpdateDialogOpen,
+    updateBusy,
+    updateProgressLabel,
+    updateToast,
+    handleCheckForUpdates, handleInstallUpdate
+  } = useAppSettings();
+
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [isSidebarResizing, setIsSidebarResizing] = useState(false);
-  const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts" | "settings">("body");
   const [responseState, setResponseState] = useState<ResponseState>({
     kind: "idle",
@@ -150,129 +68,107 @@ export function App() {
   const [isResponsePanelResizing, setIsResponsePanelResizing] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
-  const [draftRequest, setDraftRequest] = useState<SavedRequest | null>(null);
-  const [renamingRequestId, setRenamingRequestId] = useState("");
-  const [renameDraft, setRenameDraft] = useState("");
-  const [renamingSidebarItem, setRenamingSidebarItem] = useState<{ id: string; type: "folder" | "collection" } | null>(null);
-  const [sidebarNameDraft, setSidebarNameDraft] = useState("");
-  const [preScript, setPreScript] = useState("");
-  const [postScript, setPostScript] = useState("");
-  const [activeRequestScript, setActiveRequestScript] = useState<"pre" | "post">("pre");
-  const [scriptEditorMode, setScriptEditorMode] = useState<ScriptEditorMode>("javascript");
-  const [activeSnippetId, setActiveSnippetId] = useState("set-header");
-  const [requestCodeTarget, setRequestCodeTarget] = useState<RequestCodeSnippetTarget>("curl");
-  const [scriptOutputLog, setScriptOutputLog] = useState<ScriptOutputEntry[]>([]);
-  const [requestCodeOpen, setRequestCodeOpen] = useState(false);
-  const [scriptOutputExpanded, setScriptOutputExpanded] = useState(false);
   const [headersPresetMenuOpen, setHeadersPresetMenuOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [envEditorOpen, setEnvEditorOpen] = useState(false);
-  const [envEditorTarget, setEnvEditorTarget] = useState<string>("");
-  const [renamingEnvironment, setRenamingEnvironment] = useState("");
-  const [environmentNameDraft, setEnvironmentNameDraft] = useState("");
   const [newVarKey, setNewVarKey] = useState("");
   const [newVarValue, setNewVarValue] = useState("");
   const [newVarSecret, setNewVarSecret] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
-  const [historySearch, setHistorySearch] = useState("");
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [appSettings, setAppSettings] = useState<AppSettings>(() => defaultAppSettings);
-  const [databasePath, setDatabasePath] = useState("browser-preview");
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({
-    enabled: false,
-    lastCheckedLabel: "Automatic checks are off.",
-    channel: "stable",
+  const [envEditorOpen, setEnvEditorOpen] = useState(false);
+
+  const ws = useWorkspace({
+    setConfirmDialog,
+    onWorkspaceLoaded: (loadedSettings) => {
+      setAppSettings((prev) => ({ ...prev, updateChecksEnabled: loadedSettings.updateChecksEnabled }));
+      setUpdateStatus({
+        enabled: loadedSettings.updateChecksEnabled,
+        lastCheckedLabel: loadedSettings.updateChecksEnabled
+          ? "Automatic checks run after launch."
+          : "Automatic checks are off.",
+        channel: "stable",
+      });
+      if (loadedSettings.updateChecksEnabled) {
+        void handleCheckForUpdates("automatic", { ...appSettings, updateChecksEnabled: loadedSettings.updateChecksEnabled });
+      }
+    },
   });
-  const [availableUpdate, setAvailableUpdate] = useState<AvailableUpdate | null>(null);
-  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
-  const [updateBusy, setUpdateBusy] = useState(false);
-  const [updateProgressLabel, setUpdateProgressLabel] = useState("Signed release metadata is required before install.");
-  const [updateToast, setUpdateToast] = useState<{ message: string; tone: "info" | "error" } | null>(null);
+  const {
+    workspace, setWorkspace,
+    selectedRequestId, setSelectedRequestId,
+    draftRequest, setDraftRequest,
+    databasePath,
+    scriptStatus,
+    collapsedFolders,
+    collectionSearch, setCollectionSearch,
+    deleteError, setDeleteError,
+    renamingSidebarItem,
+    sidebarNameDraft, setSidebarNameDraft,
+    renamingRequestId,
+    renameDraft, setRenameDraft,
+    contextMenu, setContextMenu,
+    envEditorTarget, setEnvEditorTarget,
+    renamingEnvironment, setRenamingEnvironment,
+    environmentNameDraft, setEnvironmentNameDraft,
+    startRequestRename,
+    stopRequestRename,
+    applyRequestRename,
+    startSidebarRename,
+    cancelSidebarRename,
+    applySidebarRename,
+    handleSaveRequest,
+    handleDeleteRequest,
+    handleCreateFolder,
+    handleCreateCollection,
+    handleCreateSubFolder,
+    handleDeleteFolder,
+    handleDeleteCollection,
+    toggleFolder,
+    handleCreateRequest,
+    handleSetActiveEnvironment,
+    handleCreateEnvironment,
+    handleDeleteEnvironment,
+    handleSaveVariable,
+    handleDeleteVariable,
+    handleAddSecretVariable,
+    handleRenameEnvironment,
+    applyEnvironmentRename,
+    cancelEnvironmentRename,
+  } = ws;
 
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const {
+    historyOpen, setHistoryOpen,
+    historyEntries, setHistoryEntries,
+    historySearch, setHistorySearch,
+    historyLoading, setHistoryLoading,
+    handleOpenHistory,
+    handleClearHistory,
+    handleReplayFromHistory,
+  } = useHistory(workspace, setSelectedRequestId);
 
-  const [scriptStatus, setScriptStatus] = useState<Record<string, boolean>>({});
-  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
-  const [collectionSearch, setCollectionSearch] = useState("");
-  const [folderScriptsOpen, setFolderScriptsOpen] = useState(false);
-  const [folderScriptsTarget, setFolderScriptsTarget] = useState<string>("");
-  const [folderPreScript, setFolderPreScript] = useState("");
-  const [folderPostScript, setFolderPostScript] = useState("");
-  const scriptEditorActionsRef = useRef<{ insertText: (text: string) => void } | null>(null);
+  const {
+    authEditorOpen, setAuthEditorOpen,
+    authEditorTarget, setAuthEditorTarget,
+    authDraft, setAuthDraft,
+    handleSaveEntityAuth
+  } = useAuth(workspace, setWorkspace);
 
-  const [authEditorOpen, setAuthEditorOpen] = useState(false);
-  const [authEditorTarget, setAuthEditorTarget] = useState<{ id: string; type: 'collection' | 'folder' } | null>(null);
-  const [authDraft, setAuthDraft] = useState<{ mode: ApiAuthMode; config: AuthConfig }>({ mode: 'none', config: {} });
-
-  useEffect(() => {
-    if (!updateToast) return;
-    const timer = window.setTimeout(() => setUpdateToast(null), 5000);
-    return () => window.clearTimeout(timer);
-  }, [updateToast]);
-
-  async function handleLoadScriptStatuses() {
-    try {
-      const statuses: Record<string, boolean> = {};
-      
-      if (!workspace) return;
-
-      for (const folder of workspace.folders) {
-        const scripts = await getScripts(folder.id, 'folder');
-        statuses[folder.id] = scripts.length > 0;
-      }
-      
-      for (const request of workspace.requests) {
-        const scripts = await getScripts(request.id, 'request');
-        statuses[request.id] = scripts.length > 0;
-      }
-      
-      setScriptStatus(statuses);
-    } catch (err) {
-      console.error("Failed to load script statuses", diagnosticMessage(err));
-    }
-  }
-
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadWorkspace() {
-      try {
-        const persistence = await initializeLocalStore();
-        const localWorkspace = await loadLocalWorkspace();
-        const loadedSettings = await loadAppSettings();
-        if (!isActive) return;
-        setDatabasePath(persistence.databasePath);
-        setWorkspace(localWorkspace);
-        setAppSettings(loadedSettings);
-        setUpdateStatus({
-          enabled: loadedSettings.updateChecksEnabled,
-          lastCheckedLabel: loadedSettings.updateChecksEnabled
-            ? "Automatic checks run after launch."
-            : "Automatic checks are off.",
-          channel: "stable",
-        });
-        setSelectedRequestId((currentRequestId) => {
-          if (localWorkspace.requests.some((request) => request.id === currentRequestId)) {
-            return currentRequestId;
-          }
-          return localWorkspace.requests[0]?.id ?? currentRequestId;
-        });
-        if (loadedSettings.updateChecksEnabled) {
-          void handleCheckForUpdates("automatic", loadedSettings);
-        }
-        void handleLoadScriptStatuses();
-      } catch (error) {
-        console.error("Failed to load local workspace", diagnosticMessage(error));
-      }
-    }
-    void loadWorkspace();
-    return () => {
-      isActive = false;
-    };
-  }, []);
+  const {
+    preScript, setPreScript,
+    postScript, setPostScript,
+    activeRequestScript, setActiveRequestScript,
+    scriptEditorMode, setScriptEditorMode,
+    activeSnippetId, setActiveSnippetId,
+    requestCodeTarget, setRequestCodeTarget,
+    scriptOutputLog, setScriptOutputLog,
+    requestCodeOpen, setRequestCodeOpen,
+    scriptOutputExpanded, setScriptOutputExpanded,
+    folderScriptsOpen, setFolderScriptsOpen,
+    folderScriptsTarget, setFolderScriptsTarget,
+    folderPreScript, setFolderPreScript,
+    folderPostScript, setFolderPostScript,
+    scriptEditorActionsRef,
+    insertScriptToken, setCurrentScriptValue, handlePrettifyScript,
+    handleOpenFolderScripts, handleSaveFolderScripts, handleSaveScripts, runScript
+  } = useScripts(selectedRequestId);
 
   useEffect(() => {
     if (!isSidebarResizing) return;
@@ -342,28 +238,6 @@ export function App() {
   }
 
   useEffect(() => {
-    if (!workspace) return;
-    const req = workspace.requests.find(r => r.id === selectedRequestId);
-    setDraftRequest(req ? JSON.parse(JSON.stringify(req)) : null);
-  }, [selectedRequestId, workspace?.requests]);
-
-  useEffect(() => {
-    async function loadScripts() {
-      if (!selectedRequestId) return;
-      try {
-        const scripts = await getScripts(selectedRequestId, 'request');
-        const pre = scripts.find(s => s.scriptType === 'pre')?.content ?? "";
-        const post = scripts.find(s => s.scriptType === 'post')?.content ?? "";
-        setPreScript(pre);
-        setPostScript(post);
-      } catch (err) {
-        console.error("Failed to load scripts", diagnosticMessage(err));
-      }
-    }
-    void loadScripts();
-  }, [selectedRequestId]);
-
-  useEffect(() => {
     const handleGlobalClick = () => {
       if (!workspace) return;
       setContextMenu(null);
@@ -372,23 +246,7 @@ export function App() {
     return () => {
       window.removeEventListener('click', handleGlobalClick);
     };
-  }, []);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const applyTheme = () => {
-      const resolvedTheme =
-        appSettings.theme === "system"
-          ? (mediaQuery.matches ? "dark" : "light")
-          : appSettings.theme;
-      document.documentElement.dataset.theme = resolvedTheme;
-      document.documentElement.style.colorScheme = resolvedTheme;
-    };
-
-    applyTheme();
-    mediaQuery.addEventListener("change", applyTheme);
-    return () => mediaQuery.removeEventListener("change", applyTheme);
-  }, [appSettings.theme]);
+  }, [workspace]);
 
   const isSending = responseState.kind === "loading";
   const currentResponse = responseState.kind === "error" ? undefined : responseState.response;
@@ -419,43 +277,6 @@ export function App() {
     }
   }
 
-  function insertScriptToken(token: string) {
-    if (scriptEditorActionsRef.current) {
-      scriptEditorActionsRef.current.insertText(token);
-      return;
-    }
-
-    const nextValue = currentScriptValue.trimEnd()
-      ? `${currentScriptValue.trimEnd()}${currentScriptValue.endsWith("\n") ? "" : "\n"}${token}`
-      : token;
-
-    if (activeRequestScript === "pre") {
-      setPreScript(nextValue);
-      return;
-    }
-
-    setPostScript(nextValue);
-  }
-
-  function setCurrentScriptValue(nextValue: string) {
-    if (activeRequestScript === "pre") {
-      setPreScript(nextValue);
-      return;
-    }
-
-    setPostScript(nextValue);
-  }
-
-  function handlePrettifyScript() {
-    try {
-      const nextValue = prettifyScriptContent(currentScriptValue, scriptEditorMode);
-      setCurrentScriptValue(nextValue);
-      setScriptOutputLog([{ tone: "info", message: `Prettified ${scriptEditorMode.toUpperCase()} content.` }]);
-    } catch (error) {
-      setScriptOutputLog([{ tone: "error", message: `Prettify failed: ${diagnosticMessage(error)}` }]);
-    }
-  }
-
   function insertSelectedScriptSnippet() {
     if (!selectedScriptSnippet) return;
     setScriptEditorMode(selectedScriptSnippet.mode);
@@ -465,91 +286,6 @@ export function App() {
   function insertRequestCodeSnippet() {
     if (!requestCodeSnippet) return;
     insertScriptToken(requestCodeSnippet);
-  }
-
-  function startRequestRename(request: SavedRequest) {
-    setRenamingSidebarItem(null);
-    setSelectedRequestId(request.id);
-    setRenameDraft(draftRequest?.id === request.id ? draftRequest.name : request.name);
-    setRenamingRequestId(request.id);
-  }
-
-  function stopRequestRename() {
-    setRenamingRequestId("");
-  }
-
-  function applyRequestRename(requestId: string) {
-    const nextName = renameDraft.trim();
-    if (!nextName) {
-      const request = workspace?.requests.find((item) => item.id === requestId);
-      setRenameDraft(request?.name ?? "");
-      setRenamingRequestId("");
-      return;
-    }
-
-    setDraftRequest((current) => {
-      if (!current || current.id !== requestId) {
-        return current;
-      }
-      return { ...current, name: nextName };
-    });
-    setRenamingRequestId("");
-  }
-
-  function startSidebarRename(type: "folder" | "collection", id: string, name: string) {
-    setRenamingRequestId("");
-    setRenamingSidebarItem({ id, type });
-    setSidebarNameDraft(name);
-  }
-
-  function cancelSidebarRename() {
-    setRenamingSidebarItem(null);
-    setSidebarNameDraft("");
-  }
-
-  async function applySidebarRename() {
-    const target = renamingSidebarItem;
-    if (!target) return;
-
-    const nextName = sidebarNameDraft.trim();
-    if (!nextName) {
-      cancelSidebarRename();
-      return;
-    }
-
-    try {
-      if (target.type === "folder") {
-        await updateFolder(target.id, nextName);
-        setWorkspace((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            folders: prev.folders.map((folder) =>
-              folder.id === target.id ? { ...folder, name: nextName } : folder,
-            ),
-          };
-        });
-      } else {
-        await updateCollection(target.id, nextName);
-        setWorkspace((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            collections: prev.collections?.map((collection) =>
-              collection.id === target.id ? { ...collection, name: nextName } : collection,
-            ) ?? [],
-          };
-        });
-      }
-      cancelSidebarRename();
-    } catch (err) {
-      console.error("Failed to rename sidebar item", diagnosticMessage(err));
-      alert("Failed to rename: " + diagnosticMessage(err));
-    }
-  }
-
-  function updateAppSettings(fields: Partial<AppSettings>) {
-    setAppSettings(prev => ({ ...prev, ...fields }));
   }
 
   function downloadCurrentResponse() {
@@ -575,672 +311,6 @@ export function App() {
   function handleResponseTabChange(tab: ResponseTab) {
     if (tab === responseTab) return;
     startResponseTabTransition(() => setResponseTab(tab));
-  }
-
-
-  async function handleSaveRequest() {
-    if (!draftRequest) return;
-    try {
-      await saveRequest(draftRequest);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          requests: prev.requests.map(r => r.id === draftRequest.id ? draftRequest : r)
-        };
-      });
-    } catch (err) {
-      console.error("Failed to save request", diagnosticMessage(err));
-      alert("Failed to save request: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleDeleteRequest(reqId: string) {
-    setConfirmDialog({
-      message: 'Are you sure you want to delete this request?',
-      onConfirm: () => confirmDeleteRequest(reqId),
-    });
-  }
-
-  async function confirmDeleteRequest(reqId: string) {
-    setDeleteError(null);
-    try {
-      await deleteRequest(reqId);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          requests: prev.requests.filter(r => r.id !== reqId)
-        };
-      });
-      if (selectedRequestId === reqId) {
-        setSelectedRequestId(prev => {
-          if (!workspace) return "";
-          const remaining = workspace.requests.filter(r => r.id !== reqId);
-          return remaining.find(r => r.id !== prev)?.id ?? remaining[0]?.id ?? "";
-        });
-      }
-    } catch (err) {
-      console.error(diagnosticMessage(err));
-      setDeleteError("Failed to delete request: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleCreateFolder(collectionId?: string, parentId?: string) {
-    if (!workspace) return;
-    const name = "New Folder";
-    try {
-      const targetCollectionId = collectionId ?? workspace.collections?.[0]?.id;
-      const newFolder = await createFolder(name, targetCollectionId, parentId);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          folders: [...prev.folders, newFolder]
-        };
-      });
-    } catch (err) {
-      console.error("Failed to create folder", diagnosticMessage(err));
-      alert("Failed to create folder: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleCreateCollection() {
-    const name = "New Collection";
-    try {
-      const collectionId = await createCollection(name);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          collections: [...(prev.collections ?? []), { id: collectionId, name }]
-        };
-      });
-    } catch (err) {
-      console.error("Failed to create collection", diagnosticMessage(err));
-      alert("Failed to create collection: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleCreateWorkspace() {
-    const name = prompt("Enter workspace name:");
-    if (!name) return;
-    try {
-      console.log("Creating workspace:", name);
-      await createWorkspace(name);
-      console.log("Workspace created successfully, reloading workspace...");
-      const updatedWorkspace = await loadLocalWorkspace();
-      setWorkspace(updatedWorkspace);
-    } catch (err) {
-      console.error("Failed to create workspace", diagnosticMessage(err));
-      alert("Failed to create workspace: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleCreateSubFolder(folderId: string) {
-    if (!workspace) return;
-    try {
-      const parentFolder = workspace.folders?.find(f => f.id === folderId);
-      const collectionId = parentFolder?.collectionId;
-      await handleCreateFolder(collectionId, folderId);
-    } catch (err) {
-      console.error("Failed to create subfolder", diagnosticMessage(err));
-      alert("Failed to create subfolder: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleDeleteFolder(folderId: string) {
-    setConfirmDialog({
-      message: 'Are you sure you want to delete this folder and all its requests?',
-      onConfirm: () => confirmDeleteFolder(folderId),
-    });
-  }
-
-  async function handleDeleteCollection(collectionId: string) {
-    setConfirmDialog({
-      message: 'Delete this collection and all folders and requests inside it?',
-      onConfirm: () => confirmDeleteCollection(collectionId),
-    });
-  }
-
-  function toggleFolder(folderId: string) {
-    setCollapsedFolders(prev => ({
-      ...prev,
-      [folderId]: !prev[folderId],
-    }));
-  }
-
-  async function confirmDeleteFolder(folderId: string) {
-    setDeleteError(null);
-    try {
-      await deleteFolder(folderId);
-      setCollapsedFolders(prev => {
-        const next = { ...prev };
-        delete next[folderId];
-        return next;
-      });
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          folders: prev.folders.filter(f => f.id !== folderId),
-          requests: prev.requests.filter(r => r.folderId !== folderId)
-        };
-      });
-    } catch (err) {
-      console.error(diagnosticMessage(err));
-      setDeleteError("Failed to delete folder: " + diagnosticMessage(err));
-    }
-  }
-
-  async function confirmDeleteCollection(collectionId: string) {
-    setDeleteError(null);
-    if (!workspace) return;
-    const folderIds = new Set(
-      workspace.folders
-        .filter((folder) => folder.collectionId === collectionId)
-        .map((folder) => folder.id),
-    );
-
-    try {
-      await deleteCollection(collectionId);
-      setRenamingSidebarItem((current) => (
-        current?.type === "collection" && current.id === collectionId ? null : current
-      ));
-      setCollapsedFolders((prev) => {
-        const next = { ...prev };
-        for (const folderId of folderIds) {
-          delete next[folderId];
-        }
-        return next;
-      });
-      setWorkspace((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          collections: prev.collections?.filter((collection) => collection.id !== collectionId) ?? [],
-          folders: prev.folders.filter((folder) => folder.collectionId !== collectionId),
-          requests: prev.requests.filter((request) => !folderIds.has(request.folderId)),
-        };
-      });
-      if (draftRequest && folderIds.has(draftRequest.folderId)) {
-        setDraftRequest(null);
-      }
-      if (selectedRequestId && workspace.requests.some((request) => request.id === selectedRequestId && folderIds.has(request.folderId))) {
-        setSelectedRequestId("");
-      }
-    } catch (err) {
-      console.error(diagnosticMessage(err));
-      setDeleteError("Failed to delete collection: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleSetActiveEnvironment(name: string) {
-    try {
-      await setActiveEnvironment(name);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return { ...prev, activeEnvironment: name };
-      });
-    } catch (err) {
-      console.error("Failed to set active environment", diagnosticMessage(err));
-    }
-  }
-
-  async function handleCreateEnvironment() {
-    if (!workspace) return;
-    const existingNames = new Set(workspace.environments.map((environment) => environment.name));
-    const baseName = "New Environment";
-    let name = baseName;
-    let suffix = 2;
-    while (existingNames.has(name)) {
-      name = `${baseName} ${suffix}`;
-      suffix += 1;
-    }
-
-    try {
-      await createEnvironment(name);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          environments: [...prev.environments, { name, variables: [] }],
-        };
-      });
-      setEnvEditorTarget(name);
-    } catch (err) {
-      console.error("Failed to create environment", diagnosticMessage(err));
-      alert("Failed to create environment: " + diagnosticMessage(err));
-    }
-  }
-
-  function startEnvironmentRename(name: string) {
-    setRenamingEnvironment(name);
-    setEnvironmentNameDraft(name);
-  }
-
-  function cancelEnvironmentRename() {
-    setRenamingEnvironment("");
-    setEnvironmentNameDraft("");
-  }
-
-  async function handleRenameEnvironment(oldName: string) {
-    startEnvironmentRename(oldName);
-  }
-
-  async function applyEnvironmentRename(oldName: string) {
-    const newName = environmentNameDraft.trim();
-    if (!newName || newName === oldName) {
-      cancelEnvironmentRename();
-      return;
-    }
-
-    if (!workspace || workspace.environments.some((environment) => environment.name === newName && environment.name !== oldName)) {
-      alert(`Environment "${newName}" already exists.`);
-      return;
-    }
-
-    try {
-      await renameEnvironment(oldName, newName);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          activeEnvironment: prev.activeEnvironment === oldName ? newName : prev.activeEnvironment,
-          environments: prev.environments.map(e =>
-            e.name === oldName ? { ...e, name: newName } : e
-          ),
-        };
-      });
-      if (envEditorTarget === oldName) setEnvEditorTarget(newName);
-      cancelEnvironmentRename();
-    } catch (err) {
-      console.error("Failed to rename environment", diagnosticMessage(err));
-      alert("Failed to rename environment: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleDeleteEnvironment(name: string) {
-    setConfirmDialog({
-      message: `Delete environment "${name}" and all its variables?`,
-      onConfirm: async () => {
-        try {
-          await deleteEnvironment(name);
-          setWorkspace(prev => {
-            if (!prev) return null;
-            const environments = prev.environments.filter(e => e.name !== name);
-            return {
-              ...prev,
-              activeEnvironment: prev.activeEnvironment === name ? environments[0]?.name ?? "" : prev.activeEnvironment,
-              environments,
-            };
-          });
-          if (envEditorTarget === name) {
-            setEnvEditorTarget(prev => {
-              if (!workspace) return "";
-              const remaining = workspace.environments.filter(e => e.name !== name);
-              return remaining[0]?.name ?? "";
-            });
-          }
-        } catch (err) {
-          console.error("Failed to delete environment", diagnosticMessage(err));
-          setDeleteError("Failed to delete environment: " + diagnosticMessage(err));
-        }
-      },
-    });
-  }
-
-  async function handleSaveVariable(envName: string, key: string, value: string) {
-    try {
-      await saveVariable(envName, key, value);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          environments: prev.environments.map(e => {
-            if (e.name !== envName) return e;
-            const exists = e.variables.some(v => v.key === key);
-            return {
-              ...e,
-              variables: exists
-                ? e.variables.map(v => v.key === key ? { ...v, value, secret: false, secretRef: undefined } : v)
-                : [...e.variables, { key, value }],
-            };
-          }),
-        };
-      });
-    } catch (err) {
-      console.error("Failed to save variable", diagnosticMessage(err));
-      alert("Failed to save variable: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleDeleteVariable(envName: string, key: string) {
-    try {
-      await deleteVariable(envName, key);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          environments: prev.environments.map(e =>
-            e.name === envName
-              ? { ...e, variables: e.variables.filter(v => v.key !== key) }
-              : e
-          ),
-        };
-      });
-    } catch (err) {
-      console.error("Failed to delete variable", diagnosticMessage(err));
-      alert("Failed to delete variable: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleAddSecretVariable(envName: string, key: string, value: string) {
-    try {
-      const { refId } = await storeSecret({ scope: envName, key, value });
-      await saveSecretVariable(envName, key, refId);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          environments: prev.environments.map(e => {
-            if (e.name !== envName) return e;
-            const exists = e.variables.some(v => v.key === key);
-            const updated = { key, value: "[secret stored outside SQLite]", secret: true, secretRef: refId };
-            return {
-              ...e,
-              variables: exists
-                ? e.variables.map(v => v.key === key ? updated : v)
-                : [...e.variables, updated],
-            };
-          }),
-        };
-      });
-    } catch (err) {
-      console.error("Failed to save secret variable", diagnosticMessage(err));
-      alert("Failed to save secret variable: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleCreateRequest(folderId: string) {
-    try {
-      const newReq = await createRequest(folderId);
-      setCollapsedFolders(prev => ({
-        ...prev,
-        [folderId]: false,
-      }));
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          requests: [...prev.requests, newReq]
-        };
-      });
-      setSelectedRequestId(newReq.id);
-    } catch (err) { console.error(diagnosticMessage(err)); }
-  }
-
-  async function handleOpenHistory() {
-    setHistoryOpen(true);
-    setHistoryLoading(true);
-    try {
-      const entries = await loadHistory();
-      setHistoryEntries(entries);
-    } catch (err) {
-      console.error("Failed to load history", diagnosticMessage(err));
-    } finally {
-      setHistoryLoading(false);
-    }
-  }
-
-  async function handleClearHistory() {
-    try {
-      await clearHistory();
-      setHistoryEntries([]);
-    } catch (err) {
-      console.error("Failed to clear history", diagnosticMessage(err));
-    }
-  }
-
-  function handleReplayFromHistory(entry: HistoryEntry) {
-    if (!workspace) return;
-    const exists = workspace.requests.some(r => r.id === entry.requestId);
-    if (exists) {
-      setSelectedRequestId(entry.requestId);
-      setHistoryOpen(false);
-    }
-  }
-
-  async function handleCheckForUpdates(
-    trigger: "automatic" | "manual",
-    settingsOverride: AppSettings = appSettings,
-  ) {
-    if (!settingsOverride.updateChecksEnabled && trigger === "automatic") return;
-
-    if (trigger === "manual") {
-      setUpdateToast({ message: "Checking for updates...", tone: "info" });
-    }
-
-    try {
-      const preview = await checkForUpdates();
-      if (!preview.releaseReady) {
-        setAvailableUpdate(null);
-        setUpdateDialogOpen(false);
-        setUpdateProgressLabel(preview.message);
-        setUpdateStatus({
-          enabled: settingsOverride.updateChecksEnabled,
-          lastCheckedLabel: preview.message,
-          channel: "stable",
-        });
-        if (trigger === "manual") setUpdateToast({ message: preview.message, tone: "info" });
-        return;
-      }
-
-      const update = await checkForAppUpdate();
-      if (update) {
-        setAvailableUpdate(update);
-        setUpdateDialogOpen(true);
-        setUpdateProgressLabel(`Signed release metadata found for version ${update.version}.`);
-        setUpdateStatus({
-          enabled: settingsOverride.updateChecksEnabled,
-          lastCheckedLabel: `Update ${update.version} is ready to install.`,
-          channel: "stable",
-        });
-        if (trigger === "manual") setUpdateToast(null);
-        return;
-      }
-
-      setAvailableUpdate(null);
-      setUpdateDialogOpen(false);
-      setUpdateProgressLabel("No signed updates available.");
-      setUpdateStatus({
-        enabled: settingsOverride.updateChecksEnabled,
-        lastCheckedLabel: "No signed updates available.",
-        channel: "stable",
-      });
-      if (trigger === "manual") {
-        setUpdateToast({ message: "You're already on the latest version.", tone: "info" });
-      }
-    } catch (error) {
-      if (trigger === "manual" || settingsOverride.offlineBehavior === "notice") {
-        setUpdateDialogOpen(false);
-        setUpdateStatus({
-          enabled: settingsOverride.updateChecksEnabled,
-          lastCheckedLabel: "Update check unavailable. The app remains usable offline.",
-          channel: "stable",
-        });
-        if (trigger === "manual") {
-          setUpdateToast({ message: "Update check unavailable. The app remains usable offline.", tone: "error" });
-        }
-      }
-      console.error("Failed to check for updates", diagnosticMessage(error));
-    }
-  }
-
-  async function handleInstallUpdate() {
-    if (!availableUpdate) return;
-
-    setUpdateBusy(true);
-    setUpdateProgressLabel("Downloading update...");
-    try {
-      await downloadAndInstallUpdate(availableUpdate, setUpdateProgressLabel);
-      setUpdateStatus((current) => ({
-        ...current,
-        lastCheckedLabel: "Restart to finish update install.",
-      }));
-    } catch (error) {
-      setUpdateProgressLabel("Update install failed. The app remains usable offline.");
-      setUpdateStatus((current) => ({
-        ...current,
-        lastCheckedLabel: "Update install failed. The app remains usable offline.",
-      }));
-      console.error("Failed to install update", diagnosticMessage(error));
-    } finally {
-      setUpdateBusy(false);
-    }
-  }
-
-  async function handleSaveSettings() {
-    try {
-      await saveAppSettings(appSettings);
-      setUpdateStatus((current) => ({
-        ...current,
-        enabled: appSettings.updateChecksEnabled,
-        lastCheckedLabel: appSettings.updateChecksEnabled
-          ? current.lastCheckedLabel
-          : "Automatic checks are off.",
-      }));
-      setSettingsOpen(false);
-    } catch (error) {
-      console.error("Failed to save settings", diagnosticMessage(error));
-      alert("Failed to save settings: " + diagnosticMessage(error));
-    }
-  }
-
-  async function handleOpenFolderScripts(folderId: string) {
-    try {
-      const scripts = await getScripts(folderId, 'folder');
-      const pre = scripts.find(s => s.scriptType === 'pre')?.content ?? "";
-      const post = scripts.find(s => s.scriptType === 'post')?.content ?? "";
-      setFolderPreScript(pre);
-      setFolderPostScript(post);
-      setFolderScriptsTarget(folderId);
-      setFolderScriptsOpen(true);
-    } catch (err) {
-      console.error("Failed to load folder scripts", diagnosticMessage(err));
-      alert("Failed to load folder scripts: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleSaveFolderScripts() {
-    if (!folderScriptsTarget) return;
-    try {
-      await saveScript(folderScriptsTarget, "folder", "pre", folderPreScript);
-      await saveScript(folderScriptsTarget, "folder", "post", folderPostScript);
-      alert("Folder scripts saved successfully!");
-      setFolderScriptsOpen(false);
-    } catch (err) {
-      console.error("Failed to save folder scripts", diagnosticMessage(err));
-      alert("Failed to save folder scripts: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleSaveScripts() {
-    if (!selectedRequestId) return;
-    try {
-      await saveScript(selectedRequestId, "request", "pre", preScript);
-      await saveScript(selectedRequestId, "request", "post", postScript);
-      alert("Scripts saved successfully!");
-    } catch (err) {
-      console.error("Failed to save scripts", diagnosticMessage(err));
-      alert("Failed to save scripts: " + diagnosticMessage(err));
-    }
-  }
-
-  useEffect(() => {
-    if (authEditorTarget && workspace) {
-      const { id, type } = authEditorTarget;
-      let currentMode: ApiAuthMode = 'none';
-      let currentConfig: AuthConfig = {};
-
-      if (type === 'folder') {
-        const folder = workspace.folders.find(f => f.id === id);
-        if (folder) {
-          currentMode = folder.authMode ?? 'none';
-          currentConfig = folder.authConfig ?? {};
-        }
-      } else {
-        const collection = workspace.collections?.find(c => c.id === id);
-        if (collection) {
-          currentMode = collection.authMode ?? 'none';
-          currentConfig = collection.authConfig ?? {};
-        }
-      }
-      setAuthDraft({ mode: currentMode, config: currentConfig });
-    }
-  }, [authEditorTarget, workspace]);
-
-  async function handleSaveEntityAuth() {
-    if (!authEditorTarget) return;
-    const { id, type } = authEditorTarget;
-    try {
-      if (type === 'folder') {
-        await saveFolderAuth(id, authDraft.mode, authDraft.config);
-        setWorkspace(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            folders: prev.folders.map(f => f.id === id ? { ...f, authMode: authDraft.mode, authConfig: authDraft.config } : f)
-          };
-        });
-      } else {
-        await saveCollectionAuth(id, authDraft.mode, authDraft.config);
-        setWorkspace(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            collections: prev.collections?.map(c => c.id === id ? { ...c, authMode: authDraft.mode, authConfig: authDraft.config } : c) || []
-          };
-        });
-      }
-      setAuthEditorOpen(false);
-    } catch (err) {
-      console.error("Failed to save entity auth", diagnosticMessage(err));
-      alert("Failed to save authentication: " + diagnosticMessage(err));
-    }
-  }
-
-  async function runScript(content: string, context: any, label: string): Promise<ScriptOutputEntry[]> {
-    if (!content) return [];
-    const entries: ScriptOutputEntry[] = [];
-    const scriptConsole = {
-      log: (...values: unknown[]) => {
-        entries.push({ tone: "info", message: `[${label}] ${values.map(formatScriptLogValue).join(" ")}` });
-      },
-      warn: (...values: unknown[]) => {
-        entries.push({ tone: "info", message: `[${label}] ${values.map(formatScriptLogValue).join(" ")}` });
-      },
-      error: (...values: unknown[]) => {
-        entries.push({ tone: "error", message: `[${label}] ${values.map(formatScriptLogValue).join(" ")}` });
-      },
-    };
-
-    try {
-      const fn = new Function("context", "console", `
-        const request = context.request;
-        const response = context.response;
-        const variables = context.variables;
-        return (async () => {
-          ${content}
-        })();
-      `);
-      await fn(context, scriptConsole);
-    } catch (err) {
-      console.error("Failed to parse script:", diagnosticMessage(err));
-      entries.push({ tone: "error", message: `[${label}] ${diagnosticMessage(err)}` });
-    }
-
-    return entries;
   }
 
   async function sendSelectedRequest() {

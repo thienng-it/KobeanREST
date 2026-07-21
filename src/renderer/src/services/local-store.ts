@@ -94,8 +94,8 @@ export async function createFolder(name: string, collectionId?: string, parentId
   }
   return invoke<import("../types").FolderSummary>("create_folder", { 
     name, 
-    collection_id: collectionId, 
-    parent_id: parentId 
+    collectionId, 
+    parentId 
   });
 }
 
