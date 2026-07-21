@@ -20,10 +20,10 @@ import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
 import { VariableInput, VariableTextarea } from "./components/VariableInput";
 import { MethodSelector, methodClass } from "./components/MethodSelector";
-import { ScriptEditor } from "./components/ScriptEditor";
 import { ResponsePanel, type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { RequestCodeModal } from "./components/RequestCodeModal";
+import { FolderScriptsModal } from "./components/FolderScriptsModal";
 import { formatBytes, statusColor, type ResponseState } from "./response-utils";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
@@ -2375,62 +2375,16 @@ export function App() {
         onInsert={insertRequestCodeSnippet}
       />
 
-      {folderScriptsOpen && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Folder scripts"
-          onClick={() => setFolderScriptsOpen(false)}
-        >
-          <div
-            className="modal"
-            onClick={e => e.stopPropagation()}
-            style={{ width: '560px', maxWidth: '95vw', display: 'flex', flexDirection: 'column', gap: '16px' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: '16px' }}>Folder Scripts</h2>
-              <button type="button" onClick={() => setFolderScriptsOpen(false)} style={{ all: 'unset', cursor: 'pointer' }}><X size={18} /></button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
-                  Pre-request Script
-                </label>
-                <ScriptEditor 
-                  value={folderPreScript}
-                  onChange={setFolderPreScript}
-                  variables={activeVars.map(v => v.key)}
-                  placeholder="// JavaScript only (no TypeScript types) to run before any request in this folder"
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-text-active)' }} />
-                  Post-request Script
-                </label>
-                <ScriptEditor 
-                  value={folderPostScript}
-                  onChange={setFolderPostScript}
-                  variables={activeVars.map(v => v.key)}
-                  placeholder="// JavaScript only (no TypeScript types) to run after any request in this folder"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button className="modal-cancel" type="button" onClick={() => setFolderScriptsOpen(false)}>
-                Cancel
-              </button>
-              <button className="modal-confirm" type="button" onClick={handleSaveFolderScripts}>
-                Save Scripts
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <FolderScriptsModal
+        open={folderScriptsOpen}
+        preScript={folderPreScript}
+        postScript={folderPostScript}
+        activeVars={activeVars}
+        onClose={() => setFolderScriptsOpen(false)}
+        onPreScriptChange={setFolderPreScript}
+        onPostScriptChange={setFolderPostScript}
+        onSave={handleSaveFolderScripts}
+      />
 
       {contextMenu && (
         <div
