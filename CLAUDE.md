@@ -42,3 +42,14 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes_tool` for code review.
 3. Use `get_affected_flows_tool` to understand impact.
 4. Use `query_graph_tool` pattern="tests_for" to check coverage.
+
+## Project rules
+
+See @docs/agent-rules.md and @README.md for the product contract, local-only/secret-handling rules, and standard verification commands. Those files are the source of truth; do not restate them here.
+
+## .claude structure
+
+- `.claude/settings.json` — permission allowlist/denylist and the code-review-graph hooks.
+- `.claude/agents/` — subagents: `security-reviewer`, `rust-core-reviewer`, `release-qa-reviewer`, `docs-portal-reviewer`. Invoke explicitly, e.g. "use a subagent to review this for security issues".
+- `.claude/skills/` — `/explore-codebase`, `/review-changes`, `/debug-issue`, `/refactor-safely` (graph-powered workflows), plus project workflows `/release-preflight`, `/secret-scan`, `/fix-issue`.
+- Personal, un-shared notes go in `CLAUDE.local.md` (gitignored), not here.

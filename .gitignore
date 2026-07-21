@@ -13,6 +13,7 @@ yarn-error.log*
 .env.*
 !.env.example
 
-.claude/
+.claude/settings.local.json
+CLAUDE.local.md
 # Added by code-review-graph
 .code-review-graph/
