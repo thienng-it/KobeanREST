@@ -1731,7 +1731,9 @@ button:disabled {
 }
 
 :root[data-theme="dark"] .headers-row {
+  background: rgba(20, 30, 50, 0.58);
   border-color: rgba(71, 85, 105, 0.42);
+  box-shadow: none;
 }
 
 :root[data-theme="dark"] .headers-row:hover {
@@ -1753,6 +1755,10 @@ button:disabled {
 :root[data-theme="dark"] .headers-toggle {
   border-color: rgba(96, 165, 250, 0.16);
   background: rgba(30, 64, 175, 0.12);
+}
+
+:root[data-theme="dark"] .headers-row-input:hover {
+  background: rgba(30, 41, 59, 0.88);
 }
 
 :root[data-theme="dark"] .headers-row-input:focus-within {
