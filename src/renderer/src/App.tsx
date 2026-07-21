@@ -26,6 +26,7 @@ import { UpdateDialogModal } from "./components/UpdateDialogModal";
 import { AuthEditorModal } from "./components/AuthEditorModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { HistoryModal } from "./components/HistoryModal";
+import { EnvironmentEditorModal } from "./components/EnvironmentEditorModal";
 import { statusColor, type ResponseState } from "./response-utils";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
@@ -1790,149 +1791,31 @@ export function App() {
         onInstall={handleInstallUpdate}
       />
 
-      {envEditorOpen && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Environment editor"
-          onClick={() => setEnvEditorOpen(false)}
-        >
-          <div
-            className="modal env-modal"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="env-modal-header">
-              <div>
-                <span className="env-modal-kicker">Workspace settings</span>
-                <h2>Environments</h2>
-                <p>Manage variables for request URLs, headers, auth, and scripts.</p>
-              </div>
-              <button
-                type="button"
-                className="env-modal-close"
-                aria-label="Close environment editor"
-                onClick={() => setEnvEditorOpen(false)}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="env-modal-body">
-              <aside className="env-list-panel">
-                <div className="env-section-label">Environments</div>
-                {workspace?.environments.map(env => (
-                  <div
-                    key={env.name}
-                    className={envEditorTarget === env.name ? "env-list-row selected" : "env-list-row"}
-                  >
-                    {renamingEnvironment === env.name ? (
-                      <input
-                        className="env-rename-input"
-                        value={environmentNameDraft}
-                        aria-label={`Rename ${env.name}`}
-                        autoFocus
-                        onChange={(event) => setEnvironmentNameDraft(event.target.value)}
-                        onBlur={() => void applyEnvironmentRename(env.name)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            event.currentTarget.blur();
-                          } else if (event.key === "Escape") {
-                            event.preventDefault();
-                            cancelEnvironmentRename();
-                          }
-                        }}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEnvEditorTarget(env.name)}
-                        className="env-list-button"
-                      >
-                        {env.name}
-                        {workspace?.activeEnvironment === env.name && (
-                          <span className="env-active-dot" aria-label="Active environment" />
-                        )}
-                      </button>
-                    )}
-                    <div className="env-row-actions">
-                      <button type="button" className="env-icon-button" aria-label={`Rename ${env.name}`} onClick={() => handleRenameEnvironment(env.name)}><Edit2 size={12} /></button>
-                      <button type="button" className="env-icon-button danger" aria-label={`Delete ${env.name}`} onClick={() => handleDeleteEnvironment(env.name)}><Trash2 size={12} /></button>
-                    </div>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className="ghost-button env-wide-button"
-                  onClick={handleCreateEnvironment}
-                >
-                  <Plus size={12} /> New
-                </button>
-                {envEditorTarget && workspace?.activeEnvironment !== envEditorTarget && (
-                  <button
-                    type="button"
-                    className="ghost-button env-wide-button"
-                    onClick={() => handleSetActiveEnvironment(envEditorTarget)}
-                  >
-                    Set active
-                  </button>
-                )}
-              </aside>
-
-              <section className="env-variable-panel">
-                {envEditorTarget ? (() => {
-                  const env = workspace?.environments.find(e => e.name === envEditorTarget);
-                  if (!env) return null;
-                  return (
-                    <>
-                      <div className="env-variable-header">
-                        <span className="env-section-label">Variables</span>
-                        <strong>{env.name}</strong>
-                        <span>{env.variables.length} {env.variables.length === 1 ? "variable" : "variables"}</span>
-                      </div>
-                      <div className="env-variable-card">
-                        {env.variables.map(v => (
-                          <div key={v.key} className="env-variable-row">
-                            <span className="env-variable-key">{v.key}</span>
-                            <span className={v.secret ? "env-variable-value secret" : "env-variable-value"}>
-                              {v.secret ? '[secret stored outside SQLite]' : v.value}
-                            </span>
-                            {v.secret && <span className="env-secret-badge">Secret</span>}
-                            <button type="button" className="env-icon-button danger" aria-label={`Delete variable ${v.key}`} onClick={() => handleDeleteVariable(env.name, v.key)}><Trash2 size={12} /></button>
-                          </div>
-                        ))}
-                        <AddVariableRow
-                          envName={env.name}
-                          newVarKey={newVarKey}
-                          newVarValue={newVarValue}
-                          newVarSecret={newVarSecret}
-                          setNewVarKey={setNewVarKey}
-                          setNewVarValue={setNewVarValue}
-                          setNewVarSecret={setNewVarSecret}
-                          onSave={async (key, value, secret) => {
-                            if (!key) return;
-                            if (secret) {
-                              await handleAddSecretVariable(env.name, key, value);
-                            } else {
-                              await handleSaveVariable(env.name, key, value);
-                            }
-                            setNewVarKey("");
-                            setNewVarValue("");
-                            setNewVarSecret(false);
-                          }}
-                        />
-                      </div>
-                    </>
-                  );
-                })() : (
-                  <p className="env-empty-state">Select an environment to edit its variables.</p>
-                )}
-              </section>
-            </div>
-          </div>
-        </div>
-      )}
+      <EnvironmentEditorModal
+        open={envEditorOpen}
+        workspace={workspace}
+        envEditorTarget={envEditorTarget}
+        renamingEnvironment={renamingEnvironment}
+        environmentNameDraft={environmentNameDraft}
+        newVarKey={newVarKey}
+        newVarValue={newVarValue}
+        newVarSecret={newVarSecret}
+        onClose={() => setEnvEditorOpen(false)}
+        onEnvEditorTargetChange={setEnvEditorTarget}
+        onRenameEnvironment={handleRenameEnvironment}
+        onApplyEnvironmentRename={applyEnvironmentRename}
+        onCancelEnvironmentRename={cancelEnvironmentRename}
+        onEnvironmentNameDraftChange={setEnvironmentNameDraft}
+        onCreateEnvironment={handleCreateEnvironment}
+        onDeleteEnvironment={handleDeleteEnvironment}
+        onSetActiveEnvironment={handleSetActiveEnvironment}
+        onDeleteVariable={handleDeleteVariable}
+        onNewVarKeyChange={setNewVarKey}
+        onNewVarValueChange={setNewVarValue}
+        onNewVarSecretChange={setNewVarSecret}
+        onSaveVariable={handleSaveVariable}
+        onAddSecretVariable={handleAddSecretVariable}
+      />
 
       <RequestCodeModal
         open={requestCodeOpen}
