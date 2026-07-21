@@ -1,3 +1,9 @@
+# Token Saving Directives
+- CRITICAL: Never explain the code you are writing.
+- Output ONLY the necessary shell commands or code edits.
+- Do not use conversational filler, greetings, or apologies (e.g., skip "Here is the code", "I understand", "Let me fix that").
+- When running tests or reading logs, ALWAYS pipe the output through grep to find errors rather than dumping the whole file (e.g., `npm test 2>&1 | grep -A5 -E "FAIL|ERROR"`).
+
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
 

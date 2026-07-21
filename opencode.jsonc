@@ -7,7 +7,7 @@
         "code-review-graph",
         "serve",
         "--repo",
-        "/Users/thanh.nguyen/Desktop/projects/KobeanREST"
+        "."
       ]
     }
   }
