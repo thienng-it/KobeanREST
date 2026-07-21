@@ -1,21 +1,16 @@
 import {
-  ChevronDown,
-  Download,
-  History,
-  RefreshCw,
-  Save,
-  Settings,
-  Plus,
-  Eye
+  Plus
 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
 import { MethodSelector } from "./components/MethodSelector";
-import { ResponsePanel, type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
+import { type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
 import { ContextMenu, type ContextMenuState } from "./components/ContextMenu";
+import { Topbar } from "./components/Topbar";
+import { BottomDock } from "./components/BottomDock";
 import { statusColor, type ResponseState } from "./response-utils";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
@@ -1559,39 +1554,12 @@ export function App() {
       />
 
       <section className="workspace">
-        <header className="topbar">
-          <div className="topbar-actions">
-            <button className="ghost-button" type="button" onClick={() => openProductDocs()}>
-              <Download size={16} />
-              Docs
-            </button>
-            <button
-              className="ghost-button"
-              type="button"
-              aria-label="Open request history"
-              onClick={() => void handleOpenHistory()}
-            >
-              <History size={16} />
-              History
-            </button>
-            <button
-              className="ghost-button"
-              type="button"
-              onClick={() => void handleCheckForUpdates("manual")}
-            >
-              <RefreshCw size={16} />
-              Check updates
-            </button>
-            <button
-              className="icon-button"
-              aria-label="Settings"
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <Settings size={18} />
-            </button>
-          </div>
-        </header>
+        <Topbar
+          onOpenDocs={openProductDocs}
+          onOpenHistory={() => void handleOpenHistory()}
+          onCheckForUpdates={() => void handleCheckForUpdates("manual")}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
 
         <div
           className="workspace-main"
@@ -1634,48 +1602,25 @@ export function App() {
             />
           )}
 
-          <section
-            className="bottom-dock"
-            aria-label="Bottom dock"
-            style={{ height: activeBottomDock === 'response' ? `${bottomDockHeight + bottomDockStripHeight}px` : `${bottomDockStripHeight}px` }}
-          >
-            <div className="bottom-dock-strip">
-              <button
-                className={activeBottomDock === 'response' ? 'bottom-dock-tab active' : 'bottom-dock-tab'}
-                type="button"
-                onClick={() => setActiveBottomDock('response')}
-              >
-                <Eye size={14} /> Response
-              </button>
-              <button
-                className={activeBottomDock === 'response' ? 'bottom-dock-collapse expanded' : 'bottom-dock-collapse collapsed'}
-                type="button"
-                aria-label={activeBottomDock === 'response' ? "Collapse response dock" : "Expand response dock"}
-                onClick={() => setActiveBottomDock(activeBottomDock === 'response' ? null : 'response')}
-              >
-                <ChevronDown size={14} />
-              </button>
-            </div>
-            <div className="bottom-dock-panels">
-              <ResponsePanel
-                variant="dock"
-                responseState={responseState}
-                currentResponse={currentResponse}
-                responseTitle={responseTitle}
-                responseTitleColor={responseTitleColor}
-                isResponseTabPending={isResponseTabPending}
-                responseTab={responseTab}
-                previewMode={previewMode}
-                activeBottomDock={activeBottomDock}
-                onTabChange={handleResponseTabChange}
-                onPreviewModeChange={setPreviewMode}
-                onDownload={downloadCurrentResponse}
-                onCopy={() => void copyCurrentResponse()}
-                onOpenWindow={() => setResponseWindowOpen(true)}
-                onResizerMouseDown={handleResponsePanelResizerMouseDown}
-              />
-            </div>
-          </section>
+          <BottomDock
+            activeBottomDock={activeBottomDock}
+            bottomDockHeight={bottomDockHeight}
+            bottomDockStripHeight={bottomDockStripHeight}
+            responseState={responseState}
+            currentResponse={currentResponse}
+            responseTitle={responseTitle}
+            responseTitleColor={responseTitleColor}
+            isResponseTabPending={isResponseTabPending}
+            responseTab={responseTab}
+            previewMode={previewMode}
+            onActiveBottomDockChange={setActiveBottomDock}
+            onTabChange={handleResponseTabChange}
+            onPreviewModeChange={setPreviewMode}
+            onDownload={downloadCurrentResponse}
+            onCopy={() => void copyCurrentResponse()}
+            onOpenWindow={() => setResponseWindowOpen(true)}
+            onResizerMouseDown={handleResponsePanelResizerMouseDown}
+          />
         </div>
       </section>
 
