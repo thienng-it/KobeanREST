@@ -1,15 +1,11 @@
 import {
   ChevronDown,
   Download,
-  FolderTree,
   History,
-  KeyRound,
   RefreshCw,
   Save,
   Settings,
   Plus,
-  Trash2,
-  Edit2,
   Eye
 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -19,6 +15,7 @@ import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVari
 import { MethodSelector } from "./components/MethodSelector";
 import { ResponsePanel, type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
+import { ContextMenu, type ContextMenuState } from "./components/ContextMenu";
 import { statusColor, type ResponseState } from "./response-utils";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
@@ -247,14 +244,7 @@ export function App() {
   const [updateProgressLabel, setUpdateProgressLabel] = useState("Signed release metadata is required before install.");
   const [updateToast, setUpdateToast] = useState<{ message: string; tone: "info" | "error" } | null>(null);
 
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    target: {
-      id: string;
-      type: 'folder' | 'request';
-    } | null;
-  } | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   const [scriptStatus, setScriptStatus] = useState<Record<string, boolean>>({});
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
@@ -1796,208 +1786,22 @@ export function App() {
       />
 
       {contextMenu && (
-        <div
-          className="context-menu"
-          style={{
-            position: 'fixed',
-            top: contextMenu.y,
-            left: contextMenu.x,
-            zIndex: 9999,
-            border: '1px solid var(--color-border-modal)',
-            borderRadius: '6px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            minWidth: '160px',
-            padding: '4px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '2px',
-            pointerEvents: 'auto',
+        <ContextMenu
+          menu={contextMenu}
+          requests={workspace?.requests ?? []}
+          onClose={() => setContextMenu(null)}
+          onCreateRequest={handleCreateRequest}
+          onCreateSubFolder={handleCreateSubFolder}
+          onEditFolderAuth={(folderId) => {
+            setAuthEditorTarget({ id: folderId, type: 'folder' });
+            setAuthEditorOpen(true);
           }}
-          onClick={() => alert("Container clicked!")}
-        >
-          {contextMenu.target?.type === 'folder' && (
-            <>
-              <button 
-                className="context-menu-item" 
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  alert("Context Menu: New Request clicked!");
-                  const folderId = contextMenu.target?.id;
-                  if (folderId) void handleCreateRequest(folderId);
-                  setContextMenu(null);
-                }}
-                style={{ 
-                  background: 'transparent', 
-                  border: 'none', 
-                  padding: '6px 10px', 
-                  fontSize: '13px', 
-                  cursor: 'pointer', 
-                  borderRadius: '4px', 
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  pointerEvents: 'auto',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <Plus size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> New Request
-              </button>
-              <button 
-                className="context-menu-item" 
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  alert("Context Menu: New Folder clicked!");
-                  const folderId = contextMenu.target?.id;
-                  if (folderId) {
-                    await handleCreateSubFolder(folderId);
-                  }
-                  setContextMenu(null);
-                }}
-                style={{ 
-                  background: 'transparent', 
-                  border: 'none', 
-                  padding: '6px 10px', 
-                  fontSize: '13px', 
-                  cursor: 'pointer', 
-                  borderRadius: '4px', 
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  pointerEvents: 'auto',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <FolderTree size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> New Folder
-              </button>
-              <button 
-                className="context-menu-item" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const folderId = contextMenu.target?.id;
-                  if (folderId) {
-                    setAuthEditorTarget({ id: folderId, type: 'folder' });
-                    setAuthEditorOpen(true);
-                  }
-                  setContextMenu(null);
-                }}
-                style={{ 
-                  background: 'transparent', 
-                  border: 'none', 
-                  padding: '6px 10px', 
-                  fontSize: '13px', 
-                  cursor: 'pointer', 
-                  borderRadius: '4px', 
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  pointerEvents: 'auto',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <KeyRound size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Edit Auth
-              </button>
-              <button 
-                className="context-menu-item" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const folderId = contextMenu.target?.id;
-                  if (folderId) void handleOpenFolderScripts(folderId);
-                  setContextMenu(null);
-                }}
-                style={{ 
-                  background: 'transparent', 
-                  border: 'none', 
-                  padding: '6px 10px', 
-                  fontSize: '13px', 
-                  cursor: 'pointer', 
-                  borderRadius: '4px', 
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  pointerEvents: 'auto',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <Edit2 size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Edit Scripts
-              </button>
-              <div style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '4px 0' }} />
-              <button 
-                className="context-menu-item" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const folderId = contextMenu.target?.id;
-                  if (folderId) handleDeleteFolder(folderId);
-                  setContextMenu(null);
-                }}
-                style={{ 
-                  background: 'transparent', 
-                  border: 'none', 
-                  padding: '6px 10px', 
-                  fontSize: '13px', 
-                  cursor: 'pointer', 
-                  borderRadius: '4px', 
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  pointerEvents: 'auto',
-                  color: '#991b1b' 
-                }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <Trash2 size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Delete Folder
-              </button>
-            </>
-          )}
-          {contextMenu.target?.type === 'request' && (
-            <>
-              <button 
-                className="context-menu-item" 
-                onClick={() => {
-                  const reqId = contextMenu.target?.id;
-                  if (reqId) startRequestRename(workspace?.requests.find(r => r.id === reqId)!);
-                  setContextMenu(null);
-                }}
-                style={{ all: 'unset', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <Edit2 size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Rename
-              </button>
-              <button 
-                className="context-menu-item" 
-                onClick={() => {
-                  const reqId = contextMenu.target?.id;
-                  if (reqId) setSelectedRequestId(reqId);
-                  setContextMenu(null);
-                }}
-                style={{ all: 'unset', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <Eye size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> View Request
-              </button>
-              <div style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '4px 0' }} />
-              <button 
-                className="context-menu-item" 
-                onClick={() => {
-                  const reqId = contextMenu.target?.id;
-                  if (reqId) handleDeleteRequest(reqId);
-                  setContextMenu(null);
-                }}
-                style={{ all: 'unset', padding: '6px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', color: '#991b1b' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-muted)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <Trash2 size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Delete Request
-              </button>
-            </>
-          )}
-        </div>
+          onEditFolderScripts={handleOpenFolderScripts}
+          onDeleteFolder={handleDeleteFolder}
+          onStartRequestRename={startRequestRename}
+          onViewRequest={setSelectedRequestId}
+          onDeleteRequest={handleDeleteRequest}
+        />
       )}
     </main>
   );
