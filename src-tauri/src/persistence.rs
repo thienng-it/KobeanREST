@@ -1069,7 +1069,7 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
     )?;
 
     let requests = collect_rows(
-        connection.prepare("SELECT id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, timeout_ms, follow_redirects, position FROM requests")
+        connection.prepare("SELECT id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, timeout_ms, follow_redirects, position FROM requests ORDER BY position")
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
                 Ok(RequestRow {
@@ -1368,7 +1368,7 @@ pub fn create_folder(app: AppHandle, name: String, collection_id: Option<String>
     };
 
     connection.execute(
-        "INSERT INTO folders (id, collection_id, name, parent_id, position) VALUES (?1, ?2, ?3, ?4, (SELECT COALESCE(MAX(position), -1) + 1 FROM folders WHERE collection_id = ?2))",
+        "INSERT INTO folders (id, collection_id, name, parent_id, position) VALUES (?1, ?2, ?3, ?4, (SELECT COALESCE(MAX(position), -1) + 1 FROM folders WHERE collection_id = ?2 AND parent_id IS ?4))",
         rusqlite::params![folder_id, final_collection_id, name, parent_id]
     ).map_err(|e| e.to_string())?;
 
