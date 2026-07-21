@@ -18,13 +18,13 @@ import { createPortal } from "react-dom";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
-import { VariableInput, VariableTextarea } from "./components/VariableInput";
 import { MethodSelector, methodClass } from "./components/MethodSelector";
 import { ResponsePanel, type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { RequestCodeModal } from "./components/RequestCodeModal";
 import { FolderScriptsModal } from "./components/FolderScriptsModal";
 import { UpdateDialogModal } from "./components/UpdateDialogModal";
+import { AuthEditorModal } from "./components/AuthEditorModal";
 import { formatBytes, statusColor, type ResponseState } from "./response-utils";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
@@ -36,10 +36,6 @@ const authModes = ["None", "Basic Auth", "Bearer Token", "API Key", "OAuth 2.0",
 const AUTH_MODE_LABELS: Record<string, string> = {
   none: "None", basic: "Basic Auth", bearer: "Bearer Token",
   apiKey: "API Key", oauth2: "OAuth 2.0", ntlm: "NTLM", kerberos: "Kerberos"
-};
-const AUTH_MODE_MAP: Record<string, string> = {
-  "None": "none", "Basic Auth": "basic", "Bearer Token": "bearer",
-  "API Key": "apiKey", "OAuth 2.0": "oauth2", "NTLM": "ntlm", "Kerberos": "kerberos"
 };
 import {
   SCRIPT_EDITOR_MODES,
@@ -1996,163 +1992,15 @@ export function App() {
         </div>
       )}
 
-      {authEditorOpen && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Entity authentication editor"
-          onClick={() => setAuthEditorOpen(false)}
-        >
-          <div
-            className="modal"
-            onClick={e => e.stopPropagation()}
-            style={{ width: '500px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '16px' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: '16px' }}>
-                Authentication for {authEditorTarget?.type === 'folder' ? 'Folder' : 'Collection'}
-              </h2>
-              <button type="button" onClick={() => setAuthEditorOpen(false)} style={{ all: 'unset', cursor: 'pointer' }}><X size={18} /></button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <KeyRound size={14} />
-                Authentication Method
-              </label>
-              <select 
-                value={authDraft.mode} 
-                onChange={e => setAuthDraft({ ...authDraft, mode: e.target.value as ApiAuthMode })}
-                style={{ 
-                  padding: '8px', 
-                  borderRadius: '4px', 
-                  backgroundColor: 'var(--color-surface)', 
-                  color: 'var(--color-text)', 
-                  border: '1px solid var(--color-border)',
-                  cursor: 'pointer'
-                }}
-              >
-                {Object.entries(AUTH_MODE_MAP).map(([label, value]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-
-            {authDraft.mode === "basic" && (
-              <div className="auth-config-fields" aria-label="Basic auth credentials">
-                <label>
-                  <span>Username</span>
-                  <VariableInput activeVariables={activeVars} value={authDraft.config.username ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, username: v.target.value } })} placeholder="username or {{variable}}" autoComplete="off" />
-                </label>
-                <label>
-                  <span>Password</span>
-                  <VariableInput type="password" activeVariables={activeVars} value={authDraft.config.password ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, password: v.target.value } })} placeholder="password or {{variable}}" autoComplete="new-password" />
-                </label>
-              </div>
-            )}
-
-            {authDraft.mode === "bearer" && (
-              <div className="auth-config-fields" aria-label="Token credential">
-                <label>
-                  <span>Token</span>
-                  <VariableInput activeVariables={activeVars} value={authDraft.config.token ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, token: v.target.value } })} placeholder="token or {{variable}}" autoComplete="off" />
-                </label>
-              </div>
-            )}
-
-            {authDraft.mode === "oauth2" && (
-              <div className="auth-config-fields" aria-label="OAuth 2.0 credentials" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <label>
-                  <span>Token</span>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <VariableInput activeVariables={activeVars} value={authDraft.config.token ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, token: v.target.value } })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 }} />
-                    <button type="button" onClick={async () => {
-                      try {
-                        const token = await obtainOAuth2Token(authDraft.config, buildVariableMap(activeVars));
-                        setAuthDraft({ ...authDraft, config: { ...authDraft.config, token } });
-                        alert("Access token obtained successfully!");
-                      } catch (err) {
-                        alert("Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)));
-                      }
-                    }} style={{ padding: '4px 12px', cursor: 'pointer', backgroundColor: 'var(--color-primary, #0066cc)', color: '#fff', border: 'none', borderRadius: '4px' }}>
-                      Get Token
-                    </button>
-                  </div>
-                </label>
-                <label>
-                  <span>Grant Type</span>
-                  <select value={authDraft.config.grantType ?? "client_credentials"} onChange={e => setAuthDraft({ ...authDraft, config: { ...authDraft.config, grantType: e.target.value as "client_credentials" | "password" } })}>
-                    <option value="client_credentials">Client Credentials</option>
-                    <option value="password">Password</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Access Token URL</span>
-                  <VariableInput activeVariables={activeVars} value={authDraft.config.accessTokenUrl ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, accessTokenUrl: v.target.value } })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
-                </label>
-                <label>
-                  <span>Client ID</span>
-                  <VariableInput activeVariables={activeVars} value={authDraft.config.clientId ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, clientId: v.target.value } })} placeholder="client_id or {{variable}}" autoComplete="off" />
-                </label>
-                <label>
-                  <span>Client Secret</span>
-                  <VariableInput type="password" activeVariables={activeVars} value={authDraft.config.clientSecret ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, clientSecret: v.target.value } })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
-                </label>
-                {(authDraft.config.grantType === "password") && (
-                  <>
-                    <label>
-                      <span>Username</span>
-                      <VariableInput activeVariables={activeVars} value={authDraft.config.username ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, username: v.target.value } })} placeholder="username or {{variable}}" autoComplete="off" />
-                    </label>
-                    <label>
-                      <span>Password</span>
-                      <VariableInput type="password" activeVariables={activeVars} value={authDraft.config.password ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, password: v.target.value } })} placeholder="password or {{variable}}" autoComplete="new-password" />
-                    </label>
-                  </>
-                )}
-                <label>
-                  <span>Scope</span>
-                  <VariableInput activeVariables={activeVars} value={authDraft.config.scope ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, scope: v.target.value } })} placeholder="read write or {{variable}}" autoComplete="off" />
-                </label>
-                <label>
-                  <span>Audience</span>
-                  <VariableInput activeVariables={activeVars} value={authDraft.config.audience ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, audience: v.target.value } })} placeholder="audience or {{variable}}" autoComplete="off" />
-                </label>
-              </div>
-            )}
-
-            {authDraft.mode === "apiKey" && (
-              <div className="auth-config-fields" aria-label="API key credentials">
-                <label>
-                  <span>Key name</span>
-                  <VariableInput activeVariables={activeVars} value={authDraft.config.keyName ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, keyName: v.target.value } })} placeholder="X-API-Key or {{variable}}" autoComplete="off" />
-                </label>
-                <label>
-                  <span>Key value</span>
-                  <VariableInput activeVariables={activeVars} value={authDraft.config.keyValue ?? ""} onChange={v => setAuthDraft({ ...authDraft, config: { ...authDraft.config, keyValue: v.target.value } })} placeholder="value or {{variable}}" autoComplete="off" />
-                </label>
-                <label>
-                  <span>Add to</span>
-                  <select value={authDraft.config.placement ?? "header"} onChange={e => setAuthDraft({ ...authDraft, config: { ...authDraft.config, placement: e.target.value as "header" | "query" } })}>
-                    <option value="header">Header</option>
-                    <option value="query">Query parameter</option>
-                  </select>
-                </label>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
-              <button className="modal-cancel" type="button" onClick={() => setAuthEditorOpen(false)}>
-                Cancel
-              </button>
-              <button className="modal-confirm" type="button" onClick={handleSaveEntityAuth}>
-                Save Authentication
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AuthEditorModal
+        open={authEditorOpen}
+        target={authEditorTarget}
+        draft={authDraft}
+        activeVars={activeVars}
+        onClose={() => setAuthEditorOpen(false)}
+        onDraftChange={setAuthDraft}
+        onSave={handleSaveEntityAuth}
+      />
 
       <UpdateDialogModal
         open={updateDialogOpen}
