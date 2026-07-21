@@ -2,7 +2,7 @@ import {
   Plus
 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
+import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
 import { MethodSelector } from "./components/MethodSelector";
@@ -12,10 +12,17 @@ import { ContextMenu, type ContextMenuState } from "./components/ContextMenu";
 import { Topbar } from "./components/Topbar";
 import { BottomDock } from "./components/BottomDock";
 import { statusColor, type ResponseState } from "./response-utils";
+import {
+  formatTimestamp,
+  openProductDocs,
+  createScriptVariablesObject,
+  formatScriptLogValue,
+  getEffectiveAuth,
+  diagnosticMessage,
+} from "./app-utils";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
-import { redactDiagnosticError } from "./services/redaction";
 import { checkForAppUpdate, downloadAndInstallUpdate, type AvailableUpdate } from "./services/updater";
 
 const authModes = ["None", "Basic Auth", "Bearer Token", "API Key", "OAuth 2.0", "NTLM", "Kerberos"] as const;
@@ -70,60 +77,6 @@ type ScriptOutputEntry = { tone: "info" | "error"; message: string };
 const SIDEBAR_MIN_WIDTH = 220;
 const SIDEBAR_DEFAULT_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 460;
-
-function formatTimestamp(createdAt: string): string {
-  try {
-    return new Date(createdAt.replace(' ', 'T') + 'Z').toLocaleString();
-  } catch {
-    return createdAt;
-  }
-}
-
-function openProductDocs() {
-  const popup = window.open(PRODUCT_DOCS_URL, "_blank", "noopener,noreferrer");
-  if (!popup) {
-    window.location.assign(PRODUCT_DOCS_URL);
-  }
-}
-
-function createScriptVariablesObject(variables: EnvironmentVariable[]): Record<string, string> {
-  return Object.fromEntries(
-    variables
-      .filter((variable) => !(variable.secret && variable.secretRef))
-      .map((variable) => [variable.key, variable.value]),
-  );
-}
-
-function formatScriptLogValue(value: unknown): string {
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-function getEffectiveAuth(request: SavedRequest, workspace: WorkspaceSummary | null) {
-  if (!workspace) {
-    return { mode: "none" as const, config: {}, source: "No workspace loaded" };
-  }
-
-  if (request.authMode !== "none") {
-    return { mode: request.authMode, config: request.authConfig, source: "Request level" };
-  }
-
-  const folder = workspace?.folders.find((item) => item.id === request.folderId);
-  if (folder?.authMode && folder.authMode !== "none") {
-    return { mode: folder.authMode, config: folder.authConfig ?? {}, source: `Inherited from folder: ${folder.name}` };
-  }
-
-  const collection = workspace?.collections?.find((item) => folder?.collectionId === item.id);
-  if (collection?.authMode && collection.authMode !== "none") {
-    return { mode: collection.authMode, config: collection.authConfig ?? {}, source: `Inherited from collection: ${collection.name}` };
-  }
-
-  return { mode: "none" as const, config: {}, source: "No inherited auth" };
-}
 
 interface AddVariableRowProps {
   envName: string;
@@ -597,10 +550,6 @@ export function App() {
 
   function updateAppSettings(fields: Partial<AppSettings>) {
     setAppSettings(prev => ({ ...prev, ...fields }));
-  }
-
-  function diagnosticMessage(error: unknown) {
-    return redactDiagnosticError(error);
   }
 
   function downloadCurrentResponse() {
