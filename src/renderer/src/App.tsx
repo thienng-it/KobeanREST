@@ -6,7 +6,6 @@ import {
   KeyRound,
   RefreshCw,
   Save,
-  Search,
   Settings,
   Plus,
   Trash2,
@@ -18,7 +17,7 @@ import { createPortal } from "react-dom";
 import { PRODUCT_AUTHENTICATION_MODEL, PRODUCT_DOCS_URL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
-import { MethodSelector, methodClass } from "./components/MethodSelector";
+import { MethodSelector } from "./components/MethodSelector";
 import { ResponsePanel, type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { RequestCodeModal } from "./components/RequestCodeModal";
@@ -26,7 +25,8 @@ import { FolderScriptsModal } from "./components/FolderScriptsModal";
 import { UpdateDialogModal } from "./components/UpdateDialogModal";
 import { AuthEditorModal } from "./components/AuthEditorModal";
 import { SettingsModal } from "./components/SettingsModal";
-import { formatBytes, statusColor, type ResponseState } from "./response-utils";
+import { HistoryModal } from "./components/HistoryModal";
+import { statusColor, type ResponseState } from "./response-utils";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
@@ -1746,93 +1746,18 @@ export function App() {
 
       <ConfirmDialog dialog={confirmDialog} onCancel={() => setConfirmDialog(null)} />
 
-      {historyOpen && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Request history"
-          onClick={() => setHistoryOpen(false)}
-        >
-          <div
-            className="modal"
-            onClick={e => e.stopPropagation()}
-            style={{ width: '740px', maxWidth: '95vw', maxHeight: '80vh', display: 'flex', flexDirection: 'column', gap: 0, padding: '24px 24px 16px' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h2 style={{ margin: 0, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <History size={16} /> Request History
-              </h2>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={handleClearHistory}
-                  style={{ fontSize: '12px', minHeight: '30px', padding: '0 10px', color: '#991b1b', borderColor: '#fca5a5' }}
-                >
-                  Clear all
-                </button>
-                <button type="button" onClick={() => setHistoryOpen(false)} style={{ all: 'unset', cursor: 'pointer' }}><X size={18} /></button>
-              </div>
-            </div>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '6px 10px', border: '1px solid var(--color-border)', borderRadius: '6px', background: 'var(--color-surface-muted)' }}>
-              <Search size={14} style={{ opacity: 0.5, flexShrink: 0 }} />
-              <input
-                value={historySearch}
-                onChange={e => setHistorySearch(e.target.value)}
-                placeholder="Filter by URL or method…"
-                aria-label="Search history"
-                style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: 'var(--color-text)' }}
-              />
-            </label>
-
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              {historyLoading ? (
-                <p style={{ textAlign: 'center', opacity: 0.5, fontSize: '13px', padding: '24px 0' }}>Loading…</p>
-              ) : (() => {
-                const q = historySearch.toLowerCase();
-                const filtered = historyEntries.filter(e =>
-                  !q || e.url.toLowerCase().includes(q) || e.method.toLowerCase().includes(q)
-                );
-                if (filtered.length === 0) {
-                  return <p style={{ textAlign: 'center', opacity: 0.5, fontSize: '13px', padding: '24px 0' }}>No history yet.</p>;
-                }
-                return filtered.map(entry => {
-                  const canReplay = workspace?.requests.some(r => r.id === entry.requestId) ?? false;
-                  return (
-                    <div
-                      key={entry.id}
-                      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 4px', borderBottom: '1px solid var(--color-border)' }}
-                    >
-                      <span
-                        style={{ flexShrink: 0, fontSize: '12px', fontWeight: 700, minWidth: '36px', textAlign: 'center', padding: '2px 5px', borderRadius: '4px', backgroundColor: `${statusColor(entry.status)}18`, color: statusColor(entry.status) }}
-                      >
-                        {entry.status}
-                      </span>
-                      <span className={`method method-${methodClass(entry.method)}`} style={{ flexShrink: 0 }}>{entry.method}</span>
-                      <span style={{ flex: 1, fontSize: '12px', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text)' }} title={entry.url}>{entry.url}</span>
-                      <span style={{ flexShrink: 0, fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{entry.durationMs} ms</span>
-                      <span style={{ flexShrink: 0, fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{formatBytes(entry.sizeBytes)}</span>
-                      <span style={{ flexShrink: 0, fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{formatTimestamp(entry.createdAt)}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleReplayFromHistory(entry)}
-                        disabled={!canReplay}
-                        title={canReplay ? 'Replay request' : 'Saved request was deleted'}
-                        style={{ all: 'unset', cursor: canReplay ? 'pointer' : 'not-allowed', opacity: canReplay ? 0.7 : 0.3, flexShrink: 0 }}
-                        aria-label="Replay request"
-                      >
-                        <RefreshCw size={13} />
-                      </button>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
+      <HistoryModal
+        open={historyOpen}
+        historyEntries={historyEntries}
+        historySearch={historySearch}
+        historyLoading={historyLoading}
+        workspace={workspace}
+        onClose={() => setHistoryOpen(false)}
+        onSearchChange={setHistorySearch}
+        onClear={handleClearHistory}
+        onReplay={handleReplayFromHistory}
+        formatTimestamp={formatTimestamp}
+      />
 
       <SettingsModal
         open={settingsOpen}
