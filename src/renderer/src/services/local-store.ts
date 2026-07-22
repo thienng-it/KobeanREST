@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AppSettings, UpdateCheckPreview, WorkspaceSummary } from "../types";
+import type { AppSettings, ScopedVariable, ScopedVariableEntityType, UpdateCheckPreview, WorkspaceSummary } from "../types";
 
 declare global {
   interface Window {
@@ -186,6 +186,48 @@ export async function deleteVariable(environmentName: string, key: string): Prom
 export async function saveSecretVariable(environmentName: string, key: string, secretRef: string): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("save_secret_variable", { environmentName, key, secretRef });
+}
+
+export async function saveScopedVariable(
+  entityId: string,
+  entityType: ScopedVariableEntityType,
+  key: string,
+  value: string,
+): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("save_scoped_variable", { entityId, entityType, key, value });
+}
+
+export async function saveScopedSecretVariable(
+  entityId: string,
+  entityType: ScopedVariableEntityType,
+  key: string,
+  secretRef: string,
+): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("save_scoped_secret_variable", { entityId, entityType, key, secretRef });
+}
+
+export async function deleteScopedVariable(
+  entityId: string,
+  entityType: ScopedVariableEntityType,
+  key: string,
+): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("delete_scoped_variable", { entityId, entityType, key });
+}
+
+export async function getScopedVariables(
+  entityId: string,
+  entityType: ScopedVariableEntityType,
+): Promise<ScopedVariable[]> {
+  if (!isTauriRuntime()) return [];
+  return invoke<ScopedVariable[]>("get_scoped_variables", { entityId, entityType });
+}
+
+export async function resolveSecrets(refIds: string[]): Promise<Record<string, string>> {
+  if (!isTauriRuntime()) return {};
+  return invoke<Record<string, string>>("resolve_secrets", { refIds });
 }
 
 export async function loadHistory(): Promise<import("../types").HistoryEntry[]> {

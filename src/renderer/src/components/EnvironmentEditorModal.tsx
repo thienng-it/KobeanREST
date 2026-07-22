@@ -1,60 +1,6 @@
 import { Edit2, Plus, Trash2, X } from "lucide-react";
 import type { WorkspaceSummary } from "../types";
-
-interface AddVariableRowProps {
-  newVarKey: string;
-  newVarValue: string;
-  newVarSecret: boolean;
-  setNewVarKey: (v: string) => void;
-  setNewVarValue: (v: string) => void;
-  setNewVarSecret: (v: boolean) => void;
-  onSave: (key: string, value: string, secret: boolean) => Promise<void>;
-}
-
-
-
-function AddVariableRow({
-  newVarKey,
-  newVarValue,
-  newVarSecret,
-  setNewVarKey,
-  setNewVarValue,
-  setNewVarSecret,
-  onSave,
-}: AddVariableRowProps) {
-  return (
-    <div className="env-add-variable" aria-label="Add variable">
-      <div className="env-add-variable-fields">
-        <input
-          value={newVarKey}
-          onChange={(e) => setNewVarKey(e.target.value)}
-          placeholder="New key"
-          aria-label="Variable key"
-        />
-        <input
-          value={newVarValue}
-          onChange={(e) => setNewVarValue(e.target.value)}
-          placeholder={newVarSecret ? "Secret value" : "Value"}
-          aria-label="Variable value"
-          type={newVarSecret ? "password" : "text"}
-        />
-      </div>
-      <div className="env-add-variable-actions">
-        <label className="env-secret-toggle">
-          <input type="checkbox" checked={newVarSecret} onChange={(e) => setNewVarSecret(e.target.checked)} />
-          Secret
-        </label>
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={() => void onSave(newVarKey, newVarValue, newVarSecret)}
-        >
-          <Plus size={12} /> Add
-        </button>
-      </div>
-    </div>
-  );
-}
+import { EnvVariablesEditor } from "./EnvVariablesEditor";
 
 export interface EnvironmentEditorModalProps {
   open: boolean;
@@ -62,9 +8,6 @@ export interface EnvironmentEditorModalProps {
   envEditorTarget: string;
   renamingEnvironment: string;
   environmentNameDraft: string;
-  newVarKey: string;
-  newVarValue: string;
-  newVarSecret: boolean;
 
   onClose: () => void;
   onEnvEditorTargetChange: (name: string) => void;
@@ -80,7 +23,7 @@ export interface EnvironmentEditorModalProps {
   onDeleteEnvironment: (name: string) => void;
   onSetActiveEnvironment: (name: string) => void;
 
-  // Variable CRUD
+  // Variable CRUD (kept for compat; bulk/inline handled inside EnvVariablesEditor)
   onDeleteVariable: (envName: string, key: string) => void;
   onNewVarKeyChange: (value: string) => void;
   onNewVarValueChange: (value: string) => void;
@@ -95,9 +38,6 @@ export function EnvironmentEditorModal({
   envEditorTarget,
   renamingEnvironment,
   environmentNameDraft,
-  newVarKey,
-  newVarValue,
-  newVarSecret,
   onClose,
   onEnvEditorTargetChange,
   onRenameEnvironment,
@@ -108,9 +48,6 @@ export function EnvironmentEditorModal({
   onDeleteEnvironment,
   onSetActiveEnvironment,
   onDeleteVariable,
-  onNewVarKeyChange,
-  onNewVarValueChange,
-  onNewVarSecretChange,
   onSaveVariable,
   onAddSecretVariable,
 }: EnvironmentEditorModalProps) {
@@ -212,39 +149,14 @@ export function EnvironmentEditorModal({
                   <div className="env-variable-header">
                     <span className="env-section-label">Variables</span>
                     <strong>{env.name}</strong>
-                    <span>{env.variables.length} {env.variables.length === 1 ? "variable" : "variables"}</span>
                   </div>
-                  <div className="env-variable-card">
-                    {env.variables.map((v) => (
-                      <div key={v.key} className="env-variable-row">
-                        <span className="env-variable-key">{v.key}</span>
-                        <span className={v.secret ? "env-variable-value secret" : "env-variable-value"}>
-                          {v.secret ? "[secret stored outside SQLite]" : v.value}
-                        </span>
-                        {v.secret && <span className="env-secret-badge">Secret</span>}
-                        <button type="button" className="env-icon-button danger" aria-label={`Delete variable ${v.key}`} onClick={() => onDeleteVariable(env.name, v.key)}><Trash2 size={12} /></button>
-                      </div>
-                    ))}
-                    <AddVariableRow
-                      newVarKey={newVarKey}
-                      newVarValue={newVarValue}
-                      newVarSecret={newVarSecret}
-                      setNewVarKey={onNewVarKeyChange}
-                      setNewVarValue={onNewVarValueChange}
-                      setNewVarSecret={onNewVarSecretChange}
-                      onSave={async (key, value, secret) => {
-                        if (!key) return;
-                        if (secret) {
-                          await onAddSecretVariable(env.name, key, value);
-                        } else {
-                          await onSaveVariable(env.name, key, value);
-                        }
-                        onNewVarKeyChange("");
-                        onNewVarValueChange("");
-                        onNewVarSecretChange(false);
-                      }}
-                    />
-                  </div>
+                  <EnvVariablesEditor
+                    envName={env.name}
+                    variables={env.variables}
+                    onSave={onSaveVariable}
+                    onSaveSecret={onAddSecretVariable}
+                    onDelete={(envName, key) => { onDeleteVariable(envName, key); return Promise.resolve(); }}
+                  />
                 </>
               );
             })() : (

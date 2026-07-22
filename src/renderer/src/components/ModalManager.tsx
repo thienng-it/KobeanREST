@@ -7,6 +7,7 @@ import { UpdateDialogModal, type UpdateDialogModalProps } from "./UpdateDialogMo
 import { EnvironmentEditorModal, type EnvironmentEditorModalProps } from "./EnvironmentEditorModal";
 import { RequestCodeModal, type RequestCodeModalProps } from "./RequestCodeModal";
 import { FolderScriptsModal, type FolderScriptsModalProps } from "./FolderScriptsModal";
+import { CollectionEditorModal, type CollectionEditorModalProps } from "./CollectionEditorModal";
 import { ResponsePanel } from "./ResponsePanel";
 import type { ExecuteHttpResponse } from "../types";
 import type { PreviewMode, ResponseTab } from "./ResponsePanel";
@@ -41,6 +42,7 @@ export interface ModalManagerProps {
   env: EnvironmentEditorModalProps;
   requestCode: RequestCodeModalProps;
   folderScripts: FolderScriptsModalProps;
+  collectionEditor: CollectionEditorModalProps;
   responseWindow: ResponseWindowProps;
 }
 
@@ -54,6 +56,7 @@ export function ModalManager({
   env,
   requestCode,
   folderScripts,
+  collectionEditor,
   responseWindow,
 }: ModalManagerProps) {
   return (
@@ -66,6 +69,7 @@ export function ModalManager({
       <EnvironmentEditorModal {...env} />
       <RequestCodeModal {...requestCode} />
       <FolderScriptsModal {...folderScripts} />
+      <CollectionEditorModal {...collectionEditor} />
 
       {responseWindow.open && (
         <div

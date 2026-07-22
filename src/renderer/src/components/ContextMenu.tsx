@@ -1,9 +1,9 @@
-import { Edit2, Eye, FolderTree, KeyRound, Plus, Trash2 } from "lucide-react";
+import { Edit2, Eye, FolderTree, KeyRound, Plus, Trash2, Variable } from "lucide-react";
 import type { SavedRequest } from "../types";
 
 export interface ContextMenuTarget {
   id: string;
-  type: "folder" | "request";
+  type: "folder" | "request" | "collection";
 }
 
 export interface ContextMenuState {
@@ -52,6 +52,8 @@ export interface ContextMenuProps {
   onCreateSubFolder: (folderId: string) => Promise<void> | void;
   onEditFolderAuth: (folderId: string) => void;
   onEditFolderScripts: (folderId: string) => void;
+  onEditFolderVariables: (folderId: string) => void;
+  onEditCollectionVariables: (collectionId: string) => void;
   onDeleteFolder: (folderId: string) => void;
   onStartRequestRename: (request: SavedRequest) => void;
   onViewRequest: (reqId: string) => void;
@@ -66,6 +68,8 @@ export function ContextMenu({
   onCreateSubFolder,
   onEditFolderAuth,
   onEditFolderScripts,
+  onEditFolderVariables,
+  onEditCollectionVariables,
   onDeleteFolder,
   onStartRequestRename,
   onViewRequest,
@@ -148,6 +152,18 @@ export function ContextMenu({
           >
             <Edit2 size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Scripts
           </button>
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (target.id) onEditFolderVariables(target.id);
+              onClose();
+            }}
+            style={itemStyle}
+            {...hoverHandlers()}
+          >
+            <Variable size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Variables
+          </button>
           <div style={{ height: "1px", backgroundColor: "var(--color-border)", margin: "4px 0" }} />
           <button
             className="context-menu-item"
@@ -160,6 +176,22 @@ export function ContextMenu({
             {...hoverHandlers()}
           >
             <Trash2 size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Delete Folder
+          </button>
+        </>
+      )}
+      {target?.type === "collection" && (
+        <>
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (target.id) onEditCollectionVariables(target.id);
+              onClose();
+            }}
+            style={itemStyle}
+            {...hoverHandlers()}
+          >
+            <Variable size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Variables
           </button>
         </>
       )}
