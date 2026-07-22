@@ -96,7 +96,7 @@ export interface HistoryEntry {
 
 export interface AppSettings {
   updateChecksEnabled: boolean;
-  theme: "system" | "light" | "dark";
+  theme: "system" | "light" | "dark" | "matrix" | "cyberpunk" | "warm";
   exportRedactionEnabled: boolean;
   diagnosticsRedactionEnabled: boolean;
   offlineBehavior: "silent" | "notice";

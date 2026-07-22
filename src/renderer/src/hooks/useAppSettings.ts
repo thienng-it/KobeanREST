@@ -33,7 +33,10 @@ export function useAppSettings() {
           ? (mediaQuery.matches ? "dark" : "light")
           : appSettings.theme;
       document.documentElement.dataset.theme = resolvedTheme;
-      document.documentElement.style.colorScheme = resolvedTheme;
+      document.documentElement.style.colorScheme =
+        resolvedTheme === "light" || resolvedTheme === "warm"
+          ? "light"
+          : "dark";
     };
 
     applyTheme();

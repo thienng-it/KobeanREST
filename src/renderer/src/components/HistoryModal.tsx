@@ -57,7 +57,7 @@ export function HistoryModal({
               type="button"
               className="ghost-button"
               onClick={onClear}
-              style={{ fontSize: "12px", minHeight: "30px", padding: "0 10px", color: "#991b1b", borderColor: "#fca5a5" }}
+              style={{ fontSize: "12px", minHeight: "30px", padding: "0 10px", color: "var(--color-status-error)", borderColor: "color-mix(in srgb, var(--color-status-error) 40%, transparent)" }}
             >
               Clear all
             </button>
@@ -90,15 +90,16 @@ export function HistoryModal({
                   style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 4px", borderBottom: "1px solid var(--color-border)" }}
                 >
                   <span
-                    style={{ flexShrink: 0, fontSize: "12px", fontWeight: 700, minWidth: "36px", textAlign: "center", padding: "2px 5px", borderRadius: "4px", backgroundColor: `${statusColor(entry.status)}18`, color: statusColor(entry.status) }}
+                    className="history-status-badge"
+                    style={{ flexShrink: 0, fontSize: "12px", fontWeight: 700, minWidth: "36px", textAlign: "center", padding: "2px 5px", borderRadius: "4px", color: statusColor(entry.status) }}
                   >
                     {entry.status}
                   </span>
                   <span className={`method method-${methodClass(entry.method)}`} style={{ flexShrink: 0 }}>{entry.method}</span>
                   <span style={{ flex: 1, fontSize: "12px", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={entry.url}>{entry.url}</span>
-                  <span style={{ flexShrink: 0, fontSize: "11px", color: "#94a3b8", whiteSpace: "nowrap" }}>{entry.durationMs} ms</span>
-                  <span style={{ flexShrink: 0, fontSize: "11px", color: "#94a3b8", whiteSpace: "nowrap" }}>{formatBytes(entry.sizeBytes)}</span>
-                  <span style={{ flexShrink: 0, fontSize: "11px", color: "#94a3b8", whiteSpace: "nowrap" }}>{formatTimestamp(entry.createdAt)}</span>
+                  <span style={{ flexShrink: 0, fontSize: "11px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{entry.durationMs} ms</span>
+                  <span style={{ flexShrink: 0, fontSize: "11px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{formatBytes(entry.sizeBytes)}</span>
+                  <span style={{ flexShrink: 0, fontSize: "11px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{formatTimestamp(entry.createdAt)}</span>
                   <button
                     type="button"
                     onClick={() => onReplay(entry)}

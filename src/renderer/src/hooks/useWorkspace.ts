@@ -21,6 +21,8 @@ import {
   getScripts,
   createCollection,
   createWorkspace,
+  exportWorkspaceData,
+  importWorkspaceData,
 } from "../services/local-store";
 import { storeSecret } from "../services/secrets";
 import { diagnosticMessage } from "../app-utils";
@@ -79,33 +81,28 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     }
   }
 
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadWorkspace() {
-      try {
-        const persistence = await initializeLocalStore();
-        const localWorkspace = await loadLocalWorkspace();
-        const loadedSettings = await loadAppSettings();
-        if (!isActive) return;
-        setDatabasePath(persistence.databasePath);
-        setWorkspace(localWorkspace);
-        setSelectedRequestId((currentRequestId) => {
-          if (localWorkspace.requests.some((request) => request.id === currentRequestId)) {
-            return currentRequestId;
-          }
-          return localWorkspace.requests[0]?.id ?? currentRequestId;
-        });
-        onWorkspaceLoaded(loadedSettings);
-        void handleLoadScriptStatuses();
-      } catch (error) {
-        console.error("Failed to load local workspace", diagnosticMessage(error));
-      }
+  async function loadWorkspace() {
+    try {
+      const persistence = await initializeLocalStore();
+      const localWorkspace = await loadLocalWorkspace();
+      const loadedSettings = await loadAppSettings();
+      setDatabasePath(persistence.databasePath);
+      setWorkspace(localWorkspace);
+      setSelectedRequestId((currentRequestId) => {
+        if (localWorkspace.requests.some((request) => request.id === currentRequestId)) {
+          return currentRequestId;
+        }
+        return localWorkspace.requests[0]?.id ?? currentRequestId;
+      });
+      onWorkspaceLoaded(loadedSettings);
+      void handleLoadScriptStatuses();
+    } catch (error) {
+      console.error("Failed to load local workspace", diagnosticMessage(error));
     }
+  }
+
+  useEffect(() => {
     void loadWorkspace();
-    return () => {
-      isActive = false;
-    };
   }, []);
 
   useEffect(() => {
@@ -597,6 +594,42 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     } catch (err) { console.error(diagnosticMessage(err)); }
   }
 
+  async function handleExport() {
+    try {
+      const json = await exportWorkspaceData();
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `kobeanrest-workspace-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export workspace", diagnosticMessage(err));
+      alert("Failed to export workspace: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleImport() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const json = await file.text();
+        await importWorkspaceData(json);
+        await loadWorkspace();
+        alert("Workspace imported successfully. Imported data has been added as new workspace(s); current view is unchanged.");
+      } catch (err) {
+        console.error("Failed to import workspace", diagnosticMessage(err));
+        alert("Failed to import workspace: " + diagnosticMessage(err));
+      }
+    };
+    input.click();
+  }
+
   return {
     workspace,
     setWorkspace,
@@ -651,6 +684,8 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     applyEnvironmentRename,
     cancelEnvironmentRename,
     handleLoadScriptStatuses,
+    handleExport,
+    handleImport,
   };
 }
 

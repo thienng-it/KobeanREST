@@ -15,9 +15,12 @@ export function formatBytes(sizeBytes: number) {
 }
 
 export function statusColor(status: number): string {
-  if (status >= 500) return '#991b1b';
-  if (status >= 400) return '#92400e';
-  if (status >= 300) return '#1e40af';
-  if (status >= 200) return '#14532d';
-  return '#334155';
+  if (status >= 500) return 'var(--color-status-5xx)';
+  if (status >= 400) return 'var(--color-status-4xx)';
+  if (status >= 300) return 'var(--color-status-3xx)';
+  if (status >= 200) return 'var(--color-status-2xx)';
+  return 'var(--color-status-1xx)';
 }
+
+/** Muted status color (history rows, secondary status text). */
+export const statusColorMuted = 'var(--color-status-muted)';

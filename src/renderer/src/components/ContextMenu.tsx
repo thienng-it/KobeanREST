@@ -33,7 +33,7 @@ const requestItemStyle = {
   borderRadius: "4px",
 } as const;
 
-const dangerColor = { color: "#991b1b" };
+const dangerColor = { color: "var(--color-status-error)" };
 
 function hoverHandlers() {
   return {

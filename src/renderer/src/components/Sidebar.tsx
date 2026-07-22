@@ -1,4 +1,4 @@
-import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X } from "lucide-react";
+import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { SavedRequest, WorkspaceSummary } from "../types";
 
@@ -60,6 +60,10 @@ export interface SidebarProps {
   onToggleFolder: (folderId: string) => void;
   onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
   onDismissDeleteError: () => void;
+
+  // Import / export
+  onExport: () => void;
+  onImport: () => void;
 }
 
 export function Sidebar({
@@ -99,6 +103,8 @@ export function Sidebar({
   onToggleFolder,
   onContextMenu,
   onDismissDeleteError,
+  onExport,
+  onImport,
 }: SidebarProps) {
   const isCollectionSearchActive = collectionSearch.trim().length > 0;
   const normalizedCollectionSearch = collectionSearch.trim().toLowerCase();
@@ -157,6 +163,26 @@ export function Sidebar({
           <strong>KobeanREST</strong>
           <span>{headline}</span>
         </div>
+        <div className="brand-actions">
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            aria-label="Import workspace"
+            title="Import workspace"
+            onClick={onImport}
+          >
+            <Upload size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            aria-label="Export workspace"
+            title="Export workspace"
+            onClick={onExport}
+          >
+            <Download size={15} />
+          </button>
+        </div>
       </div>
 
       <div className="sidebar-content">
@@ -183,7 +209,7 @@ export function Sidebar({
         </div>
 
         {deleteError && (
-          <div role="alert" style={{ padding: "8px 10px", borderRadius: "6px", background: "#fef2f2", border: "1px solid #fca5a5", color: "#991b1b", fontSize: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+          <div role="alert" className="sidebar-error-banner" style={{ padding: "8px 10px", borderRadius: "6px", fontSize: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
             <span>{deleteError}</span>
             <button type="button" aria-label="Dismiss error" onClick={onDismissDeleteError} style={{ all: "unset", cursor: "pointer", fontWeight: 700 }}>✕</button>
           </div>
