@@ -15,6 +15,7 @@ import {
   getEffectiveAuth,
   diagnosticMessage,
 } from "./app-utils";
+import type { KbScriptContext } from "./services/script-runtime";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { useAppSettings } from "./hooks/useAppSettings";
 import { useHistory } from "./hooks/useHistory";
@@ -154,6 +155,8 @@ export function App() {
   const {
     preScript, setPreScript,
     postScript, setPostScript,
+    savedPreScript, savedPostScript,
+    preScriptDirty, postScriptDirty, scriptsDirty,
     activeRequestScript, setActiveRequestScript,
     scriptEditorMode, setScriptEditorMode,
     activeSnippetId, setActiveSnippetId,
@@ -280,7 +283,34 @@ export function App() {
   function insertSelectedScriptSnippet() {
     if (!selectedScriptSnippet) return;
     setScriptEditorMode(selectedScriptSnippet.mode);
-    insertScriptToken(selectedScriptSnippet.body);
+
+    // Templates are scope-aware: a post-response template belongs in the post
+    // script, a pre-request template in the pre script. When the active editor
+    // already matches (or the template is scope: "both"), insert at the cursor.
+    // When it differs, switch the tab and append to the target script directly —
+    // the editor is keyed by activeRequestScript, so the ref would otherwise
+    // still point at the editor we're about to unmount.
+    const target =
+      selectedScriptSnippet.scope === "both"
+        ? activeRequestScript
+        : selectedScriptSnippet.scope;
+    const matchesActive = target === activeRequestScript;
+
+    if (matchesActive) {
+      insertScriptToken(selectedScriptSnippet.body);
+      return;
+    }
+
+    const current = target === "pre" ? preScript : postScript;
+    const next = current.trimEnd()
+      ? `${current.trimEnd()}${current.endsWith("\n") ? "" : "\n"}${selectedScriptSnippet.body}`
+      : selectedScriptSnippet.body;
+    if (target === "pre") {
+      setPreScript(next);
+    } else {
+      setPostScript(next);
+    }
+    setActiveRequestScript(target);
   }
 
   function insertRequestCodeSnippet() {
@@ -323,9 +353,15 @@ export function App() {
 
     // 1. Execute Pre-scripts (Hierarchy: Folder -> Request)
     // Note: Collection level is not yet fully implemented in the store, focusing on Folder -> Request
-    const preScriptsContext = { 
+    const persistVariable = (key: string, value: string) => {
+      const envName = workspace?.activeEnvironment;
+      if (!envName) return;
+      void handleSaveVariable(envName, key, value);
+    };
+    const preScriptsContext: KbScriptContext = {
       request: { ...draftRequest },
       variables: createScriptVariablesObject(activeVars),
+      setVariable: persistVariable,
     };
     
     try {
@@ -449,10 +485,11 @@ export function App() {
       setAbortController(null);
       
       // 2. Execute Post-scripts (Hierarchy: Request -> Folder)
-      const postScriptsContext = {
+      const postScriptsContext: KbScriptContext = {
         request: requestToSend,
         response: response,
         variables: createScriptVariablesObject(activeVars),
+        setVariable: persistVariable,
       };
       
       try {
@@ -597,6 +634,9 @@ export function App() {
               setPreScript={setPreScript}
               postScript={postScript}
               setPostScript={setPostScript}
+              preScriptDirty={preScriptDirty}
+              postScriptDirty={postScriptDirty}
+              scriptsDirty={scriptsDirty}
               activeRequestScript={activeRequestScript}
               setActiveRequestScript={setActiveRequestScript}
               scriptEditorMode={scriptEditorMode}

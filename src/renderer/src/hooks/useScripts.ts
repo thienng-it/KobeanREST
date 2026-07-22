@@ -2,12 +2,16 @@ import { useState, useRef, useEffect } from "react";
 import { getScripts, saveScript } from "../services/local-store";
 import { diagnosticMessage, formatScriptLogValue } from "../app-utils";
 import { prettifyScriptContent, type ScriptEditorMode, type RequestCodeSnippetTarget } from "../services/script-tools";
+import { runKbScript, type KbScriptContext } from "../services/script-runtime";
 
 export type ScriptOutputEntry = { tone: "info" | "error"; message: string };
 
 export function useScripts(selectedRequestId: string | null) {
   const [preScript, setPreScript] = useState("");
   const [postScript, setPostScript] = useState("");
+  // Snapshot of what's persisted, so the UI can flag unsaved edits.
+  const [savedPreScript, setSavedPreScript] = useState("");
+  const [savedPostScript, setSavedPostScript] = useState("");
   const [activeRequestScript, setActiveRequestScript] = useState<"pre" | "post">("pre");
   const [scriptEditorMode, setScriptEditorMode] = useState<ScriptEditorMode>("javascript");
   const [activeSnippetId, setActiveSnippetId] = useState("set-header");
@@ -24,13 +28,21 @@ export function useScripts(selectedRequestId: string | null) {
 
   useEffect(() => {
     async function loadScripts() {
-      if (!selectedRequestId) return;
+      if (!selectedRequestId) {
+        setPreScript("");
+        setPostScript("");
+        setSavedPreScript("");
+        setSavedPostScript("");
+        return;
+      }
       try {
         const scripts = await getScripts(selectedRequestId, 'request');
         const pre = scripts.find(s => s.scriptType === 'pre')?.content ?? "";
         const post = scripts.find(s => s.scriptType === 'post')?.content ?? "";
         setPreScript(pre);
         setPostScript(post);
+        setSavedPreScript(pre);
+        setSavedPostScript(post);
       } catch (err) {
         console.error("Failed to load scripts", diagnosticMessage(err));
       }
@@ -108,6 +120,8 @@ export function useScripts(selectedRequestId: string | null) {
     try {
       await saveScript(selectedRequestId, "request", "pre", preScript);
       await saveScript(selectedRequestId, "request", "post", postScript);
+      setSavedPreScript(preScript);
+      setSavedPostScript(postScript);
       alert("Scripts saved successfully!");
     } catch (err) {
       console.error("Failed to save scripts", diagnosticMessage(err));
@@ -115,7 +129,7 @@ export function useScripts(selectedRequestId: string | null) {
     }
   }
 
-  async function runScript(content: string, context: any, label: string): Promise<ScriptOutputEntry[]> {
+  async function runScript(content: string, context: KbScriptContext, label: string): Promise<ScriptOutputEntry[]> {
     if (!content) return [];
     const entries: ScriptOutputEntry[] = [];
     const scriptConsole = {
@@ -131,15 +145,7 @@ export function useScripts(selectedRequestId: string | null) {
     };
 
     try {
-      const fn = new Function("context", "console", `
-        const request = context.request;
-        const response = context.response;
-        const variables = context.variables;
-        return (async () => {
-          ${content}
-        })();
-      `);
-      await fn(context, scriptConsole);
+      await runKbScript(content, context, scriptConsole);
     } catch (err) {
       console.error("Failed to parse script:", diagnosticMessage(err));
       entries.push({ tone: "error", message: `[${label}] ${diagnosticMessage(err)}` });
@@ -148,9 +154,15 @@ export function useScripts(selectedRequestId: string | null) {
     return entries;
   }
 
+  const preScriptDirty = preScript !== savedPreScript;
+  const postScriptDirty = postScript !== savedPostScript;
+  const scriptsDirty = preScriptDirty || postScriptDirty;
+
   return {
     preScript, setPreScript,
     postScript, setPostScript,
+    savedPreScript, savedPostScript,
+    preScriptDirty, postScriptDirty, scriptsDirty,
     activeRequestScript, setActiveRequestScript,
     scriptEditorMode, setScriptEditorMode,
     activeSnippetId, setActiveSnippetId,

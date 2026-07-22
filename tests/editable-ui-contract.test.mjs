@@ -383,7 +383,7 @@ test("scripts tab uses one editor with a pre/post selector", () => {
   assert.match(app, /onChange=\{activeRequestScript === "pre" \? setPreScript : setPostScript\}/);
   assert.match(app, /onReady=\{\(actions\) => \{\s*scriptEditorActionsRef\.current = actions;\s*\}\}/);
   assert.match(app, /<ScriptEditor[\s\S]*height="100%"/);
-  assert.match(app, /className="ghost-button script-workspace-save"/);
+  assert.match(app, /ghost-button script-workspace-save\$\{scriptsDirty \? " dirty" : ""\}/);
   assert.match(app, /request/);
   assert.match(app, /variables/);
   assert.match(app, /response/);

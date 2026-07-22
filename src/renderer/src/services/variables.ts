@@ -18,6 +18,42 @@ export class UnresolvedVariableError extends Error {
 }
 
 /**
+ * Built-in dynamic variables (Postman-style `$`-prefixed helpers).
+ * These are generated on demand rather than stored in the environment,
+ * so `{{$guid}}` / `{{$timestamp}}` resolve without being predefined.
+ * An env variable of the same name always takes precedence.
+ */
+const DYNAMIC_VARIABLES: Record<string, () => string> = {
+  $guid: () => randomUuid(),
+  $randomUUID: () => randomUuid(),
+  $timestamp: () => String(Math.floor(Date.now() / 1000)),
+  $timestampMs: () => String(Date.now()),
+  $isoTimestamp: () => new Date().toISOString(),
+  $isoDatetime: () => new Date().toISOString(),
+  $datetime: () => new Date().toISOString(),
+  $date: () => new Date().toISOString().slice(0, 10),
+  $randomInt: () => String(Math.floor(Math.random() * 1000)),
+  $randomString: () => randomString(8),
+};
+
+function randomUuid(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // ponytail: fallback only — crypto.randomUUID is available in Tauri/browser.
+  return randomString(8) + "-" + randomString(4) + "-4" + randomString(3) + "-a" + randomString(3) + "-" + randomString(12);
+}
+
+function randomString(length: number): string {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let out = "";
+  for (let i = 0; i < length; i++) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
+}
+
+/**
  * Find the active environment variables from the workspace.
  * Returns an empty array if the active environment does not exist or workspace is null.
  */
@@ -86,6 +122,15 @@ export function resolveString(
         usedVariables.push(name);
       }
       return variableMap.get(name)!;
+    }
+    // Built-in dynamic helpers ({{$guid}}, {{$timestamp}}, ...) resolve on demand
+    // so users don't have to define them in the environment.
+    const generator = DYNAMIC_VARIABLES[name];
+    if (generator) {
+      if (!usedVariables.includes(name)) {
+        usedVariables.push(name);
+      }
+      return generator();
     }
     return fullMatch;
   });

@@ -12,6 +12,8 @@ export interface ScriptSnippet {
   id: string;
   label: string;
   mode: ScriptEditorMode;
+  /** Where this template applies: pre-request, post-response, or both. */
+  scope: "pre" | "post" | "both";
   body: string;
 }
 
@@ -26,58 +28,174 @@ export const SCRIPT_EDITOR_MODES: ScriptEditorModeOption[] = [
 ];
 
 export const SCRIPT_SNIPPETS: ScriptSnippet[] = [
+  // --- Pre-request templates ---
   {
     id: "set-header",
     label: "Set request header",
     mode: "javascript",
-    body: `request.headers = [
-  ...(request.headers ?? []),
-  { key: "X-Trace-Id", value: variables.traceId ?? "{{$guid}}", enabled: true },
-];`,
+    scope: "pre",
+    body: `kb.request.setHeader("X-Trace-Id", kb.variables.traceId ?? crypto.randomUUID());`,
+  },
+  {
+    id: "bearer-token",
+    label: "Inject bearer token",
+    mode: "javascript",
+    scope: "pre",
+    body: `// Reads an OAuth/Bearer token from the environment and attaches it.
+const token = kb.environment.get("authToken");
+if (token) {
+  kb.request.setHeader("Authorization", \`Bearer \${token}\`);
+}`,
+  },
+  {
+    id: "correlation-id",
+    label: "Add correlation ID",
+    mode: "javascript",
+    scope: "pre",
+    body: `// Generates a per-request correlation ID and reuses it if set earlier.
+const correlationId = kb.environment.get("correlationId") ?? crypto.randomUUID();
+kb.environment.set("correlationId", correlationId);
+kb.request.setHeader("X-Correlation-Id", correlationId);`,
+  },
+  {
+    id: "timestamp-header",
+    label: "Add timestamp header",
+    mode: "javascript",
+    scope: "pre",
+    body: `kb.request.setHeader("X-Timestamp", new Date().toISOString());`,
+  },
+  {
+    id: "set-method",
+    label: "Override method & URL",
+    mode: "javascript",
+    scope: "pre",
+    body: `kb.request.method = "POST";
+kb.request.url = kb.variables.baseUrl + "/users";`,
   },
   {
     id: "set-json-body",
-    label: "Set JSON body",
+    label: "Build JSON body from variables",
     mode: "javascript",
-    body: `request.bodyMimeType = "application/json";
-request.body = JSON.stringify({
+    scope: "pre",
+    body: `kb.request.bodyMimeType = "application/json";
+kb.request.body = JSON.stringify({
   source: "kobeanrest",
+  user: kb.variables.username ?? "anonymous",
   timestamp: new Date().toISOString(),
 });`,
   },
   {
-    id: "set-variable",
-    label: "Set variable",
+    id: "merge-query-param",
+    label: "Append query parameter",
     mode: "javascript",
-    body: `variables.nextToken = response?.body
-  ? JSON.parse(response.body).token
-  : variables.nextToken;`,
+    scope: "pre",
+    body: `// Adds ?ref=kobeanrest without clobbering existing query string.
+const url = new URL(kb.request.url);
+url.searchParams.set("ref", "kobeanrest");
+kb.request.url = url.toString();`,
+  },
+  {
+    id: "remove-header",
+    label: "Remove a request header",
+    mode: "javascript",
+    scope: "pre",
+    body: `kb.request.removeHeader("Cookie");`,
+  },
+
+  // --- Post-response templates ---
+  {
+    id: "status-assertion",
+    label: "Assert 2xx status",
+    mode: "javascript",
+    scope: "post",
+    body: `if (kb.response.status < 200 || kb.response.status >= 300) {
+  throw new Error(\`Expected 2xx status, received \${kb.response.status}\`);
+}`,
+  },
+  {
+    id: "extract-token",
+    label: "Extract & persist auth token",
+    mode: "javascript",
+    scope: "post",
+    body: `// Saves an access_token from the response into the active environment.
+const token = kb.response.json()?.access_token;
+if (token) {
+  kb.environment.set("authToken", token);
+  console.log("Stored new auth token.");
+} else {
+  throw new Error("Response did not contain access_token");
+}`,
+  },
+  {
+    id: "extract-value",
+    label: "Extract & store a field",
+    mode: "javascript",
+    scope: "post",
+    body: `const data = kb.response.json();
+kb.environment.set("userId", String(data.id ?? ""));
+console.log("Stored userId:", kb.environment.get("userId"));`,
+  },
+  {
+    id: "pagination-cursor",
+    label: "Store next page cursor",
+    mode: "javascript",
+    scope: "post",
+    body: `const next = kb.response.json()?.pagination?.next_cursor;
+if (next) {
+  kb.environment.set("nextCursor", String(next));
+} else {
+  // No more pages — clear the cursor so the next run stops paging.
+  kb.environment.set("nextCursor", "");
+}`,
   },
   {
     id: "response-json",
     label: "Read response JSON",
     mode: "javascript",
-    body: `const data = JSON.parse(response.body);
+    scope: "post",
+    body: `const data = kb.response.json();
 console.log("response data", data);`,
   },
   {
-    id: "status-test",
-    label: "Status assertion",
+    id: "log-timing",
+    label: "Log response timing",
     mode: "javascript",
-    body: `if (response.status < 200 || response.status >= 300) {
-  throw new Error(\`Expected 2xx status, received \${response.status}\`);
-}`,
+    scope: "post",
+    body: `console.log(\`\${kb.request.method} \${kb.request.url} -> \${kb.response.status} in \${kb.response.durationMs}ms (\${kb.response.sizeBytes} bytes)\`);`,
   },
   {
-    id: "timing-log",
-    label: "Log response time",
+    id: "log-on-error",
+    label: "Log body on error",
     mode: "javascript",
-    body: `console.log(\`Response completed in \${response.durationMs}ms\`);`,
+    scope: "post",
+    body: `if (kb.response.status >= 400) {
+  console.error("Request failed:", kb.response.status, kb.response.text());
+}`,
   },
+
+  // --- General (work in both pre and post) ---
+  {
+    id: "set-variable",
+    label: "Set variable (persisted)",
+    mode: "javascript",
+    scope: "both",
+    body: `kb.environment.set("myVar", "value");`,
+  },
+  {
+    id: "read-variable",
+    label: "Read a variable",
+    mode: "javascript",
+    scope: "both",
+    body: `const value = kb.environment.get("myVar");
+console.log("myVar =", value);`,
+  },
+
+  // --- MCP payloads ---
   {
     id: "mcp-initialize",
     label: "MCP initialize payload",
     mode: "mcp",
+    scope: "both",
     body: `{
   "jsonrpc": "2.0",
   "id": 1,
@@ -96,6 +214,7 @@ console.log("response data", data);`,
     id: "mcp-tools-list",
     label: "MCP list tools",
     mode: "mcp",
+    scope: "both",
     body: `{
   "jsonrpc": "2.0",
   "id": 2,
@@ -107,6 +226,7 @@ console.log("response data", data);`,
     id: "mcp-tool-call",
     label: "MCP call tool",
     mode: "mcp",
+    scope: "both",
     body: `{
   "jsonrpc": "2.0",
   "id": 3,
@@ -118,6 +238,30 @@ console.log("response data", data);`,
 }`,
   },
 ];
+
+/** Snippet groups for the template dropdown, in display order. */
+export const SCRIPT_SNIPPET_GROUPS: Array<{
+  label: string;
+  scope: ScriptSnippet["scope"];
+  mode?: ScriptEditorMode;
+}> = [
+  { label: "Pre-request", scope: "pre" },
+  { label: "Post-response", scope: "post" },
+  { label: "General", scope: "both" },
+  { label: "MCP", scope: "both", mode: "mcp" },
+];
+
+/** Snippets belonging to a group: matched by scope; MCP group additionally requires mode === "mcp",
+ *  and the plain "General" group excludes mcp-mode snippets so the two "both"-scope groups don't overlap. */
+export function snippetsForGroup(
+  group: { scope: ScriptSnippet["scope"]; mode?: ScriptEditorMode },
+): ScriptSnippet[] {
+  return SCRIPT_SNIPPETS.filter((snippet) => {
+    if (snippet.scope !== group.scope) return false;
+    if (group.mode === "mcp") return snippet.mode === "mcp";
+    return snippet.mode !== "mcp";
+  });
+}
 
 export function prettifyScriptContent(content: string, mode: ScriptEditorMode): string {
   if (!content.trim()) return content;

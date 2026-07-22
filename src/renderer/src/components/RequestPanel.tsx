@@ -9,6 +9,8 @@ import { buildVariableMap } from "../services/variables";
 import {
   SCRIPT_EDITOR_MODES,
   SCRIPT_SNIPPETS,
+  SCRIPT_SNIPPET_GROUPS,
+  snippetsForGroup,
   type RequestCodeSnippetTarget,
   type ScriptEditorMode,
 } from "../services/script-tools";
@@ -163,6 +165,9 @@ export interface RequestPanelProps {
   setPreScript: (value: string) => void;
   postScript: string;
   setPostScript: (value: string) => void;
+  preScriptDirty: boolean;
+  postScriptDirty: boolean;
+  scriptsDirty: boolean;
   activeRequestScript: "pre" | "post";
   setActiveRequestScript: (value: "pre" | "post") => void;
   scriptEditorMode: ScriptEditorMode;
@@ -204,6 +209,9 @@ export function RequestPanel({
   setPreScript,
   postScript,
   setPostScript,
+  preScriptDirty,
+  postScriptDirty,
+  scriptsDirty,
   activeRequestScript,
   setActiveRequestScript,
   scriptEditorMode,
@@ -407,17 +415,28 @@ export function RequestPanel({
 
       <div className="request-workspace">
         <div className="tab-row" role="tablist" aria-label="Request configuration">
-          {(["body", "headers", "auth", "scripts", "settings"] as const).map((tab) => (
-            <button
-              className={activeTab === tab ? "tab active" : "tab"}
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              role="tab"
-              type="button"
-            >
-              {tab}
-            </button>
-          ))}
+          {(["body", "headers", "auth", "scripts", "settings"] as const).map((tab) => {
+            const hasScript = tab === "scripts" && (preScript.trim() !== "" || postScript.trim() !== "");
+            const scriptUnsaved = tab === "scripts" && scriptsDirty;
+            return (
+              <button
+                className={activeTab === tab ? "tab active" : "tab"}
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                role="tab"
+                type="button"
+              >
+                {tab}
+                {hasScript && (
+                  <span
+                    className={`tab-script-indicator${scriptUnsaved ? " dirty" : ""}`}
+                    title={scriptUnsaved ? "Scripts have unsaved changes" : "Scripts configured"}
+                    aria-hidden="true"
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {activeTab === "body" && (
@@ -761,8 +780,18 @@ export function RequestPanel({
                 role="tab"
                 type="button"
                 aria-selected={activeRequestScript === "pre"}
+                title={
+                  preScript.trim() === ""
+                    ? "No pre-request script"
+                    : preScriptDirty
+                      ? "Pre-request script has unsaved changes"
+                      : "Pre-request script saved"
+                }
               >
                 Pre-request
+                {preScript.trim() !== "" && (
+                  <span className={`script-dot${preScriptDirty ? " dirty" : ""}`} aria-hidden="true" />
+                )}
               </button>
               <button
                 className={activeRequestScript === "post" ? "script-type-option active" : "script-type-option"}
@@ -770,18 +799,30 @@ export function RequestPanel({
                 role="tab"
                 type="button"
                 aria-selected={activeRequestScript === "post"}
+                title={
+                  postScript.trim() === ""
+                    ? "No post-request script"
+                    : postScriptDirty
+                      ? "Post-request script has unsaved changes"
+                      : "Post-request script saved"
+                }
               >
                 Post-request
+                {postScript.trim() !== "" && (
+                  <span className={`script-dot${postScriptDirty ? " dirty" : ""}`} aria-hidden="true" />
+                )}
               </button>
             </div>
             <button
-              className="ghost-button script-workspace-save"
+              className={`ghost-button script-workspace-save${scriptsDirty ? " dirty" : ""}`}
               type="button"
               onClick={onSaveScripts}
-              aria-label={`Save ${currentScriptTitle}`}
+              disabled={!scriptsDirty}
+              aria-label={scriptsDirty ? "Save scripts (pending edits)" : "Scripts saved"}
+              title={scriptsDirty ? "Pending edits — click to save" : "All scripts saved"}
             >
               <Save size={14} />
-              <span>Save Scripts</span>
+              <span>{scriptsDirty ? "Save Scripts" : "Saved"}</span>
             </button>
           </div>
           <div className="script-tool-row">
@@ -808,16 +849,24 @@ export function RequestPanel({
               Prettify
             </button>
             <label className="script-tool-group script-tool-group-fill">
-              <span className="script-tool-label">Snippet</span>
+              <span className="script-tool-label">Template</span>
               <select
                 className="script-tool-select"
                 value={activeSnippetId}
                 onChange={(event) => setActiveSnippetId(event.target.value)}
                 aria-label="Script snippet"
               >
-                {SCRIPT_SNIPPETS.map((snippet) => (
-                  <option key={snippet.id} value={snippet.id}>{snippet.label}</option>
-                ))}
+                {SCRIPT_SNIPPET_GROUPS.map((group) => {
+                  const items = snippetsForGroup(group);
+                  if (items.length === 0) return null;
+                  return (
+                    <optgroup key={group.label} label={group.label}>
+                      {items.map((snippet) => (
+                        <option key={snippet.id} value={snippet.id}>{snippet.label}</option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
               </select>
             </label>
             <button

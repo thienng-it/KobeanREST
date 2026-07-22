@@ -3339,6 +3339,45 @@ button:disabled {
   box-shadow: none;
 }
 
+/* Script presence / unsaved indicators.
+   A filled dot = script configured; amber dot = unsaved edits. */
+.tab-script-indicator {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--color-text-active);
+  opacity: 0.7;
+}
+.tab-script-indicator.dirty {
+  background: var(--color-warning, #d97706);
+  opacity: 1;
+}
+
+.script-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--color-text-active);
+  opacity: 0.7;
+}
+.script-dot.dirty {
+  background: var(--color-warning, #d97706);
+  opacity: 1;
+}
+
+.script-workspace-save.dirty {
+  border-color: var(--color-warning, #d97706);
+  color: var(--color-warning, #d97706);
+}
+.script-workspace-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .script-tool-group,
 .script-tool-group-fill {
   display: inline-flex;
