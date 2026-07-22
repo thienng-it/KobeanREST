@@ -69,8 +69,15 @@ export function SettingsModal({
                 onChange={(e) => onSettingsChange({ theme: e.target.value as AppSettings["theme"] })}
               >
                 <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
+                <optgroup label="Glass">
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                  <option value="warm">Warm / Sunset</option>
+                </optgroup>
+                <optgroup label="Neon">
+                  <option value="matrix">Matrix</option>
+                  <option value="cyberpunk">Cyberpunk</option>
+                </optgroup>
               </select>
             </label>
             <div className="settings-field">

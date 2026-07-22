@@ -55,7 +55,7 @@ test("renderer types include app settings and update preview models", () => {
 
   assert.match(types, /export interface AppSettings/);
   assert.match(types, /updateChecksEnabled: boolean/);
-  assert.match(types, /theme: "system" \| "light" \| "dark"/);
+  assert.match(types, /theme: "system" \| "light" \| "dark" \| "matrix" \| "cyberpunk" \| "warm"/);
   assert.match(types, /exportRedactionEnabled: boolean/);
   assert.match(types, /diagnosticsRedactionEnabled: boolean/);
   assert.match(types, /offlineBehavior: "silent" \| "notice"/);

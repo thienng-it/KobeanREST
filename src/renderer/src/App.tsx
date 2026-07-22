@@ -133,6 +133,8 @@ export function App() {
     handleRenameEnvironment,
     applyEnvironmentRename,
     cancelEnvironmentRename,
+    handleExport,
+    handleImport,
   } = ws;
 
   const {
@@ -259,7 +261,7 @@ export function App() {
       ? `${currentResponse.status} ${currentResponse.statusText}`
       : "No response";
   const responseTitleColor = responseState.kind === 'error'
-    ? '#991b1b'
+    ? 'var(--color-status-error)'
     : currentResponse
       ? statusColor(currentResponse.status)
       : 'var(--color-text)';
@@ -594,6 +596,8 @@ export function App() {
         onToggleFolder={toggleFolder}
         onContextMenu={(target, x, y) => setContextMenu({ x, y, target })}
         onDismissDeleteError={() => setDeleteError(null)}
+        onExport={() => void handleExport()}
+        onImport={() => void handleImport()}
       />
 
       <div

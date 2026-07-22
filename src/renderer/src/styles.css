@@ -48,6 +48,15 @@
   --blob-color-1: rgba(59, 130, 246, 0.18);
   --blob-color-2: rgba(168, 85, 247, 0.15);
   --blob-color-3: rgba(20, 184, 166, 0.12);
+
+  /* Status colors (WCAG-aware against the theme base) */
+  --color-status-1xx: #334155;
+  --color-status-2xx: #14532d;
+  --color-status-3xx: #1e40af;
+  --color-status-4xx: #92400e;
+  --color-status-5xx: #991b1b;
+  --color-status-error: #991b1b;
+  --color-status-muted: #667085;
 }
 
 :root[data-theme="dark"] {
@@ -95,6 +104,180 @@
   --blob-color-1: rgba(59, 130, 246, 0.32);
   --blob-color-2: rgba(168, 85, 247, 0.25);
   --blob-color-3: rgba(20, 184, 166, 0.2);
+
+  /* Status colors */
+  --color-status-1xx: #94a3b8;
+  --color-status-2xx: #4ade80;
+  --color-status-3xx: #60a5fa;
+  --color-status-4xx: #fbbf24;
+  --color-status-5xx: #f87171;
+  --color-status-error: #f87171;
+  --color-status-muted: #98a2b3;
+}
+
+/* Matrix — green-on-black terminal glass */
+:root[data-theme="matrix"] {
+  color-scheme: dark;
+  background: #020806;
+  color: #c8ffd0;
+
+  --color-bg-base: #020806;
+  --color-bg: transparent;
+
+  --color-panel: rgba(8, 24, 14, 0.6);
+  --color-sidebar: rgba(5, 18, 10, 0.5);
+  --color-surface: rgba(12, 36, 20, 0.45);
+  --color-surface-muted: rgba(6, 20, 12, 0.3);
+  --color-surface-hover: rgba(0, 255, 65, 0.12);
+  --color-surface-active: rgba(0, 255, 65, 0.2);
+  --color-border: rgba(0, 255, 65, 0.16);
+  --color-border-strong: rgba(0, 255, 65, 0.28);
+  --color-text: #c8ffd0;
+  --color-text-soft: #7df0a0;
+  --color-muted: #4fa86a;
+  --color-text-muted: #4fa86a;
+  --color-accent: #00ff41;
+  --color-editor-bg: rgba(2, 10, 5, 0.92);
+  --color-editor-text: #7df0a0;
+  --color-overlay: rgba(0, 8, 4, 0.65);
+  --color-shadow: rgba(0, 0, 0, 0.4);
+
+  --color-surface-modal: rgba(8, 24, 14, 0.78);
+  --color-border-modal: rgba(0, 255, 65, 0.18);
+  --color-tab-active: rgba(0, 255, 65, 0.14);
+  --color-text-active-tab: #b6ffcb;
+  --color-shadow-tab: rgba(0, 0, 0, 0.3);
+  --color-border-tab: rgba(0, 255, 65, 0.1);
+
+  --color-text-active: #00ff41;
+  --color-shadow-tint: rgba(0, 255, 65, 0.22);
+  --color-border-tint: rgba(0, 255, 65, 0.4);
+
+  --blob-color-1: rgba(0, 255, 65, 0.22);
+  --blob-color-2: rgba(0, 200, 80, 0.16);
+  --blob-color-3: rgba(0, 120, 50, 0.12);
+
+  /* Status colors — green family on black, errors drift amber/red for contrast */
+  --color-status-1xx: #4fa86a;
+  --color-status-2xx: #00ff41;
+  --color-status-3xx: #7df0a0;
+  --color-status-4xx: #ffb000;
+  --color-status-5xx: #ff4444;
+  --color-status-error: #ff4444;
+  --color-status-muted: #4fa86a;
+}
+
+/* Cyberpunk — neon magenta/cyan on deep indigo glass */
+:root[data-theme="cyberpunk"] {
+  color-scheme: dark;
+  background: #0a0420;
+  color: #f2e6ff;
+
+  --color-bg-base: #0a0420;
+  --color-bg: transparent;
+
+  --color-panel: rgba(24, 10, 48, 0.6);
+  --color-sidebar: rgba(16, 6, 36, 0.5);
+  --color-surface: rgba(34, 14, 64, 0.45);
+  --color-surface-muted: rgba(20, 8, 44, 0.3);
+  --color-surface-hover: rgba(255, 43, 214, 0.16);
+  --color-surface-active: rgba(0, 229, 255, 0.18);
+  --color-border: rgba(255, 43, 214, 0.22);
+  --color-border-strong: rgba(0, 229, 255, 0.3);
+  --color-text: #f2e6ff;
+  --color-text-soft: #d8b8ff;
+  --color-muted: #9c7acc;
+  --color-text-muted: #9c7acc;
+  --color-accent: #ff2bd6;
+  --color-editor-bg: rgba(8, 2, 22, 0.92);
+  --color-editor-text: #d8b8ff;
+  --color-overlay: rgba(8, 2, 22, 0.7);
+  --color-shadow: rgba(0, 0, 0, 0.4);
+
+  --color-surface-modal: rgba(24, 10, 48, 0.78);
+  --color-border-modal: rgba(255, 43, 214, 0.24);
+  --color-tab-active: rgba(255, 43, 214, 0.18);
+  --color-text-active-tab: #ff8bf0;
+  --color-shadow-tab: rgba(0, 0, 0, 0.3);
+  --color-border-tab: rgba(0, 229, 255, 0.16);
+
+  --color-text-active: #00e5ff;
+  --color-shadow-tint: rgba(255, 43, 214, 0.24);
+  --color-border-tint: rgba(0, 229, 255, 0.4);
+
+  --blob-color-1: rgba(255, 43, 214, 0.26);
+  --blob-color-2: rgba(0, 229, 255, 0.22);
+  --blob-color-3: rgba(120, 0, 200, 0.18);
+
+  /* Status colors — neon palette */
+  --color-status-1xx: #9c7acc;
+  --color-status-2xx: #00e5ff;
+  --color-status-3xx: #8b5cf6;
+  --color-status-4xx: #ff2bd6;
+  --color-status-5xx: #ff4d4d;
+  --color-status-error: #ff4d4d;
+  --color-status-muted: #9c7acc;
+}
+
+/* Warm/Sunset — amber-coral on warm light glass */
+:root[data-theme="warm"] {
+  color-scheme: light;
+  background: #fbf3ec;
+  color: #3a241a;
+
+  --color-bg-base: #fbf3ec;
+  --color-bg: transparent;
+
+  --color-panel: rgba(255, 246, 236, 0.55);
+  --color-sidebar: rgba(255, 240, 228, 0.45);
+  --color-surface: rgba(255, 244, 230, 0.65);
+  --color-surface-muted: rgba(255, 234, 214, 0.3);
+  --color-surface-hover: rgba(224, 122, 60, 0.1);
+  --color-surface-active: rgba(224, 122, 60, 0.16);
+  --color-border: rgba(120, 60, 20, 0.1);
+  --color-border-strong: rgba(120, 60, 20, 0.16);
+  --color-text: #3a241a;
+  --color-text-soft: #6b4a35;
+  --color-muted: #8a6650;
+  --color-text-muted: #8a6650;
+  --color-accent: #e07a3c;
+  --color-editor-bg: rgba(40, 22, 14, 0.92);
+  --color-editor-text: #f0d8c4;
+  --color-overlay: rgba(60, 30, 12, 0.28);
+  --color-shadow: rgba(120, 60, 20, 0.1);
+
+  --color-surface-modal: rgba(255, 246, 236, 0.78);
+  --color-border-modal: rgba(255, 230, 200, 0.5);
+  --color-tab-active: #fff7ed;
+  --color-text-active-tab: #5a2e12;
+  --color-shadow-tab: rgba(120, 60, 20, 0.1);
+  --color-border-tab: rgba(120, 60, 20, 0.06);
+
+  --color-text-active: #c9601f;
+  --color-shadow-tint: rgba(224, 122, 60, 0.16);
+  --color-border-tint: rgba(224, 122, 60, 0.32);
+
+  --blob-color-1: rgba(224, 122, 60, 0.2);
+  --blob-color-2: rgba(236, 72, 92, 0.16);
+  --blob-color-3: rgba(245, 158, 60, 0.14);
+
+  /* Status colors — warm-tinted, dark enough for light glass */
+  --color-status-1xx: #8a6650;
+  --color-status-2xx: #2f7d3a;
+  --color-status-3xx: #1e40af;
+  --color-status-4xx: #92400e;
+  --color-status-5xx: #991b1b;
+  --color-status-error: #991b1b;
+  --color-status-muted: #8a6650;
+}
+
+/* Neon glow utility — applied to active/accent elements under neon themes */
+:root[data-theme="matrix"] :where(.glass-glow, .primary-action, .modal-confirm):focus-visible {
+  text-shadow: 0 0 8px var(--color-shadow-tint);
+}
+
+:root[data-theme="cyberpunk"] :where(.glass-glow, .primary-action, .modal-confirm) {
+  box-shadow: 0 0 12px var(--color-shadow-tint), var(--color-shadow);
 }
 
 * {
@@ -769,7 +952,9 @@ button:disabled {
   color: #0f766e;
   border: 1px solid rgba(20, 184, 166, 0.25);
 }
-:root[data-theme="dark"] .method-get {
+:root[data-theme="dark"] .method-get,
+:root[data-theme="matrix"] .method-get,
+:root[data-theme="cyberpunk"] .method-get {
   background: rgba(20, 184, 166, 0.18);
   color: #2dd4bf;
   border: 1px solid rgba(20, 184, 166, 0.35);
@@ -781,7 +966,9 @@ button:disabled {
   color: #c2410c;
   border: 1px solid rgba(249, 115, 22, 0.25);
 }
-:root[data-theme="dark"] .method-post {
+:root[data-theme="dark"] .method-post,
+:root[data-theme="matrix"] .method-post,
+:root[data-theme="cyberpunk"] .method-post {
   background: rgba(249, 115, 22, 0.18);
   color: #fb923c;
   border: 1px solid rgba(249, 115, 22, 0.35);
@@ -793,7 +980,9 @@ button:disabled {
   color: #1d4ed8;
   border: 1px solid rgba(59, 130, 246, 0.25);
 }
-:root[data-theme="dark"] .method-put {
+:root[data-theme="dark"] .method-put,
+:root[data-theme="matrix"] .method-put,
+:root[data-theme="cyberpunk"] .method-put {
   background: rgba(59, 130, 246, 0.18);
   color: #60a5fa;
   border: 1px solid rgba(59, 130, 246, 0.35);
@@ -805,7 +994,9 @@ button:disabled {
   color: #7e22ce;
   border: 1px solid rgba(168, 85, 247, 0.25);
 }
-:root[data-theme="dark"] .method-patch {
+:root[data-theme="dark"] .method-patch,
+:root[data-theme="matrix"] .method-patch,
+:root[data-theme="cyberpunk"] .method-patch {
   background: rgba(168, 85, 247, 0.18);
   color: #c084fc;
   border: 1px solid rgba(168, 85, 247, 0.35);
@@ -817,7 +1008,9 @@ button:disabled {
   color: #b91c1c;
   border: 1px solid rgba(239, 68, 68, 0.25);
 }
-:root[data-theme="dark"] .method-delete {
+:root[data-theme="dark"] .method-delete,
+:root[data-theme="matrix"] .method-delete,
+:root[data-theme="cyberpunk"] .method-delete {
   background: rgba(239, 68, 68, 0.18);
   color: #fca5a5;
   border: 1px solid rgba(239, 68, 68, 0.35);
@@ -829,7 +1022,9 @@ button:disabled {
   color: #0e7490;
   border: 1px solid rgba(6, 182, 212, 0.25);
 }
-:root[data-theme="dark"] .method-head {
+:root[data-theme="dark"] .method-head,
+:root[data-theme="matrix"] .method-head,
+:root[data-theme="cyberpunk"] .method-head {
   background: rgba(6, 182, 212, 0.18);
   color: #22d3ee;
   border: 1px solid rgba(6, 182, 212, 0.35);
@@ -841,7 +1036,9 @@ button:disabled {
   color: #b45309;
   border: 1px solid rgba(245, 158, 11, 0.25);
 }
-:root[data-theme="dark"] .method-options {
+:root[data-theme="dark"] .method-options,
+:root[data-theme="matrix"] .method-options,
+:root[data-theme="cyberpunk"] .method-options {
   background: rgba(245, 158, 11, 0.18);
   color: #fcd34d;
   border: 1px solid rgba(245, 158, 11, 0.35);
@@ -853,7 +1050,9 @@ button:disabled {
   color: #a21caf;
   border: 1px solid rgba(217, 70, 239, 0.25);
 }
-:root[data-theme="dark"] .method-custom {
+:root[data-theme="dark"] .method-custom,
+:root[data-theme="matrix"] .method-custom,
+:root[data-theme="cyberpunk"] .method-custom {
   background: rgba(217, 70, 239, 0.18);
   color: #e879f9;
   border: 1px solid rgba(217, 70, 239, 0.35);
@@ -2465,6 +2664,19 @@ button:disabled {
   color: var(--color-text-soft);
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* History status badge — translucent tint derived from the badge's own text color */
+.history-status-badge {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+}
+
+/* Error banner — theme-aware translucent danger surface */
+.sidebar-error-banner {
+  background: color-mix(in srgb, var(--color-status-error) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-status-error) 35%, transparent);
+  color: var(--color-status-error);
 }
 
 @media (max-width: 1120px) {
