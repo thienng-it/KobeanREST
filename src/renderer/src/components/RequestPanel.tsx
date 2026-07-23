@@ -398,6 +398,24 @@ export function RequestPanel({
     }
   }, [headersPresetMenuOpen]);
 
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitleValue, setEditingTitleValue] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const handleStartEditTitle = () => {
+    setEditingTitleValue(draftRequest.name);
+    setIsEditingTitle(true);
+    setTimeout(() => titleInputRef.current?.select(), 10);
+  };
+
+  const handleFinishEditTitle = () => {
+    setIsEditingTitle(false);
+    const trimmed = editingTitleValue.trim();
+    if (trimmed && trimmed !== draftRequest.name) {
+      onUpdateDraft({ name: trimmed });
+    }
+  };
+
   return (
     <section className="request-panel" aria-label="Request builder">
       <div className="request-header">
@@ -406,19 +424,29 @@ export function RequestPanel({
             <span className="request-type-badge">REQUEST</span>
             <span className="request-path">{requestPath}</span>
             <span className="request-path-sep">/</span>
-            <h1 className="request-title-inline">{draftRequest.name}</h1>
+            {isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                className="request-title-inline-input"
+                value={editingTitleValue}
+                onChange={(e) => setEditingTitleValue(e.target.value)}
+                onBlur={handleFinishEditTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleFinishEditTitle();
+                  if (e.key === "Escape") setIsEditingTitle(false);
+                }}
+                autoFocus
+              />
+            ) : (
+              <h1
+                className="request-title-inline"
+                onDoubleClick={handleStartEditTitle}
+                title="Double-click to edit request name"
+              >
+                {draftRequest.name}
+              </h1>
+            )}
           </div>
-        </div>
-        <div className="request-header-actions">
-          <button
-            className="ghost-button request-save-button"
-            type="button"
-            onClick={onSaveRequest}
-            title="Save (Cmd/Ctrl + S)"
-          >
-            <Save size={17} />
-            Save
-          </button>
         </div>
       </div>
 
@@ -438,6 +466,15 @@ export function RequestPanel({
           className="request-command-input-field"
           containerStyle={{ flex: 1 } as CSSProperties}
         />
+        <button
+          className="ghost-button request-save-button"
+          type="button"
+          onClick={onSaveRequest}
+          title="Save (Cmd/Ctrl + S)"
+        >
+          <Save size={16} />
+          Save
+        </button>
         <button
           className="send-button request-send-button"
           type="button"
