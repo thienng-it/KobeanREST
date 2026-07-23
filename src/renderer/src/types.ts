@@ -43,6 +43,7 @@ export interface SavedRequest {
   bodyForm: Array<{ key: string; value: string; enabled: boolean }>;
   timeoutMs: number;
   followRedirects: boolean;
+  variables?: ScopedVariable[];
 }
 
 export interface EnvironmentVariable {
@@ -51,6 +52,16 @@ export interface EnvironmentVariable {
   secret?: boolean;
   secretRef?: string;
 }
+
+/** A variable scoped to a collection, folder, or request entity. */
+export interface ScopedVariable {
+  key: string;
+  value: string;
+  secret?: boolean;
+  secretRef?: string;
+}
+
+export type ScopedVariableEntityType = "collection" | "folder" | "request";
 
 export interface FolderSummary {
   id: string;
@@ -61,6 +72,7 @@ export interface FolderSummary {
   parentId?: string;
   timeoutMs?: number;
   followRedirects?: boolean;
+  variables?: ScopedVariable[];
 }
 
 export interface CollectionSummary {
@@ -68,6 +80,7 @@ export interface CollectionSummary {
   name: string;
   authMode?: ApiAuthMode;
   authConfig?: AuthConfig;
+  variables?: ScopedVariable[];
 }
 
 export interface WorkspaceSummary {

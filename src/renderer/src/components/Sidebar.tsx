@@ -4,7 +4,7 @@ import type { SavedRequest, WorkspaceSummary } from "../types";
 
 interface ContextMenuTarget {
   id: string;
-  type: "folder" | "request";
+  type: "folder" | "request" | "collection";
 }
 
 export interface SidebarProps {
@@ -254,7 +254,13 @@ export function Sidebar({
           </h2>
           {visibleCollections.map((collection) => (
             <div className="collection-group" key={collection.id} style={{ marginBottom: "20px" }}>
-              <div className="folder-title sidebar-tree-row collection-title">
+              <div
+                className="folder-title sidebar-tree-row collection-title"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  onContextMenu({ id: collection.id, type: "collection" }, e.clientX, e.clientY);
+                }}
+              >
                 {renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id ? (
                   <input
                     value={sidebarNameDraft}

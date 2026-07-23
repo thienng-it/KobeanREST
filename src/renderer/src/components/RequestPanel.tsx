@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { MethodSelector } from "./MethodSelector";
 import { ScriptEditor } from "./ScriptEditor";
 import { VariableInput, VariableTextarea } from "./VariableInput";
+import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
 import { obtainOAuth2Token } from "../services/auth";
 import { buildVariableMap } from "../services/variables";
 import {
@@ -14,7 +15,7 @@ import {
   type RequestCodeSnippetTarget,
   type ScriptEditorMode,
 } from "../services/script-tools";
-import type { ApiAuthMode, AuthConfig, EnvironmentVariable, SavedRequest, WorkspaceSummary } from "../types";
+import type { ApiAuthMode, AuthConfig, EnvironmentVariable, SavedRequest, ScopedVariableEntityType, WorkspaceSummary } from "../types";
 
 type RequestHeader = SavedRequest["headers"][number];
 type ScriptOutputEntry = { tone: "info" | "error"; message: string };
@@ -159,8 +160,13 @@ export interface RequestPanelProps {
   effectiveAuth: ReturnType<typeof getEffectiveAuth> | null;
 
   // request-panel local UI state (owned by App)
-  activeTab: "body" | "headers" | "auth" | "scripts" | "settings";
-  setActiveTab: (tab: "body" | "headers" | "auth" | "scripts" | "settings") => void;
+  activeTab: "body" | "headers" | "auth" | "scripts" | "settings" | "variables";
+  setActiveTab: (tab: "body" | "headers" | "auth" | "scripts" | "settings" | "variables") => void;
+
+  // Scoped variable handlers
+  onSaveScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
+  onSaveScopedSecretVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
+  onDeleteScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string) => Promise<void>;
   preScript: string;
   setPreScript: (value: string) => void;
   postScript: string;
@@ -233,6 +239,9 @@ export function RequestPanel({
   onInsertSelectedScriptSnippet,
   onOpenRequestCode,
   diagnosticMessage,
+  onSaveScopedVariable,
+  onSaveScopedSecretVariable,
+  onDeleteScopedVariable,
 }: RequestPanelProps) {
   const currentScriptValue = activeRequestScript === "pre" ? preScript : postScript;
   const selectedScriptSnippet = SCRIPT_SNIPPETS.find((snippet) => snippet.id === activeSnippetId) ?? SCRIPT_SNIPPETS[0];
@@ -415,7 +424,7 @@ export function RequestPanel({
 
       <div className="request-workspace">
         <div className="tab-row" role="tablist" aria-label="Request configuration">
-          {(["body", "headers", "auth", "scripts", "settings"] as const).map((tab) => {
+          {(["body", "headers", "auth", "scripts", "variables", "settings"] as const).map((tab) => {
             const hasScript = tab === "scripts" && (preScript.trim() !== "" || postScript.trim() !== "");
             const scriptUnsaved = tab === "scripts" && scriptsDirty;
             return (
@@ -950,6 +959,26 @@ export function RequestPanel({
           </div>
         </div>
       </div>
+      )}
+      {activeTab === "variables" && (
+        <div className="request-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' } as CSSProperties}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              Request Variables
+            </label>
+            <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontStyle: 'italic', margin: 0 }}>
+              Override environment and folder variables for this request only.
+            </p>
+            <ScopedVariablesEditor
+              entityId={draftRequest.id}
+              entityType="request"
+              variables={draftRequest.variables ?? []}
+              onSave={onSaveScopedVariable}
+              onSaveSecret={onSaveScopedSecretVariable}
+              onDelete={onDeleteScopedVariable}
+            />
+          </div>
+        </div>
       )}
       {activeTab === "settings" && (
         <div className="request-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' } as CSSProperties}>

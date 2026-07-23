@@ -46,11 +46,23 @@ pub struct SavedRequest {
     pub body: String,
     pub timeout_ms: i64,
     pub follow_redirects: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variables: Option<Vec<ScopedVariable>>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EnvironmentVariable {
+    pub key: String,
+    pub value: String,
+    pub secret: bool,
+    pub secret_ref: Option<String>,
+}
+
+/// A variable scoped to a collection, folder, or request entity.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ScopedVariable {
     pub key: String,
     pub value: String,
     pub secret: bool,
@@ -76,6 +88,8 @@ pub struct FolderSummary {
     pub collection_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variables: Option<Vec<ScopedVariable>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -87,6 +101,8 @@ pub struct CollectionSummary {
     pub auth_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_config: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variables: Option<Vec<ScopedVariable>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -155,6 +171,7 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     ensure_scripts_table(&connection)?;
     ensure_folder_auth_columns(&connection)?;
     ensure_collection_auth_columns(&connection)?;
+    ensure_scoped_variables_table(&connection)?;
     seed_default_workspace(&mut connection)?;
 
     Ok(PersistenceStatus {
@@ -227,6 +244,30 @@ fn ensure_scripts_table(connection: &Connection) -> Result<(), String> {
             )
             .map_err(|error| format!("failed to create scripts table: {error}"))?;
     }
+
+    Ok(())
+}
+
+fn ensure_scoped_variables_table(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS scoped_variables (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              entity_id TEXT NOT NULL,
+              entity_type TEXT NOT NULL,        -- 'collection' | 'folder' | 'request'
+              variable_key TEXT NOT NULL,
+              variable_value TEXT NOT NULL,
+              secret_ref TEXT,
+              secret INTEGER NOT NULL DEFAULT 0,
+              position INTEGER NOT NULL DEFAULT 0,
+              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE (entity_id, variable_key)
+            );
+            CREATE INDEX IF NOT EXISTS idx_scoped_variables_entity
+              ON scoped_variables(entity_id, entity_type);",
+        )
+        .map_err(|error| format!("failed to create scoped_variables table: {error}"))?;
 
     Ok(())
 }
@@ -784,6 +825,33 @@ fn load_variables(
     collect_rows(rows, "variable")
 }
 
+fn load_scoped_variables(
+    connection: &Connection,
+    entity_id: &str,
+    entity_type: &str,
+) -> Result<Vec<ScopedVariable>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT variable_key, variable_value, secret, secret_ref
+             FROM scoped_variables
+             WHERE entity_id = ?1 AND entity_type = ?2
+             ORDER BY position, variable_key",
+        )
+        .map_err(|error| format!("failed to prepare scoped variables query: {error}"))?;
+    let rows = statement
+        .query_map(params![entity_id, entity_type], |row| {
+            Ok(ScopedVariable {
+                key: row.get(0)?,
+                value: row.get(1)?,
+                secret: row.get::<_, i64>(2)? != 0,
+                secret_ref: row.get(3)?,
+            })
+        })
+        .map_err(|error| format!("failed to query scoped variables: {error}"))?;
+
+    collect_rows(rows, "scoped variable")
+}
+
 fn load_folders(connection: &Connection, workspace_id: &str) -> Result<Vec<FolderSummary>, String> {
     let mut statement = connection
         .prepare(
@@ -795,18 +863,33 @@ fn load_folders(connection: &Connection, workspace_id: &str) -> Result<Vec<Folde
 
     let rows = statement
         .query_map(rusqlite::params![workspace_id], |row| {
-            Ok(FolderSummary {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                auth_mode: row.get(2)?,
-                auth_config: row.get(3)?,
-                collection_id: row.get(4)?,
-                parent_id: row.get(5)?,
-            })
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, Option<String>>(4)?,
+                row.get::<_, Option<String>>(5)?,
+            ))
         })
         .map_err(|e| e.to_string())?;
 
-    collect_rows(rows, "folder summary")
+    let mut folders = Vec::new();
+    for row in rows {
+        let (id, name, auth_mode, auth_config, collection_id, parent_id) =
+            row.map_err(|e| format!("failed to read folder: {e}"))?;
+        folders.push(FolderSummary {
+            id: id.clone(),
+            name,
+            auth_mode,
+            auth_config,
+            collection_id,
+            parent_id,
+            variables: Some(load_scoped_variables(connection, &id, "folder")?),
+        });
+    }
+
+    Ok(folders)
 }
 
 fn load_collections(connection: &Connection, workspace_id: &str) -> Result<Vec<CollectionSummary>, String> {
@@ -819,16 +902,29 @@ fn load_collections(connection: &Connection, workspace_id: &str) -> Result<Vec<C
 
     let rows = statement
         .query_map(rusqlite::params![workspace_id], |row| {
-            Ok(CollectionSummary {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                auth_mode: row.get(2)?,
-                auth_config: row.get(3)?,
-            })
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, Option<String>>(3)?,
+            ))
         })
         .map_err(|e| e.to_string())?;
 
-    collect_rows(rows, "collection summary")
+    let mut collections = Vec::new();
+    for row in rows {
+        let (id, name, auth_mode, auth_config) =
+            row.map_err(|e| format!("failed to read collection: {e}"))?;
+        collections.push(CollectionSummary {
+            id: id.clone(),
+            name,
+            auth_mode,
+            auth_config,
+            variables: Some(load_scoped_variables(connection, &id, "collection")?),
+        });
+    }
+
+    Ok(collections)
 }
 
 fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<SavedRequest>, String> {
@@ -883,6 +979,7 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
             timeout_ms: row.7,
             follow_redirects: row.8,
             auth_config: row.9.unwrap_or_else(|| "{}".to_string()),
+            variables: Some(load_scoped_variables(connection, &row.0, "request")?),
         });
     }
 
@@ -1379,6 +1476,7 @@ pub fn create_folder(app: AppHandle, name: String, collection_id: Option<String>
         auth_config: None,
         collection_id: Some(final_collection_id),
         parent_id: parent_id,
+        variables: Some(Vec::new()),
     })
 }
 
@@ -1520,6 +1618,7 @@ pub fn create_request(app: AppHandle, folder_id: String) -> Result<SavedRequest,
         body: "".to_string(),
         timeout_ms: 30000,
         follow_redirects: true,
+        variables: Some(Vec::new()),
     };
     save_request(app, req.clone())?;
     Ok(req)
@@ -1723,6 +1822,93 @@ pub fn save_secret_variable(
             .map_err(|error| format!("failed to insert secret variable: {error}"))?;
     }
     Ok(())
+}
+
+#[tauri::command]
+pub fn save_scoped_variable(
+    app: AppHandle,
+    entity_id: String,
+    entity_type: String,
+    key: String,
+    value: String,
+) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let updated = connection
+        .execute(
+            "UPDATE scoped_variables SET variable_value = ?4, secret = 0, secret_ref = NULL, updated_at = CURRENT_TIMESTAMP
+             WHERE entity_id = ?1 AND entity_type = ?2 AND variable_key = ?3",
+            params![entity_id, entity_type, key, value],
+        )
+        .map_err(|error| format!("failed to update scoped variable: {error}"))?;
+    if updated == 0 {
+        connection
+            .execute(
+                "INSERT INTO scoped_variables (entity_id, entity_type, variable_key, variable_value, secret, position)
+                 VALUES (?1, ?2, ?3, ?4, 0, (SELECT COALESCE(MAX(position), -1) + 1 FROM scoped_variables WHERE entity_id = ?1 AND entity_type = ?2))",
+                params![entity_id, entity_type, key, value],
+            )
+            .map_err(|error| format!("failed to insert scoped variable: {error}"))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_scoped_secret_variable(
+    app: AppHandle,
+    entity_id: String,
+    entity_type: String,
+    key: String,
+    secret_ref: String,
+) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let updated = connection
+        .execute(
+            "UPDATE scoped_variables SET variable_value = ?4, secret_ref = ?5, secret = 1, updated_at = CURRENT_TIMESTAMP
+             WHERE entity_id = ?1 AND entity_type = ?2 AND variable_key = ?3",
+            params![entity_id, entity_type, key, REDACTED_SECRET_VALUE, secret_ref],
+        )
+        .map_err(|error| format!("failed to update scoped secret variable: {error}"))?;
+    if updated == 0 {
+        connection
+            .execute(
+                "INSERT INTO scoped_variables (entity_id, entity_type, variable_key, variable_value, secret_ref, secret, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5, 1, (SELECT COALESCE(MAX(position), -1) + 1 FROM scoped_variables WHERE entity_id = ?1 AND entity_type = ?2))",
+                params![entity_id, entity_type, key, REDACTED_SECRET_VALUE, secret_ref],
+            )
+            .map_err(|error| format!("failed to insert scoped secret variable: {error}"))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_scoped_variable(
+    app: AppHandle,
+    entity_id: String,
+    entity_type: String,
+    key: String,
+) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    connection
+        .execute(
+            "DELETE FROM scoped_variables WHERE entity_id = ?1 AND entity_type = ?2 AND variable_key = ?3",
+            params![entity_id, entity_type, key],
+        )
+        .map_err(|error| format!("failed to delete scoped variable: {error}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_scoped_variables(
+    app: AppHandle,
+    entity_id: String,
+    entity_type: String,
+) -> Result<Vec<ScopedVariable>, String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    load_scoped_variables(&connection, &entity_id, &entity_type)
 }
 
 #[tauri::command]

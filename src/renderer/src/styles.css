@@ -3056,6 +3056,10 @@ button:disabled {
   border-bottom: 1px solid var(--color-border);
 }
 
+.env-variable-row[data-editing="true"] {
+  grid-template-columns: minmax(100px, 0.6fr) minmax(140px, 1fr) auto 32px;
+}
+
 .env-variable-key,
 .env-variable-value,
 .env-add-variable input {
@@ -3156,6 +3160,21 @@ button:disabled {
   border-radius: 18px;
   color: var(--color-muted);
   text-align: center;
+}
+
+/* Inline edit input — replaces text span inside a variable row */
+.env-inline-input {
+  min-width: 0;
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-active);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  outline: none;
+  padding: 3px 8px;
+  box-shadow: 0 0 0 3px var(--color-shadow-tint);
 }
 
 .modal.settings-modal {
@@ -3913,3 +3932,4 @@ button:disabled {
     transition: none;
   }
 }
+.password-mask { -webkit-text-security: disc; }

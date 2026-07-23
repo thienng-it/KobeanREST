@@ -1,7 +1,7 @@
 import { useEffect, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
-import { resolveRequestVariables, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, resolveString } from "./services/variables";
+import { resolveRequestVariables, resolveRequestFields, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, injectResolvedSecrets, resolveString } from "./services/variables";
 import { type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
 import { ContextMenu } from "./components/ContextMenu";
@@ -56,7 +56,7 @@ export function App() {
 
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [isSidebarResizing, setIsSidebarResizing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts" | "settings">("body");
+  const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts" | "settings" | "variables">("body");
   const [responseState, setResponseState] = useState<ResponseState>({
     kind: "idle",
   });
@@ -75,6 +75,8 @@ export function App() {
   const [newVarValue, setNewVarValue] = useState("");
   const [newVarSecret, setNewVarSecret] = useState(false);
   const [envEditorOpen, setEnvEditorOpen] = useState(false);
+  const [collectionEditorOpen, setCollectionEditorOpen] = useState(false);
+  const [collectionEditorTarget, setCollectionEditorTarget] = useState<string>("");
 
   const ws = useWorkspace({
     setConfirmDialog,
@@ -130,6 +132,9 @@ export function App() {
     handleSaveVariable,
     handleDeleteVariable,
     handleAddSecretVariable,
+    handleSaveScopedVariable,
+    handleDeleteScopedVariable,
+    handleAddScopedSecretVariable,
     handleRenameEnvironment,
     applyEnvironmentRename,
     cancelEnvironmentRename,
@@ -350,11 +355,20 @@ export function App() {
     setActiveBottomDock('response');
     setScriptOutputLog([]);
     
-    let variableMap = buildVariableMap(activeEnvironmentVariables(workspace));
     const scriptOutputEntries: ScriptOutputEntry[] = [];
 
+    // Build the full scoped variable map (env → collection → folder → request)
+    // upfront so scripts see all variables, not just environment variables.
+    const scopeWorkspace = workspace ?? { id: "tmp", name: "Temporary", activeEnvironment: "", environments: [], folders: [], requests: [] };
+    const scopedFolder = scopeWorkspace.folders.find((f) => f.id === draftRequest.folderId);
+    const scoped = buildScopedVariableMap(scopeWorkspace, {
+      collectionId: scopedFolder?.collectionId,
+      folderId: draftRequest.folderId,
+      requestId: draftRequest.id,
+    });
+    let variableMap = await injectResolvedSecrets(scoped.map, scoped.secretRefs);
+
     // 1. Execute Pre-scripts (Hierarchy: Folder -> Request)
-    // Note: Collection level is not yet fully implemented in the store, focusing on Folder -> Request
     const persistVariable = (key: string, value: string) => {
       const envName = workspace?.activeEnvironment;
       if (!envName) return;
@@ -362,7 +376,7 @@ export function App() {
     };
     const preScriptsContext: KbScriptContext = {
       request: { ...draftRequest },
-      variables: createScriptVariablesObject(activeVars),
+      variables: Object.fromEntries(variableMap),
       setVariable: persistVariable,
     };
     
@@ -393,16 +407,26 @@ export function App() {
     // Use the modified request from scripts
     const requestToSend = preScriptsContext.request;
 
+    // Rebuild scoped map using the (possibly script-modified) requestId for request-level vars.
+    // Also re-resolves secrets in case scripts changed the scope.
+    const scopedFolder2 = scopeWorkspace.folders.find((f) => f.id === requestToSend.folderId);
+    const scoped2 = buildScopedVariableMap(scopeWorkspace, {
+      collectionId: scopedFolder2?.collectionId,
+      folderId: requestToSend.folderId,
+      requestId: requestToSend.id,
+    });
+    variableMap = await injectResolvedSecrets(scoped2.map, scoped2.secretRefs);
+
     let resolvedUrl: string;
     let resolvedHeaders: Array<{ key: string; value: string; enabled: boolean }>;
     let resolvedBody: string | undefined;
 
     try {
-      const resolved = resolveRequestVariables(
+      const resolved = resolveRequestFields(
+        variableMap,
         requestToSend.url,
         requestToSend.headers,
         requestToSend.body || undefined,
-        workspace ?? { id: "tmp", name: "Temporary", activeEnvironment: "", environments: [], folders: [], requests: [] },
       );
       resolvedUrl = resolved.url;
       resolvedHeaders = resolved.headers;
@@ -433,7 +457,7 @@ export function App() {
       }
     }
 
-    variableMap = buildVariableMap(activeEnvironmentVariables(workspace));
+    // variableMap already holds the scoped + secret-resolved values built above.
     const resolvedAuth = resolveAuthConfig(finalAuthConfig ?? {}, variableMap);
 
     // Automatically obtain OAuth 2.0 token if missing
@@ -490,7 +514,7 @@ export function App() {
       const postScriptsContext: KbScriptContext = {
         request: requestToSend,
         response: response,
-        variables: createScriptVariablesObject(activeVars),
+        variables: Object.fromEntries(variableMap),
         setVariable: persistVariable,
       };
       
@@ -662,6 +686,9 @@ export function App() {
               onInsertSelectedScriptSnippet={insertSelectedScriptSnippet}
               onOpenRequestCode={() => setRequestCodeOpen(true)}
               diagnosticMessage={diagnosticMessage}
+              onSaveScopedVariable={handleSaveScopedVariable}
+              onSaveScopedSecretVariable={handleAddScopedSecretVariable}
+              onDeleteScopedVariable={handleDeleteScopedVariable}
             />
           )}
 
@@ -736,9 +763,6 @@ export function App() {
           envEditorTarget,
           renamingEnvironment,
           environmentNameDraft,
-          newVarKey,
-          newVarValue,
-          newVarSecret,
           onClose: () => setEnvEditorOpen(false),
           onEnvEditorTargetChange: setEnvEditorTarget,
           onRenameEnvironment: handleRenameEnvironment,
@@ -749,9 +773,9 @@ export function App() {
           onDeleteEnvironment: handleDeleteEnvironment,
           onSetActiveEnvironment: handleSetActiveEnvironment,
           onDeleteVariable: handleDeleteVariable,
-          onNewVarKeyChange: setNewVarKey,
-          onNewVarValueChange: setNewVarValue,
-          onNewVarSecretChange: setNewVarSecret,
+          onNewVarKeyChange: () => {},
+          onNewVarValueChange: () => {},
+          onNewVarSecretChange: () => {},
           onSaveVariable: handleSaveVariable,
           onAddSecretVariable: handleAddSecretVariable,
         }}
@@ -765,13 +789,30 @@ export function App() {
         }}
         folderScripts={{
           open: folderScriptsOpen,
+          folderId: folderScriptsTarget ?? "",
           preScript: folderPreScript,
           postScript: folderPostScript,
           activeVars,
+          folderVariables: folderScriptsTarget
+            ? (workspace?.folders.find((f) => f.id === folderScriptsTarget)?.variables ?? [])
+            : [],
           onClose: () => setFolderScriptsOpen(false),
           onPreScriptChange: setFolderPreScript,
           onPostScriptChange: setFolderPostScript,
           onSave: handleSaveFolderScripts,
+          onSaveScopedVariable: handleSaveScopedVariable,
+          onSaveScopedSecretVariable: handleAddScopedSecretVariable,
+          onDeleteScopedVariable: handleDeleteScopedVariable,
+        }}
+        collectionEditor={{
+          open: collectionEditorOpen,
+          collectionId: collectionEditorTarget,
+          collectionName: workspace?.collections?.find((c) => c.id === collectionEditorTarget)?.name ?? "",
+          collectionVariables: workspace?.collections?.find((c) => c.id === collectionEditorTarget)?.variables ?? [],
+          onClose: () => setCollectionEditorOpen(false),
+          onSaveScopedVariable: handleSaveScopedVariable,
+          onSaveScopedSecretVariable: handleAddScopedSecretVariable,
+          onDeleteScopedVariable: handleDeleteScopedVariable,
         }}
         responseWindow={{
           open: responseWindowOpen,
@@ -805,6 +846,11 @@ export function App() {
             setAuthEditorOpen(true);
           }}
           onEditFolderScripts={handleOpenFolderScripts}
+          onEditFolderVariables={(folderId) => handleOpenFolderScripts(folderId)}
+          onEditCollectionVariables={(collectionId) => {
+            setCollectionEditorTarget(collectionId);
+            setCollectionEditorOpen(true);
+          }}
           onDeleteFolder={handleDeleteFolder}
           onStartRequestRename={startRequestRename}
           onViewRequest={setSelectedRequestId}

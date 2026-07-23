@@ -1,4 +1,5 @@
 import type { EnvironmentVariable, WorkspaceSummary } from "../types";
+import { resolveSecrets } from "./local-store";
 
 const VARIABLE_PATTERN = /\{\{([^{}]+)\}\}/g;
 
@@ -87,6 +88,78 @@ export function buildVariableMap(
 }
 
 /**
+ * Merge scope chain for a single request. Lower scopes override higher:
+ * environment → collection → folder → request (last write wins).
+ * Returns the plaintext map (non-secret values) plus the set of secret refs
+ * that still need keychain resolution.
+ */
+export function buildScopedVariableMap(
+  workspace: WorkspaceSummary,
+  scope: { collectionId?: string; folderId?: string; requestId?: string },
+): { map: Map<string, string>; secretRefs: Map<string, string> } {
+  const map = new Map<string, string>();
+  const secretRefs = new Map<string, string>();
+
+  const ingest = (vars: { key: string; value: string; secret?: boolean; secretRef?: string }[] | undefined) => {
+    if (!vars) return;
+    for (const v of vars) {
+      if (v.secret && v.secretRef) {
+        // Hold the ref; the plaintext value is fetched from the keychain at send time.
+        secretRefs.set(v.key, v.secretRef);
+        map.delete(v.key);
+      } else {
+        map.set(v.key, v.value);
+        secretRefs.delete(v.key);
+      }
+    }
+  };
+
+  // Active environment first (lowest precedence).
+  ingest(activeEnvironmentVariables(workspace));
+
+  if (scope.collectionId) {
+    const collection = workspace.collections?.find((c) => c.id === scope.collectionId);
+    ingest(collection?.variables);
+  }
+
+  if (scope.folderId) {
+    const folder = workspace.folders.find((f) => f.id === scope.folderId);
+    ingest(folder?.variables);
+  }
+
+  if (scope.requestId) {
+    const request = workspace.requests.find((r) => r.id === scope.requestId);
+    ingest(request?.variables);
+  }
+
+  return { map, secretRefs };
+}
+
+/**
+ * Fetch secret values from the keychain (single batched call) and fold them
+ * into the variable map. Missing secrets resolve to an empty string and are
+ * logged — non-blocking, matches the offline-friendly philosophy.
+ */
+export async function injectResolvedSecrets(
+  map: Map<string, string>,
+  secretRefs: Map<string, string>,
+): Promise<Map<string, string>> {
+  if (secretRefs.size === 0) return map;
+  const refIds = Array.from(secretRefs.values());
+  let resolved: Record<string, string> = {};
+  try {
+    resolved = await resolveSecrets(refIds);
+  } catch (error) {
+    console.error("Failed to resolve secrets", error);
+    return map;
+  }
+  for (const [key, refId] of secretRefs) {
+    map.set(key, resolved[refId] ?? "");
+  }
+  return map;
+}
+
+/**
  * Detect all `{{variableName}}` references in a string.
  */
 export function detectVariables(text: string): string[] {
@@ -158,19 +231,17 @@ export interface ResolvedRequestFields {
 }
 
 /**
- * Resolve all variables in the URL, headers, and body of a request.
- * Throws `UnresolvedVariableError` if any variable references remain
- * after resolution.
+ * Resolve all variables in the URL, headers, and body of a request
+ * using a pre-built variable map (typically from `buildScopedVariableMap` +
+ * `injectResolvedSecrets`). Throws `UnresolvedVariableError` if any variable
+ * references remain after resolution.
  */
-export function resolveRequestVariables(
+export function resolveRequestFields(
+  variableMap: Map<string, string>,
   url: string,
   headers: Array<{ key: string; value: string; enabled: boolean }>,
   body: string | undefined,
-  workspace: WorkspaceSummary,
 ): ResolvedRequestFields {
-  const variables = activeEnvironmentVariables(workspace);
-  const variableMap = buildVariableMap(variables);
-
   const resolvedUrl = resolveString(url, variableMap).resolved;
 
   const resolvedHeaders = headers.map((header) => ({
@@ -189,4 +260,20 @@ export function resolveRequestVariables(
     headers: resolvedHeaders,
     body: resolvedBody,
   };
+}
+
+/**
+ * Resolve all variables in the URL, headers, and body of a request.
+ * Throws `UnresolvedVariableError` if any variable references remain
+ * after resolution.
+ */
+export function resolveRequestVariables(
+  url: string,
+  headers: Array<{ key: string; value: string; enabled: boolean }>,
+  body: string | undefined,
+  workspace: WorkspaceSummary,
+): ResolvedRequestFields {
+  const variables = activeEnvironmentVariables(workspace);
+  const variableMap = buildVariableMap(variables);
+  return resolveRequestFields(variableMap, url, headers, body);
 }

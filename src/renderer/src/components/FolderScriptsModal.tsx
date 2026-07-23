@@ -1,27 +1,38 @@
 import { X } from "lucide-react";
 import { ScriptEditor } from "./ScriptEditor";
-import type { EnvironmentVariable } from "../types";
+import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
+import type { EnvironmentVariable, ScopedVariable, ScopedVariableEntityType } from "../types";
 
 export interface FolderScriptsModalProps {
   open: boolean;
+  folderId: string;
   preScript: string;
   postScript: string;
   activeVars: EnvironmentVariable[];
+  folderVariables: ScopedVariable[];
   onClose: () => void;
   onPreScriptChange: (value: string) => void;
   onPostScriptChange: (value: string) => void;
   onSave: () => void;
+  onSaveScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
+  onSaveScopedSecretVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
+  onDeleteScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string) => Promise<void>;
 }
 
 export function FolderScriptsModal({
   open,
+  folderId,
   preScript,
   postScript,
   activeVars,
+  folderVariables,
   onClose,
   onPreScriptChange,
   onPostScriptChange,
   onSave,
+  onSaveScopedVariable,
+  onSaveScopedSecretVariable,
+  onDeleteScopedVariable,
 }: FolderScriptsModalProps) {
   if (!open) return null;
 
@@ -30,22 +41,42 @@ export function FolderScriptsModal({
       className="modal-overlay"
       role="dialog"
       aria-modal="true"
-      aria-label="Folder scripts"
+      aria-label="Folder editor"
       onClick={onClose}
     >
       <div
         className="modal"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: "560px", maxWidth: "95vw", display: "flex", flexDirection: "column", gap: "16px" }}
+        style={{ width: "620px", maxWidth: "95vw", display: "flex", flexDirection: "column", gap: "16px" }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ margin: 0, fontSize: "16px" }}>Folder Scripts</h2>
+          <h2 style={{ margin: 0, fontSize: "16px" }}>Folder Editor</h2>
           <button type="button" onClick={onClose} style={{ all: "unset", cursor: "pointer" }}>
             <X size={18} />
           </button>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Folder Variables */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "var(--color-accent)" }} />
+              Folder Variables
+            </label>
+            <p style={{ fontSize: "11px", color: "var(--color-text-muted)", fontStyle: "italic", margin: 0 }}>
+              Override environment variables for all requests in this folder.
+            </p>
+            <ScopedVariablesEditor
+              entityId={folderId}
+              entityType="folder"
+              variables={folderVariables}
+              onSave={onSaveScopedVariable}
+              onSaveSecret={onSaveScopedSecretVariable}
+              onDelete={onDeleteScopedVariable}
+            />
+          </div>
+
+          {/* Pre-request Script */}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
               <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "var(--color-text-active)" }} />
@@ -58,6 +89,8 @@ export function FolderScriptsModal({
               placeholder="// JavaScript only (no TypeScript types) to run before any request in this folder"
             />
           </div>
+
+          {/* Post-request Script */}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
               <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "var(--color-text-active)" }} />
