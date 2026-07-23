@@ -61,6 +61,17 @@ export function SettingsModal({
                 onChange={(e) => onSettingsChange({ updateChecksEnabled: e.target.checked })}
               />
             </label>
+            <label className="settings-row">
+              <span>
+                <strong>Auto-save requests</strong>
+                <small>Automatically save changes to requests without needing to press Save.</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={appSettings.autoSaveEnabled ?? false}
+                onChange={(e) => onSettingsChange({ autoSaveEnabled: e.target.checked })}
+              />
+            </label>
             <label className="settings-field">
               <span>Theme</span>
               <select

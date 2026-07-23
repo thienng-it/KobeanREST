@@ -29,6 +29,7 @@ export const defaultAppSettings: AppSettings = {
   offlineBehavior: "silent",
   timeoutMs: 30000,
   followRedirects: true,
+  autoSaveEnabled: true,
 };
 
 let previewSettings = { ...defaultAppSettings };

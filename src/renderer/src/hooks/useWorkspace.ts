@@ -38,10 +38,11 @@ interface ConfirmDialogState {
 export interface UseWorkspaceDeps {
   setConfirmDialog: (dialog: ConfirmDialogState | null) => void;
   onWorkspaceLoaded: (loadedSettings: import("../types").AppSettings) => void;
+  autoSaveEnabled?: boolean;
 }
 
 export function useWorkspace(deps: UseWorkspaceDeps) {
-  const { setConfirmDialog, onWorkspaceLoaded } = deps;
+  const { setConfirmDialog, onWorkspaceLoaded, autoSaveEnabled } = deps;
 
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -108,9 +109,29 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
 
   useEffect(() => {
     if (!workspace) return;
-    const req = workspace.requests.find(r => r.id === selectedRequestId);
-    setDraftRequest(req ? JSON.parse(JSON.stringify(req)) : null);
-  }, [selectedRequestId, workspace?.requests]);
+    setDraftRequest((prevDraft) => {
+      // If we already have a draft for the selected request, keep it
+      // so we don't overwrite unsaved edits when workspace saves in the background
+      if (prevDraft && prevDraft.id === selectedRequestId) {
+        return prevDraft;
+      }
+      const req = workspace.requests.find((r) => r.id === selectedRequestId);
+      return req ? JSON.parse(JSON.stringify(req)) : null;
+    });
+  }, [selectedRequestId, workspace]);
+
+  // Auto-save logic
+  useEffect(() => {
+    if (!autoSaveEnabled || !draftRequest || !workspace) return;
+    const originalReq = workspace.requests.find((r) => r.id === draftRequest.id);
+    if (!originalReq || JSON.stringify(originalReq) === JSON.stringify(draftRequest)) return;
+
+    const timer = setTimeout(() => {
+      void handleSaveRequest();
+    }, 1000); // 1s debounce
+
+    return () => clearTimeout(timer);
+  }, [draftRequest, autoSaveEnabled]);
 
   function startRequestRename(request: SavedRequest) {
     setRenamingSidebarItem(null);

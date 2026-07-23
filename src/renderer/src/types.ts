@@ -111,6 +111,7 @@ export interface AppSettings {
   offlineBehavior: "silent" | "notice";
   timeoutMs?: number;
   followRedirects?: boolean;
+  autoSaveEnabled?: boolean;
 }
 
 export interface UpdateStatus {

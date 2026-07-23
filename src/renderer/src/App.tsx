@@ -100,6 +100,7 @@ export function App() {
         void handleCheckForUpdates("automatic", { ...appSettings, updateChecksEnabled: loadedSettings.updateChecksEnabled });
       }
     },
+    autoSaveEnabled: appSettings.autoSaveEnabled,
   });
   const {
     workspace, setWorkspace,
