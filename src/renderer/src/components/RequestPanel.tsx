@@ -12,6 +12,7 @@ import {
   SCRIPT_SNIPPETS,
   SCRIPT_SNIPPET_GROUPS,
   snippetsForGroup,
+  parseCurlCommand,
   type RequestCodeSnippetTarget,
   type ScriptEditorMode,
 } from "../services/script-tools";
@@ -254,6 +255,32 @@ export function RequestPanel({
     onUpdateDraft(fields);
   }
 
+  function handleUrlChange(val: string) {
+    const trimmed = val.trim();
+    if (/^curl\b/i.test(trimmed)) {
+      try {
+        const result = parseCurlCommand(trimmed);
+        if (result && result.url) {
+          updateDraft({
+            method: result.method,
+            customMethod: result.customMethod,
+            url: result.url,
+            headers: result.headers.length > 0 ? result.headers : draftRequest.headers,
+            body: result.body,
+            bodyMimeType: result.bodyMimeType,
+            bodyForm: result.bodyForm,
+            authMode: result.authMode,
+            authConfig: result.authConfig,
+          });
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to parse cURL in URL field", err);
+      }
+    }
+    updateDraft({ url: val });
+  }
+
   function updateHeaderField(index: number, field: "key" | "value", value: string) {
     const headers = [...draftRequest.headers];
     headers[index] = { ...headers[index], [field]: value };
@@ -403,7 +430,7 @@ export function RequestPanel({
           activeVariables={activeVars}
           value={draftRequest.url}
           aria-label="Request URL"
-          onChange={(e) => updateDraft({ url: e.target.value })}
+          onChange={(e) => handleUrlChange(e.target.value)}
           placeholder="https://api.example.com"
           containerClassName="request-command-input"
           className="request-command-input-field"

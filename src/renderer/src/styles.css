@@ -2997,9 +2997,20 @@ button:disabled {
 
 .env-row-actions {
   display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
   gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.env-list-row:hover .env-row-actions,
+.env-list-row:focus-within .env-row-actions {
   opacity: 1;
   pointer-events: auto;
+  transform: translateX(0);
 }
 
 .env-icon-button {
