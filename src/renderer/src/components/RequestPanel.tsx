@@ -158,7 +158,7 @@ export interface RequestPanelProps {
   draftRequest: SavedRequest;
   activeVars: EnvironmentVariable[];
   isSending: boolean;
-  requestPath: string;
+  folderPath?: string;
   effectiveAuth: ReturnType<typeof getEffectiveAuth> | null;
 
   // request-panel local UI state (owned by App)
@@ -208,7 +208,7 @@ export function RequestPanel({
   draftRequest,
   activeVars,
   isSending,
-  requestPath,
+  folderPath,
   effectiveAuth,
   activeTab,
   setActiveTab,
@@ -422,8 +422,12 @@ export function RequestPanel({
         <div className="request-identity">
           <div className="request-single-line-header">
             <span className="request-type-badge">REQUEST</span>
-            <span className="request-path">{requestPath}</span>
-            <span className="request-path-sep">/</span>
+            {folderPath && (
+              <>
+                <span className="request-path">{folderPath}</span>
+                <span className="request-path-sep">/</span>
+              </>
+            )}
             {isEditingTitle ? (
               <input
                 ref={titleInputRef}

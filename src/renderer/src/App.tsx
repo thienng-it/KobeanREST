@@ -317,7 +317,10 @@ export function App() {
   const requestFolder = draftRequest
     ? workspace?.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
     : null;
-  const requestPath = requestFolder && draftRequest ? `${requestFolder.name} / ${draftRequest.name}` : draftRequest?.name ?? "";
+  const requestCollection = requestFolder
+    ? workspace?.collections?.find((col) => col.id === requestFolder.collectionId) ?? null
+    : null;
+  const folderPath = [requestCollection?.name, requestFolder?.name].filter(Boolean).join(" / ");
   const effectiveAuth = draftRequest ? getEffectiveAuth(draftRequest, workspace) : null;
 
   function updateDraft(fields: Partial<SavedRequest>) {
@@ -751,7 +754,7 @@ export function App() {
               draftRequest={draftRequest}
               activeVars={activeVars}
               isSending={isSending}
-              requestPath={requestPath}
+              folderPath={folderPath}
               effectiveAuth={effectiveAuth}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
