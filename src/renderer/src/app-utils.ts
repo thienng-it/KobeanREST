@@ -20,7 +20,6 @@ export function openProductDocs() {
 export function createScriptVariablesObject(variables: EnvironmentVariable[]): Record<string, string> {
   return Object.fromEntries(
     variables
-      .filter((variable) => !(variable.secret && variable.secretRef))
       .map((variable) => [variable.key, variable.value]),
   );
 }

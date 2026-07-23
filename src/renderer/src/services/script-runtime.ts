@@ -191,9 +191,7 @@ export async function runKbScript(
 /** Build the script variables map from environment variables (secrets excluded). */
 export function scriptVariablesFrom(variables: EnvironmentVariable[]): Record<string, string> {
   return Object.fromEntries(
-    variables
-      .filter((variable) => !(variable.secret && variable.secretRef))
-      .map((variable) => [variable.key, variable.value]),
+    variables.map((variable) => [variable.key, variable.value]),
   );
 }
 

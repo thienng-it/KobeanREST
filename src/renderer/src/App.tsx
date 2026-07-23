@@ -2,7 +2,7 @@ import { useEffect, useState, useTransition, type ClipboardEvent, type CSSProper
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
-import { resolveRequestVariables, resolveRequestFields, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, injectResolvedSecrets, resolveString } from "./services/variables";
+import { resolveRequestVariables, resolveRequestFields, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, resolveString } from "./services/variables";
 import { type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
 import { ContextMenu } from "./components/ContextMenu";
@@ -136,10 +136,8 @@ export function App() {
     handleDeleteEnvironment,
     handleSaveVariable,
     handleDeleteVariable,
-    handleAddSecretVariable,
     handleSaveScopedVariable,
     handleDeleteScopedVariable,
-    handleAddScopedSecretVariable,
     handleRenameEnvironment,
     applyEnvironmentRename,
     cancelEnvironmentRename,
@@ -382,12 +380,11 @@ export function App() {
     // upfront so scripts see all variables, not just environment variables.
     const scopeWorkspace = workspace ?? { id: "tmp", name: "Temporary", activeEnvironment: "", environments: [], folders: [], requests: [] };
     const scopedFolder = scopeWorkspace.folders.find((f) => f.id === draftRequest.folderId);
-    const scoped = buildScopedVariableMap(scopeWorkspace, {
+    const variableMap = buildScopedVariableMap(scopeWorkspace, {
       collectionId: scopedFolder?.collectionId,
       folderId: draftRequest.folderId,
       requestId: draftRequest.id,
     });
-    let variableMap = await injectResolvedSecrets(scoped.map, scoped.secretRefs);
 
     // 1. Execute Pre-scripts (Hierarchy: Folder -> Request)
     const persistVariable = (key: string, value: string) => {
@@ -429,14 +426,12 @@ export function App() {
     const requestToSend = preScriptsContext.request;
 
     // Rebuild scoped map using the (possibly script-modified) requestId for request-level vars.
-    // Also re-resolves secrets in case scripts changed the scope.
     const scopedFolder2 = scopeWorkspace.folders.find((f) => f.id === requestToSend.folderId);
-    const scoped2 = buildScopedVariableMap(scopeWorkspace, {
+    const updatedVariableMap = buildScopedVariableMap(scopeWorkspace, {
       collectionId: scopedFolder2?.collectionId,
       folderId: requestToSend.folderId,
       requestId: requestToSend.id,
     });
-    variableMap = await injectResolvedSecrets(scoped2.map, scoped2.secretRefs);
 
     let resolvedUrl: string;
     let resolvedHeaders: Array<{ key: string; value: string; enabled: boolean }>;
@@ -444,7 +439,7 @@ export function App() {
 
     try {
       const resolved = resolveRequestFields(
-        variableMap,
+        updatedVariableMap,
         requestToSend.url,
         requestToSend.headers,
         requestToSend.body || undefined,
@@ -550,8 +545,8 @@ export function App() {
       // 2. Execute Post-scripts (Hierarchy: Request -> Folder)
       const postScriptsContext: KbScriptContext = {
         request: requestToSend,
-        response: response,
-        variables: Object.fromEntries(variableMap),
+        response: Object.freeze(response),
+        variables: Object.fromEntries(updatedVariableMap),
         setVariable: persistVariable,
       };
       
@@ -559,14 +554,14 @@ export function App() {
         const reqScripts = await getScripts(requestToSend.id, 'request');
         const postReq = reqScripts.find(s => s.scriptType === 'post')?.content;
         if (postReq) {
-          const resolved = resolveString(postReq, variableMap).resolved;
+          const resolved = resolveString(postReq, updatedVariableMap).resolved;
           scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Request post-response")));
         }
         
         const folderScripts = await getScripts(requestToSend.folderId, 'folder');
         const postFolder = folderScripts.find(s => s.scriptType === 'post')?.content;
         if (postFolder) {
-          const resolved = resolveString(postFolder, variableMap).resolved;
+          const resolved = resolveString(postFolder, updatedVariableMap).resolved;
           scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Folder post-response")));
         }
       } catch (err) {
@@ -725,7 +720,6 @@ export function App() {
               onOpenRequestCode={() => setRequestCodeOpen(true)}
               diagnosticMessage={diagnosticMessage}
               onSaveScopedVariable={handleSaveScopedVariable}
-              onSaveScopedSecretVariable={handleAddScopedSecretVariable}
               onDeleteScopedVariable={handleDeleteScopedVariable}
             />
           )}
@@ -859,9 +853,7 @@ export function App() {
           onDeleteVariable: handleDeleteVariable,
           onNewVarKeyChange: () => {},
           onNewVarValueChange: () => {},
-          onNewVarSecretChange: () => {},
           onSaveVariable: handleSaveVariable,
-          onAddSecretVariable: handleAddSecretVariable,
         }}
         requestCode={{
           open: requestCodeOpen,
@@ -885,7 +877,6 @@ export function App() {
           onPostScriptChange: setFolderPostScript,
           onSave: handleSaveFolderScripts,
           onSaveScopedVariable: handleSaveScopedVariable,
-          onSaveScopedSecretVariable: handleAddScopedSecretVariable,
           onDeleteScopedVariable: handleDeleteScopedVariable,
         }}
         collectionEditor={{
@@ -895,7 +886,6 @@ export function App() {
           collectionVariables: workspace?.collections?.find((c) => c.id === collectionEditorTarget)?.variables ?? [],
           onClose: () => setCollectionEditorOpen(false),
           onSaveScopedVariable: handleSaveScopedVariable,
-          onSaveScopedSecretVariable: handleAddScopedSecretVariable,
           onDeleteScopedVariable: handleDeleteScopedVariable,
         }}
         curlImport={{

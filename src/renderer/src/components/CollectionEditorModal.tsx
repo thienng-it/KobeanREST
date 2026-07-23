@@ -9,7 +9,6 @@ export interface CollectionEditorModalProps {
   collectionVariables: ScopedVariable[];
   onClose: () => void;
   onSaveScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
-  onSaveScopedSecretVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
   onDeleteScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string) => Promise<void>;
 }
 
@@ -20,7 +19,6 @@ export function CollectionEditorModal({
   collectionVariables,
   onClose,
   onSaveScopedVariable,
-  onSaveScopedSecretVariable,
   onDeleteScopedVariable,
 }: CollectionEditorModalProps) {
   if (!open) return null;
@@ -61,7 +59,6 @@ export function CollectionEditorModal({
             entityType="collection"
             variables={collectionVariables}
             onSave={onSaveScopedVariable}
-            onSaveSecret={onSaveScopedSecretVariable}
             onDelete={onDeleteScopedVariable}
           />
         </div>

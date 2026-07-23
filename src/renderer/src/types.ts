@@ -49,16 +49,12 @@ export interface SavedRequest {
 export interface EnvironmentVariable {
   key: string;
   value: string;
-  secret?: boolean;
-  secretRef?: string;
 }
 
 /** A variable scoped to a collection, folder, or request entity. */
 export interface ScopedVariable {
   key: string;
   value: string;
-  secret?: boolean;
-  secretRef?: string;
 }
 
 export type ScopedVariableEntityType = "collection" | "folder" | "request";

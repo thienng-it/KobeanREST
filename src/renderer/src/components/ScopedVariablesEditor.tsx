@@ -1,14 +1,12 @@
 import { AlignLeft, Check, Eye, EyeOff, Plus, Trash2, X } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import type { ScopedVariable, ScopedVariableEntityType } from "../types";
-import { resolveSecrets } from "../services/local-store";
 
 function toBulkText(variables: ScopedVariable[]): string {
-  return variables.map((v) => `${v.key}=${v.secret ? "[secret]" : v.value}`).join("\n");
+  return variables.map((v) => `${v.key}=${v.value}`).join("\n");
 }
 
-function parseBulkText(text: string, existing: ScopedVariable[]): Array<{ key: string; value: string; secret: boolean }> {
-  const secretMap = new Map(existing.filter((v) => v.secret).map((v) => [v.key, v]));
+function parseBulkText(text: string): Array<{ key: string; value: string }> {
   return text
     .split("\n")
     .map((line) => line.trim())
@@ -19,11 +17,9 @@ function parseBulkText(text: string, existing: ScopedVariable[]): Array<{ key: s
       const key = line.slice(0, eqIdx).trim();
       const value = line.slice(eqIdx + 1).trim();
       if (!key) return null;
-      const sec = secretMap.get(key);
-      if (sec && value === "[secret]") return { key, value: sec.value, secret: true };
-      return { key, value, secret: false };
+      return { key, value };
     })
-    .filter((v): v is { key: string; value: string; secret: boolean } => v !== null);
+    .filter((v): v is { key: string; value: string } => v !== null);
 }
 
 export interface ScopedVariablesEditorProps {
@@ -31,7 +27,6 @@ export interface ScopedVariablesEditorProps {
   entityType: ScopedVariableEntityType;
   variables: ScopedVariable[];
   onSave: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
-  onSaveSecret: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
   onDelete: (entityId: string, entityType: ScopedVariableEntityType, key: string) => Promise<void>;
 }
 
@@ -40,25 +35,38 @@ export function ScopedVariablesEditor({
   entityType,
   variables,
   onSave,
-  onSaveSecret,
   onDelete,
 }: ScopedVariablesEditorProps) {
   const [mode, setMode] = useState<"grid" | "bulk">("grid");
   const [bulkText, setBulkText] = useState("");
   const [bulkApplying, setBulkApplying] = useState(false);
+  const [showValues, setShowValues] = useState(() => localStorage.getItem("env-show-values") !== "false");
+  const [visibleValues, setVisibleValues] = useState<Record<string, boolean>>(() => JSON.parse(localStorage.getItem("env-visible-values") || "{}"));
+
+  const handleGlobalToggle = () => {
+    const next = !showValues;
+    setShowValues(next);
+    localStorage.setItem("env-show-values", String(next));
+    setVisibleValues({});
+    localStorage.setItem("env-visible-values", "{}");
+  };
+
+  const toggleValueVisibility = (key: string) => {
+    setVisibleValues((prev) => {
+      const next = { ...prev };
+      const currentlyVisible = prev[key] ?? showValues;
+      next[key] = !currentlyVisible;
+      localStorage.setItem("env-visible-values", JSON.stringify(next));
+      return next;
+    });
+  };
 
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editingKeyDraft, setEditingKeyDraft] = useState("");
   const [editingValueDraft, setEditingValueDraft] = useState("");
-  const [editingWasSecret, setEditingWasSecret] = useState(false);
-  const [editingIsSecret, setEditingIsSecret] = useState(false);
-  const [showEditPassword, setShowEditPassword] = useState(false);
 
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
-  const [newSecret, setNewSecret] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [secretLoaded, setSecretLoaded] = useState(false);
 
   const editingRowRef = useRef<HTMLDivElement | null>(null);
 
@@ -70,13 +78,13 @@ export function ScopedVariablesEditor({
   async function applyBulk() {
     setBulkApplying(true);
     try {
-      const parsed = parseBulkText(bulkText, variables);
+      const parsed = parseBulkText(bulkText);
       const parsedKeys = new Set(parsed.map((v) => v.key));
       for (const v of variables) {
         if (!parsedKeys.has(v.key)) await onDelete(entityId, entityType, v.key);
       }
       for (const v of parsed) {
-        if (!v.secret) await onSave(entityId, entityType, v.key, v.value);
+        await onSave(entityId, entityType, v.key, v.value);
       }
     } finally {
       setBulkApplying(false);
@@ -84,30 +92,10 @@ export function ScopedVariablesEditor({
     }
   }
 
-  useEffect(() => {
-    if (editingKey !== null && editingWasSecret) {
-      const v = variables.find((v) => v.key === editingKey);
-      if (v && v.secretRef) {
-        resolveSecrets([v.secretRef])
-          .then((res) => {
-            if (res[v.secretRef!]) {
-              setEditingValueDraft(res[v.secretRef!]);
-              setSecretLoaded(true);
-            }
-          })
-          .catch(console.error);
-      }
-    }
-  }, [editingKey, editingWasSecret, variables]);
-
   function startInlineEdit(v: ScopedVariable) {
     setEditingKey(v.key);
     setEditingKeyDraft(v.key);
-    setEditingValueDraft(v.secret ? "" : v.value);
-    setEditingWasSecret(v.secret ?? false);
-    setEditingIsSecret(v.secret ?? false);
-    setShowEditPassword(false);
-    setSecretLoaded(!(v.secret ?? false));
+    setEditingValueDraft(v.value);
   }
 
   function cancelInlineEdit() {
@@ -119,25 +107,9 @@ export function ScopedVariablesEditor({
     const k = editingKeyDraft.trim();
     if (!k) { cancelInlineEdit(); return; }
 
-    if (editingWasSecret && !secretLoaded && editingValueDraft === "") {
-      if (!editingIsSecret) {
-        alert("The original secret value could not be retrieved from the keychain. To convert this to a normal variable, please enter a new value.");
-        return;
-      }
-      if (k !== editingKey) {
-        alert("Please enter the secret value again to rename this variable.");
-      }
-      cancelInlineEdit();
-      return;
-    }
-
     if (k !== editingKey) await onDelete(entityId, entityType, editingKey);
 
-    if (editingIsSecret) {
-      await onSaveSecret(entityId, entityType, k, editingValueDraft);
-    } else {
-      await onSave(entityId, entityType, k, editingValueDraft);
-    }
+    await onSave(entityId, entityType, k, editingValueDraft);
     setEditingKey(null);
   }
 
@@ -151,15 +123,9 @@ export function ScopedVariablesEditor({
 
   async function handleAdd() {
     if (!newKey.trim()) return;
-    if (newSecret) {
-      await onSaveSecret(entityId, entityType, newKey.trim(), newValue);
-    } else {
-      await onSave(entityId, entityType, newKey.trim(), newValue);
-    }
+    await onSave(entityId, entityType, newKey.trim(), newValue);
     setNewKey("");
     setNewValue("");
-    setNewSecret(false);
-    setShowNewPassword(false);
   }
 
   return (
@@ -170,6 +136,17 @@ export function ScopedVariablesEditor({
           {variables.length} {variables.length === 1 ? "variable" : "variables"}
         </span>
         <div style={{ display: "flex", gap: "6px" }}>
+          {mode === "grid" && (
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={handleGlobalToggle}
+              title={showValues ? "Hide values" : "Show values"}
+              style={{ fontSize: "12px", padding: "3px 10px", display: "flex", alignItems: "center", gap: "5px" }}
+            >
+              {showValues ? <EyeOff size={12} /> : <Eye size={12} />}
+            </button>
+          )}
           {mode === "grid" ? (
             <button
               type="button"
@@ -272,11 +249,10 @@ export function ScopedVariablesEditor({
                     />
                     <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
                       <input
-                        className={`env-inline-input ${editingIsSecret && !showEditPassword ? "password-mask" : ""}`}
+                        className="env-inline-input"
                         value={editingValueDraft}
                         aria-label="Edit value"
                         type="text"
-                        placeholder={editingWasSecret ? "Enter new secret value…" : ""}
                         style={{ flex: 1 }}
                         onChange={(e) => setEditingValueDraft(e.target.value)}
                         onKeyDown={(e) => {
@@ -284,36 +260,8 @@ export function ScopedVariablesEditor({
                           if (e.key === "Escape") { e.preventDefault(); cancelInlineEdit(); }
                         }}
                       />
-                      {editingIsSecret && (
-                        <button
-                          type="button"
-                          className="env-icon-button"
-                          tabIndex={0}
-                          onPointerDown={(e) => e.preventDefault()}
-                          onClick={() => setShowEditPassword((p) => !p)}
-                          aria-label={showEditPassword ? "Hide value" : "Show value"}
-                          style={{ flexShrink: 0 }}
-                        >
-                          {showEditPassword ? <EyeOff size={12} /> : <Eye size={12} />}
-                        </button>
-                      )}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                      <label 
-                        className="env-secret-toggle" 
-                        style={{ fontSize: "11px", whiteSpace: "nowrap", cursor: "pointer" }}
-                        onPointerDown={(e) => {
-                          e.preventDefault(); // Prevent Safari blur
-                          setEditingIsSecret(!editingIsSecret);
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={editingIsSecret}
-                          readOnly
-                        />
-                        Secret
-                      </label>
                       <button
                         type="button"
                         className="env-icon-button"
@@ -345,23 +293,32 @@ export function ScopedVariablesEditor({
                       {v.key}
                     </span>
                     <span
-                      className={v.secret ? "env-variable-value secret" : "env-variable-value"}
+                      className="env-variable-value"
                       onClick={() => startInlineEdit(v)}
                       title="Click to edit"
                     >
-                      {v.secret ? "[secret]" : v.value}
+                      { (visibleValues[v.key] ?? showValues) ? v.value : "••••••••" }
                     </span>
-                    {v.secret ? <span className="env-secret-badge">Secret</span> : <span />}
                   </>
                 )}
-                <button
-                  type="button"
-                  className="env-icon-button danger"
-                  aria-label={`Delete variable ${v.key}`}
-                  onClick={() => { cancelInlineEdit(); void onDelete(entityId, entityType, v.key); }}
-                >
-                  <Trash2 size={12} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <button
+                    type="button"
+                    className="env-icon-button"
+                    aria-label={`Toggle visibility of ${v.key}`}
+                    onClick={(e) => { e.stopPropagation(); toggleValueVisibility(v.key); }}
+                  >
+                    { (visibleValues[v.key] ?? showValues) ? <EyeOff size={12} /> : <Eye size={12} /> }
+                  </button>
+                  <button
+                    type="button"
+                    className="env-icon-button danger"
+                    aria-label={`Delete variable ${v.key}`}
+                    onClick={(e) => { e.stopPropagation(); cancelInlineEdit(); void onDelete(entityId, entityType, v.key); }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -379,37 +336,18 @@ export function ScopedVariablesEditor({
               <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                 <input
                   style={{ flex: 1, minWidth: 0 }}
-                  className={newSecret && !showNewPassword ? "password-mask" : ""}
                   value={newValue}
                   onChange={(e) => setNewValue(e.target.value)}
-                  placeholder={newSecret ? "Secret value" : "Value"}
+                  placeholder="Value"
                   aria-label="New variable value"
                   type="text"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void handleAdd();
                   }}
                 />
-                {newSecret && (
-                  <button
-                    type="button"
-                    className="env-icon-button"
-                    onClick={() => setShowNewPassword((p) => !p)}
-                    aria-label={showNewPassword ? "Hide value" : "Show value"}
-                  >
-                    {showNewPassword ? <EyeOff size={12} /> : <Eye size={12} />}
-                  </button>
-                )}
               </div>
             </div>
             <div className="env-add-variable-actions">
-              <label className="env-secret-toggle">
-                <input
-                  type="checkbox"
-                  checked={newSecret}
-                  onChange={(e) => { setNewSecret(e.target.checked); setShowNewPassword(false); }}
-                />
-                Secret
-              </label>
               <button type="button" className="ghost-button" onClick={() => void handleAdd()}>
                 <Plus size={12} /> Add
               </button>

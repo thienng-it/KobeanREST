@@ -211,10 +211,7 @@ export async function deleteVariable(environmentName: string, key: string): Prom
   return invoke<void>("delete_variable", { environmentName, key });
 }
 
-export async function saveSecretVariable(environmentName: string, key: string, secretRef: string): Promise<void> {
-  if (!isTauriRuntime()) return;
-  return invoke<void>("save_secret_variable", { environmentName, key, secretRef });
-}
+
 
 export async function saveScopedVariable(
   entityId: string,
@@ -226,15 +223,7 @@ export async function saveScopedVariable(
   return invoke<void>("save_scoped_variable", { entityId, entityType, key, value });
 }
 
-export async function saveScopedSecretVariable(
-  entityId: string,
-  entityType: ScopedVariableEntityType,
-  key: string,
-  secretRef: string,
-): Promise<void> {
-  if (!isTauriRuntime()) return;
-  return invoke<void>("save_scoped_secret_variable", { entityId, entityType, key, secretRef });
-}
+
 
 export async function deleteScopedVariable(
   entityId: string,
@@ -253,10 +242,7 @@ export async function getScopedVariables(
   return invoke<ScopedVariable[]>("get_scoped_variables", { entityId, entityType });
 }
 
-export async function resolveSecrets(refIds: string[]): Promise<Record<string, string>> {
-  if (!isTauriRuntime()) return {};
-  return invoke<Record<string, string>>("resolve_secrets", { refIds });
-}
+
 
 export async function loadHistory(): Promise<import("../types").HistoryEntry[]> {
   if (!isTauriRuntime()) return [];

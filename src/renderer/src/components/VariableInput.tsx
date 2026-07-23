@@ -101,12 +101,7 @@ export function VariableInput({
 
       const variable = activeVariables.find((v) => v.key === varName);
       const isResolved = !!variable;
-      const isSecret = !!variable?.secret;
-      const val = isResolved
-        ? isSecret
-          ? "•••••••• (encrypted secret)"
-          : variable!.value
-        : "";
+      const val = isResolved ? variable!.value : "";
 
       const parentRect = containerRef.current!.getBoundingClientRect();
       const spanRect = span.getBoundingClientRect();
@@ -114,7 +109,7 @@ export function VariableInput({
       setActiveTooltip({
         key: varName,
         value: val,
-        isSecret,
+        isSecret: false,
         isResolved,
         x: spanRect.left - parentRect.left + spanRect.width / 2,
         y: spanRect.top - parentRect.top - 8,
@@ -382,12 +377,7 @@ export function VariableTextarea({
 
       const variable = activeVariables.find((v) => v.key === varName);
       const isResolved = !!variable;
-      const isSecret = !!variable?.secret;
-      const val = isResolved
-        ? isSecret
-          ? "•••••••• (encrypted secret)"
-          : variable!.value
-        : "";
+      const val = isResolved ? variable!.value : "";
 
       const parentRect = containerRef.current!.getBoundingClientRect();
       const spanRect = span.getBoundingClientRect();
@@ -395,7 +385,7 @@ export function VariableTextarea({
       setActiveTooltip({
         key: varName,
         value: val,
-        isSecret,
+        isSecret: false,
         isResolved,
         x: spanRect.left - parentRect.left + spanRect.width / 2,
         y: spanRect.top - parentRect.top - 8,

@@ -17,9 +17,7 @@ import {
   setActiveEnvironment,
   saveVariable,
   deleteVariable,
-  saveSecretVariable,
   saveScopedVariable,
-  saveScopedSecretVariable,
   deleteScopedVariable,
   getScripts,
   createCollection,
@@ -27,7 +25,7 @@ import {
   exportWorkspaceData,
   importWorkspaceData,
 } from "../services/local-store";
-import { storeSecret } from "../services/secrets";
+
 import { diagnosticMessage } from "../app-utils";
 import type { ContextMenuState } from "../components/ContextMenu";
 import type { WorkspaceSummary, SavedRequest, ScopedVariable, ScopedVariableEntityType } from "../types";
@@ -520,7 +518,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
             return {
               ...e,
               variables: exists
-                ? e.variables.map(v => v.key === key ? { ...v, value, secret: false, secretRef: undefined } : v)
+                ? e.variables.map(v => v.key === key ? { ...v, value } : v)
                 : [...e.variables, { key, value }],
             };
           }),
@@ -549,33 +547,6 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     } catch (err) {
       console.error("Failed to delete variable", diagnosticMessage(err));
       alert("Failed to delete variable: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleAddSecretVariable(envName: string, key: string, value: string) {
-    try {
-      const { refId } = await storeSecret({ scope: envName, key, value });
-      await saveSecretVariable(envName, key, refId);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          environments: prev.environments.map(e => {
-            if (e.name !== envName) return e;
-            const exists = e.variables.some(v => v.key === key);
-            const updated = { key, value: "[secret stored outside SQLite]", secret: true, secretRef: refId };
-            return {
-              ...e,
-              variables: exists
-                ? e.variables.map(v => v.key === key ? updated : v)
-                : [...e.variables, updated],
-            };
-          }),
-        };
-      });
-    } catch (err) {
-      console.error("Failed to save secret variable", diagnosticMessage(err));
-      alert("Failed to save secret variable: " + diagnosticMessage(err));
     }
   }
 
@@ -623,7 +594,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       patchScopedVariables(entityId, entityType, vars => {
         const exists = vars.some(v => v.key === key);
         return exists
-          ? vars.map(v => v.key === key ? { ...v, value, secret: false, secretRef: undefined } : v)
+          ? vars.map(v => v.key === key ? { ...v, value } : v)
           : [...vars, { key, value }];
       });
     } catch (err) {
@@ -643,27 +614,6 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     } catch (err) {
       console.error("Failed to delete scoped variable", diagnosticMessage(err));
       alert("Failed to delete variable: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleAddScopedSecretVariable(
-    entityId: string,
-    entityType: ScopedVariableEntityType,
-    key: string,
-    value: string,
-  ) {
-    try {
-      const scope = `${entityType}-${entityId}`;
-      const { refId } = await storeSecret({ scope, key, value });
-      await saveScopedSecretVariable(entityId, entityType, key, refId);
-      patchScopedVariables(entityId, entityType, vars => {
-        const updated: ScopedVariable = { key, value: "[secret stored outside SQLite]", secret: true, secretRef: refId };
-        const exists = vars.some(v => v.key === key);
-        return exists ? vars.map(v => v.key === key ? updated : v) : [...vars, updated];
-      });
-    } catch (err) {
-      console.error("Failed to save scoped secret variable", diagnosticMessage(err));
-      alert("Failed to save secret variable: " + diagnosticMessage(err));
     }
   }
 
@@ -810,10 +760,8 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     handleDeleteEnvironment,
     handleSaveVariable,
     handleDeleteVariable,
-    handleAddSecretVariable,
     handleSaveScopedVariable,
     handleDeleteScopedVariable,
-    handleAddScopedSecretVariable,
     handleRenameEnvironment,
     applyEnvironmentRename,
     cancelEnvironmentRename,

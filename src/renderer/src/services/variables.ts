@@ -1,5 +1,4 @@
 import type { EnvironmentVariable, WorkspaceSummary } from "../types";
-import { resolveSecrets } from "./local-store";
 
 const VARIABLE_PATTERN = /\{\{([^{}]+)\}\}/g;
 
@@ -67,50 +66,26 @@ export function activeEnvironmentVariables(workspace: WorkspaceSummary | null): 
   return environment?.variables ?? [];
 }
 
-/**
- * Build a lookup map from the active environment variables.
- * Secret variables with a `secretRef` but a redacted display value
- * are excluded from resolution to prevent leaking placeholders.
- */
 export function buildVariableMap(
   variables: EnvironmentVariable[],
 ): Map<string, string> {
   const map = new Map<string, string>();
   for (const variable of variables) {
-    if (variable.secret && variable.secretRef) {
-      // Secret variables store only a redacted placeholder in SQLite.
-      // They must not be injected into requests as raw text.
-      continue;
-    }
     map.set(variable.key, variable.value);
   }
   return map;
 }
 
-/**
- * Merge scope chain for a single request. Lower scopes override higher:
- * environment → collection → folder → request (last write wins).
- * Returns the plaintext map (non-secret values) plus the set of secret refs
- * that still need keychain resolution.
- */
 export function buildScopedVariableMap(
   workspace: WorkspaceSummary,
   scope: { collectionId?: string; folderId?: string; requestId?: string },
-): { map: Map<string, string>; secretRefs: Map<string, string> } {
+): Map<string, string> {
   const map = new Map<string, string>();
-  const secretRefs = new Map<string, string>();
 
-  const ingest = (vars: { key: string; value: string; secret?: boolean; secretRef?: string }[] | undefined) => {
+  const ingest = (vars: { key: string; value: string }[] | undefined) => {
     if (!vars) return;
     for (const v of vars) {
-      if (v.secret && v.secretRef) {
-        // Hold the ref; the plaintext value is fetched from the keychain at send time.
-        secretRefs.set(v.key, v.secretRef);
-        map.delete(v.key);
-      } else {
-        map.set(v.key, v.value);
-        secretRefs.delete(v.key);
-      }
+      map.set(v.key, v.value);
     }
   };
 
@@ -132,30 +107,6 @@ export function buildScopedVariableMap(
     ingest(request?.variables);
   }
 
-  return { map, secretRefs };
-}
-
-/**
- * Fetch secret values from the keychain (single batched call) and fold them
- * into the variable map. Missing secrets resolve to an empty string and are
- * logged — non-blocking, matches the offline-friendly philosophy.
- */
-export async function injectResolvedSecrets(
-  map: Map<string, string>,
-  secretRefs: Map<string, string>,
-): Promise<Map<string, string>> {
-  if (secretRefs.size === 0) return map;
-  const refIds = Array.from(secretRefs.values());
-  let resolved: Record<string, string> = {};
-  try {
-    resolved = await resolveSecrets(refIds);
-  } catch (error) {
-    console.error("Failed to resolve secrets", error);
-    return map;
-  }
-  for (const [key, refId] of secretRefs) {
-    map.set(key, resolved[refId] ?? "");
-  }
   return map;
 }
 

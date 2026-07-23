@@ -165,7 +165,6 @@ export interface RequestPanelProps {
 
   // Scoped variable handlers
   onSaveScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
-  onSaveScopedSecretVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
   onDeleteScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string) => Promise<void>;
   preScript: string;
   setPreScript: (value: string) => void;
@@ -240,7 +239,6 @@ export function RequestPanel({
   onOpenRequestCode,
   diagnosticMessage,
   onSaveScopedVariable,
-  onSaveScopedSecretVariable,
   onDeleteScopedVariable,
 }: RequestPanelProps) {
   const currentScriptValue = activeRequestScript === "pre" ? preScript : postScript;
@@ -948,7 +946,6 @@ export function RequestPanel({
               entityType="request"
               variables={draftRequest.variables ?? []}
               onSave={onSaveScopedVariable}
-              onSaveSecret={onSaveScopedSecretVariable}
               onDelete={onDeleteScopedVariable}
             />
           </div>

@@ -15,7 +15,6 @@ export interface FolderScriptsModalProps {
   onPostScriptChange: (value: string) => void;
   onSave: () => void;
   onSaveScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
-  onSaveScopedSecretVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
   onDeleteScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string) => Promise<void>;
 }
 
@@ -31,7 +30,6 @@ export function FolderScriptsModal({
   onPostScriptChange,
   onSave,
   onSaveScopedVariable,
-  onSaveScopedSecretVariable,
   onDeleteScopedVariable,
 }: FolderScriptsModalProps) {
   if (!open) return null;
@@ -71,7 +69,6 @@ export function FolderScriptsModal({
               entityType="folder"
               variables={folderVariables}
               onSave={onSaveScopedVariable}
-              onSaveSecret={onSaveScopedSecretVariable}
               onDelete={onDeleteScopedVariable}
             />
           </div>

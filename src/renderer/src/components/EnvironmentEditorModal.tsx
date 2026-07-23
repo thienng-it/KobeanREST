@@ -27,9 +27,7 @@ export interface EnvironmentEditorModalProps {
   onDeleteVariable: (envName: string, key: string) => void;
   onNewVarKeyChange: (value: string) => void;
   onNewVarValueChange: (value: string) => void;
-  onNewVarSecretChange: (value: boolean) => void;
   onSaveVariable: (envName: string, key: string, value: string) => Promise<void>;
-  onAddSecretVariable: (envName: string, key: string, value: string) => Promise<void>;
 }
 
 export function EnvironmentEditorModal({
@@ -49,7 +47,6 @@ export function EnvironmentEditorModal({
   onSetActiveEnvironment,
   onDeleteVariable,
   onSaveVariable,
-  onAddSecretVariable,
 }: EnvironmentEditorModalProps) {
   if (!open) return null;
 
@@ -154,7 +151,6 @@ export function EnvironmentEditorModal({
                     envName={env.name}
                     variables={env.variables}
                     onSave={onSaveVariable}
-                    onSaveSecret={onAddSecretVariable}
                     onDelete={(envName, key) => { onDeleteVariable(envName, key); return Promise.resolve(); }}
                   />
                 </>
