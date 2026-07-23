@@ -412,7 +412,7 @@ export interface CurlImportResult {
 export function parseCurlCommand(raw: string): CurlImportResult {
   // Normalise line continuations (\<newline>) and collapse to single line
   const cleaned = raw
-    .replace(/\\\r?\n/g, " ")
+    .replace(/\\\s*\r?\n/g, " ")
     .replace(/\r?\n/g, " ")
     .trim();
 
@@ -433,6 +433,7 @@ export function parseCurlCommand(raw: string): CurlImportResult {
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
+    if (!token || token === "\\") continue;
 
     if (token === "-X" || token === "--request") {
       method = tokens[++i]?.toUpperCase();
