@@ -267,12 +267,15 @@ export function Sidebar({
           </div>
         )}
 
-        <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-          <button className="primary-action" type="button" onClick={() => void onCreateCollection()} style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)" }}>
-            <Plus size={16} />
-            New collection
-          </button>
-        </div>
+        <button
+          className="sidebar-new-collection-btn"
+          type="button"
+          onClick={() => void onCreateCollection()}
+          aria-label="Create new collection"
+        >
+          <Plus size={16} />
+          <span>New Collection</span>
+        </button>
 
         <label className={collectionSearch ? "search-field has-value" : "search-field"}>
           <Search size={15} />
