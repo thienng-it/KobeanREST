@@ -44,6 +44,8 @@ pub struct SavedRequest {
     pub auth_config: String,
     pub headers: Vec<HeaderEntry>,
     pub body: String,
+    pub body_mime_type: String,
+    pub body_form: String,
     pub timeout_ms: i64,
     pub follow_redirects: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -172,12 +174,45 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     ensure_folder_auth_columns(&connection)?;
     ensure_collection_auth_columns(&connection)?;
     ensure_scoped_variables_table(&connection)?;
+    ensure_request_body_columns(&connection)?;
     seed_default_workspace(&mut connection)?;
 
     Ok(PersistenceStatus {
         database_path: path.to_string_lossy().to_string(),
         migrated: true,
     })
+}
+
+fn ensure_request_body_columns(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(requests)")
+        .map_err(|error| format!("failed to inspect requests table: {error}"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("failed to query requests table info: {error}"))?;
+
+    let mut has_mime = false;
+    let mut has_form = false;
+    for column in columns {
+        let col = column.map_err(|error| format!("failed to read requests column: {error}"))?;
+        if col == "body_mime_type" {
+            has_mime = true;
+        } else if col == "body_form" {
+            has_form = true;
+        }
+    }
+
+    if !has_mime {
+        connection
+            .execute("ALTER TABLE requests ADD COLUMN body_mime_type TEXT NOT NULL DEFAULT 'text/plain'", [])
+            .map_err(|error| format!("failed to add requests.body_mime_type column: {error}"))?;
+    }
+    if !has_form {
+        connection
+            .execute("ALTER TABLE requests ADD COLUMN body_form TEXT NOT NULL DEFAULT '[]'", [])
+            .map_err(|error| format!("failed to add requests.body_form column: {error}"))?;
+    }
+    Ok(())
 }
 
 fn ensure_folder_parent_id_column(connection: &Connection) -> Result<(), String> {
@@ -940,7 +975,9 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
                 requests.body,
                 requests.timeout_ms,
                 requests.follow_redirects,
-                requests.auth_config
+                requests.auth_config,
+                requests.body_mime_type,
+                requests.body_form
              FROM requests
              JOIN folders ON folders.id = requests.folder_id
              WHERE requests.workspace_id = ?1
@@ -960,6 +997,8 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
                 row.get::<_, i64>(7)?,
                 row.get::<_, i64>(8)? != 0,
                 row.get::<_, Option<String>>(9)?,
+                row.get::<_, String>(10)?,
+                row.get::<_, String>(11)?,
             ))
         })
         .map_err(|error| format!("failed to query requests: {error}"))?;
@@ -979,6 +1018,8 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
             timeout_ms: row.7,
             follow_redirects: row.8,
             auth_config: row.9.unwrap_or_else(|| "{}".to_string()),
+            body_mime_type: row.10,
+            body_form: row.11,
             variables: Some(load_scoped_variables(connection, &row.0, "request")?),
         });
     }
@@ -1070,6 +1111,13 @@ pub struct FolderRow {
     pub position: i64,
 }
 
+fn default_body_mime_type() -> String {
+    "text/plain".to_string()
+}
+fn default_body_form() -> String {
+    "[]".to_string()
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RequestRow {
     pub id: String,
@@ -1081,6 +1129,10 @@ pub struct RequestRow {
     pub auth_mode: String,
     pub auth_config: Option<String>,
     pub body: String,
+    #[serde(default = "default_body_mime_type")]
+    pub body_mime_type: String,
+    #[serde(default = "default_body_form")]
+    pub body_form: String,
     pub timeout_ms: i64,
     pub follow_redirects: i64,
     pub position: i64,
@@ -1166,7 +1218,7 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
     )?;
 
     let requests = collect_rows(
-        connection.prepare("SELECT id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, timeout_ms, follow_redirects, position FROM requests ORDER BY position")
+        connection.prepare("SELECT id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, timeout_ms, follow_redirects, position FROM requests ORDER BY position")
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
                 Ok(RequestRow {
@@ -1179,9 +1231,11 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
                     auth_mode: row.get(6)?,
                     auth_config: row.get(7)?,
                     body: row.get(8)?,
-                    timeout_ms: row.get(9)?,
-                    follow_redirects: row.get(10)?,
-                    position: row.get(11)?,
+                    body_mime_type: row.get(9)?,
+                    body_form: row.get(10)?,
+                    timeout_ms: row.get(11)?,
+                    follow_redirects: row.get(12)?,
+                    position: row.get(13)?,
                 })
             })
             .map_err(|e| e.to_string())?,
@@ -1331,8 +1385,8 @@ pub fn import_workspace_data(app: AppHandle, json: String) -> Result<(), String>
             .get(&request.folder_id)
             .ok_or("invalid folder reference in request")?;
         transaction.execute(
-            "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, timeout_ms, follow_redirects, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-            params![new_id, workspace_id, folder_id, request.name, request.method, request.url, request.auth_mode, request.auth_config, request.body, request.timeout_ms, request.follow_redirects, request.position],
+            "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, timeout_ms, follow_redirects, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            params![new_id, workspace_id, folder_id, request.name, request.method, request.url, request.auth_mode, request.auth_config, request.body, request.body_mime_type, request.body_form, request.timeout_ms, request.follow_redirects, request.position],
         ).map_err(|e| format!("failed to import request: {e}"))?;
     }
 
@@ -1383,8 +1437,8 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
     let workspace_id = first_workspace_id(&transaction)?;
 
     transaction.execute(
-        "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, timeout_ms, follow_redirects, position)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, (SELECT COALESCE(MAX(position), -1) + 1 FROM requests WHERE folder_id = ?3))
+        "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, timeout_ms, follow_redirects, position)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, (SELECT COALESCE(MAX(position), -1) + 1 FROM requests WHERE folder_id = ?3))
          ON CONFLICT(id) DO UPDATE SET
             folder_id = excluded.folder_id,
             name = excluded.name,
@@ -1393,6 +1447,8 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
             auth_mode = excluded.auth_mode,
             auth_config = excluded.auth_config,
             body = excluded.body,
+            body_mime_type = excluded.body_mime_type,
+            body_form = excluded.body_form,
             timeout_ms = excluded.timeout_ms,
             follow_redirects = excluded.follow_redirects",
         rusqlite::params![
@@ -1405,6 +1461,8 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
             request.auth_mode,
             request.auth_config,
             request.body,
+            request.body_mime_type,
+            request.body_form,
             request.timeout_ms,
             request.follow_redirects
         ]
@@ -1616,6 +1674,8 @@ pub fn create_request(app: AppHandle, folder_id: String) -> Result<SavedRequest,
         auth_config: "{}".to_string(),
         headers: vec![],
         body: "".to_string(),
+        body_mime_type: "text/plain".to_string(),
+        body_form: "[]".to_string(),
         timeout_ms: 30000,
         follow_redirects: true,
         variables: Some(Vec::new()),

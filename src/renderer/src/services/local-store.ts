@@ -55,7 +55,7 @@ export async function loadLocalWorkspace(): Promise<WorkspaceSummary> {
 
   const workspace = await invoke<WorkspaceSummary>("load_workspace");
   
-  const parseAuthConfig = (entity: any) => {
+  const parseFields = (entity: any) => {
     if (typeof entity.authConfig === "string") {
       try {
         entity.authConfig = JSON.parse(entity.authConfig);
@@ -63,11 +63,18 @@ export async function loadLocalWorkspace(): Promise<WorkspaceSummary> {
         entity.authConfig = {};
       }
     }
+    if (typeof entity.bodyForm === "string") {
+      try {
+        entity.bodyForm = JSON.parse(entity.bodyForm);
+      } catch {
+        entity.bodyForm = [];
+      }
+    }
   };
 
-  workspace.requests?.forEach(parseAuthConfig);
-  workspace.folders?.forEach(parseAuthConfig);
-  workspace.collections?.forEach(parseAuthConfig);
+  workspace.requests?.forEach(parseFields);
+  workspace.folders?.forEach(parseFields);
+  workspace.collections?.forEach(parseFields);
 
   return workspace;
 }
@@ -98,7 +105,8 @@ export async function saveRequest(request: import("../types").SavedRequest): Pro
   if (!isTauriRuntime()) return;
   const payload = {
     ...request,
-    authConfig: typeof request.authConfig === "object" ? JSON.stringify(request.authConfig) : request.authConfig
+    authConfig: typeof request.authConfig === "object" ? JSON.stringify(request.authConfig) : request.authConfig,
+    bodyForm: typeof request.bodyForm === "object" ? JSON.stringify(request.bodyForm) : request.bodyForm
   };
   return invoke<void>("save_request", { request: payload });
 }
@@ -174,6 +182,9 @@ export async function createRequest(folderId: string): Promise<import("../types"
   const req = await invoke<import("../types").SavedRequest>("create_request", { folderId });
   if (typeof req.authConfig === "string") {
     try { req.authConfig = JSON.parse(req.authConfig); } catch { req.authConfig = {}; }
+  }
+  if (typeof req.bodyForm === "string") {
+    try { req.bodyForm = JSON.parse(req.bodyForm); } catch { req.bodyForm = []; }
   }
   return req;
 }

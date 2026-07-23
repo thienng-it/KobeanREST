@@ -374,9 +374,6 @@ export function Sidebar({
                                     style={{ all: "unset", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
                                   >
                                     {folder.name}
-                                    {scriptStatus[folder.id] && (
-                                      <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#2563eb", marginLeft: "4px" }} title="Has scripts" />
-                                    )}
                                   </button>
                                 )}
                               </div>
@@ -448,9 +445,6 @@ export function Sidebar({
                                       >
                                         <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
                                         <span onDoubleClick={() => onStartRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
-                                        {scriptStatus[request.id] && (
-                                          <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#2563eb", marginLeft: "4px" }} title="Has scripts" />
-                                        )}
                                       </button>
                                     )}
                                     <div className="sidebar-row-actions">
