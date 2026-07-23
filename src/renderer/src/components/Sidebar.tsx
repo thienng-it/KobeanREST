@@ -1,5 +1,5 @@
 import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { CustomSelect } from "./CustomSelect";
 import type { AppSettings, SavedRequest, WorkspaceSummary } from "../types";
 
@@ -126,6 +126,22 @@ export function Sidebar({
   onCurlImport,
 }: SidebarProps) {
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const themeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!themeMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (themeRef.current && !themeRef.current.contains(event.target as Node)) {
+        setThemeMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [themeMenuOpen]);
   const isCollectionSearchActive = collectionSearch.trim().length > 0;
   const normalizedCollectionSearch = collectionSearch.trim().toLowerCase();
 
@@ -571,7 +587,7 @@ export function Sidebar({
             <Settings size={15} />
           </button>
         </div>
-        <div className="sidebar-footer-theme" style={{ position: "relative" }}>
+        <div ref={themeRef} className="sidebar-footer-theme" style={{ position: "relative" }}>
           <button
             type="button"
             className="sidebar-footer-theme-btn"
