@@ -52,6 +52,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onSaveSecret, o
   const [newValue, setNewValue] = useState("");
   const [newSecret, setNewSecret] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [secretLoaded, setSecretLoaded] = useState(false);
 
   // Ref to track all elements inside the currently-editing row
   const editingRowRef = useRef<HTMLDivElement | null>(null);

@@ -58,6 +58,7 @@ export function ScopedVariablesEditor({
   const [newValue, setNewValue] = useState("");
   const [newSecret, setNewSecret] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [secretLoaded, setSecretLoaded] = useState(false);
 
   const editingRowRef = useRef<HTMLDivElement | null>(null);
 
