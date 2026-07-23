@@ -402,11 +402,12 @@ export function RequestPanel({
     <section className="request-panel" aria-label="Request builder">
       <div className="request-header">
         <div className="request-identity">
-          <span className="muted-label">Request</span>
-          <div className="request-title-row">
-            <h1>{draftRequest.name}</h1>
+          <div className="request-single-line-header">
+            <span className="request-type-badge">REQUEST</span>
+            <span className="request-path">{requestPath}</span>
+            <span className="request-path-sep">/</span>
+            <h1 className="request-title-inline">{draftRequest.name}</h1>
           </div>
-          <div className="request-path">{requestPath}</div>
         </div>
         <div className="request-header-actions">
           <button

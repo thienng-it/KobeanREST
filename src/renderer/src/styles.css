@@ -1986,32 +1986,57 @@ button:disabled {
 .request-identity {
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
 }
 
-.request-title-row {
+.request-single-line-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
+  flex-wrap: nowrap;
 }
 
-.request-title-row h1 {
-  margin: 0;
-  color: var(--color-text);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.03em;
+.request-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary-light, #60a5fa);
+  background: var(--color-surface, rgba(59, 130, 246, 0.12));
+  border: 1px solid var(--color-border-tint, rgba(59, 130, 246, 0.2));
+  flex-shrink: 0;
 }
 
 .request-path {
   color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.4;
-  word-break: break-word;
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.request-path-sep {
+  color: var(--color-muted);
+  opacity: 0.5;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.request-title-inline {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .request-header-actions {
