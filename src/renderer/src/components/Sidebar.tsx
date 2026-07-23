@@ -1,10 +1,10 @@
-import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload } from "lucide-react";
+import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { SavedRequest, WorkspaceSummary } from "../types";
 
 interface ContextMenuTarget {
   id: string;
-  type: "folder" | "request" | "collection";
+  type: "folder" | "request" | "collection" | "workspace";
 }
 
 export interface SidebarProps {
@@ -64,6 +64,7 @@ export interface SidebarProps {
   // Import / export
   onExport: () => void;
   onImport: () => void;
+  onCurlImport: () => void;
 }
 
 export function Sidebar({
@@ -105,6 +106,7 @@ export function Sidebar({
   onDismissDeleteError,
   onExport,
   onImport,
+  onCurlImport,
 }: SidebarProps) {
   const isCollectionSearchActive = collectionSearch.trim().length > 0;
   const normalizedCollectionSearch = collectionSearch.trim().toLowerCase();
@@ -167,20 +169,14 @@ export function Sidebar({
           <button
             type="button"
             className="sidebar-icon-button"
-            aria-label="Import workspace"
-            title="Import workspace"
-            onClick={onImport}
+            aria-label="Workspace actions"
+            title="Workspace actions"
+            onClick={(e) => {
+              e.stopPropagation();
+              onContextMenu({ id: "workspace", type: "workspace" }, e.clientX, e.clientY);
+            }}
           >
-            <Upload size={15} />
-          </button>
-          <button
-            type="button"
-            className="sidebar-icon-button"
-            aria-label="Export workspace"
-            title="Export workspace"
-            onClick={onExport}
-          >
-            <Download size={15} />
+            <MoreVertical size={15} />
           </button>
         </div>
       </div>

@@ -4,6 +4,7 @@ export type ScriptConsole = {
   log: (...values: unknown[]) => void;
   warn: (...values: unknown[]) => void;
   error: (...values: unknown[]) => void;
+  testResult?: (passed: boolean, name: string, errMessage?: string) => void;
 };
 
 export interface KbScriptContext {
@@ -104,6 +105,8 @@ export async function runKbScript(
 ): Promise<void> {
   if (!content.trim()) return;
 
+  const asyncTests: Promise<void>[] = [];
+
   const kb = {
     request: buildKbRequest(ctx.request),
     response: ctx.response ? buildKbResponse(ctx.response) : undefined,
@@ -115,6 +118,61 @@ export async function runKbScript(
         ctx.setVariable?.(key, String(value));
       },
     },
+    test: (name: string, fn: () => void | Promise<void>) => {
+      try {
+        const result = fn();
+        if (result instanceof Promise) {
+          const promise = result.then(() => {
+            if (console.testResult) console.testResult(true, name);
+            else console.log(`✅ PASS: ${name}`);
+          }).catch((err) => {
+            if (console.testResult) console.testResult(false, name, err.message || String(err));
+            else console.error(`❌ FAIL: ${name} | ${err.message || String(err)}`);
+          });
+          asyncTests.push(promise);
+        } else {
+          if (console.testResult) console.testResult(true, name);
+          else console.log(`✅ PASS: ${name}`);
+        }
+      } catch (err: any) {
+        if (console.testResult) console.testResult(false, name, err.message || String(err));
+        else console.error(`❌ FAIL: ${name} | ${err.message || String(err)}`);
+      }
+    },
+    expect: (actual: any) => ({
+      toBe: (expected: any) => {
+        if (actual !== expected) throw new Error(`expected ${actual} to be ${expected}`);
+      },
+      toEqual: (expected: any) => {
+        if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+          throw new Error(`expected ${JSON.stringify(actual)} to equal ${JSON.stringify(expected)}`);
+        }
+      },
+      toBeGreaterThan: (expected: number) => {
+        if (actual <= expected) throw new Error(`expected ${actual} to be greater than ${expected}`);
+      },
+      toBeLessThan: (expected: number) => {
+        if (actual >= expected) throw new Error(`expected ${actual} to be less than ${expected}`);
+      },
+      toBeTruthy: () => {
+        if (!actual) throw new Error(`expected ${actual} to be truthy`);
+      },
+      toBeFalsy: () => {
+        if (actual) throw new Error(`expected ${actual} to be falsy`);
+      },
+      toContain: (expected: any) => {
+        if (actual && typeof actual.includes === "function") {
+          if (!actual.includes(expected)) throw new Error(`expected ${JSON.stringify(actual)} to contain ${JSON.stringify(expected)}`);
+        } else {
+          throw new Error(`expected ${actual} to be an array or string`);
+        }
+      },
+      toHaveProperty: (prop: string) => {
+        if (!actual || typeof actual !== "object" || !(prop in actual)) {
+          throw new Error(`expected ${JSON.stringify(actual)} to have property ${prop}`);
+        }
+      }
+    })
   };
 
   const fn = new Function("kb", "request", "response", "variables", "console", `
@@ -125,6 +183,9 @@ export async function runKbScript(
   `);
 
   await fn(kb, kb.request, kb.response, kb.variables, console);
+  if (asyncTests.length > 0) {
+    await Promise.allSettled(asyncTests);
+  }
 }
 
 /** Build the script variables map from environment variables (secrets excluded). */

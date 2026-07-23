@@ -682,7 +682,46 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
         };
       });
       setSelectedRequestId(newReq.id);
-    } catch (err) { console.error(diagnosticMessage(err)); }
+    } catch (err) { 
+      console.error(diagnosticMessage(err)); 
+    }
+  }
+
+  async function importCurlRequest(fields: Partial<SavedRequest>) {
+    try {
+      let targetFolderId = workspace?.folders?.[0]?.id;
+      if (!targetFolderId) {
+        let targetCollectionId = workspace?.collections?.[0]?.id;
+        if (!targetCollectionId) {
+          targetCollectionId = await createCollection("Imported");
+          setWorkspace(prev => prev ? { ...prev, collections: [...(prev.collections ?? []), { id: targetCollectionId!, name: "Imported" }] } : null);
+        }
+        const folder = await createFolder("Imported Requests", targetCollectionId, undefined);
+        targetFolderId = folder.id;
+        setWorkspace(prev => prev ? { ...prev, folders: [...(prev.folders ?? []), folder] } : null);
+      }
+
+      const newReq = await createRequest(targetFolderId);
+      const updatedReq = { 
+        ...newReq, 
+        ...fields, 
+        name: fields.name || "Imported cURL request" 
+      } as SavedRequest;
+      
+      await saveRequest(updatedReq);
+      
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          requests: [...prev.requests, updatedReq]
+        };
+      });
+      setSelectedRequestId(newReq.id);
+    } catch (err) {
+      console.error(diagnosticMessage(err));
+      alert("Failed to import curl: " + diagnosticMessage(err));
+    }
   }
 
   async function handleExport() {
@@ -765,6 +804,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     handleDeleteCollection,
     toggleFolder,
     handleCreateRequest,
+    importCurlRequest,
     handleSetActiveEnvironment,
     handleCreateEnvironment,
     handleDeleteEnvironment,

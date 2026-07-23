@@ -37,12 +37,29 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
       };
     };
 
+    const kbCompletion = (context: any) => {
+      const word = context.matchBefore(/kb\.[a-zA-Z0-9_]*/);
+      if (!word) return null;
+      
+      return {
+        from: word.from,
+        options: [
+          { label: "kb.request", type: "property", detail: "Request object" },
+          { label: "kb.response", type: "property", detail: "Response object" },
+          { label: "kb.variables", type: "property", detail: "Variables map" },
+          { label: "kb.environment", type: "property", detail: "Environment API" },
+          { label: "kb.test", type: "function", detail: "(name: string, fn: () => void)" },
+          { label: "kb.expect", type: "function", detail: "(actual: any) => ExpectAPI" }
+        ]
+      };
+    };
+
     const state = EditorState.create({
       doc: value,
       extensions: [
         basicSetup,
         javascript(),
-        autocompletion({ override: [variableCompletion] }),
+        autocompletion({ override: [variableCompletion, kbCompletion] }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChange(update.state.doc.toString());

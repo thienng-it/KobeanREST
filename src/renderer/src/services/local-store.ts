@@ -53,7 +53,23 @@ export async function loadLocalWorkspace(): Promise<WorkspaceSummary> {
     throw new Error("Workspace loading is not available in browser preview");
   }
 
-  return invoke<WorkspaceSummary>("load_workspace");
+  const workspace = await invoke<WorkspaceSummary>("load_workspace");
+  
+  const parseAuthConfig = (entity: any) => {
+    if (typeof entity.authConfig === "string") {
+      try {
+        entity.authConfig = JSON.parse(entity.authConfig);
+      } catch {
+        entity.authConfig = {};
+      }
+    }
+  };
+
+  workspace.requests?.forEach(parseAuthConfig);
+  workspace.folders?.forEach(parseAuthConfig);
+  workspace.collections?.forEach(parseAuthConfig);
+
+  return workspace;
 }
 
 export async function recordRequestHistory(entry: RequestHistoryEntry): Promise<void> {
@@ -80,7 +96,11 @@ export async function importWorkspaceData(json: string): Promise<void> {
 
 export async function saveRequest(request: import("../types").SavedRequest): Promise<void> {
   if (!isTauriRuntime()) return;
-  return invoke<void>("save_request", { request });
+  const payload = {
+    ...request,
+    authConfig: typeof request.authConfig === "object" ? JSON.stringify(request.authConfig) : request.authConfig
+  };
+  return invoke<void>("save_request", { request: payload });
 }
 
 export async function deleteRequest(requestId: string): Promise<void> {
@@ -92,11 +112,15 @@ export async function createFolder(name: string, collectionId?: string, parentId
   if (!isTauriRuntime()) {
     return { id: `preview-folder-${Date.now()}`, name, collectionId, parentId };
   }
-  return invoke<import("../types").FolderSummary>("create_folder", { 
+  const folder = await invoke<import("../types").FolderSummary>("create_folder", { 
     name, 
     collectionId, 
     parentId 
   });
+  if (typeof folder.authConfig === "string") {
+    try { folder.authConfig = JSON.parse(folder.authConfig); } catch { folder.authConfig = {}; }
+  }
+  return folder;
 }
 
 export async function createWorkspace(name: string): Promise<string> {
@@ -147,7 +171,11 @@ export async function createRequest(folderId: string): Promise<import("../types"
       followRedirects: true,
     };
   }
-  return invoke<import("../types").SavedRequest>("create_request", { folderId });
+  const req = await invoke<import("../types").SavedRequest>("create_request", { folderId });
+  if (typeof req.authConfig === "string") {
+    try { req.authConfig = JSON.parse(req.authConfig); } catch { req.authConfig = {}; }
+  }
+  return req;
 }
 
 export async function createEnvironment(name: string): Promise<import("../types").EnvironmentVariable[]> {

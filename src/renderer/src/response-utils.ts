@@ -24,3 +24,41 @@ export function statusColor(status: number): string {
 
 /** Muted status color (history rows, secondary status text). */
 export const statusColorMuted = 'var(--color-status-muted)';
+
+export type PreviewMode = "rendered" | "xml" | "html" | "json" | "raw";
+
+export function formatResponseBody(body: string, mode: PreviewMode): string {
+  if (!body) return body;
+  
+  if (mode === "json") {
+    try {
+      return JSON.stringify(JSON.parse(body), null, 2);
+    } catch {
+      return body;
+    }
+  }
+  
+  if (mode === "xml" || mode === "html" || mode === "rendered") {
+    try {
+      let formatted = '';
+      let pad = 0;
+      const xml = body.replace(/(>)(<)(\/*)/g, '$1\n$2$3');
+      const lines = xml.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (line.match(/^<\/\w/)) {
+          pad -= 1;
+        }
+        formatted += '  '.repeat(Math.max(0, pad)) + line + '\n';
+        if (line.match(/^<\w[^>]*[^\/]>.*$/) && !line.match(/^<\w[^>]*[^\/]>.*<\/\w[^>]*>$/)) {
+          pad += 1;
+        }
+      }
+      return formatted.trim();
+    } catch {
+      return body;
+    }
+  }
+  
+  return body;
+}

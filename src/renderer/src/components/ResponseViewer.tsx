@@ -40,6 +40,7 @@ export function ResponseViewer({ value, contentType, readOnly = true, height = '
       extensions: [
         basicSetup,
         languageExtension,
+        EditorView.lineWrapping,
         EditorState.readOnly.of(readOnly),
         EditorView.theme({
           "&": {

@@ -104,8 +104,36 @@ kb.request.url = url.toString();`,
 
   // --- Post-response templates ---
   {
+    id: "test-status-200",
+    label: "Test: Status code is 200",
+    mode: "javascript",
+    scope: "post",
+    body: `kb.test("Status code is 200", () => {
+  kb.expect(kb.response.status).toBe(200);
+});`,
+  },
+  {
+    id: "test-response-body",
+    label: "Test: Response body has field",
+    mode: "javascript",
+    scope: "post",
+    body: `kb.test("Response has data field", () => {
+  const jsonData = kb.response.json();
+  kb.expect(jsonData).toHaveProperty("data");
+});`,
+  },
+  {
+    id: "test-response-time",
+    label: "Test: Response time < 500ms",
+    mode: "javascript",
+    scope: "post",
+    body: `kb.test("Response time is acceptable", () => {
+  kb.expect(kb.response.durationMs).toBeLessThan(500);
+});`,
+  },
+  {
     id: "status-assertion",
-    label: "Assert 2xx status",
+    label: "Assert 2xx status (throws)",
     mode: "javascript",
     scope: "post",
     body: `if (kb.response.status < 200 || kb.response.status >= 300) {
@@ -358,4 +386,282 @@ console.log(response.status, await response.text());`;
 
 function quoteShell(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+// ---------------------------------------------------------------------------
+// cURL import – parse a curl command string into request fields
+// ---------------------------------------------------------------------------
+
+export interface CurlImportResult {
+  method: import("../types").HttpMethod;
+  customMethod?: string;
+  url: string;
+  headers: Array<{ key: string; value: string; enabled: boolean }>;
+  body: string;
+  bodyMimeType: string;
+  bodyForm: Array<{ key: string; value: string; enabled: boolean }>;
+  authMode: import("../types").ApiAuthMode;
+  authConfig: import("../types").AuthConfig;
+}
+
+/**
+ * Parse a curl command string and return fields compatible with SavedRequest.
+ * Supports common flags: -X, -H, -d/--data/--data-raw/--data-binary,
+ * -u/--user, --url, and quoted arguments (single, double, ANSI-C $'...').
+ */
+export function parseCurlCommand(raw: string): CurlImportResult {
+  // Normalise line continuations (\<newline>) and collapse to single line
+  const cleaned = raw
+    .replace(/\\\r?\n/g, " ")
+    .replace(/\r?\n/g, " ")
+    .trim();
+
+  const tokens = tokenize(cleaned);
+
+  // Drop leading "curl" token if present
+  if (tokens.length > 0 && tokens[0].toLowerCase() === "curl") {
+    tokens.shift();
+  }
+
+  let method: string | undefined;
+  let url = "";
+  const headers: Array<{ key: string; value: string; enabled: boolean }> = [];
+  let body = "";
+  let authMode: import("../types").ApiAuthMode = "none";
+  let authConfig: import("../types").AuthConfig = {};
+  let dataFlagUsed: string | undefined;
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+
+    if (token === "-X" || token === "--request") {
+      method = tokens[++i]?.toUpperCase();
+    } else if (token === "-H" || token === "--header") {
+      const headerStr = tokens[++i] ?? "";
+      const colonIdx = headerStr.indexOf(":");
+      if (colonIdx > 0) {
+        headers.push({
+          key: headerStr.slice(0, colonIdx).trim(),
+          value: headerStr.slice(colonIdx + 1).trim(),
+          enabled: true,
+        });
+      }
+    } else if (
+      token === "-d" ||
+      token === "--data" ||
+      token === "--data-raw" ||
+      token === "--data-binary" ||
+      token === "--data-ascii" ||
+      token === "--data-urlencode" ||
+      token === "--json"
+    ) {
+      if (!dataFlagUsed) dataFlagUsed = token;
+      let chunk = tokens[++i] ?? "";
+      if (token === "--data-urlencode") {
+        // curl --data-urlencode semantics:
+        //   "name=content" → name=<urlencode(content)>
+        //   "=content"     → <urlencode(content)>
+        //   "content"      → <urlencode(content)>
+        const eqIdx = chunk.indexOf("=");
+        if (eqIdx > 0) {
+          chunk = chunk.slice(0, eqIdx + 1) + encodeURIComponent(chunk.slice(eqIdx + 1));
+        } else if (eqIdx === 0) {
+          chunk = encodeURIComponent(chunk.slice(1));
+        } else {
+          chunk = encodeURIComponent(chunk);
+        }
+      }
+      // Multiple data flags are concatenated with & (same as real curl)
+      body = body ? body + "&" + chunk : chunk;
+      if (token === "--json") {
+        // --json implies Content-Type + Accept if not already set
+        if (!headers.some((h) => h.key.toLowerCase() === "content-type")) {
+          headers.push({ key: "Content-Type", value: "application/json", enabled: true });
+        }
+        if (!headers.some((h) => h.key.toLowerCase() === "accept")) {
+          headers.push({ key: "Accept", value: "application/json", enabled: true });
+        }
+      }
+    } else if (token === "-u" || token === "--user") {
+      const cred = tokens[++i] ?? "";
+      const sepIdx = cred.indexOf(":");
+      authMode = "basic";
+      if (sepIdx > 0) {
+        authConfig = { username: cred.slice(0, sepIdx), password: cred.slice(sepIdx + 1) };
+      } else {
+        authConfig = { username: cred, password: "" };
+      }
+    } else if (token === "--url") {
+      url = tokens[++i] ?? "";
+    } else if (token.startsWith("-")) {
+      // Known flags that take a value argument (not already handled above)
+      const VALUE_FLAGS = new Set([
+        "-o", "--output", "-O",
+        "-e", "--referer",
+        "-A", "--user-agent",
+        "-b", "--cookie", "-c", "--cookie-jar",
+        "--connect-timeout", "-m", "--max-time",
+        "--retry", "--retry-delay",
+        "-w", "--write-out",
+        "-T", "--upload-file",
+        "--proxy", "-x",
+        "--cert", "--key", "--cacert",
+        "--resolve", "--interface",
+        "--max-redirs",
+        "-r", "--range",
+        "--limit-rate",
+      ]);
+      if (VALUE_FLAGS.has(token)) {
+        i++; // consume the value
+      }
+      // Boolean / no-arg flags (-k, -v, -L, -s, --compressed, etc.)
+      // are implicitly skipped without consuming the next token
+    } else if (!url) {
+      // Bare positional argument = URL
+      url = token;
+    }
+  }
+
+  // Default method based on whether body is present
+  if (!method) {
+    method = body ? "POST" : "GET";
+  }
+
+  // Check if it's a bearer token via Authorization header
+  const authHeader = headers.find(
+    (h) => h.key.toLowerCase() === "authorization",
+  );
+  if (authHeader && authMode === "none") {
+    const val = authHeader.value;
+    if (/^Bearer\s+/i.test(val)) {
+      authMode = "bearer";
+      authConfig = { token: val.replace(/^Bearer\s+/i, "") };
+      // Remove the authorization header since it's captured in auth config
+      const idx = headers.indexOf(authHeader);
+      headers.splice(idx, 1);
+    }
+  }
+
+  const KNOWN_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as const;
+  const knownMethod = KNOWN_METHODS.find((m) => m === method);
+
+  // Derive bodyMimeType: explicit Content-Type header wins, then infer from flag
+  const ctHeader = headers.find((h) => h.key.toLowerCase() === "content-type");
+  let bodyMimeType = "text/plain";
+  if (ctHeader) {
+    bodyMimeType = ctHeader.value;
+  } else if (dataFlagUsed === "--json") {
+    bodyMimeType = "application/json";
+  } else if (
+    dataFlagUsed === "--data-urlencode" ||
+    dataFlagUsed === "-d" ||
+    dataFlagUsed === "--data" ||
+    dataFlagUsed === "--data-ascii"
+  ) {
+    bodyMimeType = "application/x-www-form-urlencoded";
+  } else if (dataFlagUsed === "--data-binary" || dataFlagUsed === "--data-raw") {
+    bodyMimeType = "application/octet-stream";
+  }
+
+  // When body is form-urlencoded, parse into key/value form entries (decoded)
+  const bodyForm: Array<{ key: string; value: string; enabled: boolean }> = [];
+  if (bodyMimeType === "application/x-www-form-urlencoded" && body) {
+    const params = new URLSearchParams(body);
+    params.forEach((value, key) => {
+      bodyForm.push({ key, value, enabled: true });
+    });
+  }
+
+  return {
+    method: knownMethod ?? "CUSTOM",
+    customMethod: knownMethod ? undefined : method,
+    url,
+    headers,
+    body,
+    bodyMimeType,
+    bodyForm,
+    authMode,
+    authConfig,
+  };
+}
+
+/**
+ * Tokenize a curl command string, respecting single-quotes, double-quotes,
+ * and ANSI-C $'...' quoting with common escape sequences.
+ */
+function tokenize(input: string): string[] {
+  const tokens: string[] = [];
+  let i = 0;
+
+  while (i < input.length) {
+    // Skip whitespace
+    while (i < input.length && /\s/.test(input[i])) i++;
+    if (i >= input.length) break;
+
+    let token = "";
+
+    while (i < input.length && !/\s/.test(input[i])) {
+      const ch = input[i];
+
+      if (ch === "'") {
+        // Single-quoted string: no escaping at all
+        i++;
+        while (i < input.length && input[i] !== "'") {
+          token += input[i++];
+        }
+        i++; // skip closing '
+      } else if (ch === "$" && i + 1 < input.length && input[i + 1] === "'") {
+        // ANSI-C quoting $'...'
+        i += 2;
+        while (i < input.length && input[i] !== "'") {
+          if (input[i] === "\\" && i + 1 < input.length) {
+            const esc = input[i + 1];
+            i += 2;
+            switch (esc) {
+              case "n": token += "\n"; break;
+              case "t": token += "\t"; break;
+              case "r": token += "\r"; break;
+              case "\\": token += "\\"; break;
+              case "'": token += "'"; break;
+              case '"': token += '"'; break;
+              default: token += "\\" + esc;
+            }
+          } else {
+            token += input[i++];
+          }
+        }
+        i++; // skip closing '
+      } else if (ch === '"') {
+        // Double-quoted string: only \ escaping for \ " $ `
+        i++;
+        while (i < input.length && input[i] !== '"') {
+          if (input[i] === "\\" && i + 1 < input.length) {
+            const next = input[i + 1];
+            if (next === '"' || next === "\\" || next === "$" || next === "`") {
+              token += next;
+              i += 2;
+            } else {
+              token += input[i++];
+            }
+          } else {
+            token += input[i++];
+          }
+        }
+        i++; // skip closing "
+      } else if (ch === "\\" && i + 1 < input.length) {
+        // Backslash escape outside quotes
+        token += input[i + 1];
+        i += 2;
+      } else {
+        token += ch;
+        i++;
+      }
+    }
+
+    if (token.length > 0) {
+      tokens.push(token);
+    }
+  }
+
+  return tokens;
 }

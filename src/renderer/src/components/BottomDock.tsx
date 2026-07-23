@@ -1,7 +1,9 @@
 import { ChevronDown, Eye } from "lucide-react";
-import { ResponsePanel, type PreviewMode, type ResponseTab } from "./ResponsePanel";
+import { ResponsePanel, type ResponseTab } from "./ResponsePanel";
+import { type PreviewMode } from "../response-utils";
 import type { ExecuteHttpResponse } from "../types";
 import type { ResponseState } from "../response-utils";
+import type { ScriptOutputEntry } from "../hooks/useScripts";
 
 export interface BottomDockProps {
   activeBottomDock: "response" | null;
@@ -14,6 +16,7 @@ export interface BottomDockProps {
   isResponseTabPending: boolean;
   responseTab: ResponseTab;
   previewMode: PreviewMode;
+  scriptOutputLog: ScriptOutputEntry[];
   onActiveBottomDockChange: (dock: "response" | null) => void;
   onTabChange: (tab: ResponseTab) => void;
   onPreviewModeChange: (mode: PreviewMode) => void;
@@ -34,6 +37,7 @@ export function BottomDock({
   isResponseTabPending,
   responseTab,
   previewMode,
+  scriptOutputLog,
   onActiveBottomDockChange,
   onTabChange,
   onPreviewModeChange,
@@ -77,6 +81,7 @@ export function BottomDock({
           responseTab={responseTab}
           previewMode={previewMode}
           activeBottomDock={activeBottomDock}
+          scriptOutputLog={scriptOutputLog}
           onTabChange={onTabChange}
           onPreviewModeChange={onPreviewModeChange}
           onDownload={onDownload}

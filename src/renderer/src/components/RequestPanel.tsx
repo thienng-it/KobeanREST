@@ -930,32 +930,6 @@ export function RequestPanel({
                 }}
               />
             </div>
-            <section className="script-console" aria-label="Script console">
-              <button
-                className="script-console-toggle"
-                type="button"
-                aria-expanded={scriptOutputExpanded}
-                aria-controls="script-console-content"
-                onClick={() => setScriptOutputExpanded((expanded) => !expanded)}
-              >
-                <span>Console</span>
-                <span>{scriptOutputLog.length}</span>
-                <ChevronDown className={scriptOutputExpanded ? "script-console-chevron open" : "script-console-chevron"} size={14} />
-              </button>
-              {scriptOutputExpanded && (
-                <div id="script-console-content" className="script-console-content">
-                  {scriptOutputLog.length === 0 ? (
-                    <span className="script-output-empty">Script output will appear here after prettify or send.</span>
-                  ) : (
-                    scriptOutputLog.map((entry, index) => (
-                      <div key={`${entry.message}-${index}`} className={`script-output-line ${entry.tone}`}>
-                        {entry.message}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </section>
           </div>
         </div>
       </div>

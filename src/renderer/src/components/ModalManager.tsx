@@ -8,9 +8,10 @@ import { EnvironmentEditorModal, type EnvironmentEditorModalProps } from "./Envi
 import { RequestCodeModal, type RequestCodeModalProps } from "./RequestCodeModal";
 import { FolderScriptsModal, type FolderScriptsModalProps } from "./FolderScriptsModal";
 import { CollectionEditorModal, type CollectionEditorModalProps } from "./CollectionEditorModal";
-import { ResponsePanel } from "./ResponsePanel";
+import { CurlImportModal, type CurlImportModalProps } from "./CurlImportModal";
+import { ResponsePanel, type ResponseTab } from "./ResponsePanel";
+import { type PreviewMode } from "../response-utils";
 import type { ExecuteHttpResponse } from "../types";
-import type { PreviewMode, ResponseTab } from "./ResponsePanel";
 import type { ResponseState } from "../response-utils";
 
 interface ResponseWindowProps {
@@ -43,6 +44,7 @@ export interface ModalManagerProps {
   requestCode: RequestCodeModalProps;
   folderScripts: FolderScriptsModalProps;
   collectionEditor: CollectionEditorModalProps;
+  curlImport: CurlImportModalProps;
   responseWindow: ResponseWindowProps;
 }
 
@@ -57,6 +59,7 @@ export function ModalManager({
   requestCode,
   folderScripts,
   collectionEditor,
+  curlImport,
   responseWindow,
 }: ModalManagerProps) {
   return (
@@ -70,6 +73,7 @@ export function ModalManager({
       <RequestCodeModal {...requestCode} />
       <FolderScriptsModal {...folderScripts} />
       <CollectionEditorModal {...collectionEditor} />
+      <CurlImportModal {...curlImport} />
 
       {responseWindow.open && (
         <div

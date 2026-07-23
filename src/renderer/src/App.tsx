@@ -1,13 +1,14 @@
 import { useEffect, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, resolveRequestFields, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, injectResolvedSecrets, resolveString } from "./services/variables";
-import { type PreviewMode, type ResponseTab } from "./components/ResponsePanel";
+import { type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
 import { ContextMenu } from "./components/ContextMenu";
 import { Topbar } from "./components/Topbar";
 import { BottomDock } from "./components/BottomDock";
-import { statusColor, type ResponseState } from "./response-utils";
+import { statusColor, type ResponseState, type PreviewMode } from "./response-utils";
 import {
   formatTimestamp,
   openProductDocs,
@@ -28,7 +29,9 @@ import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } fr
 import {
   SCRIPT_SNIPPETS,
   generateRequestCodeSnippet,
+  parseCurlCommand,
 } from "./services/script-tools";
+import type { CurlImportResult } from "./services/script-tools";
 import {
   recordRequestHistory,
   getScripts,
@@ -77,6 +80,7 @@ export function App() {
   const [envEditorOpen, setEnvEditorOpen] = useState(false);
   const [collectionEditorOpen, setCollectionEditorOpen] = useState(false);
   const [collectionEditorTarget, setCollectionEditorTarget] = useState<string>("");
+  const [curlImportOpen, setCurlImportOpen] = useState(false);
 
   const ws = useWorkspace({
     setConfirmDialog,
@@ -126,6 +130,7 @@ export function App() {
     handleDeleteCollection,
     toggleFolder,
     handleCreateRequest,
+    importCurlRequest,
     handleSetActiveEnvironment,
     handleCreateEnvironment,
     handleDeleteEnvironment,
@@ -285,6 +290,22 @@ export function App() {
     if (draftRequest) {
       setDraftRequest({ ...draftRequest, ...fields });
     }
+  }
+
+  function handleCurlImport(result: CurlImportResult) {
+    importCurlRequest({
+      method: result.method,
+      customMethod: result.customMethod,
+      url: result.url,
+      headers: result.headers,
+      body: result.body,
+      bodyMimeType: result.bodyMimeType,
+      bodyForm: result.bodyForm,
+      authMode: result.authMode,
+      authConfig: result.authConfig,
+    });
+
+    setCurlImportOpen(false);
   }
 
   function insertSelectedScriptSnippet() {
@@ -507,6 +528,22 @@ export function App() {
         timeoutMs: requestToSend.timeoutMs,
         followRedirects: requestToSend.followRedirects,
       });
+      // Auto-detect preview mode from content type
+      if (response.contentType && typeof response.contentType === 'string') {
+        const ct = response.contentType.toLowerCase();
+        if (ct.includes('json')) {
+          setPreviewMode('json');
+        } else if (ct.includes('xml')) {
+          setPreviewMode('xml');
+        } else if (ct.includes('html')) {
+          setPreviewMode('rendered');
+        } else {
+          setPreviewMode('raw');
+        }
+      } else {
+        setPreviewMode('raw');
+      }
+
       setResponseState({ kind: "success", response });
       setAbortController(null);
       
@@ -622,6 +659,7 @@ export function App() {
         onDismissDeleteError={() => setDeleteError(null)}
         onExport={() => void handleExport()}
         onImport={() => void handleImport()}
+        onCurlImport={() => setCurlImportOpen(true)}
       />
 
       <div
@@ -703,6 +741,7 @@ export function App() {
             isResponseTabPending={isResponseTabPending}
             responseTab={responseTab}
             previewMode={previewMode}
+            scriptOutputLog={scriptOutputLog}
             onActiveBottomDockChange={setActiveBottomDock}
             onTabChange={handleResponseTabChange}
             onPreviewModeChange={setPreviewMode}
@@ -711,6 +750,51 @@ export function App() {
             onOpenWindow={() => setResponseWindowOpen(true)}
             onResizerMouseDown={handleResponsePanelResizerMouseDown}
           />
+          <section className="script-console" aria-label="Script console">
+            {scriptOutputExpanded && (
+              <div id="script-console-content" className="script-console-content">
+                {scriptOutputLog.length === 0 ? (
+                  <span className="script-output-empty">Script output will appear here after prettify or send.</span>
+                ) : (
+                  scriptOutputLog.map((entry, index) => {
+                    if (entry.type === "test_pass" || entry.type === "test_fail") {
+                      const passed = entry.type === "test_pass";
+                      return (
+                        <div key={`${entry.message}-${index}`} className="script-output-line" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ 
+                            fontWeight: 800, fontSize: "10px", padding: "1px 6px", borderRadius: "4px",
+                            backgroundColor: passed ? "color-mix(in srgb, var(--color-status-2xx) 15%, transparent)" : "color-mix(in srgb, var(--color-status-error) 15%, transparent)",
+                            color: passed ? "var(--color-status-2xx)" : "var(--color-status-error)",
+                            border: `1px solid ${passed ? "color-mix(in srgb, var(--color-status-2xx) 40%, transparent)" : "color-mix(in srgb, var(--color-status-error) 40%, transparent)"}`
+                          }}>{passed ? "PASSED" : "FAILED"}</span>
+                          <span style={{ color: passed ? "var(--color-status-2xx)" : "var(--color-status-error)" }}>{entry.name}</span>
+                          {!passed && entry.errMessage && (
+                            <span style={{ color: "var(--color-status-error)", marginLeft: "4px" }}>| {entry.errMessage}</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={`${entry.message}-${index}`} className={`script-output-line ${entry.tone}`}>
+                        {entry.message}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+            <button
+              className="script-console-toggle"
+              type="button"
+              aria-expanded={scriptOutputExpanded}
+              aria-controls="script-console-content"
+              onClick={() => setScriptOutputExpanded((expanded) => !expanded)}
+            >
+              <span>Console</span>
+              <span>{scriptOutputLog.length}</span>
+              <ChevronUp className={scriptOutputExpanded ? "script-console-chevron open" : "script-console-chevron"} size={14} />
+            </button>
+          </section>
         </div>
       </section>
 
@@ -814,6 +898,11 @@ export function App() {
           onSaveScopedSecretVariable: handleAddScopedSecretVariable,
           onDeleteScopedVariable: handleDeleteScopedVariable,
         }}
+        curlImport={{
+          open: curlImportOpen,
+          onClose: () => setCurlImportOpen(false),
+          onImport: handleCurlImport,
+        }}
         responseWindow={{
           open: responseWindowOpen,
           responseState,
@@ -855,6 +944,10 @@ export function App() {
           onStartRequestRename={startRequestRename}
           onViewRequest={setSelectedRequestId}
           onDeleteRequest={handleDeleteRequest}
+          onDeleteCollection={handleDeleteCollection}
+          onCurlImport={() => setCurlImportOpen(true)}
+          onImport={() => void handleImport()}
+          onExport={() => void handleExport()}
         />
       )}
     </main>

@@ -1,9 +1,9 @@
-import { Edit2, Eye, FolderTree, KeyRound, Plus, Trash2, Variable } from "lucide-react";
+import { Edit2, Eye, FolderTree, KeyRound, Plus, Trash2, Variable, Terminal, Upload, Download } from "lucide-react";
 import type { SavedRequest } from "../types";
 
 export interface ContextMenuTarget {
   id: string;
-  type: "folder" | "request" | "collection";
+  type: "folder" | "request" | "collection" | "workspace";
 }
 
 export interface ContextMenuState {
@@ -58,6 +58,10 @@ export interface ContextMenuProps {
   onStartRequestRename: (request: SavedRequest) => void;
   onViewRequest: (reqId: string) => void;
   onDeleteRequest: (reqId: string) => void;
+  onDeleteCollection: (collectionId: string) => void;
+  onCurlImport: () => void;
+  onImport: () => void;
+  onExport: () => void;
 }
 
 export function ContextMenu({
@@ -74,6 +78,10 @@ export function ContextMenu({
   onStartRequestRename,
   onViewRequest,
   onDeleteRequest,
+  onDeleteCollection,
+  onCurlImport,
+  onImport,
+  onExport,
 }: ContextMenuProps) {
   if (!menu) return null;
   const target = menu.target;
@@ -233,6 +241,43 @@ export function ContextMenu({
             {...hoverHandlers()}
           >
             <Trash2 size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Delete Request
+          </button>
+        </>
+      )}
+      {target?.type === "workspace" && (
+        <>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              onCurlImport();
+              onClose();
+            }}
+            style={requestItemStyle}
+            {...hoverHandlers()}
+          >
+            <Terminal size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Import cURL
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              onImport();
+              onClose();
+            }}
+            style={requestItemStyle}
+            {...hoverHandlers()}
+          >
+            <Upload size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Import Workspace
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              onExport();
+              onClose();
+            }}
+            style={requestItemStyle}
+            {...hoverHandlers()}
+          >
+            <Download size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Export Workspace
           </button>
         </>
       )}

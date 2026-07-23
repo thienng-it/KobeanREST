@@ -4,7 +4,13 @@ import { diagnosticMessage, formatScriptLogValue } from "../app-utils";
 import { prettifyScriptContent, type ScriptEditorMode, type RequestCodeSnippetTarget } from "../services/script-tools";
 import { runKbScript, type KbScriptContext } from "../services/script-runtime";
 
-export type ScriptOutputEntry = { tone: "info" | "error"; message: string };
+export type ScriptOutputEntry = {
+  tone: "info" | "error";
+  type?: "test_pass" | "test_fail" | "log";
+  message: string;
+  name?: string;
+  errMessage?: string;
+};
 
 export function useScripts(selectedRequestId: string | null) {
   const [preScript, setPreScript] = useState("");
@@ -81,9 +87,9 @@ export function useScripts(selectedRequestId: string | null) {
     try {
       const nextValue = prettifyScriptContent(currentScriptValue, scriptEditorMode);
       setCurrentScriptValue(nextValue);
-      setScriptOutputLog([{ tone: "info", message: `Prettified ${scriptEditorMode.toUpperCase()} content.` }]);
+      setScriptOutputLog([{ tone: "info", type: "log", message: `Prettified ${scriptEditorMode.toUpperCase()} content.` }]);
     } catch (error) {
-      setScriptOutputLog([{ tone: "error", message: `Prettify failed: ${diagnosticMessage(error)}` }]);
+      setScriptOutputLog([{ tone: "error", type: "log", message: `Prettify failed: ${diagnosticMessage(error)}` }]);
     }
   }
 
@@ -134,21 +140,28 @@ export function useScripts(selectedRequestId: string | null) {
     const entries: ScriptOutputEntry[] = [];
     const scriptConsole = {
       log: (...values: unknown[]) => {
-        entries.push({ tone: "info", message: `[${label}] ${values.map(formatScriptLogValue).join(" ")}` });
+        entries.push({ tone: "info", type: "log", message: values.map(formatScriptLogValue).join(" ") });
       },
       warn: (...values: unknown[]) => {
-        entries.push({ tone: "info", message: `[${label}] ${values.map(formatScriptLogValue).join(" ")}` });
+        entries.push({ tone: "info", type: "log", message: values.map(formatScriptLogValue).join(" ") });
       },
       error: (...values: unknown[]) => {
-        entries.push({ tone: "error", message: `[${label}] ${values.map(formatScriptLogValue).join(" ")}` });
+        entries.push({ tone: "error", type: "log", message: values.map(formatScriptLogValue).join(" ") });
       },
+      testResult: (passed: boolean, name: string, errMessage?: string) => {
+        if (passed) {
+          entries.push({ tone: "info", type: "test_pass", name, message: `PASS: ${name}` });
+        } else {
+          entries.push({ tone: "error", type: "test_fail", name, errMessage, message: `FAIL: ${name} | ${errMessage}` });
+        }
+      }
     };
 
     try {
       await runKbScript(content, context, scriptConsole);
     } catch (err) {
       console.error("Failed to parse script:", diagnosticMessage(err));
-      entries.push({ tone: "error", message: `[${label}] ${diagnosticMessage(err)}` });
+      entries.push({ tone: "error", type: "log", message: diagnosticMessage(err) });
     }
 
     return entries;
