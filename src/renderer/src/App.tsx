@@ -1,4 +1,7 @@
-import { useEffect, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useEffect, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent,
+  useRef
+} from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
@@ -182,6 +185,19 @@ export function App() {
     insertScriptToken, setCurrentScriptValue, handlePrettifyScript,
     handleOpenFolderScripts, handleSaveFolderScripts, handleSaveScripts, runScript
   } = useScripts(selectedRequestId);
+
+  const responseCacheRef = useRef<Record<string, { state: ResponseState, log: ScriptOutputEntry[] }>>({});
+
+  useEffect(() => {
+    if (selectedRequestId && responseCacheRef.current[selectedRequestId]) {
+      const cache = responseCacheRef.current[selectedRequestId];
+      setResponseState(cache.state);
+      setScriptOutputLog(cache.log);
+    } else {
+      setResponseState({ kind: "idle" });
+      setScriptOutputLog([]);
+    }
+  }, [selectedRequestId, setScriptOutputLog]);
 
   useEffect(() => {
     if (!isSidebarResizing) return;
@@ -569,6 +585,10 @@ export function App() {
         scriptOutputEntries.push({ tone: "error", message: `Post-script execution failed: ${diagnosticMessage(err)}` });
       }
       setScriptOutputLog(scriptOutputEntries);
+      responseCacheRef.current[requestToSend.id] = {
+        state: { kind: "success", response },
+        log: scriptOutputEntries,
+      };
 
       const historyUrl = redactAuthFromUrl(authUrl, finalAuthMode, resolvedAuth);
       void recordRequestHistory({
@@ -580,12 +600,17 @@ export function App() {
         sizeBytes: response.sizeBytes,
       });
     } catch (error) {
-      if (error instanceof Error && error.message.includes("aborted")) {
-        setResponseState({ kind: "error", message: "Request cancelled by user" });
-      } else {
-        setResponseState({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-      }
+      const isAbort = error instanceof Error && error.message.includes("aborted");
+      const errState: ResponseState = {
+        kind: "error",
+        message: isAbort ? "Request cancelled by user" : (error instanceof Error ? error.message : String(error))
+      };
+      setResponseState(errState);
       setScriptOutputLog(scriptOutputEntries);
+      responseCacheRef.current[requestToSend.id] = {
+        state: errState,
+        log: scriptOutputEntries,
+      };
       setAbortController(null);
     }
   }

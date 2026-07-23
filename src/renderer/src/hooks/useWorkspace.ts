@@ -123,7 +123,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     setRenamingRequestId("");
   }
 
-  function applyRequestRename(requestId: string) {
+  async function applyRequestRename(requestId: string) {
     const nextName = renameDraft.trim();
     if (!nextName) {
       const request = workspace?.requests.find((item) => item.id === requestId);
@@ -132,12 +132,29 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       return;
     }
 
-    setDraftRequest((current) => {
-      if (!current || current.id !== requestId) {
-        return current;
+    const request = workspace?.requests.find((item) => item.id === requestId);
+    if (request) {
+      const updatedRequest = { ...request, name: nextName };
+      try {
+        await saveRequest(updatedRequest);
+        setWorkspace(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            requests: prev.requests.map(r => r.id === requestId ? updatedRequest : r)
+          };
+        });
+        
+        setDraftRequest((current) => {
+          if (!current || current.id !== requestId) return current;
+          return { ...current, name: nextName };
+        });
+      } catch (err) {
+        console.error("Failed to rename request", diagnosticMessage(err));
+        alert("Failed to rename: " + diagnosticMessage(err));
       }
-      return { ...current, name: nextName };
-    });
+    }
+    
     setRenamingRequestId("");
   }
 

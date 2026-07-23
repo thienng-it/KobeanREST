@@ -62,6 +62,7 @@ export function ScopedVariablesEditor({
   };
 
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<"key" | "value" | null>(null);
   const [editingKeyDraft, setEditingKeyDraft] = useState("");
   const [editingValueDraft, setEditingValueDraft] = useState("");
 
@@ -92,14 +93,16 @@ export function ScopedVariablesEditor({
     }
   }
 
-  function startInlineEdit(v: ScopedVariable) {
+  function startInlineEdit(v: ScopedVariable, field: "key" | "value") {
     setEditingKey(v.key);
+    setEditingField(field);
     setEditingKeyDraft(v.key);
     setEditingValueDraft(v.value);
   }
 
   function cancelInlineEdit() {
     setEditingKey(null);
+    setEditingField(null);
   }
 
   async function commitInlineEdit() {
@@ -233,6 +236,7 @@ export function ScopedVariablesEditor({
                 data-editing={isEditing ? "true" : undefined}
                 style={{ cursor: "pointer" }}
                 onBlur={isEditing ? handleEditingRowBlur : undefined}
+                onClick={!isEditing ? () => startInlineEdit(v, "value") : undefined}
               >
                 {isEditing ? (
                   <>
@@ -240,7 +244,7 @@ export function ScopedVariablesEditor({
                       className="env-inline-input"
                       value={editingKeyDraft}
                       aria-label="Edit key"
-                      autoFocus
+                      autoFocus={editingField === "key"}
                       onChange={(e) => setEditingKeyDraft(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") { e.preventDefault(); void commitInlineEdit(); }
@@ -259,6 +263,7 @@ export function ScopedVariablesEditor({
                           if (e.key === "Enter") { e.preventDefault(); void commitInlineEdit(); }
                           if (e.key === "Escape") { e.preventDefault(); cancelInlineEdit(); }
                         }}
+                        autoFocus={editingField === "value"}
                       />
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
@@ -289,12 +294,16 @@ export function ScopedVariablesEditor({
                   </>
                 ) : (
                   <>
-                    <span className="env-variable-key" onClick={() => startInlineEdit(v)} title="Click to edit">
+                    <span
+                      className="env-variable-key"
+                      onClick={(e) => { e.stopPropagation(); startInlineEdit(v, "key"); }}
+                      title="Click to edit"
+                    >
                       {v.key}
                     </span>
                     <span
                       className="env-variable-value"
-                      onClick={() => startInlineEdit(v)}
+                      onClick={(e) => { e.stopPropagation(); startInlineEdit(v, "value"); }}
                       title="Click to edit"
                     >
                       { (visibleValues[v.key] ?? showValues) ? v.value : "••••••••" }

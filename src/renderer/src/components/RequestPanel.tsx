@@ -488,13 +488,19 @@ export function RequestPanel({
                   updateDraft(updates);
                 }}
               >
-                <option value="text/plain">Text (plain)</option>
-                <option value="application/json">JSON</option>
-                <option value="application/xml">XML</option>
-                <option value="text/xml">XML</option>
-                <option value="application/x-www-form-urlencoded">Form URL Encoded</option>
-                <option value="multipart/form-data">Multipart Form Data</option>
-                <option value="application/octet-stream">Binary</option>
+                <optgroup label="Structured Data">
+                  <option value="application/json">{"{ }"} JSON</option>
+                  <option value="application/xml">{"</>"} XML</option>
+                  <option value="text/xml">{"</>"} Text XML</option>
+                </optgroup>
+                <optgroup label="Form Data">
+                  <option value="application/x-www-form-urlencoded">📝 Form URL Encoded</option>
+                  <option value="multipart/form-data">📁 Multipart Form Data</option>
+                </optgroup>
+                <optgroup label="Text & Binary">
+                  <option value="text/plain">📄 Text (plain)</option>
+                  <option value="application/octet-stream">📦 Binary (Octet Stream)</option>
+                </optgroup>
               </select>
             </div>
 
@@ -629,6 +635,27 @@ export function RequestPanel({
                   <span>Actions</span>
                 </div>
 
+                <datalist id="header-key-options">
+                  <option value="Accept" />
+                  <option value="Authorization" />
+                  <option value="Cache-Control" />
+                  <option value="Content-Type" />
+                  <option value="Cookie" />
+                  <option value="Origin" />
+                  <option value="User-Agent" />
+                </datalist>
+
+                <datalist id="content-type-options">
+                  <option value="application/json" />
+                  <option value="application/xml" />
+                  <option value="text/xml" />
+                  <option value="application/x-www-form-urlencoded" />
+                  <option value="multipart/form-data" />
+                  <option value="application/octet-stream" />
+                  <option value="text/plain" />
+                  <option value="text/html" />
+                </datalist>
+
                 <div className="headers-rows">
                   {draftRequest.headers.map((header, idx) => {
                     return (
@@ -649,6 +676,7 @@ export function RequestPanel({
                           onPaste={(e) => handleHeaderPaste(idx, e)}
                           className="headers-row-input-field"
                           containerClassName="headers-row-input"
+                          list="header-key-options"
                         />
 
                         <VariableInput
@@ -659,6 +687,7 @@ export function RequestPanel({
                           onPaste={(e) => handleHeaderPaste(idx, e)}
                           className="headers-row-input-field"
                           containerClassName="headers-row-input"
+                          list={header.key.toLowerCase() === "content-type" ? "content-type-options" : undefined}
                         />
 
                         <div className="headers-actions">

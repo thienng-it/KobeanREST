@@ -55,6 +55,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
   };
 
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<"key" | "value" | null>(null);
   const [editingKeyDraft, setEditingKeyDraft] = useState("");
   const [editingValueDraft, setEditingValueDraft] = useState("");
 
@@ -86,14 +87,16 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
     }
   }
 
-  function startInlineEdit(v: EnvironmentVariable) {
+  function startInlineEdit(v: EnvironmentVariable, field: "key" | "value") {
     setEditingKey(v.key);
+    setEditingField(field);
     setEditingKeyDraft(v.key);
     setEditingValueDraft(v.value);
   }
 
   function cancelInlineEdit() {
     setEditingKey(null);
+    setEditingField(null);
   }
 
   async function commitInlineEdit() {
@@ -232,6 +235,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                 data-editing={isEditing ? "true" : undefined}
                 style={{ cursor: "pointer" }}
                 onBlur={isEditing ? handleEditingRowBlur : undefined}
+                onClick={!isEditing ? () => startInlineEdit(v, "value") : undefined}
               >
                 {isEditing ? (
                   <>
@@ -240,7 +244,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                       className="env-inline-input"
                       value={editingKeyDraft}
                       aria-label="Edit key"
-                      autoFocus
+                      autoFocus={editingField === "key"}
                       onChange={(e) => setEditingKeyDraft(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") { e.preventDefault(); void commitInlineEdit(); }
@@ -261,7 +265,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                             if (e.key === "Enter") { e.preventDefault(); void commitInlineEdit(); }
                             if (e.key === "Escape") { e.preventDefault(); cancelInlineEdit(); }
                           }}
-                          autoFocus
+                          autoFocus={editingField === "value"}
                         />
                     </div>
 
@@ -296,14 +300,14 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                   <>
                     <span
                       className="env-variable-key"
-                      onClick={() => startInlineEdit(v)}
+                      onClick={(e) => { e.stopPropagation(); startInlineEdit(v, "key"); }}
                       title="Click to edit"
                     >
                       {v.key}
                     </span>
                     <span
                       className="env-variable-value"
-                      onClick={() => startInlineEdit(v)}
+                      onClick={(e) => { e.stopPropagation(); startInlineEdit(v, "value"); }}
                       title="Click to edit"
                     >
                       { (visibleValues[v.key] ?? showValues) ? v.value : "••••••••" }
