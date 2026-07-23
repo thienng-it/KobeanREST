@@ -244,11 +244,6 @@ export function ResponsePanel({
             </div>
           )}
 
-          {!modal && (
-            <button className="ghost-button" type="button" onClick={onOpenWindow} style={{ padding: "4px 8px", fontSize: "11px" }}>
-              <Eye size={12} /> Open in Window
-            </button>
-          )}
           {currentResponse && responseState.kind !== "error" && (
             <div style={{ display: "flex", gap: "8px" }}>
               <button className="ghost-button" type="button" onClick={onDownload} style={{ padding: "4px 8px", fontSize: "11px" }}>

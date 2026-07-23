@@ -2953,6 +2953,31 @@ button:disabled {
   border-bottom: 2px solid transparent;
 }
 
+.bottom-dock-open-window-btn {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--color-muted);
+  background: var(--color-surface, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--color-border-tint, rgba(255, 255, 255, 0.08));
+  cursor: pointer;
+  box-sizing: border-box;
+  margin-left: 2px;
+  margin-right: auto;
+  transition: all 0.16s ease;
+}
+
+.bottom-dock-open-window-btn:hover {
+  color: var(--color-text-active, #ffffff);
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
+  border-color: var(--color-border-strong, rgba(255, 255, 255, 0.18));
+}
+
 .bottom-dock-collapse {
   width: 32px;
   padding: 0;
