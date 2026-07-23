@@ -1,6 +1,7 @@
 import { ChevronDown, Code2, Plus, Play, Save, Settings, Trash2, WandSparkles } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type MutableRefObject } from "react";
 import { createPortal } from "react-dom";
+import { CustomSelect } from "./CustomSelect";
 import { MethodSelector } from "./MethodSelector";
 import { ScriptEditor } from "./ScriptEditor";
 import { VariableInput, VariableTextarea } from "./VariableInput";
@@ -477,31 +478,25 @@ export function RequestPanel({
           <div className="request-tab-panel request-body-panel">
             <div className="request-body-toolbar">
               <label>Content-Type</label>
-              <select
+              <CustomSelect
                 value={draftRequest.bodyMimeType}
-                onChange={(e) => {
-                  const newMimeType = e.target.value;
+                onChange={(newMimeType) => {
                   const updates: any = { bodyMimeType: newMimeType };
                   if (["application/x-www-form-urlencoded", "multipart/form-data"].includes(newMimeType)) {
                     updates.bodyForm = draftRequest.bodyForm ?? [];
                   }
                   updateDraft(updates);
                 }}
-              >
-                <optgroup label="Structured Data">
-                  <option value="application/json">{"{ }"} JSON</option>
-                  <option value="application/xml">{"</>"} XML</option>
-                  <option value="text/xml">{"</>"} Text XML</option>
-                </optgroup>
-                <optgroup label="Form Data">
-                  <option value="application/x-www-form-urlencoded">📝 Form URL Encoded</option>
-                  <option value="multipart/form-data">📁 Multipart Form Data</option>
-                </optgroup>
-                <optgroup label="Text & Binary">
-                  <option value="text/plain">📄 Text (plain)</option>
-                  <option value="application/octet-stream">📦 Binary (Octet Stream)</option>
-                </optgroup>
-              </select>
+                options={[
+                  { value: "application/json", label: "{ } JSON" },
+                  { value: "application/xml", label: "</> XML" },
+                  { value: "text/xml", label: "</> Text XML" },
+                  { value: "application/x-www-form-urlencoded", label: "📝 Form URL Encoded" },
+                  { value: "multipart/form-data", label: "📁 Multipart Form Data" },
+                  { value: "text/plain", label: "📄 Text (plain)" },
+                  { value: "application/octet-stream", label: "📦 Binary (Octet Stream)" }
+                ]}
+              />
             </div>
 
             {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
@@ -714,14 +709,14 @@ export function RequestPanel({
           <div className="auth-panel-grid">
             <label className="auth-method-card">
               <span>Authentication Method</span>
-              <select
+              <CustomSelect
                 value={draftRequest.authMode}
-                onChange={(e) => updateDraft({ authMode: e.target.value as ApiAuthMode })}
-              >
-                {authModes.map((mode) => (
-                  <option key={AUTH_MODE_MAP[mode]} value={AUTH_MODE_MAP[mode]}>{mode}</option>
-                ))}
-              </select>
+                onChange={(val) => updateDraft({ authMode: val as ApiAuthMode })}
+                options={authModes.map((mode) => ({
+                  value: AUTH_MODE_MAP[mode],
+                  label: mode,
+                }))}
+              />
             </label>
 
             <div className="auth-effective-card">
@@ -772,10 +767,14 @@ export function RequestPanel({
               </label>
               <label>
                 <span>Grant Type</span>
-                <select value={draftRequest.authConfig?.grantType ?? "client_credentials"} onChange={e => updateAuthConfig({ grantType: e.target.value as "client_credentials" | "password" })}>
-                  <option value="client_credentials">Client Credentials</option>
-                  <option value="password">Password</option>
-                </select>
+                <CustomSelect
+                  value={draftRequest.authConfig?.grantType ?? "client_credentials"}
+                  onChange={(val) => updateAuthConfig({ grantType: val as "client_credentials" | "password" })}
+                  options={[
+                    { value: "client_credentials", label: "Client Credentials" },
+                    { value: "password", label: "Password" }
+                  ]}
+                />
               </label>
               <label>
                 <span>Access Token URL</span>
@@ -823,10 +822,14 @@ export function RequestPanel({
               </label>
               <label>
                 <span>Add to</span>
-                <select value={draftRequest.authConfig?.placement ?? "header"} onChange={e => updateAuthConfig({ placement: e.target.value as "header" | "query" })}>
-                  <option value="header">Header</option>
-                  <option value="query">Query parameter</option>
-                </select>
+                <CustomSelect
+                  value={draftRequest.authConfig?.placement ?? "header"}
+                  onChange={(val) => updateAuthConfig({ placement: val as "header" | "query" })}
+                  options={[
+                    { value: "header", label: "Header" },
+                    { value: "query", label: "Query parameter" }
+                  ]}
+                />
               </label>
             </div>
           )}
@@ -891,16 +894,13 @@ export function RequestPanel({
           <div className="script-tool-row">
             <label className="script-tool-group">
               <span className="script-tool-label">Language</span>
-              <select
+              <CustomSelect
                 className="script-tool-select"
+                ariaLabel="Script editor type"
                 value={scriptEditorMode}
-                onChange={(event) => setScriptEditorMode(event.target.value as ScriptEditorMode)}
-                aria-label="Script editor type"
-              >
-                {SCRIPT_EDITOR_MODES.map((mode) => (
-                  <option key={mode.value} value={mode.value}>{mode.label}</option>
-                ))}
-              </select>
+                onChange={(val) => setScriptEditorMode(val as ScriptEditorMode)}
+                options={SCRIPT_EDITOR_MODES.map((mode) => ({ value: mode.value, label: mode.label }))}
+              />
             </label>
             <button
               className="ghost-button script-tool-action"
@@ -913,24 +913,18 @@ export function RequestPanel({
             </button>
             <label className="script-tool-group script-tool-group-fill">
               <span className="script-tool-label">Template</span>
-              <select
+              <CustomSelect
                 className="script-tool-select"
+                ariaLabel="Script snippet"
                 value={activeSnippetId}
-                onChange={(event) => setActiveSnippetId(event.target.value)}
-                aria-label="Script snippet"
-              >
-                {SCRIPT_SNIPPET_GROUPS.map((group) => {
-                  const items = snippetsForGroup(group);
-                  if (items.length === 0) return null;
-                  return (
-                    <optgroup key={group.label} label={group.label}>
-                      {items.map((snippet) => (
-                        <option key={snippet.id} value={snippet.id}>{snippet.label}</option>
-                      ))}
-                    </optgroup>
-                  );
-                })}
-              </select>
+                onChange={(val) => setActiveSnippetId(val)}
+                options={SCRIPT_SNIPPET_GROUPS.flatMap((group) =>
+                  snippetsForGroup(group).map((snippet) => ({
+                    value: snippet.id,
+                    label: snippet.label,
+                  }))
+                )}
+              />
             </label>
             <button
               className="ghost-button script-tool-action script-tool-action-primary"
@@ -940,26 +934,19 @@ export function RequestPanel({
             >
               Insert
             </button>
-            <select
+            <CustomSelect
               className="script-helper-select"
+              ariaLabel="Insert script helper"
               value=""
-              onChange={(event) => {
-                if (event.target.value) onInsertScriptToken(event.target.value);
+              placeholder="Insert helper…"
+              onChange={(val) => {
+                if (val) onInsertScriptToken(val);
               }}
-              aria-label="Insert script helper"
-            >
-              <option value="">Insert helper…</option>
-              <optgroup label="Runtime">
-                {scriptRuntimeTokens.map((token) => (
-                  <option key={token} value={token}>{token}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Variables">
-                {scriptVariableTokens.map((token) => (
-                  <option key={token} value={token}>{token}</option>
-                ))}
-              </optgroup>
-            </select>
+              options={[
+                ...scriptRuntimeTokens.map((token) => ({ value: token, label: token })),
+                ...scriptVariableTokens.map((token) => ({ value: token, label: token })),
+              ]}
+            />
             <button
               className="ghost-button script-tool-action script-code-button"
               type="button"

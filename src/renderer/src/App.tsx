@@ -1,8 +1,5 @@
-import {
-  useEffect, useState, useTransition, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent,
-  useRef
-} from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useState, useTransition, useRef, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { ChevronDown, ChevronUp, Download, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, resolveRequestFields, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, resolveString } from "./services/variables";
@@ -43,9 +40,9 @@ import type { SavedRequest } from "./types";
 
 type ScriptOutputEntry = { tone: "info" | "error"; message: string };
 
-const SIDEBAR_MIN_WIDTH = 220;
-const SIDEBAR_DEFAULT_WIDTH = 280;
-const SIDEBAR_MAX_WIDTH = 460;
+const SIDEBAR_MIN_WIDTH = 260;
+const SIDEBAR_DEFAULT_WIDTH = 320;
+const SIDEBAR_MAX_WIDTH = 540;
 
 export function App() {
   const {
@@ -61,7 +58,21 @@ export function App() {
   } = useAppSettings();
 
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("kr_sidebar_collapsed") === "true";
+  });
   const [isSidebarResizing, setIsSidebarResizing] = useState(false);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("kr_sidebar_collapsed", String(next));
+      if (!next && sidebarWidth < 300) {
+        setSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
+      }
+      return next;
+    });
+  };
   const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts" | "settings" | "variables">("body");
   const [responseState, setResponseState] = useState<ResponseState>({
     kind: "idle",
@@ -204,6 +215,14 @@ export function App() {
     if (!isSidebarResizing) return;
 
     const handleMouseMove = (event: MouseEvent) => {
+      if (event.clientX < 140) {
+        setSidebarCollapsed(true);
+        localStorage.setItem("kr_sidebar_collapsed", "true");
+        setIsSidebarResizing(false);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        return;
+      }
       setSidebarWidth(Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, event.clientX)));
     };
 
@@ -618,9 +637,13 @@ export function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         void handleSaveRequest();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -629,7 +652,7 @@ export function App() {
 
   return (
     <main
-      className={isSidebarResizing ? "app-shell sidebar-resizing" : "app-shell"}
+      className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${isSidebarResizing ? "sidebar-resizing" : ""}`}
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
     >
       {updateToast && (
@@ -647,6 +670,9 @@ export function App() {
         activeEnvironment={workspace?.activeEnvironment || ""}
         sidebarWidth={sidebarWidth}
         isResizing={isSidebarResizing}
+        theme={appSettings.theme}
+        onThemeChange={(nextTheme) => updateAppSettings({ theme: nextTheme })}
+        onToggleSidebar={toggleSidebar}
         collectionSearch={collectionSearch}
         collapsedFolders={collapsedFolders}
         scriptStatus={scriptStatus}
@@ -678,6 +704,10 @@ export function App() {
         onToggleFolder={toggleFolder}
         onContextMenu={(target, x, y) => setContextMenu({ x, y, target })}
         onDismissDeleteError={() => setDeleteError(null)}
+        onOpenDocs={openProductDocs}
+        onOpenHistory={() => void handleOpenHistory()}
+        onCheckForUpdates={() => void handleCheckForUpdates("manual")}
+        onOpenSettings={() => setSettingsOpen(true)}
         onExport={() => void handleExport()}
         onImport={() => void handleImport()}
         onCurlImport={() => setCurlImportOpen(true)}
@@ -697,18 +727,26 @@ export function App() {
       />
 
       <section className="workspace">
-        <Topbar
-          onOpenDocs={openProductDocs}
-          onOpenHistory={() => void handleOpenHistory()}
-          onCheckForUpdates={() => void handleCheckForUpdates("manual")}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
+        {sidebarCollapsed && (
+          <div className="workspace-collapsed-bar">
+            <button
+              type="button"
+              className="sidebar-expand-btn"
+              aria-label="Show sidebar (Cmd+B)"
+              title="Show sidebar (Cmd+B)"
+              onClick={toggleSidebar}
+            >
+              <PanelLeftOpen size={15} />
+              <span>Sidebar</span>
+            </button>
+          </div>
+        )}
 
         <div
           className="workspace-main"
           style={{ gridTemplateRows: activeBottomDock === 'response' ? `minmax(0, 1fr) ${bottomDockHeight + bottomDockStripHeight}px` : `minmax(0, 1fr) ${bottomDockStripHeight}px` }}
         >
-          {draftRequest && (
+          {draftRequest ? (
             <RequestPanel
               draftRequest={draftRequest}
               activeVars={activeVars}
@@ -748,6 +786,37 @@ export function App() {
               onSaveScopedVariable={handleSaveScopedVariable}
               onDeleteScopedVariable={handleDeleteScopedVariable}
             />
+          ) : (
+            <div className="workspace-empty-hero">
+              <div className="workspace-empty-card">
+                <div className="workspace-empty-mark">KR</div>
+                <h2>KobeanREST Workspace</h2>
+                <p>Select a request from the sidebar or create a new one to start testing your APIs.</p>
+                <div className="workspace-empty-actions">
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => void handleCreateRequest("")}
+                  >
+                    + New Request
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setCurlImportOpen(true)}
+                  >
+                    Import cURL
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void handleCreateCollection()}
+                  >
+                    + New Collection
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           <BottomDock

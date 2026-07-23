@@ -1,4 +1,5 @@
 import { KeyRound, X } from "lucide-react";
+import { CustomSelect } from "./CustomSelect";
 import { VariableInput } from "./VariableInput";
 import { obtainOAuth2Token } from "../services/auth";
 import { buildVariableMap } from "../services/variables";
@@ -64,15 +65,14 @@ export function AuthEditorModal({
             <KeyRound size={14} />
             Authentication Method
           </label>
-          <select
+          <CustomSelect
             value={draft.mode}
-            onChange={(e) => onDraftChange({ ...draft, mode: e.target.value as ApiAuthMode })}
-            style={{ padding: "8px", borderRadius: "4px", backgroundColor: "var(--color-surface)", color: "var(--color-text)", border: "1px solid var(--color-border)", cursor: "pointer" }}
-          >
-            {Object.entries(AUTH_MODE_MAP).map(([label, value]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
+            onChange={(val) => onDraftChange({ ...draft, mode: val as ApiAuthMode })}
+            options={Object.entries(AUTH_MODE_MAP).map(([label, value]) => ({
+              value,
+              label,
+            }))}
+          />
         </div>
 
         {draft.mode === "basic" && (
@@ -118,10 +118,14 @@ export function AuthEditorModal({
             </label>
             <label>
               <span>Grant Type</span>
-              <select value={draft.config.grantType ?? "client_credentials"} onChange={(e) => updateConfig({ grantType: e.target.value as "client_credentials" | "password" })}>
-                <option value="client_credentials">Client Credentials</option>
-                <option value="password">Password</option>
-              </select>
+              <CustomSelect
+                value={draft.config.grantType ?? "client_credentials"}
+                onChange={(val) => updateConfig({ grantType: val as "client_credentials" | "password" })}
+                options={[
+                  { value: "client_credentials", label: "Client Credentials" },
+                  { value: "password", label: "Password" }
+                ]}
+              />
             </label>
             <label>
               <span>Access Token URL</span>
@@ -170,10 +174,14 @@ export function AuthEditorModal({
             </label>
             <label>
               <span>Add to</span>
-              <select value={draft.config.placement ?? "header"} onChange={(e) => updateConfig({ placement: e.target.value as "header" | "query" })}>
-                <option value="header">Header</option>
-                <option value="query">Query parameter</option>
-              </select>
+              <CustomSelect
+                value={draft.config.placement ?? "header"}
+                onChange={(val) => updateConfig({ placement: val as "header" | "query" })}
+                options={[
+                  { value: "header", label: "Header" },
+                  { value: "query", label: "Query parameter" }
+                ]}
+              />
             </label>
           </div>
         )}
