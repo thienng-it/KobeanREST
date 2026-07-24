@@ -1,0 +1,193 @@
+.workspace-switcher-modal-overlay {
+  align-items: flex-start;
+  padding-top: 80px;
+}
+
+.workspace-switcher-modal {
+  width: min(440px, 94vw);
+  max-width: min(440px, 94vw);
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--color-surface-modal, var(--color-surface));
+  border: 1px solid var(--color-border-modal, var(--color-border));
+  border-radius: 12px;
+  box-shadow: 0 20px 40px var(--color-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.workspace-switcher-header {
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background: radial-gradient(circle at 8% 0%, rgba(37, 99, 235, 0.1), transparent 40%), var(--color-surface-muted);
+  display: flex;
+  align-items: flex-start;
+  justify-space-between;
+}
+
+.workspace-switcher-kicker {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 4px;
+}
+
+.workspace-switcher-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.03em;
+}
+
+.workspace-switcher-close {
+  all: unset;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: var(--color-muted);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.workspace-switcher-close:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.workspace-switcher-list {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.workspace-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.workspace-switcher-item.active {
+  background: var(--color-shadow-tint);
+  border-color: var(--color-text-active);
+  cursor: default;
+}
+
+.workspace-switcher-item:not(.active):hover {
+  background: var(--color-surface-hover);
+}
+
+.workspace-switcher-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.workspace-switcher-item.active .workspace-switcher-item-name {
+  font-weight: 600;
+}
+
+.workspace-switcher-rename-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-text-active);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 13px;
+  outline: none;
+  padding: 2px 8px;
+}
+
+.workspace-switcher-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.workspace-switcher-action-btn {
+  all: unset;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--color-muted);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.workspace-switcher-action-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.workspace-switcher-action-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.workspace-switcher-create {
+  border-top: 1px solid var(--color-border);
+  padding: 14px 16px;
+}
+
+.workspace-switcher-create-form {
+  display: flex;
+  gap: 8px;
+}
+
+.workspace-switcher-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.workspace-switcher-input:focus {
+  border-color: var(--color-text-active);
+}
+
+.workspace-switcher-create-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--color-text-active), #1d4ed8);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.workspace-switcher-create-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

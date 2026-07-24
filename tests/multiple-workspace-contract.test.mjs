@@ -65,4 +65,16 @@ test("useWorkspace.ts exports multi-workspace handlers", () => {
   assert.match(h, /switchWorkspace/);
 });
 
+test("WorkspaceSwitcherModal component exists and has required props", () => {
+  assert.ok(existsSync(new URL("src/renderer/src/components/WorkspaceSwitcherModal.tsx", root)));
+  const c = read("src/renderer/src/components/WorkspaceSwitcherModal.tsx");
+  assert.match(c, /WorkspaceSwitcherModal/);
+  assert.match(c, /modal-overlay/);
+  assert.match(c, /onCreate/);
+  assert.match(c, /onSwitch/);
+  assert.match(c, /onRename/);
+  assert.match(c, /onDelete/);
+});
+
+
 
