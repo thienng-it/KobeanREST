@@ -692,7 +692,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       await deleteWorkspace(workspaceId);
       const list = await listWorkspaces();
       setWorkspaceList(list);
-      if (list.length > 0) {
+      if (workspace?.id === workspaceId && list.length > 0) {
         const loaded = await switchWorkspace(list[0].id);
         setWorkspace(loaded);
         setSelectedRequestId(null);

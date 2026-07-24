@@ -21,7 +21,7 @@
   background: radial-gradient(circle at 8% 0%, rgba(37, 99, 235, 0.1), transparent 40%), var(--color-surface-muted);
   display: flex;
   align-items: flex-start;
-  justify-space-between;
+  justify-content: space-between;
 }
 
 .workspace-switcher-kicker {
