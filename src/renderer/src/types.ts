@@ -79,6 +79,12 @@ export interface CollectionSummary {
   variables?: ScopedVariable[];
 }
 
+export interface WorkspaceListItem {
+  id: string;
+  name: string;
+}
+
+
 export interface WorkspaceSummary {
   id: string;
   name: string;

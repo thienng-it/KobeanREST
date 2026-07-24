@@ -33,3 +33,24 @@ test("delete_workspace prevents deleting last workspace", () => {
   const p = read("src-tauri/src/persistence.rs");
   assert.match(p, /cannot delete the last workspace/);
 });
+
+test("local-store.ts exposes multi-workspace service functions", () => {
+  const s = read("src/renderer/src/services/local-store.ts");
+  assert.match(s, /export async function listWorkspaces/);
+  assert.match(s, /invoke<WorkspaceListItem\[\]>\("list_workspaces"/);
+  assert.match(s, /export async function renameWorkspace/);
+  assert.match(s, /invoke<void>\("rename_workspace"/);
+  assert.match(s, /export async function deleteWorkspace/);
+  assert.match(s, /invoke<void>\("delete_workspace"/);
+  assert.match(s, /export async function switchWorkspace/);
+  assert.match(s, /invoke<WorkspaceSummary>\("switch_workspace"/);
+  assert.match(s, /export async function loadWorkspaceById/);
+  assert.match(s, /invoke<WorkspaceSummary>\("load_workspace_by_id"/);
+});
+
+test("types.ts has WorkspaceListItem interface", () => {
+  const t = read("src/renderer/src/types.ts");
+  assert.match(t, /export interface WorkspaceListItem/);
+  assert.match(t, /id: string;/);
+});
+

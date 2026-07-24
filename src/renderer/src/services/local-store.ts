@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AppSettings, ScopedVariable, ScopedVariableEntityType, UpdateCheckPreview, WorkspaceSummary } from "../types";
+import type { AppSettings, ScopedVariable, ScopedVariableEntityType, UpdateCheckPreview, WorkspaceListItem, WorkspaceSummary } from "../types";
 
 declare global {
   interface Window {
@@ -135,6 +135,33 @@ export async function createFolder(name: string, collectionId?: string, parentId
 export async function createWorkspace(name: string): Promise<string> {
   if (!isTauriRuntime()) return `preview-workspace-${Date.now()}`;
   return invoke<string>("create_workspace", { name });
+}
+
+export async function listWorkspaces(): Promise<WorkspaceListItem[]> {
+  if (!window.__TAURI_INTERNALS__) {
+    return [{ id: "local-workspace", name: "Local Workspace" }];
+  }
+  return invoke<WorkspaceListItem[]>("list_workspaces");
+}
+
+export async function renameWorkspace(workspaceId: string, name: string): Promise<void> {
+  if (!window.__TAURI_INTERNALS__) return;
+  return invoke<void>("rename_workspace", { workspaceId, name });
+}
+
+export async function deleteWorkspace(workspaceId: string): Promise<void> {
+  if (!window.__TAURI_INTERNALS__) return;
+  return invoke<void>("delete_workspace", { workspaceId });
+}
+
+export async function switchWorkspace(workspaceId: string): Promise<WorkspaceSummary> {
+  if (!window.__TAURI_INTERNALS__) return loadLocalWorkspace();
+  return invoke<WorkspaceSummary>("switch_workspace", { workspaceId });
+}
+
+export async function loadWorkspaceById(workspaceId: string): Promise<WorkspaceSummary> {
+  if (!window.__TAURI_INTERNALS__) return loadLocalWorkspace();
+  return invoke<WorkspaceSummary>("load_workspace_by_id", { workspaceId });
 }
 
 export async function createCollection(name: string): Promise<string> {
