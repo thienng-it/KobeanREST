@@ -13,7 +13,8 @@ use persistence::{
     rename_environment, save_app_settings, save_request, save_scoped_secret_variable,
     save_scoped_variable, save_secret_variable, save_variable, set_active_environment,
     update_collection, update_folder, get_scripts, save_script, delete_script, save_folder_auth,
-    save_collection_auth, create_workspace, create_collection
+    save_collection_auth, create_workspace, create_collection, list_workspaces, rename_workspace,
+    delete_workspace, switch_workspace, load_workspace_by_id
 };
 use secrets::{delete_secret, resolve_secrets, store_secret};
 use tauri::Manager;
@@ -78,7 +79,12 @@ pub fn run() {
             save_script,
             delete_script,
             save_folder_auth,
-            save_collection_auth
+            save_collection_auth,
+            list_workspaces,
+            rename_workspace,
+            delete_workspace,
+            switch_workspace,
+            load_workspace_by_id
         ])
         .run(tauri::generate_context!())
         .expect("failed to run KobeanREST");

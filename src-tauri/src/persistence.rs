@@ -109,9 +109,17 @@ pub struct CollectionSummary {
     pub variables: Option<Vec<ScopedVariable>>,
 }
 
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceListItem {
+    pub id: String,
+    pub name: String,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSummary {
+    pub id: String,
     pub name: String,
     pub active_environment: String,
     pub environments: Vec<EnvironmentSummary>,
@@ -350,7 +358,131 @@ pub fn initialize_persistence(app: AppHandle) -> Result<PersistenceStatus, Strin
 pub fn load_workspace(app: AppHandle) -> Result<WorkspaceSummary, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
+    let active_id: Option<String> = connection
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'last_active_workspace_id'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| format!("failed to read active workspace setting: {e}"))?;
+
+    if let Some(id) = active_id {
+        let exists: bool = connection
+            .query_row(
+                "SELECT COUNT(*) FROM workspaces WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|e| format!("failed to verify workspace: {e}"))?
+            > 0;
+        if exists {
+            return load_workspace_by_id_inner(&connection, &id);
+        }
+    }
     load_first_workspace(&connection)
+}
+
+#[tauri::command]
+pub fn list_workspaces(app: AppHandle) -> Result<Vec<WorkspaceListItem>, String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let mut statement = connection
+        .prepare("SELECT id, name FROM workspaces ORDER BY created_at, id")
+        .map_err(|e| format!("failed to list workspaces: {e}"))?;
+    let rows = statement
+        .query_map([], |row| Ok(WorkspaceListItem {
+            id: row.get(0)?,
+            name: row.get(1)?,
+        }))
+        .map_err(|e| format!("failed to query workspaces: {e}"))?;
+    let mut list = Vec::new();
+    for row in rows {
+        list.push(row.map_err(|e| format!("failed to read workspace row: {e}"))?);
+    }
+    Ok(list)
+}
+
+#[tauri::command]
+pub fn rename_workspace(app: AppHandle, workspace_id: String, name: String) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let trimmed = name.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("workspace name cannot be blank".to_string());
+    }
+    connection
+        .execute(
+            "UPDATE workspaces SET name = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+            params![trimmed, workspace_id],
+        )
+        .map_err(|e| format!("failed to rename workspace: {e}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_workspace(app: AppHandle, workspace_id: String) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let count: i64 = connection
+        .query_row("SELECT COUNT(*) FROM workspaces", [], |row| row.get(0))
+        .map_err(|e| format!("failed to count workspaces: {e}"))?;
+    if count <= 1 {
+        return Err("cannot delete the last workspace".to_string());
+    }
+    connection
+        .execute("DELETE FROM workspaces WHERE id = ?1", params![workspace_id])
+        .map_err(|e| format!("failed to delete workspace: {e}"))?;
+    connection
+        .execute(
+            "DELETE FROM settings WHERE key = 'last_active_workspace_id' AND value = ?1",
+            params![workspace_id],
+        )
+        .map_err(|e| format!("failed to clear active workspace setting: {e}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn switch_workspace(app: AppHandle, workspace_id: String) -> Result<WorkspaceSummary, String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    connection
+        .execute(
+            "INSERT INTO settings (key, value, updated_at) VALUES ('last_active_workspace_id', ?1, CURRENT_TIMESTAMP)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            params![workspace_id],
+        )
+        .map_err(|e| format!("failed to persist active workspace: {e}"))?;
+    load_workspace_by_id_inner(&connection, &workspace_id)
+}
+
+#[tauri::command]
+pub fn load_workspace_by_id(app: AppHandle, workspace_id: String) -> Result<WorkspaceSummary, String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    load_workspace_by_id_inner(&connection, &workspace_id)
+}
+
+fn load_workspace_by_id_inner(connection: &Connection, workspace_id: &str) -> Result<WorkspaceSummary, String> {
+    let workspace = connection
+        .query_row(
+            "SELECT id, name, active_environment FROM workspaces WHERE id = ?1",
+            params![workspace_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)),
+        )
+        .optional()
+        .map_err(|e| format!("failed to load workspace: {e}"))?
+        .ok_or_else(|| format!("workspace '{}' not found", workspace_id))?;
+
+    Ok(WorkspaceSummary {
+        id: workspace.0.clone(),
+        name: workspace.1,
+        active_environment: workspace.2,
+        environments: load_environments(connection, &workspace.0)?,
+        folders: load_folders(connection, &workspace.0)?,
+        requests: load_requests(connection, &workspace.0)?,
+        collections: Some(load_collections(connection, &workspace.0)?),
+    })
 }
 
 #[tauri::command]
@@ -796,6 +928,7 @@ fn load_first_workspace(connection: &Connection) -> Result<WorkspaceSummary, Str
         .ok_or_else(|| "local workspace is not initialized".to_string())?;
 
     Ok(WorkspaceSummary {
+        id: workspace.0.clone(),
         name: workspace.1,
         active_environment: workspace.2,
         environments: load_environments(connection, &workspace.0)?,
