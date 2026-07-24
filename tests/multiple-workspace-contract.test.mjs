@@ -76,5 +76,20 @@ test("WorkspaceSwitcherModal component exists and has required props", () => {
   assert.match(c, /onDelete/);
 });
 
+test("App.tsx imports and renders WorkspaceSwitcherModal", () => {
+  const app = read("src/renderer/src/App.tsx");
+  assert.match(app, /WorkspaceSwitcherModal/);
+  assert.match(app, /workspaceList/);
+  assert.match(app, /handleSwitchWorkspace/);
+  assert.match(app, /handleCreateWorkspace/);
+  assert.match(app, /workspaceSwitcherOpen/);
+});
+
+test("Sidebar.tsx has onOpenWorkspaceSwitcher prop", () => {
+  const s = read("src/renderer/src/components/Sidebar.tsx");
+  assert.match(s, /onOpenWorkspaceSwitcher/);
+});
+
+
 
 

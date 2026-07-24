@@ -25,6 +25,7 @@ import { useScripts } from "./hooks/useScripts";
 import { useAuth } from "./hooks/useAuth";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
+import { WorkspaceSwitcherModal } from "./components/WorkspaceSwitcherModal";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 
 import {
@@ -97,6 +98,7 @@ export function App() {
   const [collectionEditorOpen, setCollectionEditorOpen] = useState(false);
   const [collectionEditorTarget, setCollectionEditorTarget] = useState<string>("");
   const [curlImportOpen, setCurlImportOpen] = useState(false);
+  const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
 
   const ws = useWorkspace({
     setConfirmDialog,
@@ -117,6 +119,11 @@ export function App() {
   });
   const {
     workspace, setWorkspace,
+    workspaceList,
+    handleCreateWorkspace,
+    handleSwitchWorkspace,
+    handleRenameWorkspace,
+    handleDeleteWorkspace,
     selectedRequestId, setSelectedRequestId,
     draftRequest, setDraftRequest,
     databasePath,
@@ -781,6 +788,7 @@ export function App() {
         onExport={() => void handleExport()}
         onImport={() => void handleImport()}
         onCurlImport={() => setCurlImportOpen(true)}
+        onOpenWorkspaceSwitcher={() => setWorkspaceSwitcherOpen(true)}
       />
 
       <div
@@ -1135,6 +1143,17 @@ export function App() {
           }
         }}
         onClose={() => setSetEnvVarModal({ open: false, text: "" })}
+      />
+
+      <WorkspaceSwitcherModal
+        open={workspaceSwitcherOpen}
+        activeWorkspaceId={workspace?.id ?? ""}
+        workspaceList={workspaceList}
+        onCreate={(name) => void handleCreateWorkspace(name)}
+        onSwitch={(id) => { void handleSwitchWorkspace(id); setWorkspaceSwitcherOpen(false); }}
+        onRename={(id, name) => void handleRenameWorkspace(id, name)}
+        onDelete={(id) => void handleDeleteWorkspace(id)}
+        onClose={() => setWorkspaceSwitcherOpen(false)}
       />
     </main>
   );

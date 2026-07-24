@@ -75,6 +75,9 @@ export interface SidebarProps {
   onExport: () => void;
   onImport: () => void;
   onCurlImport: () => void;
+
+  // Workspace switcher
+  onOpenWorkspaceSwitcher?: () => void;
 }
 
 export function Sidebar({
@@ -124,6 +127,7 @@ export function Sidebar({
   onExport,
   onImport,
   onCurlImport,
+  onOpenWorkspaceSwitcher,
 }: SidebarProps) {
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const themeRef = useRef<HTMLDivElement>(null);
@@ -232,6 +236,19 @@ export function Sidebar({
           <strong>KobeanREST</strong>
         </div>
         <div className="brand-actions">
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            aria-label="Switch workspace"
+            title={`Current: ${workspace?.name ?? "Workspace"} — click to switch`}
+            onClick={onOpenWorkspaceSwitcher}
+            style={{ display: "flex", alignItems: "center", gap: "4px", maxWidth: "130px", padding: "4px 8px", borderRadius: "6px" }}
+          >
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "12px", fontWeight: 600 }}>
+              {workspace?.name ?? "Workspace"}
+            </span>
+            <ChevronDown size={11} style={{ flexShrink: 0, opacity: 0.6 }} />
+          </button>
           <button
             type="button"
             className="sidebar-icon-button"
