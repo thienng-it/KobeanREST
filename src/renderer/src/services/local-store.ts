@@ -173,6 +173,11 @@ export async function createCollection(name: string): Promise<string> {
   return invoke<string>("create_collection", { name });
 }
 
+export async function reorderItems(itemType: string, ids: string[]): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("reorder_items", { itemType, ids });
+}
+
 export async function updateFolder(folderId: string, name: string): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("update_folder", { folderId, name });

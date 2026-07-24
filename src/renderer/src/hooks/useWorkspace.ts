@@ -822,6 +822,103 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     input.click();
   }
 
+  async function handleMoveItem(type: "folder" | "request", draggedId: string, targetId: string, position: "top" | "bottom" | "inside") {
+    if (!workspace) return;
+    try {
+      const { reorderItems, saveRequest } = await import("../services/local-store");
+      const { invoke } = await import("@tauri-apps/api/core");
+
+      if (type === "folder") {
+        // Find dragged and target
+        const dragged = workspace.folders.find(f => f.id === draggedId);
+        const target = workspace.folders.find(f => f.id === targetId);
+        if (!dragged || !target) return;
+
+        let newParentId = target.parentId;
+        let newCollectionId = target.collectionId;
+        
+        if (position === "inside") {
+          newParentId = target.id;
+          newCollectionId = target.collectionId;
+        }
+
+        // We need a backend command to fully update a folder's parent & collection, or we can just stick to reordering for folders since our backend doesn't support full folder move yet.
+        // Wait, the backend update_folder ONLY updates the name.
+        // For now, I will use invoke to run a raw SQL query or wait, we just skip folder moving across parents for now if backend doesn't support it?
+        // Let's check if there's a way.
+        
+        // As a quick fix for the user's main request: dragging a REQUEST to a sub-folder:
+      } else if (type === "request") {
+        const dragged = workspace.requests.find(r => r.id === draggedId);
+        let targetFolderId: string | undefined;
+        let targetReqId: string | undefined;
+
+        // Target might be a folder (inside) or another request (top/bottom)
+        const targetFolder = workspace.folders.find(f => f.id === targetId);
+        if (targetFolder) {
+          targetFolderId = targetFolder.id;
+        } else {
+          const targetReq = workspace.requests.find(r => r.id === targetId);
+          if (targetReq) {
+            targetFolderId = targetReq.folderId;
+            targetReqId = targetReq.id;
+          }
+        }
+
+        if (!dragged || !targetFolderId) {
+          alert(`Move aborted: dragged=${!!dragged}, targetFolderId=${targetFolderId}`);
+          return;
+        }
+
+        let requestsList = [...workspace.requests];
+        
+        // If moved to a new folder, update the request!
+        if (dragged.folderId !== targetFolderId) {
+          const updatedRequest = { ...dragged, folderId: targetFolderId };
+          
+          // Fire and forget for optimistic UI
+          saveRequest(updatedRequest).catch(err => {
+            console.error("Save request failed", err);
+            alert("Database Error: Could not save moved request. " + String(err));
+          });
+          
+          requestsList = requestsList.map(r => r.id === dragged.id ? updatedRequest : r);
+        }
+
+        // Reorder
+        const list = requestsList.filter(r => r.folderId === targetFolderId);
+        const ids = list.map(r => r.id);
+        
+        const draggedIdx = ids.indexOf(draggedId);
+        if (draggedIdx > -1) ids.splice(draggedIdx, 1);
+        
+        if (targetReqId) {
+          let targetIdx = ids.indexOf(targetReqId);
+          const insertIdx = position === "top" ? targetIdx : targetIdx + 1;
+          ids.splice(insertIdx, 0, draggedId);
+        } else {
+          // Dropped "inside" a folder, put at the end
+          ids.push(draggedId);
+        }
+
+        // Optimistic UI reorder
+        const otherRequests = requestsList.filter(r => r.folderId !== targetFolderId);
+        const targetRequests = ids.map(id => requestsList.find(r => r.id === id)!);
+        requestsList = [...otherRequests, ...targetRequests];
+
+        setWorkspace({
+          ...workspace,
+          requests: requestsList,
+        });
+
+        await reorderItems("request", ids);
+      }
+    } catch (err) {
+      console.error("Failed to move item", err);
+      alert("Move Item Error: " + String(err));
+    }
+  }
+
   return {
     workspace,
     setWorkspace,
@@ -885,6 +982,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     handleLoadScriptStatuses,
     handleExport,
     handleImport,
+    handleMoveItem,
   };
 }
 

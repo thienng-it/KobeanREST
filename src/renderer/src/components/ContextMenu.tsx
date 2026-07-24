@@ -65,6 +65,7 @@ export interface ContextMenuProps {
   onImport: () => void;
   onExport: () => void;
   onSetSelectionAsVariable?: (text: string) => void;
+  onMoveItemTo?: (reqId: string, itemType: "request" | "folder") => void;
 }
 
 export function ContextMenu({
@@ -87,6 +88,7 @@ export function ContextMenu({
   onImport,
   onExport,
   onSetSelectionAsVariable,
+  onMoveItemTo,
 }: ContextMenuProps) {
   if (!menu) return null;
   const target = menu.target;
@@ -109,7 +111,6 @@ export function ContextMenu({
         gap: "2px",
         pointerEvents: "auto",
       }}
-      onClick={() => alert("Container clicked!")}
     >
       {target?.type === "folder" && (
         <>
@@ -117,7 +118,6 @@ export function ContextMenu({
             className="context-menu-item"
             onClick={async (e) => {
               e.stopPropagation();
-              alert("Context Menu: New Request clicked!");
               if (target.id) void onCreateRequest(target.id);
               onClose();
             }}
@@ -130,7 +130,6 @@ export function ContextMenu({
             className="context-menu-item"
             onClick={async (e) => {
               e.stopPropagation();
-              alert("Context Menu: New Folder clicked!");
               if (target.id) {
                 await onCreateSubFolder(target.id);
               }
@@ -140,6 +139,18 @@ export function ContextMenu({
             {...hoverHandlers()}
           >
             <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> New Folder
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (target.id && onMoveItemTo) onMoveItemTo(target.id, "folder");
+              onClose();
+            }}
+            style={itemStyle}
+            {...hoverHandlers()}
+          >
+            <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Move to...
           </button>
           <button
             className="context-menu-item"
@@ -233,6 +244,18 @@ export function ContextMenu({
             {...hoverHandlers()}
           >
             <Eye size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> View Request
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              const reqId = target.id;
+              if (reqId && onMoveItemTo) onMoveItemTo(reqId, "request");
+              onClose();
+            }}
+            style={requestItemStyle}
+            {...hoverHandlers()}
+          >
+            <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Move to...
           </button>
           <button
             className="context-menu-item"

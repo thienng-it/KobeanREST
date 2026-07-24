@@ -1564,6 +1564,30 @@ pub fn import_workspace_data(app: AppHandle, json: String) -> Result<(), String>
 }
 
 #[tauri::command]
+pub fn reorder_items(app: AppHandle, item_type: String, ids: Vec<String>) -> Result<(), String> {
+    ensure_database(&app)?;
+    let mut connection = open_database(&app)?;
+    let tx = connection.transaction().map_err(|e| format!("failed to start tx: {e}"))?;
+    
+    let table = match item_type.as_str() {
+        "folder" => "folders",
+        "request" => "requests",
+        "collection" => "collections",
+        "environment" => "environments",
+        _ => return Err("invalid item type".to_string()),
+    };
+    
+    for (i, id) in ids.iter().enumerate() {
+        tx.execute(
+            &format!("UPDATE {} SET position = ?1 WHERE id = ?2", table),
+            params![i as i64, id],
+        ).map_err(|e| format!("failed to update position: {e}"))?;
+    }
+    tx.commit().map_err(|e| format!("failed to commit: {e}"))?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String> {
     ensure_database(&app)?;
     let mut connection = open_database(&app)?;

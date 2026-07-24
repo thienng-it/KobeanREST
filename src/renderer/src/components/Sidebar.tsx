@@ -78,6 +78,7 @@ export interface SidebarProps {
 
   // Workspace switcher
   onOpenWorkspaceSwitcher?: () => void;
+  onMoveItem?: (type: "folder" | "request", draggedId: string, targetId: string, position: "top" | "bottom" | "inside") => Promise<void>;
 }
 
 export function Sidebar({
@@ -128,9 +129,14 @@ export function Sidebar({
   onImport,
   onCurlImport,
   onOpenWorkspaceSwitcher,
+  onMoveItem,
 }: SidebarProps) {
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const themeRef = useRef<HTMLDivElement>(null);
+  
+  // Drag and drop state
+  const [dragItem, setDragItem] = useState<{ id: string; type: "folder" | "request"; parentId?: string } | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<{ id: string; type: "folder" | "request"; position: "top" | "bottom" | "inside" } | null>(null);
 
   useEffect(() => {
     if (!themeMenuOpen) return;
@@ -211,6 +217,94 @@ export function Sidebar({
       matchesCollectionSearch(resolvedMethodLabel(request.method, request.customMethod))
     );
   }
+
+  const handleDragStart = (e: React.DragEvent, id: string, type: "folder" | "request", parentId?: string) => {
+    e.stopPropagation();
+    setDragItem({ id, type, parentId });
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+    e.dataTransfer.setData("application/json", JSON.stringify({ id, type, parentId }));
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string, type: "folder" | "request") => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    
+    const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const hoverMiddleY = (targetRect.bottom - targetRect.top) / 2;
+    const hoverClientY = e.clientY - targetRect.top;
+    
+    let position: "top" | "bottom" | "inside" = "bottom";
+    
+    if (dragItem?.type === "request" && type === "folder") {
+      position = "inside";
+    } else if (hoverClientY < hoverMiddleY) {
+      position = "top";
+    }
+    
+    setDragOverItem({ id, type, position });
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverItem(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string, targetType: "folder" | "request", targetParentId?: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    let payload = dragItem;
+    try {
+      const dataStr = e.dataTransfer.getData("application/json");
+      if (dataStr) {
+        payload = JSON.parse(dataStr);
+      }
+    } catch (err) {
+      // ignore
+    }
+    
+    if (!payload || !onMoveItem || !workspace) {
+      alert(`Drop aborted: payload=${!!payload}, onMoveItem=${!!onMoveItem}, workspace=${!!workspace}`);
+      setDragItem(null);
+      setDragOverItem(null);
+      return;
+    }
+    
+    if (payload.id === targetId) {
+      setDragItem(null);
+      setDragOverItem(null);
+      return;
+    }
+    
+    const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const hoverMiddleY = (targetRect.bottom - targetRect.top) / 2;
+    const hoverClientY = e.clientY - targetRect.top;
+    
+    let position: "top" | "bottom" | "inside" = "bottom";
+    if (payload.type === "request" && targetType === "folder") {
+      position = "inside";
+    } else if (hoverClientY < hoverMiddleY) {
+      position = "top";
+    }
+
+    void onMoveItem(payload.type, payload.id, targetId, position);
+    
+    // Auto-expand folder if dropping a request into it
+    if (payload.type === "request" && targetType === "folder") {
+      if (collapsedFolders[targetId]) {
+        onToggleFolder(targetId);
+      }
+    }
+    
+    alert(`Drop successful! Moved ${payload.type} ${payload.id} to ${targetType} ${targetId} at ${position}`);
+    
+    setDragItem(null);
+    setDragOverItem(null);
+  };
+
 
   function folderMatchesCollectionSearch(folderId: string): boolean | undefined {
     const folder = workspace?.folders.find((item) => item.id === folderId);
@@ -415,14 +509,22 @@ export function Sidebar({
                           .filter((r) => showFolderContents || requestMatchesCollectionSearch(r));
                         return (
                           <div className="folder-group" key={folder.id}>
-                            <div
-                              className="folder-title sidebar-tree-row"
-                              onContextMenu={(e) => {
-                                e.preventDefault();
-                                onContextMenu({ id: folder.id, type: "folder" }, e.clientX, e.clientY);
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
+                              <div
+                                className={`folder-title sidebar-tree-row ${
+                                  dragOverItem?.id === folder.id && dragOverItem.type === "folder" ? `drag-over-${dragOverItem.position}` : ""
+                                }`}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, folder.id, "folder", folder.parentId)}
+                                onDragEnter={(e) => e.preventDefault()}
+                                onDragOver={(e) => handleDragOver(e, folder.id, "folder")}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, folder.id, "folder", folder.parentId)}
+                                onContextMenu={(e) => {
+                                  e.preventDefault();
+                                  onContextMenu({ id: folder.id, type: "folder" }, e.clientX, e.clientY);
+                                }}
+                              >
+                              <div style={{ display: "flex", alignItems: "center", gap: "2px", minWidth: 0 }}>
                                 <button
                                   type="button"
                                   aria-expanded={!isFolderCollapsed}
@@ -460,7 +562,7 @@ export function Sidebar({
                                       event.stopPropagation();
                                       onStartSidebarRename("folder", folder.id, folder.name);
                                     }}
-                                    style={{ all: "unset", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+                                    style={{ all: "unset", display: "flex", alignItems: "center", gap: "2px", cursor: "pointer" }}
                                   >
                                     {folder.name}
                                   </button>
@@ -491,18 +593,39 @@ export function Sidebar({
                             >
                               <div className="folder-children-inner">
                                 {renderFolders(folder.id, depth + 1, showFolderContents)}
+                                {folderRequests.length === 0 && (
+                                  <div
+                                    className={`empty-folder sidebar-tree-row ${
+                                      dragOverItem?.id === folder.id && dragOverItem.type === "folder" ? "drag-over-inside" : ""
+                                    }`}
+                                    style={{ paddingLeft: "12px", opacity: 0.5, fontStyle: "italic", fontSize: "11px" }}
+                                    onDragEnter={(e) => e.preventDefault()}
+                                    onDragOver={(e) => handleDragOver(e, folder.id, "folder")}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={(e) => handleDrop(e, folder.id, "folder", folder.parentId)}
+                                  >
+                                  </div>
+                                )}
                                 {folderRequests.map((request) => (
                                   <div
                                     key={request.id}
-                                    className={request.id === selectedRequestId ? "request-row sidebar-tree-row active" : "request-row sidebar-tree-row"}
+                                    className={`${request.id === selectedRequestId ? "request-row sidebar-tree-row active" : "request-row sidebar-tree-row"} ${
+                                      dragOverItem?.id === request.id && dragOverItem.type === "request" ? `drag-over-${dragOverItem.position}` : ""
+                                    }`}
                                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, request.id, "request", request.folderId)}
+                                    onDragEnter={(e) => e.preventDefault()}
+                                    onDragOver={(e) => handleDragOver(e, request.id, "request")}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={(e) => handleDrop(e, request.id, "request", request.folderId)}
                                     onContextMenu={(e) => {
                                       e.preventDefault();
                                       onContextMenu({ id: request.id, type: "request" }, e.clientX, e.clientY);
                                     }}
                                   >
                                     {renamingRequestId === request.id ? (
-                                      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                                      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "2px" }}>
                                         <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
                                         <input
                                           value={renameDraft}
@@ -528,7 +651,7 @@ export function Sidebar({
                                       </div>
                                     ) : (
                                       <button
-                                        style={{ all: "unset", flex: 1, display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+                                        style={{ all: "unset", flex: 1, display: "flex", alignItems: "center", gap: "2px", cursor: "pointer" }}
                                         onClick={() => onSelectRequest(request.id)}
                                         type="button"
                                       >

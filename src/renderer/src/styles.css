@@ -1291,8 +1291,27 @@ button:disabled {
   font-weight: 600;
   font-size: 13px;
   color: var(--color-text);
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  box-sizing: border-box;
 }
 
+.drag-over-top {
+  border-top-color: var(--color-brand) !important;
+  border-top-width: 2px !important;
+  border-top-style: solid !important;
+}
+
+.drag-over-bottom {
+  border-bottom-color: var(--color-brand) !important;
+  border-bottom-width: 2px !important;
+  border-bottom-style: solid !important;
+}
+
+.drag-over-inside {
+  background-color: var(--color-surface-hover) !important;
+  border-radius: 6px;
+}
 .folder-toggle-button {
   all: unset;
   display: inline-grid;

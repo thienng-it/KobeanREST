@@ -50,6 +50,7 @@ pub fn run() {
             check_for_update,
             export_workspace_data,
             import_workspace_data,
+            persistence::reorder_items,
             save_request,
             delete_request,
             create_folder,

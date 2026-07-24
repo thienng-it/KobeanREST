@@ -7,6 +7,7 @@ import { type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
 import { ContextMenu } from "./components/ContextMenu";
 import { SetEnvVarModal } from "./components/SetEnvVarModal";
+import { MoveToModal } from "./components/MoveToModal";
 import { Topbar } from "./components/Topbar";
 import { BottomDock } from "./components/BottomDock";
 import { statusColor, type ResponseState, type PreviewMode } from "./response-utils";
@@ -99,6 +100,7 @@ export function App() {
   const [collectionEditorTarget, setCollectionEditorTarget] = useState<string>("");
   const [curlImportOpen, setCurlImportOpen] = useState(false);
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
+  const [moveToModal, setMoveToModal] = useState<{ type: "request" | "folder"; id: string } | null>(null);
 
   const ws = useWorkspace({
     setConfirmDialog,
@@ -168,6 +170,7 @@ export function App() {
     cancelEnvironmentRename,
     handleExport,
     handleImport,
+    handleMoveItem,
   } = ws;
 
   const {
@@ -209,6 +212,20 @@ export function App() {
   } = useScripts(selectedRequestId);
 
   const responseCacheRef = useRef<Record<string, { state: ResponseState, log: ScriptOutputEntry[] }>>({});
+
+  useEffect(() => {
+    // Prevent default drag behaviors globally so OS doesn't intercept drops
+    const handleGlobalDragOver = (e: DragEvent) => e.preventDefault();
+    const handleGlobalDrop = (e: DragEvent) => e.preventDefault();
+    
+    window.addEventListener("dragover", handleGlobalDragOver);
+    window.addEventListener("drop", handleGlobalDrop);
+    
+    return () => {
+      window.removeEventListener("dragover", handleGlobalDragOver);
+      window.removeEventListener("drop", handleGlobalDrop);
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedRequestId && responseCacheRef.current[selectedRequestId]) {
@@ -790,6 +807,7 @@ export function App() {
         onImport={() => void handleImport()}
         onCurlImport={() => setCurlImportOpen(true)}
         onOpenWorkspaceSwitcher={() => setWorkspaceSwitcherOpen(true)}
+        onMoveItem={handleMoveItem}
       />
 
       <div
@@ -1122,6 +1140,17 @@ export function App() {
             }
             setSetEnvVarModal({ open: true, text });
           }}
+          onMoveItemTo={(reqId, type) => setMoveToModal({ id: reqId, type })}
+        />
+      )}
+
+      {moveToModal && workspace && (
+        <MoveToModal
+          workspace={workspace}
+          itemType={moveToModal.type}
+          itemId={moveToModal.id}
+          onClose={() => setMoveToModal(null)}
+          onMove={handleMoveItem}
         />
       )}
 
