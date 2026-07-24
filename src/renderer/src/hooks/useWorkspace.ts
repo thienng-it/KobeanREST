@@ -24,11 +24,15 @@ import {
   createWorkspace,
   exportWorkspaceData,
   importWorkspaceData,
+  listWorkspaces,
+  renameWorkspace,
+  deleteWorkspace,
+  switchWorkspace,
 } from "../services/local-store";
 
 import { diagnosticMessage } from "../app-utils";
 import type { ContextMenuState } from "../components/ContextMenu";
-import type { WorkspaceSummary, SavedRequest, ScopedVariable, ScopedVariableEntityType } from "../types";
+import type { WorkspaceSummary, WorkspaceListItem, SavedRequest, ScopedVariable, ScopedVariableEntityType } from "../types";
 
 interface ConfirmDialogState {
   message: string;
@@ -60,6 +64,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
   const [envEditorTarget, setEnvEditorTarget] = useState<string>("");
   const [renamingEnvironment, setRenamingEnvironment] = useState("");
   const [environmentNameDraft, setEnvironmentNameDraft] = useState("");
+  const [workspaceList, setWorkspaceList] = useState<WorkspaceListItem[]>([]);
 
   async function handleLoadScriptStatuses() {
     try {
@@ -90,6 +95,8 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       const loadedSettings = await loadAppSettings();
       setDatabasePath(persistence.databasePath);
       setWorkspace(localWorkspace);
+      const list = await listWorkspaces();
+      setWorkspaceList(list);
       setSelectedRequestId((currentRequestId) => {
         if (localWorkspace.requests.some((request) => request.id === currentRequestId)) {
           return currentRequestId;
@@ -312,21 +319,6 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     } catch (err) {
       console.error("Failed to create collection", diagnosticMessage(err));
       alert("Failed to create collection: " + diagnosticMessage(err));
-    }
-  }
-
-  async function handleCreateWorkspace() {
-    const name = prompt("Enter workspace name:");
-    if (!name) return;
-    try {
-      console.log("Creating workspace:", name);
-      await createWorkspace(name);
-      console.log("Workspace created successfully, reloading workspace...");
-      const updatedWorkspace = await loadLocalWorkspace();
-      setWorkspace(updatedWorkspace);
-    } catch (err) {
-      console.error("Failed to create workspace", diagnosticMessage(err));
-      alert("Failed to create workspace: " + diagnosticMessage(err));
     }
   }
 
@@ -662,6 +654,55 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     }
   }
 
+  async function handleCreateWorkspace(name: string) {
+    try {
+      await createWorkspace(name);
+      const list = await listWorkspaces();
+      setWorkspaceList(list);
+    } catch (err) {
+      alert("Failed to create workspace: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleSwitchWorkspace(workspaceId: string) {
+    try {
+      const loaded = await switchWorkspace(workspaceId);
+      setWorkspace(loaded);
+      setSelectedRequestId(null);
+      setDraftRequest(null);
+      const list = await listWorkspaces();
+      setWorkspaceList(list);
+    } catch (err) {
+      alert("Failed to switch workspace: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleRenameWorkspace(workspaceId: string, name: string) {
+    try {
+      await renameWorkspace(workspaceId, name);
+      setWorkspace((prev) => (prev && prev.id === workspaceId ? { ...prev, name } : prev));
+      setWorkspaceList((prev) => prev.map((w) => (w.id === workspaceId ? { ...w, name } : w)));
+    } catch (err) {
+      alert("Failed to rename workspace: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleDeleteWorkspace(workspaceId: string) {
+    try {
+      await deleteWorkspace(workspaceId);
+      const list = await listWorkspaces();
+      setWorkspaceList(list);
+      if (list.length > 0) {
+        const loaded = await switchWorkspace(list[0].id);
+        setWorkspace(loaded);
+        setSelectedRequestId(null);
+        setDraftRequest(null);
+      }
+    } catch (err) {
+      alert("Failed to delete workspace: " + diagnosticMessage(err));
+    }
+  }
+
   async function handleCreateRequest(folderId: string) {
     try {
       const newReq = await createRequest(folderId);
@@ -793,7 +834,11 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     handleDeleteRequest,
     handleCreateFolder,
     handleCreateCollection,
+    workspaceList,
     handleCreateWorkspace,
+    handleSwitchWorkspace,
+    handleRenameWorkspace,
+    handleDeleteWorkspace,
     handleCreateSubFolder,
     handleDeleteFolder,
     handleDeleteCollection,

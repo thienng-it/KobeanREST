@@ -54,3 +54,15 @@ test("types.ts has WorkspaceListItem interface", () => {
   assert.match(t, /id: string;/);
 });
 
+test("useWorkspace.ts exports multi-workspace handlers", () => {
+  const h = read("src/renderer/src/hooks/useWorkspace.ts");
+  assert.match(h, /workspaceList/);
+  assert.match(h, /handleCreateWorkspace/);
+  assert.match(h, /handleSwitchWorkspace/);
+  assert.match(h, /handleRenameWorkspace/);
+  assert.match(h, /handleDeleteWorkspace/);
+  assert.match(h, /listWorkspaces/);
+  assert.match(h, /switchWorkspace/);
+});
+
+
