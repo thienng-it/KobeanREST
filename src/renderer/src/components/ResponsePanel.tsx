@@ -215,25 +215,25 @@ export function ResponsePanel({
 
   const shell = (
     <div className={modal ? "response-viewer response-viewer-window" : "response-viewer"}>
-      <div className="panel-heading">
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", width: "100%" }}>
-          {currentResponse && responseState.kind !== "error" && responseTab === "preview" && (
-            <div style={{ display: "flex", gap: "8px", alignItems: "center", marginRight: "auto" }}>
-              <select
-                value={previewMode}
-                onChange={(e) => onPreviewModeChange(e.target.value as PreviewMode)}
-                style={{ fontSize: "12px", padding: "2px 6px", borderRadius: "4px", backgroundColor: "var(--color-surface-muted)", color: "var(--color-text)", border: "1px solid var(--color-border)", cursor: "pointer" }}
-              >
-                <option value="rendered">Rendered</option>
-                <option value="json">JSON</option>
-                <option value="xml">XML</option>
-                <option value="html">HTML</option>
-                <option value="raw">Raw</option>
-              </select>
-            </div>
-          )}
+      {currentResponse && responseState.kind !== "error" && (
+        <div className="panel-heading">
+          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", width: "100%" }}>
+            {responseTab === "preview" && (
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", marginRight: "auto" }}>
+                <select
+                  value={previewMode}
+                  onChange={(e) => onPreviewModeChange(e.target.value as PreviewMode)}
+                  style={{ fontSize: "12px", padding: "2px 6px", borderRadius: "4px", backgroundColor: "var(--color-surface-muted)", color: "var(--color-text)", border: "1px solid var(--color-border)", cursor: "pointer" }}
+                >
+                  <option value="rendered">Rendered</option>
+                  <option value="json">JSON</option>
+                  <option value="xml">XML</option>
+                  <option value="html">HTML</option>
+                  <option value="raw">Raw</option>
+                </select>
+              </div>
+            )}
 
-          {currentResponse && responseState.kind !== "error" && (
             <div className="response-stats" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
               <span style={{ color: responseTitleColor, fontWeight: 600 }}>{responseTitle}</span>
               <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -242,14 +242,7 @@ export function ResponsePanel({
               </span>
               <span>{formatBytes(currentResponse.sizeBytes)}</span>
             </div>
-          )}
 
-          {!modal && (
-            <button className="ghost-button" type="button" onClick={onOpenWindow} style={{ padding: "4px 8px", fontSize: "11px" }}>
-              <Eye size={12} /> Open in Window
-            </button>
-          )}
-          {currentResponse && responseState.kind !== "error" && (
             <div style={{ display: "flex", gap: "8px" }}>
               <button className="ghost-button" type="button" onClick={onDownload} style={{ padding: "4px 8px", fontSize: "11px" }}>
                 <Download size={12} /> Download
@@ -258,9 +251,9 @@ export function ResponsePanel({
                 <span style={{ fontSize: "10px" }}>📋</span> Copy
               </button>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="tab-row" role="tablist" aria-label="Response views">
         {(["preview", "headers", "timeline", "tests"] as const).map((tab) => {

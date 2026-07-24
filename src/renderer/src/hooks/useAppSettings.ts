@@ -45,7 +45,11 @@ export function useAppSettings() {
   }, [appSettings.theme]);
 
   function updateAppSettings(fields: Partial<AppSettings>) {
-    setAppSettings(prev => ({ ...prev, ...fields }));
+    setAppSettings((prev) => {
+      const next = { ...prev, ...fields };
+      saveAppSettings(next).catch((err) => console.error("Failed to save app settings", err));
+      return next;
+    });
   }
 
   async function handleCheckForUpdates(

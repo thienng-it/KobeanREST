@@ -1,4 +1,4 @@
-import { ChevronDown, Eye } from "lucide-react";
+import { ChevronDown, ExternalLink, Eye } from "lucide-react";
 import { ResponsePanel, type ResponseTab } from "./ResponsePanel";
 import { type PreviewMode } from "../response-utils";
 import type { ExecuteHttpResponse } from "../types";
@@ -60,6 +60,19 @@ export function BottomDock({
           onClick={() => onActiveBottomDockChange("response")}
         >
           <Eye size={14} /> Response
+        </button>
+        <button
+          className="bottom-dock-open-window-btn"
+          type="button"
+          aria-label="Open response in new window"
+          title="Open in new window"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenWindow();
+          }}
+        >
+          <ExternalLink size={12} />
+          <span>Open in Window</span>
         </button>
         <button
           className={open ? "bottom-dock-collapse expanded" : "bottom-dock-collapse collapsed"}

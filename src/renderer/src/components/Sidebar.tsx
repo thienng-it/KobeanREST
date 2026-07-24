@@ -1,6 +1,7 @@
-import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical } from "lucide-react";
-import type { CSSProperties } from "react";
-import type { SavedRequest, WorkspaceSummary } from "../types";
+import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { CustomSelect } from "./CustomSelect";
+import type { AppSettings, SavedRequest, WorkspaceSummary } from "../types";
 
 interface ContextMenuTarget {
   id: string;
@@ -13,6 +14,15 @@ export interface SidebarProps {
   activeEnvironment: string;
   sidebarWidth: number;
   isResizing: boolean;
+  theme?: AppSettings["theme"];
+  onThemeChange?: (theme: AppSettings["theme"]) => void;
+  onToggleSidebar?: () => void;
+
+  // Topbar / App Actions
+  onOpenDocs?: () => void;
+  onOpenHistory?: () => void;
+  onCheckForUpdates?: () => void;
+  onOpenSettings?: () => void;
 
   // Collection state
   collectionSearch: string;
@@ -104,12 +114,69 @@ export function Sidebar({
   onToggleFolder,
   onContextMenu,
   onDismissDeleteError,
+  theme = "system",
+  onThemeChange,
+  onToggleSidebar,
+  onOpenDocs,
+  onOpenHistory,
+  onCheckForUpdates,
+  onOpenSettings,
   onExport,
   onImport,
   onCurlImport,
 }: SidebarProps) {
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const themeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!themeMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (themeRef.current && !themeRef.current.contains(event.target as Node)) {
+        setThemeMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [themeMenuOpen]);
   const isCollectionSearchActive = collectionSearch.trim().length > 0;
   const normalizedCollectionSearch = collectionSearch.trim().toLowerCase();
+
+  const themes: Array<{ id: AppSettings["theme"]; label: string; icon: React.ReactNode }> = [
+    { id: "light", label: "Light", icon: <Sun size={14} /> },
+    { id: "dark", label: "Dark", icon: <Moon size={14} /> },
+    { id: "system", label: "System", icon: <Monitor size={14} /> },
+    { id: "matrix", label: "Matrix", icon: <Terminal size={14} /> },
+    { id: "cyberpunk", label: "Cyberpunk", icon: <Zap size={14} /> },
+    { id: "warm", label: "Warm", icon: <Flame size={14} /> },
+  ];
+
+  function currentThemeIcon() {
+    switch (theme) {
+      case "light": return <Sun size={15} className="theme-icon-spin" />;
+      case "dark": return <Moon size={15} className="theme-icon-spin" />;
+      case "matrix": return <Terminal size={15} className="theme-icon-spin" />;
+      case "cyberpunk": return <Zap size={15} className="theme-icon-spin" />;
+      case "warm": return <Flame size={15} className="theme-icon-spin" />;
+      default: return <Monitor size={15} className="theme-icon-spin" />;
+    }
+  }
+
+  function handleSelectTheme(nextTheme: AppSettings["theme"]) {
+    setThemeMenuOpen(false);
+    if (onThemeChange) {
+      if (typeof document !== "undefined" && "startViewTransition" in document) {
+        (document as any).startViewTransition(() => {
+          onThemeChange(nextTheme);
+        });
+      } else {
+        onThemeChange(nextTheme);
+      }
+    }
+  }
 
   function matchesCollectionSearch(value: string | undefined) {
     return !isCollectionSearchActive || value?.toLowerCase().includes(normalizedCollectionSearch);
@@ -163,9 +230,17 @@ export function Sidebar({
         <div className="brand-mark">KR</div>
         <div className="brand-copy">
           <strong>KobeanREST</strong>
-          <span>{headline}</span>
         </div>
         <div className="brand-actions">
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            aria-label="Hide sidebar (Cmd+B)"
+            title="Hide sidebar (Cmd+B)"
+            onClick={onToggleSidebar}
+          >
+            <PanelLeftClose size={15} />
+          </button>
           <button
             type="button"
             className="sidebar-icon-button"
@@ -184,16 +259,13 @@ export function Sidebar({
       <div className="sidebar-content">
         <div className="environment-switcher">
           <Globe size={15} className="environment-switcher-icon" />
-          <select
+          <CustomSelect
             className="environment-select"
-            aria-label="Active environment"
+            ariaLabel="Active environment"
             value={activeEnvironment}
-            onChange={(e) => void onSetActiveEnvironment(e.target.value)}
-          >
-            {workspace?.environments?.map((env) => (
-              <option key={env.name} value={env.name}>{env.name}</option>
-            ))}
-          </select>
+            onChange={(val) => void onSetActiveEnvironment(val)}
+            options={(workspace?.environments ?? []).map((env) => ({ value: env.name, label: env.name }))}
+          />
           <button
             type="button"
             className="environment-manage-button"
@@ -211,12 +283,15 @@ export function Sidebar({
           </div>
         )}
 
-        <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-          <button className="primary-action" type="button" onClick={() => void onCreateCollection()} style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)" }}>
-            <Plus size={16} />
-            New collection
-          </button>
-        </div>
+        <button
+          className="sidebar-new-collection-btn"
+          type="button"
+          onClick={() => void onCreateCollection()}
+          aria-label="Create new collection"
+        >
+          <Plus size={16} />
+          <span>New Collection</span>
+        </button>
 
         <label className={collectionSearch ? "search-field has-value" : "search-field"}>
           <Search size={15} />
@@ -471,6 +546,75 @@ export function Sidebar({
             </div>
           ))}
         </section>
+      </div>
+
+      <div className="sidebar-footer">
+        <div className="sidebar-footer-actions">
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="Product Documentation"
+            aria-label="Product Documentation"
+            onClick={onOpenDocs}
+          >
+            <Download size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="Request History"
+            aria-label="Request History"
+            onClick={onOpenHistory}
+          >
+            <History size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="Check for Updates"
+            aria-label="Check for Updates"
+            onClick={onCheckForUpdates}
+          >
+            <RefreshCw size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="Settings"
+            aria-label="Settings"
+            onClick={onOpenSettings}
+          >
+            <Settings size={15} />
+          </button>
+        </div>
+        <div ref={themeRef} className="sidebar-footer-theme" style={{ position: "relative" }}>
+          <button
+            type="button"
+            className="sidebar-footer-theme-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setThemeMenuOpen((prev) => !prev);
+            }}
+          >
+            <span className="sidebar-footer-theme-icon">{currentThemeIcon()}</span>
+            <span className="sidebar-footer-theme-label">Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
+          </button>
+          {themeMenuOpen && (
+            <div className="theme-popover sidebar-footer-popover" onClick={(e) => e.stopPropagation()}>
+              {themes.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={theme === t.id ? "theme-popover-option active" : "theme-popover-option"}
+                  onClick={() => handleSelectTheme(t.id)}
+                >
+                  {t.icon}
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
