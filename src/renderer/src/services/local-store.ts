@@ -19,6 +19,9 @@ export interface RequestHistoryEntry {
   status: number;
   durationMs: number;
   sizeBytes: number;
+  responseHeaders?: string;
+  responseBodyText?: string;
+  responseBodyBase64?: string;
 }
 
 export const defaultAppSettings: AppSettings = {
@@ -65,6 +68,13 @@ const parseWorkspaceFields = (workspace: WorkspaceSummary) => {
         entity.bodyForm = [];
       }
     }
+    if (typeof (entity as any).queryParams === "string") {
+      try {
+        (entity as any).queryParams = JSON.parse((entity as any).queryParams);
+      } catch {
+        (entity as any).queryParams = [];
+      }
+    }
   };
 
   workspace.requests?.forEach(parseFields);
@@ -109,7 +119,8 @@ export async function saveRequest(request: import("../types").SavedRequest): Pro
   const payload = {
     ...request,
     authConfig: typeof request.authConfig === "object" ? JSON.stringify(request.authConfig) : request.authConfig,
-    bodyForm: typeof request.bodyForm === "object" ? JSON.stringify(request.bodyForm) : request.bodyForm
+    bodyForm: typeof request.bodyForm === "object" ? JSON.stringify(request.bodyForm) : request.bodyForm,
+    queryParams: typeof request.queryParams === "object" ? JSON.stringify(request.queryParams) : request.queryParams
   };
   return invoke<void>("save_request", { request: payload });
 }
@@ -212,6 +223,7 @@ export async function createRequest(folderId: string): Promise<import("../types"
       body: "",
       bodyMimeType: "text/plain",
       bodyForm: [],
+      queryParams: [],
       timeoutMs: 30000,
       followRedirects: true,
     };
@@ -222,6 +234,9 @@ export async function createRequest(folderId: string): Promise<import("../types"
   }
   if (typeof req.bodyForm === "string") {
     try { req.bodyForm = JSON.parse(req.bodyForm); } catch { req.bodyForm = []; }
+  }
+  if (typeof (req as any).queryParams === "string") {
+    try { req.queryParams = JSON.parse((req as any).queryParams); } catch { req.queryParams = []; }
   }
   return req;
 }
@@ -295,6 +310,11 @@ export async function getScopedVariables(
 export async function loadHistory(): Promise<import("../types").HistoryEntry[]> {
   if (!isTauriRuntime()) return [];
   return invoke<import("../types").HistoryEntry[]>("load_request_history");
+}
+
+export async function loadHistoryResponse(id: number): Promise<import("../types").HistoryResponsePayload | null> {
+  if (!isTauriRuntime()) return null;
+  return invoke<import("../types").HistoryResponsePayload>("load_history_response", { id });
 }
 
 export async function clearHistory(): Promise<void> {

@@ -14,7 +14,7 @@ use persistence::{
     save_scoped_variable, save_secret_variable, save_variable, set_active_environment,
     update_collection, update_folder, get_scripts, save_script, delete_script, save_folder_auth,
     save_collection_auth, create_workspace, create_collection, list_workspaces, rename_workspace,
-    delete_workspace, switch_workspace, load_workspace_by_id
+    delete_workspace, switch_workspace, load_workspace_by_id, load_history_response
 };
 use secrets::{delete_secret, resolve_secrets, store_secret};
 use tauri::Manager;
@@ -42,6 +42,7 @@ pub fn run() {
             initialize_persistence,
             load_workspace,
             record_request_history,
+            load_history_response,
             store_secret,
             delete_secret,
             resolve_secrets,

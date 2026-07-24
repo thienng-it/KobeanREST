@@ -38,6 +38,7 @@ export interface SavedRequest {
   authMode: ApiAuthMode;
   authConfig: AuthConfig;
   headers: Array<{ key: string; value: string; enabled: boolean }>;
+  queryParams: Array<{ key: string; value: string; enabled: boolean }>;
   body: string;
   bodyMimeType: string;
   bodyForm: Array<{ key: string; value: string; enabled: boolean }>;
@@ -107,6 +108,12 @@ export interface HistoryEntry {
   durationMs: number;
   sizeBytes: number;
   createdAt: string;
+}
+
+export interface HistoryResponsePayload {
+  responseHeaders: string | null;
+  responseBodyText: string | null;
+  responseBodyBase64: string | null;
 }
 
 export interface AppSettings {

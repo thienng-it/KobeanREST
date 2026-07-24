@@ -1,0 +1,136 @@
+import React, { useEffect, useRef } from 'react';
+import { basicSetup } from 'codemirror';
+import { EditorState, Compartment } from '@codemirror/state';
+import { javascript } from '@codemirror/lang-javascript';
+import { autocompletion } from '@codemirror/autocomplete';
+import { EditorView } from '@codemirror/view';
+
+interface BodyEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  variables: string[];
+  mimeType: string;
+  placeholder?: string;
+  height?: string;
+}
+
+export function BodyEditor({ value, onChange, variables, mimeType, placeholder, height = '100%' }: BodyEditorProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+
+  const languageConf = new Compartment();
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    // Define the autocomplete source for variables
+    const variableCompletion = (context: any) => {
+      // Only trigger if the user just typed '{{' or is inside a variable block
+      const word = context.matchBefore(/\{\{?[a-zA-Z0-9_]*/);
+      if (!word) return null;
+
+      return {
+        from: word.from,
+        options: variables.map(v => ({
+          label: `{{${v}}}`,
+          type: 'variable',
+          detail: 'Environment Variable'
+        }))
+      };
+    };
+
+    let languageExtension: any = [];
+    if (mimeType.includes('json') || mimeType.includes('javascript')) {
+      languageExtension = javascript();
+    }
+
+    const state = EditorState.create({
+      doc: value,
+      extensions: [
+        basicSetup,
+        languageConf.of(languageExtension),
+        autocompletion({ override: [variableCompletion] }),
+        EditorView.lineWrapping,
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            onChange(update.state.doc.toString());
+          }
+        }),
+        EditorView.theme({
+          "&": {
+            height: height,
+            fontSize: "13px",
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+            backgroundColor: "transparent",
+            color: "var(--color-text)",
+            border: "0",
+            borderRadius: "6px",
+            overflow: "hidden",
+          },
+          "&.cm-focused": {
+            outline: "none",
+          },
+          ".cm-scroller": {
+            fontFamily: "inherit",
+            lineHeight: "1.65",
+          },
+          ".cm-content": {
+            padding: "12px 14px",
+            caretColor: "var(--color-text-active)",
+          },
+          ".cm-gutters": {
+            backgroundColor: "rgba(148, 163, 184, 0.07)",
+            borderRight: "1px solid var(--color-border)",
+            color: "var(--color-text-muted)",
+            paddingTop: "12px",
+          },
+          ".cm-activeLine": {
+            backgroundColor: "rgba(59, 130, 246, 0.055)",
+          },
+          ".cm-activeLineGutter": {
+            backgroundColor: "rgba(59, 130, 246, 0.08)",
+            color: "var(--color-text-active)",
+          },
+          ".cm-editor": {
+            height: height,
+          }
+        }),
+      ],
+    });
+
+    const view = new EditorView({
+      state,
+      parent: editorRef.current,
+    });
+
+    viewRef.current = view;
+
+    return () => {
+      view.destroy();
+    };
+  }, []);
+
+  // Sync value from props to editor if changed externally
+  useEffect(() => {
+    if (viewRef.current && value !== viewRef.current.state.doc.toString()) {
+      viewRef.current.dispatch({
+        changes: { from: 0, to: viewRef.current.state.doc.length, insert: value }
+      });
+    }
+  }, [value]);
+
+  // Sync MIME type dynamically
+  useEffect(() => {
+    if (viewRef.current) {
+      let languageExtension: any = [];
+      if (mimeType.includes('json') || mimeType.includes('javascript')) {
+        languageExtension = javascript();
+      }
+      viewRef.current.dispatch({
+        effects: languageConf.reconfigure(languageExtension)
+      });
+    }
+  }, [mimeType]);
+
+  return <div ref={editorRef} style={{ width: '100%', height, minHeight: '100%' }} />;
+}

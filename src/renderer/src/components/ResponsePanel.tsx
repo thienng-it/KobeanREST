@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Clock3, Download, Eye, Search, HelpCircle } from "lucide-react";
+import { Clock3, Download, Eye, Search, HelpCircle, History } from "lucide-react";
 import jq from "jq-web";
 import { JqHelpModal } from "./JqHelpModal";
 import { ResponseViewer } from "./ResponseViewer";
@@ -25,6 +25,7 @@ interface ResponsePanelProps {
   onPreviewModeChange: (mode: PreviewMode) => void;
   onDownload: () => void;
   onCopy: () => void;
+  onOpenHistory: () => void;
   onOpenWindow: () => void;
   onResizerMouseDown: () => void;
 }
@@ -44,6 +45,7 @@ export function ResponsePanel({
   onPreviewModeChange,
   onDownload,
   onCopy,
+  onOpenHistory,
   onOpenWindow,
   onResizerMouseDown,
 }: ResponsePanelProps) {
@@ -249,6 +251,9 @@ export function ResponsePanel({
               </button>
               <button className="ghost-button" type="button" onClick={onCopy} style={{ padding: "4px 8px", fontSize: "11px" }}>
                 <span style={{ fontSize: "10px" }}>📋</span> Copy
+              </button>
+              <button className="ghost-button" type="button" onClick={onOpenHistory} title="View Request History" style={{ padding: "4px 8px", fontSize: "11px" }}>
+                <History size={12} /> History
               </button>
             </div>
           </div>

@@ -23,7 +23,8 @@ export function MoveToModal({ workspace, itemType, itemId, onClose, onMove }: Mo
 
   // Build a tree of collections and folders
   const tree = useMemo(() => {
-    const collections = (workspace.collections || []).map(c => ({ ...c, folders: [] as any[] }));
+    const collections = [...(workspace.collections || [])]
+      .map(c => ({ ...c, folders: [] as any[] }));
     
     // Create a map of folders
     const folderMap = new Map<string, any>();
@@ -85,6 +86,7 @@ export function MoveToModal({ workspace, itemType, itemId, onClose, onMove }: Mo
           style={{ 
             display: 'flex', 
             alignItems: 'center', 
+            justifyContent: 'space-between',
             paddingLeft: '12px',
             paddingRight: '12px',
             cursor: 'pointer',
@@ -96,19 +98,21 @@ export function MoveToModal({ workspace, itemType, itemId, onClose, onMove }: Mo
           }}
           onClick={() => setSelectedFolderId(node.id)}
         >
-          {hasChildren ? (
-            <div 
-              style={{ width: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '2px' }}
-              onClick={(e) => handleToggle(node.id, e)}
-            >
-              <ChevronRight size={14} style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s ease", color: "var(--color-text-muted)" }} />
-            </div>
-          ) : (
-            <div style={{ width: '14px', marginRight: '2px' }} />
-          )}
-          <FolderTree size={14} style={{ marginRight: '3px', color: "var(--color-text-muted)" }} />
-          <span style={{ fontSize: '13px', color: isSelected ? 'var(--color-text-active)' : 'var(--color-text)' }}>{node.name}</span>
-          {isSelected && <Check size={14} style={{ marginLeft: 'auto', color: 'var(--color-accent)' }} />}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            {hasChildren ? (
+              <div 
+                style={{ width: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '4px' }}
+                onClick={(e) => handleToggle(node.id, e)}
+              >
+                <ChevronRight size={14} style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s ease", color: "var(--color-text-muted)" }} />
+              </div>
+            ) : (
+              <div style={{ width: '14px', marginRight: '4px' }} />
+            )}
+            <FolderTree size={14} style={{ marginRight: '6px', color: "var(--color-text-muted)" }} />
+            <span style={{ fontSize: '13px', color: isSelected ? 'var(--color-text-active)' : 'var(--color-text)' }}>{node.name}</span>
+          </div>
+          {isSelected && <Check size={14} style={{ color: 'var(--color-accent)' }} />}
         </div>
         
         {isExpanded && hasChildren && (
@@ -129,56 +133,46 @@ export function MoveToModal({ workspace, itemType, itemId, onClose, onMove }: Mo
   return (
     <div
       className="modal-overlay"
-      style={{ alignItems: "flex-start", paddingTop: "80px" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Move item"
+      onClick={onClose}
     >
       <div
-        className="modal"
-        style={{ width: "min(460px, 94vw)", maxWidth: "min(460px, 94vw)", padding: 0, overflow: "hidden" }}
+        className="modal settings-modal"
+        style={{ width: "500px" }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div style={{
-          padding: "22px 24px 18px",
-          borderBottom: "1px solid var(--color-border)",
-          background: "radial-gradient(circle at 8% 0%, rgba(37, 99, 235, 0.1), transparent 40%), var(--color-surface-muted)",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "12px",
-        }}>
+        <div className="settings-header">
           <div>
-            <span style={{ display: "block", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-muted)", marginBottom: "4px" }}>
-              Move Item
-            </span>
-            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--color-text)", letterSpacing: "-0.03em", display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FolderTree size={18} style={{ color: 'var(--color-accent)' }} />
-              Move "{itemName}"
-            </h2>
+            <span className="settings-kicker">Move Item</span>
+            <h2>Move "{itemName}"</h2>
           </div>
           <button
             type="button"
+            className="settings-close"
             onClick={onClose}
-            aria-label="Close"
-            style={{ all: "unset", cursor: "pointer", display: "grid", placeItems: "center", width: "32px", height: "32px", borderRadius: "10px", color: "var(--color-muted)", flexShrink: 0 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-hover)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            aria-label="Close modal"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 
-        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--color-text-soft)", marginBottom: "8px" }}>
-              Select a destination folder:
-            </label>
+        <div className="settings-content" style={{ padding: "20px 24px" }}>
+          <div className="settings-section">
+            <div className="settings-section-heading">
+              <h3>Destination folder</h3>
+              <p>Select a collection or folder to move this item into.</p>
+            </div>
+            
             <div style={{ 
               maxHeight: "300px", 
               overflowY: "auto", 
-              border: "1.5px solid var(--color-border)", 
+              border: "1px solid var(--color-border)", 
               borderRadius: "8px", 
               background: "var(--color-surface)",
-              padding: "8px" 
+              padding: "8px",
+              marginTop: "8px"
             }}>
               {tree.map(collection => (
                 <div key={collection.id} style={{ marginBottom: '12px' }}>
@@ -205,11 +199,12 @@ export function MoveToModal({ workspace, itemType, itemId, onClose, onMove }: Mo
 
         {/* Footer */}
         <div style={{
-          padding: "14px 24px 20px",
+          padding: "16px 24px",
           display: "flex",
           gap: "8px",
           justifyContent: "flex-end",
           borderTop: "1px solid var(--color-border)",
+          background: "var(--color-surface)",
         }}>
           <button
             type="button"

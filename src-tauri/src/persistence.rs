@@ -43,6 +43,7 @@ pub struct SavedRequest {
     pub auth_mode: String,
     pub auth_config: String,
     pub headers: Vec<HeaderEntry>,
+    pub query_params: String,
     pub body: String,
     pub body_mime_type: String,
     pub body_form: String,
@@ -140,6 +141,9 @@ pub struct RequestHistoryEntry {
     pub status: u16,
     pub duration_ms: u128,
     pub size_bytes: usize,
+    pub response_headers: Option<String>,
+    pub response_body_text: Option<String>,
+    pub response_body_base64: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -185,6 +189,8 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     ensure_collection_auth_columns(&connection)?;
     ensure_scoped_variables_table(&connection)?;
     ensure_request_body_columns(&connection)?;
+    ensure_request_query_params_column(&connection)?;
+    ensure_request_history_response_columns(&connection)?;
     seed_default_workspace(&mut connection)?;
 
     Ok(PersistenceStatus {
@@ -221,6 +227,70 @@ fn ensure_request_body_columns(connection: &Connection) -> Result<(), String> {
         connection
             .execute("ALTER TABLE requests ADD COLUMN body_form TEXT NOT NULL DEFAULT '[]'", [])
             .map_err(|error| format!("failed to add requests.body_form column: {error}"))?;
+    }
+    Ok(())
+}
+
+fn ensure_request_query_params_column(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(requests)")
+        .map_err(|error| format!("failed to inspect requests table: {error}"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("failed to query requests table info: {error}"))?;
+
+    let mut has_query_params = false;
+    for column in columns {
+        let col = column.map_err(|error| format!("failed to read requests column: {error}"))?;
+        if col == "query_params" {
+            has_query_params = true;
+        }
+    }
+
+    if !has_query_params {
+        connection
+            .execute("ALTER TABLE requests ADD COLUMN query_params TEXT NOT NULL DEFAULT '[]'", [])
+            .map_err(|error| format!("failed to add requests.query_params column: {error}"))?;
+    }
+    Ok(())
+}
+
+fn ensure_request_history_response_columns(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(request_history)")
+        .map_err(|error| format!("failed to inspect request_history table: {error}"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("failed to query request_history table info: {error}"))?;
+
+    let mut has_headers = false;
+    let mut has_body_text = false;
+    let mut has_body_base64 = false;
+    for column in columns {
+        let col = column.map_err(|error| format!("failed to read request_history column: {error}"))?;
+        if col == "response_headers" {
+            has_headers = true;
+        } else if col == "response_body_text" {
+            has_body_text = true;
+        } else if col == "response_body_base64" {
+            has_body_base64 = true;
+        }
+    }
+
+    if !has_headers {
+        connection
+            .execute("ALTER TABLE request_history ADD COLUMN response_headers TEXT", [])
+            .map_err(|error| format!("failed to add request_history.response_headers column: {error}"))?;
+    }
+    if !has_body_text {
+        connection
+            .execute("ALTER TABLE request_history ADD COLUMN response_body_text TEXT", [])
+            .map_err(|error| format!("failed to add request_history.response_body_text column: {error}"))?;
+    }
+    if !has_body_base64 {
+        connection
+            .execute("ALTER TABLE request_history ADD COLUMN response_body_base64 TEXT", [])
+            .map_err(|error| format!("failed to add request_history.response_body_base64 column: {error}"))?;
     }
     Ok(())
 }
@@ -503,8 +573,11 @@ pub fn record_request_history(app: AppHandle, entry: RequestHistoryEntry) -> Res
                 url,
                 status,
                 duration_ms,
-                size_bytes
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                size_bytes,
+                response_headers,
+                response_body_text,
+                response_body_base64
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 workspace_id,
                 entry.request_id,
@@ -512,7 +585,10 @@ pub fn record_request_history(app: AppHandle, entry: RequestHistoryEntry) -> Res
                 entry.url,
                 i64::from(entry.status),
                 entry.duration_ms as i64,
-                entry.size_bytes as i64
+                entry.size_bytes as i64,
+                entry.response_headers,
+                entry.response_body_text,
+                entry.response_body_base64
             ],
         )
         .map_err(|error| format!("failed to record request history: {error}"))?;
@@ -576,6 +652,41 @@ pub fn clear_request_history(app: AppHandle) -> Result<(), String> {
         )
         .map_err(|error| format!("failed to clear history: {error}"))?;
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryResponsePayload {
+    pub response_headers: Option<String>,
+    pub response_body_text: Option<String>,
+    pub response_body_base64: Option<String>,
+}
+
+#[tauri::command]
+pub fn load_history_response(app: AppHandle, id: i64) -> Result<HistoryResponsePayload, String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let mut statement = connection
+        .prepare("SELECT response_headers, response_body_text, response_body_base64 FROM request_history WHERE id = ?1")
+        .map_err(|error| format!("failed to prepare history response query: {error}"))?;
+    
+    let payload = statement
+        .query_row(params![id], |row| {
+            Ok(HistoryResponsePayload {
+                response_headers: row.get(0)?,
+                response_body_text: row.get(1)?,
+                response_body_base64: row.get(2)?,
+            })
+        })
+        .optional()
+        .map_err(|error| format!("failed to query history response: {error}"))?
+        .unwrap_or(HistoryResponsePayload {
+            response_headers: None,
+            response_body_text: None,
+            response_body_base64: None,
+        });
+
+    Ok(payload)
 }
 
 fn default_app_settings() -> AppSettings {
@@ -1112,7 +1223,8 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
                 requests.follow_redirects,
                 requests.auth_config,
                 requests.body_mime_type,
-                requests.body_form
+                requests.body_form,
+                requests.query_params
              FROM requests
              JOIN folders ON folders.id = requests.folder_id
              WHERE requests.workspace_id = ?1
@@ -1134,6 +1246,7 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
                 row.get::<_, Option<String>>(9)?,
                 row.get::<_, String>(10)?,
                 row.get::<_, String>(11)?,
+                row.get::<_, String>(12)?,
             ))
         })
         .map_err(|error| format!("failed to query requests: {error}"))?;
@@ -1155,6 +1268,7 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
             auth_config: row.9.unwrap_or_else(|| "{}".to_string()),
             body_mime_type: row.10,
             body_form: row.11,
+            query_params: row.12,
             variables: Some(load_scoped_variables(connection, &row.0, "request")?),
         });
     }
@@ -1268,6 +1382,8 @@ pub struct RequestRow {
     pub body_mime_type: String,
     #[serde(default = "default_body_form")]
     pub body_form: String,
+    #[serde(default = "default_body_form")]
+    pub query_params: String,
     pub timeout_ms: i64,
     pub follow_redirects: i64,
     pub position: i64,
@@ -1353,7 +1469,7 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
     )?;
 
     let requests = collect_rows(
-        connection.prepare("SELECT id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, timeout_ms, follow_redirects, position FROM requests ORDER BY position")
+        connection.prepare("SELECT id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position FROM requests ORDER BY position")
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
                 Ok(RequestRow {
@@ -1368,9 +1484,10 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
                     body: row.get(8)?,
                     body_mime_type: row.get(9)?,
                     body_form: row.get(10)?,
-                    timeout_ms: row.get(11)?,
-                    follow_redirects: row.get(12)?,
-                    position: row.get(13)?,
+                    query_params: row.get(11)?,
+                    timeout_ms: row.get(12)?,
+                    follow_redirects: row.get(13)?,
+                    position: row.get(14)?,
                 })
             })
             .map_err(|e| e.to_string())?,
@@ -1520,8 +1637,8 @@ pub fn import_workspace_data(app: AppHandle, json: String) -> Result<(), String>
             .get(&request.folder_id)
             .ok_or("invalid folder reference in request")?;
         transaction.execute(
-            "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, timeout_ms, follow_redirects, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
-            params![new_id, workspace_id, folder_id, request.name, request.method, request.url, request.auth_mode, request.auth_config, request.body, request.body_mime_type, request.body_form, request.timeout_ms, request.follow_redirects, request.position],
+            "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            params![new_id, workspace_id, folder_id, request.name, request.method, request.url, request.auth_mode, request.auth_config, request.body, request.body_mime_type, request.body_form, request.query_params, request.timeout_ms, request.follow_redirects, request.position],
         ).map_err(|e| format!("failed to import request: {e}"))?;
     }
 
@@ -1596,8 +1713,8 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
     let workspace_id = first_workspace_id(&transaction)?;
 
     transaction.execute(
-        "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, timeout_ms, follow_redirects, position)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, (SELECT COALESCE(MAX(position), -1) + 1 FROM requests WHERE folder_id = ?3))
+        "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, (SELECT COALESCE(MAX(position), -1) + 1 FROM requests WHERE folder_id = ?3))
          ON CONFLICT(id) DO UPDATE SET
             folder_id = excluded.folder_id,
             name = excluded.name,
@@ -1608,6 +1725,7 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
             body = excluded.body,
             body_mime_type = excluded.body_mime_type,
             body_form = excluded.body_form,
+            query_params = excluded.query_params,
             timeout_ms = excluded.timeout_ms,
             follow_redirects = excluded.follow_redirects",
         rusqlite::params![
@@ -1622,6 +1740,7 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
             request.body,
             request.body_mime_type,
             request.body_form,
+            request.query_params,
             request.timeout_ms,
             request.follow_redirects
         ]
@@ -1835,6 +1954,7 @@ pub fn create_request(app: AppHandle, folder_id: String) -> Result<SavedRequest,
         body: "".to_string(),
         body_mime_type: "text/plain".to_string(),
         body_form: "[]".to_string(),
+        query_params: "[]".to_string(),
         timeout_ms: 30000,
         follow_redirects: true,
         variables: Some(Vec::new()),

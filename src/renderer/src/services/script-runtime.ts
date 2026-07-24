@@ -206,7 +206,7 @@ if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     };
     const request: SavedRequest = {
       id: "t", name: "t", method: "GET", url: "https://example.com", folderId: "f",
-      authMode: "none", authConfig: {}, headers: [], body: "", bodyMimeType: "text/plain",
+      authMode: "none", authConfig: {}, headers: [], queryParams: [], body: "", bodyMimeType: "text/plain",
       bodyForm: [], timeoutMs: 1000, followRedirects: true,
     };
     const saved: Record<string, string> = {};

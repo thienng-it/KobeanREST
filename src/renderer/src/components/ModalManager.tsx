@@ -28,6 +28,7 @@ interface ResponseWindowProps {
   onPreviewModeChange: (mode: PreviewMode) => void;
   onDownload: () => void;
   onCopy: () => void;
+  onOpenHistory: () => void;
   onOpenWindow: () => void;
   onResizerMouseDown: () => void;
   onClose: () => void;
@@ -116,6 +117,7 @@ export function ModalManager({
               onPreviewModeChange={responseWindow.onPreviewModeChange}
               onDownload={responseWindow.onDownload}
               onCopy={responseWindow.onCopy}
+              onOpenHistory={responseWindow.onOpenHistory}
               onOpenWindow={responseWindow.onOpenWindow}
               onResizerMouseDown={responseWindow.onResizerMouseDown}
             />

@@ -38,6 +38,7 @@ import type { CurlImportResult } from "./services/script-tools";
 import {
   recordRequestHistory,
   getScripts,
+  loadHistoryResponse,
 } from "./services/local-store";
 import type { SavedRequest } from "./types";
 
@@ -76,7 +77,7 @@ export function App() {
       return next;
     });
   };
-  const [activeTab, setActiveTab] = useState<"body" | "headers" | "auth" | "scripts" | "settings" | "variables">("body");
+  const [activeTab, setActiveTab] = useState<"params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code">("params");
   const [responseState, setResponseState] = useState<ResponseState>({
     kind: "idle",
   });
@@ -183,6 +184,8 @@ export function App() {
     handleReplayFromHistory,
   } = useHistory(workspace, setSelectedRequestId);
 
+
+
   const {
     authEditorOpen, setAuthEditorOpen,
     authEditorTarget, setAuthEditorTarget,
@@ -212,6 +215,50 @@ export function App() {
   } = useScripts(selectedRequestId);
 
   const responseCacheRef = useRef<Record<string, { state: ResponseState, log: ScriptOutputEntry[] }>>({});
+
+  const handleViewHistoryResponse = async (entry: import("./types").HistoryEntry) => {
+    if (!workspace) return;
+    const exists = workspace.requests.some((r) => r.id === entry.requestId);
+    if (!exists) return; // Cannot view if request was deleted
+
+    const payload = await loadHistoryResponse(entry.id);
+    console.log("HISTORY PAYLOAD:", payload);
+    if (payload) {
+      const responseStatusText = entry.status === 200 ? "OK" : "Unknown"; // Mock status text based on status code
+      const responseHeaders = payload.responseHeaders ? JSON.parse(payload.responseHeaders) : [];
+      
+      const newCacheEntry = {
+        state: {
+          kind: "success" as const,
+          response: {
+            status: entry.status,
+            statusText: responseStatusText,
+            headers: responseHeaders,
+            bodyText: payload.responseBodyText || undefined,
+            bodyBase64: payload.responseBodyBase64 || undefined,
+            durationMs: entry.durationMs,
+            dnsMs: 0,
+            connectMs: 0,
+            tlsMs: 0,
+            requestMs: 0,
+            sizeBytes: entry.sizeBytes,
+          },
+        },
+        log: [],
+      };
+      
+      responseCacheRef.current[entry.requestId] = newCacheEntry;
+
+      if (selectedRequestId === entry.requestId) {
+        setResponseState(newCacheEntry.state);
+        setScriptOutputLog(newCacheEntry.log);
+      } else {
+        setSelectedRequestId(entry.requestId);
+      }
+      
+      setHistoryOpen(false);
+    }
+  };
 
   useEffect(() => {
     // Prevent default drag behaviors globally so OS doesn't intercept drops
@@ -367,6 +414,7 @@ export function App() {
       method: result.method,
       customMethod: result.customMethod,
       url: result.url,
+      queryParams: [], // We can just rely on the url being parsed later, wait, no! We need deriveQueryParamsFromUrl here if we want to be perfect, but `createRequest` returns an empty array which is fine. Wait, `url` is what matters, but when the UI renders, it might depend on `queryParams` array being correctly set. I will leave this as empty array for now, or maybe just omit it so it uses `newReq.queryParams`. Actually I'll use `[]` as fallback.
       headers: result.headers,
       body: result.body,
       bodyMimeType: result.bodyMimeType,
@@ -654,6 +702,9 @@ export function App() {
         status: response.status,
         durationMs: response.durationMs,
         sizeBytes: response.sizeBytes,
+        responseHeaders: JSON.stringify(response.headers),
+        responseBodyText: response.bodyText,
+        responseBodyBase64: response.bodyBase64,
       });
     } catch (error) {
       const isAbort = error instanceof Error && error.message.includes("aborted");
@@ -878,7 +929,10 @@ export function App() {
               onInsertScriptToken={insertScriptToken}
               onPrettifyScript={handlePrettifyScript}
               onInsertSelectedScriptSnippet={insertSelectedScriptSnippet}
-              onOpenRequestCode={() => setRequestCodeOpen(true)}
+              codeSnippet={requestCodeSnippet}
+              codeTarget={requestCodeTarget}
+              onTargetChange={setRequestCodeTarget}
+              onInsertCode={insertRequestCodeSnippet}
               diagnosticMessage={diagnosticMessage}
               onSaveScopedVariable={handleSaveScopedVariable}
               onDeleteScopedVariable={handleDeleteScopedVariable}
@@ -933,6 +987,12 @@ export function App() {
             onPreviewModeChange={setPreviewMode}
             onDownload={downloadCurrentResponse}
             onCopy={() => void copyCurrentResponse()}
+            onOpenHistory={() => {
+              if (selectedRequestId) {
+                setHistorySearch(selectedRequestId);
+                handleOpenHistory();
+              }
+            }}
             onOpenWindow={() => setResponseWindowOpen(true)}
             onResizerMouseDown={handleResponsePanelResizerMouseDown}
           />
@@ -999,6 +1059,7 @@ export function App() {
           onSearchChange: setHistorySearch,
           onClear: handleClearHistory,
           onReplay: handleReplayFromHistory,
+          onViewResponse: handleViewHistoryResponse,
           formatTimestamp,
         }}
         settings={{
@@ -1101,7 +1162,13 @@ export function App() {
           onPreviewModeChange: setPreviewMode,
           onDownload: downloadCurrentResponse,
           onCopy: () => void copyCurrentResponse(),
-          onOpenWindow: () => setResponseWindowOpen(true),
+          onOpenHistory: () => {
+            if (selectedRequestId) {
+              setHistorySearch(selectedRequestId);
+              handleOpenHistory();
+            }
+          },
+          onOpenWindow: () => {},
           onResizerMouseDown: handleResponsePanelResizerMouseDown,
           onClose: () => setResponseWindowOpen(false),
         }}

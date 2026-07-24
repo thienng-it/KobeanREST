@@ -5,6 +5,7 @@ import { CustomSelect } from "./CustomSelect";
 import { MethodSelector } from "./MethodSelector";
 import { ScriptEditor } from "./ScriptEditor";
 import { VariableInput, VariableTextarea } from "./VariableInput";
+import { BodyEditor } from "./BodyEditor";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
 import { obtainOAuth2Token } from "../services/auth";
 import { buildVariableMap } from "../services/variables";
@@ -163,8 +164,8 @@ export interface RequestPanelProps {
   effectiveAuth: ReturnType<typeof getEffectiveAuth> | null;
 
   // request-panel local UI state (owned by App)
-  activeTab: "body" | "headers" | "auth" | "scripts" | "settings" | "variables";
-  setActiveTab: (tab: "body" | "headers" | "auth" | "scripts" | "settings" | "variables") => void;
+  activeTab: "params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code";
+  setActiveTab: (tab: "params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code") => void;
 
   // Scoped variable handlers
   onSaveScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
@@ -199,7 +200,12 @@ export interface RequestPanelProps {
   onInsertScriptToken: (token: string) => void;
   onPrettifyScript: () => void;
   onInsertSelectedScriptSnippet: () => void;
-  onOpenRequestCode: () => void;
+
+  // Code generation state
+  codeSnippet: string;
+  codeTarget: import("../services/script-tools").RequestCodeSnippetTarget;
+  onTargetChange: (target: import("../services/script-tools").RequestCodeSnippetTarget) => void;
+  onInsertCode: () => void;
 
   // diagnostic for prettify errors
   diagnosticMessage: (error: unknown) => string;
@@ -239,7 +245,10 @@ export function RequestPanel({
   onInsertScriptToken,
   onPrettifyScript,
   onInsertSelectedScriptSnippet,
-  onOpenRequestCode,
+  codeSnippet,
+  codeTarget,
+  onTargetChange,
+  onInsertCode,
   diagnosticMessage,
   onSaveScopedVariable,
   onDeleteScopedVariable,
@@ -462,6 +471,16 @@ export function RequestPanel({
             )}
           </div>
         </div>
+        <button
+          className="ghost-button request-save-button"
+          type="button"
+          onClick={onSaveRequest}
+          title="Save (Cmd/Ctrl + S)"
+          style={{ padding: "6px 12px", height: "auto" }}
+        >
+          <Save size={14} />
+          Save
+        </button>
       </div>
 
       <div className="request-command-bar">
@@ -481,24 +500,6 @@ export function RequestPanel({
           containerStyle={{ flex: 1 } as CSSProperties}
         />
         <button
-          className="ghost-button request-save-button"
-          type="button"
-          onClick={onSaveRequest}
-          title="Save (Cmd/Ctrl + S)"
-        >
-          <Save size={16} />
-          Save
-        </button>
-        <button
-          className="ghost-button"
-          type="button"
-          onClick={onOpenRequestCode}
-          title="Generate Code Snippet"
-        >
-          <Code2 size={16} />
-          Code
-        </button>
-        <button
           className="send-button request-send-button"
           type="button"
           onClick={onSendRequest}
@@ -511,7 +512,7 @@ export function RequestPanel({
 
       <div className="request-workspace">
         <div className="tab-row" role="tablist" aria-label="Request configuration">
-          {(["body", "headers", "auth", "scripts", "variables", "settings"] as const)
+          {(["params", "body", "headers", "auth", "scripts", "variables", "settings", "code"] as const)
             .filter((tab) => !(tab === "body" && draftRequest.method === "GET"))
             .map((tab) => {
               const hasScript = tab === "scripts" && (preScript.trim() !== "" || postScript.trim() !== "");
@@ -633,17 +634,15 @@ export function RequestPanel({
                 </button>
               </div>
             ) : (
-              <VariableTextarea
-                activeVariables={activeVars}
-                className="editor request-body-editor"
-                containerClassName="request-body-editor-shell"
-                containerStyle={{ flex: 1, minHeight: 0 } as CSSProperties}
-                aria-label="Request body"
-                value={draftRequest.body}
-                onChange={(e) => updateDraft({ body: e.target.value })}
-                placeholder="// Request body"
-                style={{ width: '100%', height: '100%', minHeight: '100%', padding: '12px 14px', fontFamily: 'monospace', resize: 'none' } as CSSProperties}
-              />
+              <div className="request-body-editor-shell" style={{ flex: 1, minHeight: 0 }}>
+                <BodyEditor
+                  variables={activeVars.map(v => v.key)}
+                  value={draftRequest.body ?? ""}
+                  onChange={(val) => updateDraft({ body: val })}
+                  mimeType={draftRequest.bodyMimeType}
+                  placeholder="// Request body"
+                />
+              </div>
             )}
           </div>
         )}
@@ -1032,15 +1031,6 @@ export function RequestPanel({
                 ...scriptVariableTokens.map((token) => ({ value: token, label: token })),
               ]}
             />
-            <button
-              className="ghost-button script-tool-action script-code-button"
-              type="button"
-              onClick={onOpenRequestCode}
-              aria-label="Open request code"
-            >
-              <Code2 size={14} />
-              Code
-            </button>
           </div>
           <div className="script-editor-frame">
             <div className="script-editor-shell">
@@ -1131,6 +1121,32 @@ export function RequestPanel({
               Values are inherited from Folder or Global settings if not overridden.
             </p>
           </div>
+        </div>
+      )}
+
+      {activeTab === "code" && (
+        <div className="request-tab-panel script-code-panel" style={{ display: "flex", flexDirection: "column" }}>
+          <div className="script-code-modal-toolbar" style={{ borderBottom: "1px solid var(--color-border)", padding: "8px 16px", background: "var(--color-surface-muted)", borderRadius: 0 }}>
+            <select
+              className="script-tool-select"
+              value={codeTarget}
+              onChange={(event) => onTargetChange(event.target.value as import("../services/script-tools").RequestCodeSnippetTarget)}
+              aria-label="Request code snippet target"
+            >
+              <option value="curl">cURL</option>
+              <option value="fetch">Fetch</option>
+              <option value="node">Node</option>
+            </select>
+            <button
+              className="ghost-button script-tool-action"
+              type="button"
+              onClick={onInsertCode}
+              aria-label="Insert request code snippet"
+            >
+              Insert into script
+            </button>
+          </div>
+          <pre className="script-code-modal-preview" style={{ flex: 1, margin: 0, border: "none", borderRadius: 0, maxHeight: "none", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{codeSnippet}</pre>
         </div>
       )}
     </div>

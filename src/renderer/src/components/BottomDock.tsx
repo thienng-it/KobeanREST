@@ -22,6 +22,7 @@ export interface BottomDockProps {
   onPreviewModeChange: (mode: PreviewMode) => void;
   onDownload: () => void;
   onCopy: () => void;
+  onOpenHistory: () => void;
   onOpenWindow: () => void;
   onResizerMouseDown: () => void;
 }
@@ -43,6 +44,7 @@ export function BottomDock({
   onPreviewModeChange,
   onDownload,
   onCopy,
+  onOpenHistory,
   onOpenWindow,
   onResizerMouseDown,
 }: BottomDockProps) {
@@ -102,6 +104,7 @@ export function BottomDock({
           onPreviewModeChange={onPreviewModeChange}
           onDownload={onDownload}
           onCopy={onCopy}
+          onOpenHistory={onOpenHistory}
           onOpenWindow={onOpenWindow}
           onResizerMouseDown={onResizerMouseDown}
         />

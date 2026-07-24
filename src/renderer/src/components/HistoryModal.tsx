@@ -1,4 +1,4 @@
-import { History, RefreshCw, Search, X } from "lucide-react";
+import { History, RefreshCw, Search, X, FileText } from "lucide-react";
 import { formatBytes, statusColor } from "../response-utils";
 import { methodClass } from "./MethodSelector";
 import type { HistoryEntry, WorkspaceSummary } from "../types";
@@ -13,6 +13,7 @@ export interface HistoryModalProps {
   onSearchChange: (value: string) => void;
   onClear: () => void;
   onReplay: (entry: HistoryEntry) => void;
+  onViewResponse: (entry: HistoryEntry) => void;
   formatTimestamp: (createdAt: string) => string;
 }
 
@@ -26,13 +27,14 @@ export function HistoryModal({
   onSearchChange,
   onClear,
   onReplay,
+  onViewResponse,
   formatTimestamp,
 }: HistoryModalProps) {
   if (!open) return null;
 
   const q = historySearch.toLowerCase();
   const filtered = historyEntries.filter((e) =>
-    !q || e.url.toLowerCase().includes(q) || e.method.toLowerCase().includes(q),
+    !q || e.url.toLowerCase().includes(q) || e.method.toLowerCase().includes(q) || e.requestId === historySearch,
   );
 
   return (
@@ -109,6 +111,15 @@ export function HistoryModal({
                     aria-label="Replay request"
                   >
                     <RefreshCw size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onViewResponse(entry)}
+                    title="View Response"
+                    style={{ all: "unset", cursor: "pointer", opacity: 0.7, flexShrink: 0, marginLeft: "4px" }}
+                    aria-label="View Response"
+                  >
+                    <FileText size={13} />
                   </button>
                 </div>
               );
