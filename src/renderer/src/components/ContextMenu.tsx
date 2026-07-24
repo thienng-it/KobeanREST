@@ -3,7 +3,8 @@ import type { SavedRequest } from "../types";
 
 export interface ContextMenuTarget {
   id: string;
-  type: "folder" | "request" | "collection" | "workspace";
+  type: "folder" | "request" | "collection" | "workspace" | "selection";
+  selectionText?: string;
 }
 
 export interface ContextMenuState {
@@ -62,6 +63,7 @@ export interface ContextMenuProps {
   onCurlImport: () => void;
   onImport: () => void;
   onExport: () => void;
+  onSetSelectionAsVariable?: (text: string) => void;
 }
 
 export function ContextMenu({
@@ -82,6 +84,7 @@ export function ContextMenu({
   onCurlImport,
   onImport,
   onExport,
+  onSetSelectionAsVariable,
 }: ContextMenuProps) {
   if (!menu) return null;
   const target = menu.target;
@@ -280,6 +283,21 @@ export function ContextMenu({
             <Download size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Export Workspace
           </button>
         </>
+      )}
+      {target?.type === "selection" && (
+        <button
+          className="context-menu-item"
+          onClick={() => {
+            if (onSetSelectionAsVariable && target.selectionText) {
+              onSetSelectionAsVariable(target.selectionText);
+            }
+            onClose();
+          }}
+          style={requestItemStyle}
+          {...hoverHandlers()}
+        >
+          <Variable size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Set as Environment Variable
+        </button>
       )}
     </div>
   );

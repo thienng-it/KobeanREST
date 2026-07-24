@@ -41,8 +41,89 @@ export function VariableInput({
   const [isFocused, setIsFocused] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
 
+  const [autocomplete, setAutocomplete] = useState<{
+    prefix: string;
+    options: EnvironmentVariable[];
+    selectedIndex: number;
+    startOffset: number;
+  } | null>(null);
+
   const strValue = String(value);
   const hasVariables = /\{\{[^{}]+\}\}/.test(strValue);
+
+  const checkAutocomplete = () => {
+    const el = inputRef.current || (backdropRef.current?.parentElement?.querySelector('textarea') as HTMLTextAreaElement);
+    if (!el) return;
+    const val = el.value;
+    const cursor = el.selectionStart ?? 0;
+    const beforeCursor = val.slice(0, cursor);
+    const match = beforeCursor.match(/\{\{([^{}]*)$/);
+    if (match) {
+      const prefix = match[1].toLowerCase();
+      const options = activeVariables.filter((v) => v.key.toLowerCase().includes(prefix));
+      if (options.length > 0) {
+        setAutocomplete(prev => ({
+          prefix,
+          options,
+          selectedIndex: prev ? Math.min(prev.selectedIndex, options.length - 1) : 0,
+          startOffset: match.index!,
+        }));
+        return;
+      }
+    }
+    setAutocomplete(null);
+  };
+
+  const applyAutocomplete = (variable: EnvironmentVariable) => {
+    if (!autocomplete) return;
+    const el = inputRef.current || (backdropRef.current?.parentElement?.querySelector('textarea') as HTMLTextAreaElement);
+    if (!el) return;
+    const val = strValue;
+    const start = autocomplete.startOffset;
+    const cursor = el.selectionStart ?? start + 2;
+    const newVal = val.slice(0, start) + "{{" + variable.key + "}}" + val.slice(cursor);
+
+    if (onChange) {
+      const syntheticEvent = { target: { value: newVal } } as any;
+      onChange(syntheticEvent);
+    }
+    setAutocomplete(null);
+    setTimeout(() => {
+      const currentEl = inputRef.current || (backdropRef.current?.parentElement?.querySelector('textarea') as HTMLTextAreaElement);
+      if (currentEl) {
+        const newCursor = start + 4 + variable.key.length;
+        currentEl.setSelectionRange(newCursor, newCursor);
+        currentEl.focus();
+      }
+    }, 0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (autocomplete) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setAutocomplete(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex + 1) % prev.options.length } : null);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setAutocomplete(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex - 1 + prev.options.length) % prev.options.length } : null);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        applyAutocomplete(autocomplete.options[autocomplete.selectedIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setAutocomplete(null);
+        return;
+      }
+    }
+    syncScroll();
+    if (onKeyDown) onKeyDown(e as any);
+  };
 
   // Sync scroll position
   const syncScroll = () => {
@@ -210,11 +291,17 @@ export function VariableInput({
       <input
         ref={inputRef}
         value={value}
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="off"
         onChange={(e) => {
           if (onChange) onChange(e);
           setActiveTooltip(null);
           // Small defer to let React state update before syncing scroll
-          setTimeout(syncScroll, 0);
+          setTimeout(() => {
+            syncScroll();
+            checkAutocomplete();
+          }, 0);
         }}
         onScroll={(e) => {
           syncScroll();
@@ -232,16 +319,16 @@ export function VariableInput({
         }}
         onKeyUp={(e) => {
           syncScroll();
+          checkAutocomplete();
           if (onKeyUp) onKeyUp(e);
         }}
-        onKeyDown={(e) => {
-          syncScroll();
-          if (onKeyDown) onKeyDown(e);
-        }}
+        onKeyDown={handleKeyDown}
         onSelect={(e) => {
           syncScroll();
+          checkAutocomplete();
           if (onSelect) onSelect(e);
         }}
+        onMouseUp={checkAutocomplete}
         onMouseMove={hasVariables ? handleInputMouseMove : undefined}
         onMouseLeave={hasVariables ? handleInputMouseLeave : undefined}
         style={{
@@ -316,6 +403,87 @@ export function VariableTextarea({
   const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
 
   const strValue = String(value);
+
+  const [autocomplete, setAutocomplete] = useState<{
+    prefix: string;
+    options: EnvironmentVariable[];
+    selectedIndex: number;
+    startOffset: number;
+  } | null>(null);
+
+  const checkAutocomplete = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const val = el.value;
+    const cursor = el.selectionStart ?? 0;
+    const beforeCursor = val.slice(0, cursor);
+    const match = beforeCursor.match(/\{\{([^{}]*)$/);
+    if (match) {
+      const prefix = match[1].toLowerCase();
+      const options = activeVariables.filter((v) => v.key.toLowerCase().includes(prefix));
+      if (options.length > 0) {
+        setAutocomplete(prev => ({
+          prefix,
+          options,
+          selectedIndex: prev ? Math.min(prev.selectedIndex, options.length - 1) : 0,
+          startOffset: match.index!,
+        }));
+        return;
+      }
+    }
+    setAutocomplete(null);
+  };
+
+  const applyAutocomplete = (variable: EnvironmentVariable) => {
+    if (!autocomplete) return;
+    const el = textareaRef.current;
+    if (!el) return;
+    const val = strValue;
+    const start = autocomplete.startOffset;
+    const cursor = el.selectionStart ?? start + 2;
+    const newVal = val.slice(0, start) + "{{" + variable.key + "}}" + val.slice(cursor);
+
+    if (onChange) {
+      const syntheticEvent = { target: { value: newVal } } as any;
+      onChange(syntheticEvent);
+    }
+    setAutocomplete(null);
+    setTimeout(() => {
+      const currentEl = textareaRef.current;
+      if (currentEl) {
+        const newCursor = start + 4 + variable.key.length;
+        currentEl.setSelectionRange(newCursor, newCursor);
+        currentEl.focus();
+      }
+    }, 0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (autocomplete) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setAutocomplete(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex + 1) % prev.options.length } : null);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setAutocomplete(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex - 1 + prev.options.length) % prev.options.length } : null);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        applyAutocomplete(autocomplete.options[autocomplete.selectedIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setAutocomplete(null);
+        return;
+      }
+    }
+    syncScroll();
+    if (onKeyDown) onKeyDown(e as any);
+  };
 
   // Sync scroll position
   const syncScroll = () => {
@@ -485,10 +653,16 @@ export function VariableTextarea({
       <textarea
         ref={textareaRef}
         value={value}
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="off"
         onChange={(e) => {
           if (onChange) onChange(e);
           setActiveTooltip(null);
-          setTimeout(syncScroll, 0);
+          setTimeout(() => {
+            syncScroll();
+            checkAutocomplete();
+          }, 0);
         }}
         onScroll={(e) => {
           syncScroll();
@@ -506,16 +680,16 @@ export function VariableTextarea({
         }}
         onKeyUp={(e) => {
           syncScroll();
+          checkAutocomplete();
           if (onKeyUp) onKeyUp(e);
         }}
-        onKeyDown={(e) => {
-          syncScroll();
-          if (onKeyDown) onKeyDown(e);
-        }}
+        onKeyDown={handleKeyDown}
         onSelect={(e) => {
           syncScroll();
+          checkAutocomplete();
           if (onSelect) onSelect(e);
         }}
+        onMouseUp={checkAutocomplete}
         onMouseMove={handleTextareaMouseMove}
         onMouseLeave={handleTextareaMouseLeave}
         style={{
@@ -557,6 +731,46 @@ export function VariableTextarea({
             </div>
           )}
           <div className="variable-tooltip-arrow" />
+        </div>
+      )}
+
+      {/* Autocomplete Menu */}
+      {autocomplete && (
+        <div
+          className="variable-autocomplete-menu"
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            zIndex: 10,
+            background: 'var(--color-panel)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '6px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            maxHeight: '200px',
+            overflowY: 'auto',
+            minWidth: '200px',
+            marginTop: '4px',
+          }}
+        >
+          {autocomplete.options.map((opt, idx) => (
+            <div
+              key={opt.key}
+              onClick={() => applyAutocomplete(opt)}
+              style={{
+                padding: '6px 12px',
+                cursor: 'pointer',
+                background: idx === autocomplete.selectedIndex ? 'var(--color-surface-hover)' : 'transparent',
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: '8px',
+              }}
+              onMouseEnter={() => setAutocomplete(prev => prev ? { ...prev, selectedIndex: idx } : null)}
+            >
+              <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{opt.key}</span>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }}>{opt.value}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

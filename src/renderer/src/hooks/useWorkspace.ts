@@ -612,6 +612,13 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
           ),
         };
       }
+      if (entityType === "request") {
+        setDraftRequest(current => {
+          if (!current || current.id !== entityId) return current;
+          return { ...current, variables: updater(current.variables ?? []) };
+        });
+      }
+
       return {
         ...prev,
         requests: prev.requests.map(r =>

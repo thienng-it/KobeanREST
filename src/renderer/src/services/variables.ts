@@ -78,7 +78,7 @@ export function buildVariableMap(
 
 export function buildScopedVariableMap(
   workspace: WorkspaceSummary,
-  scope: { collectionId?: string; folderId?: string; requestId?: string },
+  scope: { collectionId?: string; folderId?: string; requestId?: string; request?: import("../types").SavedRequest },
 ): Map<string, string> {
   const map = new Map<string, string>();
 
@@ -102,12 +102,23 @@ export function buildScopedVariableMap(
     ingest(folder?.variables);
   }
 
-  if (scope.requestId) {
+  if (scope.request) {
+    ingest(scope.request.variables);
+  } else if (scope.requestId) {
     const request = workspace.requests.find((r) => r.id === scope.requestId);
     ingest(request?.variables);
   }
 
   return map;
+}
+
+export function activeScopedVariablesList(
+  workspace: WorkspaceSummary | null,
+  scope: { collectionId?: string; folderId?: string; requestId?: string; request?: import("../types").SavedRequest },
+): EnvironmentVariable[] {
+  if (!workspace) return [];
+  const map = buildScopedVariableMap(workspace, scope);
+  return Array.from(map.entries()).map(([key, value]) => ({ key, value }));
 }
 
 /**

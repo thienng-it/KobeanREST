@@ -244,6 +244,9 @@ export function ScopedVariablesEditor({
                       className="env-inline-input"
                       value={editingKeyDraft}
                       aria-label="Edit key"
+                      spellCheck={false}
+                      autoCorrect="off"
+                      autoCapitalize="off"
                       autoFocus={editingField === "key"}
                       onChange={(e) => setEditingKeyDraft(e.target.value)}
                       onKeyDown={(e) => {
@@ -257,6 +260,9 @@ export function ScopedVariablesEditor({
                         value={editingValueDraft}
                         aria-label="Edit value"
                         type="text"
+                        spellCheck={false}
+                        autoCorrect="off"
+                        autoCapitalize="off"
                         style={{ flex: 1 }}
                         onChange={(e) => setEditingValueDraft(e.target.value)}
                         onKeyDown={(e) => {
@@ -340,6 +346,9 @@ export function ScopedVariablesEditor({
                 onChange={(e) => setNewKey(e.target.value)}
                 placeholder="New key"
                 aria-label="Variable key"
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
                 onKeyDown={(e) => { if (e.key === "Enter") void handleAdd(); }}
               />
               <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -350,6 +359,9 @@ export function ScopedVariablesEditor({
                   placeholder="Value"
                   aria-label="New variable value"
                   type="text"
+                  spellCheck={false}
+                  autoCorrect="off"
+                  autoCapitalize="off"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void handleAdd();
                   }}

@@ -244,6 +244,9 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                       className="env-inline-input"
                       value={editingKeyDraft}
                       aria-label="Edit key"
+                      spellCheck={false}
+                      autoCorrect="off"
+                      autoCapitalize="off"
                       autoFocus={editingField === "key"}
                       onChange={(e) => setEditingKeyDraft(e.target.value)}
                       onKeyDown={(e) => {
@@ -259,6 +262,9 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                           value={editingValueDraft}
                           aria-label="Edit value"
                           type="text"
+                          spellCheck={false}
+                          autoCorrect="off"
+                          autoCapitalize="off"
                           style={{ flex: 1 }}
                           onChange={(e) => setEditingValueDraft(e.target.value)}
                           onKeyDown={(e) => {
@@ -345,6 +351,9 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                 onChange={(e) => setNewKey(e.target.value)}
                 placeholder="New key"
                 aria-label="New variable key"
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
                 onKeyDown={(e) => { if (e.key === "Enter") void handleAdd(); }}
               />
               <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -355,6 +364,9 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                   placeholder="Value"
                   aria-label="New variable value"
                   type="text"
+                  spellCheck={false}
+                  autoCorrect="off"
+                  autoCapitalize="off"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void handleAdd();
                   }}

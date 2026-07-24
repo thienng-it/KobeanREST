@@ -67,7 +67,9 @@ pub struct EnvironmentVariable {
 pub struct ScopedVariable {
     pub key: String,
     pub value: String,
+    #[serde(default)]
     pub secret: bool,
+    #[serde(default)]
     pub secret_ref: Option<String>,
 }
 

@@ -435,6 +435,9 @@ export function RequestPanel({
                 value={editingTitleValue}
                 onChange={(e) => setEditingTitleValue(e.target.value)}
                 onBlur={handleFinishEditTitle}
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleFinishEditTitle();
                   if (e.key === "Escape") setIsEditingTitle(false);

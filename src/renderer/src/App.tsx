@@ -2,10 +2,11 @@ import { useEffect, useState, useTransition, useRef, type ClipboardEvent, type C
 import { ChevronDown, ChevronUp, Download, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
-import { resolveRequestVariables, resolveRequestFields, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, resolveString } from "./services/variables";
+import { resolveRequestVariables, resolveRequestFields, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, activeScopedVariablesList, resolveString } from "./services/variables";
 import { type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
 import { ContextMenu } from "./components/ContextMenu";
+import { SetEnvVarModal } from "./components/SetEnvVarModal";
 import { Topbar } from "./components/Topbar";
 import { BottomDock } from "./components/BottomDock";
 import { statusColor, type ResponseState, type PreviewMode } from "./response-utils";
@@ -92,6 +93,7 @@ export function App() {
   const [newVarValue, setNewVarValue] = useState("");
   const [newVarSecret, setNewVarSecret] = useState(false);
   const [envEditorOpen, setEnvEditorOpen] = useState(false);
+  const [setEnvVarModal, setSetEnvVarModal] = useState<{ open: boolean; text: string }>({ open: false, text: "" });
   const [collectionEditorOpen, setCollectionEditorOpen] = useState(false);
   const [collectionEditorTarget, setCollectionEditorTarget] = useState<string>("");
   const [curlImportOpen, setCurlImportOpen] = useState(false);
@@ -309,8 +311,14 @@ export function App() {
     : currentResponse
       ? statusColor(currentResponse.status)
       : 'var(--color-text)';
+  const envList = workspace?.environments ?? [];
+  const scopeFolder = workspace?.folders.find((f) => f.id === draftRequest?.folderId);
+  const activeVars = activeScopedVariablesList(workspace, {
+    collectionId: scopeFolder?.collectionId,
+    folderId: draftRequest?.folderId,
+    request: draftRequest ?? undefined,
+  });
   const bottomDockStripHeight = 36;
-  const activeVars = activeEnvironmentVariables(workspace);
   const currentScriptValue = activeRequestScript === "pre" ? preScript : postScript;
   const selectedScriptSnippet = SCRIPT_SNIPPETS.find((snippet) => snippet.id === activeSnippetId) ?? SCRIPT_SNIPPETS[0];
   const requestCodeSnippet = draftRequest ? generateRequestCodeSnippet(draftRequest, requestCodeTarget) : "";
@@ -422,7 +430,7 @@ export function App() {
     const variableMap = buildScopedVariableMap(scopeWorkspace, {
       collectionId: scopedFolder?.collectionId,
       folderId: draftRequest.folderId,
-      requestId: draftRequest.id,
+      request: draftRequest,
     });
 
     // 1. Execute Pre-scripts (Hierarchy: Folder -> Request)
@@ -469,7 +477,7 @@ export function App() {
     const updatedVariableMap = buildScopedVariableMap(scopeWorkspace, {
       collectionId: scopedFolder2?.collectionId,
       folderId: requestToSend.folderId,
-      requestId: requestToSend.id,
+      request: requestToSend,
     });
 
     let resolvedUrl: string;
@@ -653,10 +661,69 @@ export function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [draftRequest]);
 
+  const selectionReplaceFnRef = useRef<((varName: string) => void) | null>(null);
+  const pendingSelectionRef = useRef<{ text: string; replaceFn: ((varName: string) => void) | null } | null>(null);
+
+  // Capture text selection on right-mousedown BEFORE the browser clears it
+  useEffect(() => {
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 2) return;
+      let text = window.getSelection()?.toString().trim() || "";
+      let replaceFn: ((varName: string) => void) | null = null;
+
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        const input = target as HTMLInputElement | HTMLTextAreaElement;
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+        if (start !== null && end !== null && end > start) {
+          text = input.value.substring(start, end).trim();
+          replaceFn = (varName: string) => {
+            const newVal = input.value.substring(0, start) + `{{${varName}}}` + input.value.substring(end);
+            // Trigger React's synthetic onChange by using native setter
+            const proto = target.tagName === "INPUT" ? window.HTMLInputElement.prototype : window.HTMLTextAreaElement.prototype;
+            const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+            setter?.call(input, newVal);
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+          };
+        }
+      }
+
+      pendingSelectionRef.current = text ? { text, replaceFn } : null;
+    };
+
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      const pending = pendingSelectionRef.current;
+      if (pending?.text) {
+        setContextMenu({
+          x: e.clientX,
+          y: e.clientY,
+          target: { id: "selection", type: "selection", selectionText: pending.text },
+        });
+        selectionReplaceFnRef.current = pending.replaceFn;
+      } else {
+        setContextMenu(null);
+      }
+    };
+
+    window.addEventListener("mousedown", onMouseDown, { capture: true });
+    window.addEventListener("contextmenu", onContextMenu, { capture: true });
+    return () => {
+      window.removeEventListener("mousedown", onMouseDown, { capture: true });
+      window.removeEventListener("contextmenu", onContextMenu, { capture: true });
+    };
+  }, []);
+
+  const handleGlobalContextMenu = (_e: React.MouseEvent<HTMLElement>) => {
+    // Handled by the native listener in useEffect above
+  };
+
   return (
     <main
       className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${isSidebarResizing ? "sidebar-resizing" : ""}`}
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
+      onContextMenu={handleGlobalContextMenu}
     >
       {updateToast && (
         <div
@@ -1036,8 +1103,39 @@ export function App() {
           onCurlImport={() => setCurlImportOpen(true)}
           onImport={() => void handleImport()}
           onExport={() => void handleExport()}
+          onSetSelectionAsVariable={(text) => {
+            if (!workspace?.activeEnvironment) {
+              alert("No active environment. Please set one first.");
+              return;
+            }
+            setSetEnvVarModal({ open: true, text });
+          }}
         />
       )}
+
+      <SetEnvVarModal
+        open={setEnvVarModal.open}
+        selectedText={setEnvVarModal.text}
+        environments={workspace?.environments ?? []}
+        activeEnvironment={workspace?.activeEnvironment ?? ""}
+        requestId={draftRequest?.id}
+        requestName={draftRequest?.name}
+        folderId={requestFolder?.id}
+        folderName={requestFolder?.name}
+        collectionId={requestCollection?.id}
+        collectionName={requestCollection?.name}
+        onConfirm={(scope, varName, value) => {
+          if (scope.type === "environment") {
+            void handleSaveVariable(scope.envName, varName, value);
+          } else {
+            void handleSaveScopedVariable(scope.entityId, scope.type, varName, value);
+          }
+          if (selectionReplaceFnRef.current) {
+            selectionReplaceFnRef.current(varName);
+          }
+        }}
+        onClose={() => setSetEnvVarModal({ open: false, text: "" })}
+      />
     </main>
   );
 }
