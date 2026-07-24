@@ -367,3 +367,33 @@ const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
 ✅ **Performance**: No performance degradation
 ✅ **Tests**: All existing tests passing
 ✅ **UI**: All UI elements rendering correctly
+
+## Multiple Workspace Support
+
+Users can create and manage multiple named workspaces. Each workspace has its own collections, folders, requests, environments, and request history, all stored in the single `kobeanrest.sqlite` database using the existing `workspace_id` foreign key relationship.
+
+### Key Design Decisions
+
+| Concern | Decision |
+|---|---|
+| Persistence | `last_active_workspace_id` stored in `settings` table; loaded on startup by `load_workspace` |
+| Isolation | All child tables already have `workspace_id FK ON DELETE CASCADE` — no migration needed |
+| Switching | `switch_workspace(workspace_id)` persists the choice and returns the full `WorkspaceSummary` |
+| Safety | `delete_workspace` returns an error if only one workspace exists |
+| UI | `WorkspaceSwitcherModal` opened via Sidebar button; inline rename, create, delete |
+
+### New Commands
+
+- `list_workspaces()` → `Vec<WorkspaceListItem>` (id + name)
+- `rename_workspace(workspace_id, name)` → `()`
+- `delete_workspace(workspace_id)` → `()` (fails if last workspace)
+- `switch_workspace(workspace_id)` → `WorkspaceSummary` (persists last active)
+- `load_workspace_by_id(workspace_id)` → `WorkspaceSummary`
+
+### New Frontend Pieces
+
+- `WorkspaceListItem` type in `types.ts`
+- Service functions in `local-store.ts`: `listWorkspaces`, `renameWorkspace`, `deleteWorkspace`, `switchWorkspace`, `loadWorkspaceById`
+- `useWorkspace` exports: `workspaceList`, `handleCreateWorkspace`, `handleSwitchWorkspace`, `handleRenameWorkspace`, `handleDeleteWorkspace`
+- `WorkspaceSwitcherModal` component (`components/WorkspaceSwitcherModal.tsx`)
+- Sidebar button that opens the switcher modal

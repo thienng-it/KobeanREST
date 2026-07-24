@@ -90,6 +90,15 @@ test("Sidebar.tsx has onOpenWorkspaceSwitcher prop", () => {
   assert.match(s, /onOpenWorkspaceSwitcher/);
 });
 
+test("architecture docs describe multi-workspace support", () => {
+  const arch = read("docs/architecture/ARCHITECTURE.md");
+  assert.match(arch, /[Mm]ultiple [Ww]orkspace/);
+  assert.match(arch, /WorkspaceSwitcherModal/);
+  assert.match(arch, /list_workspaces/);
+  assert.match(arch, /last_active_workspace_id/);
+});
+
+
 
 
 
