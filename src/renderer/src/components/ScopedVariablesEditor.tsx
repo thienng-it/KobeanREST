@@ -1,6 +1,7 @@
 import { AlignLeft, Check, Eye, EyeOff, Plus, Trash2, X } from "lucide-react";
 import { useRef, useState } from "react";
 import type { ScopedVariable, ScopedVariableEntityType } from "../types";
+import { isSensitiveKey } from "../app-utils";
 
 function toBulkText(variables: ScopedVariable[]): string {
   return variables.map((v) => `${v.key}=${v.value}`).join("\n");
@@ -68,6 +69,7 @@ export function ScopedVariablesEditor({
 
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
+  const [showNewValue, setShowNewValue] = useState(false);
 
   const editingRowRef = useRef<HTMLDivElement | null>(null);
 
@@ -259,7 +261,7 @@ export function ScopedVariablesEditor({
                         className="env-inline-input"
                         value={editingValueDraft}
                         aria-label="Edit value"
-                        type="text"
+                        type={isSensitiveKey(editingKeyDraft) && !(visibleValues[v.key] ?? showValues) ? "password" : "text"}
                         spellCheck={false}
                         autoCorrect="off"
                         autoCapitalize="off"
@@ -358,7 +360,7 @@ export function ScopedVariablesEditor({
                   onChange={(e) => setNewValue(e.target.value)}
                   placeholder="Value"
                   aria-label="New variable value"
-                  type="text"
+                  type={isSensitiveKey(newKey) && !showNewValue ? "password" : "text"}
                   spellCheck={false}
                   autoCorrect="off"
                   autoCapitalize="off"
@@ -366,6 +368,15 @@ export function ScopedVariablesEditor({
                     if (e.key === "Enter") void handleAdd();
                   }}
                 />
+                <button
+                  type="button"
+                  className="env-icon-button"
+                  aria-label="Toggle new variable visibility"
+                  onClick={() => setShowNewValue(p => !p)}
+                  style={{ marginLeft: "8px" }}
+                >
+                  {showNewValue ? <EyeOff size={12} /> : <Eye size={12} />}
+                </button>
               </div>
             </div>
             <div className="env-add-variable-actions">

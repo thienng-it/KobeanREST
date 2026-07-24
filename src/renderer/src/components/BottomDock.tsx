@@ -47,6 +47,9 @@ export function BottomDock({
   onResizerMouseDown,
 }: BottomDockProps) {
   const open = activeBottomDock === "response";
+  if (responseState.kind === "idle" && !currentResponse) {
+    return null;
+  }
   return (
     <section
       className="bottom-dock"

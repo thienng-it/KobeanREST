@@ -8,6 +8,7 @@ import { VariableInput, VariableTextarea } from "./VariableInput";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
 import { obtainOAuth2Token } from "../services/auth";
 import { buildVariableMap } from "../services/variables";
+import { isSensitiveKey } from "../app-utils";
 import {
   SCRIPT_EDITOR_MODES,
   SCRIPT_SNIPPETS,
@@ -248,6 +249,12 @@ export function RequestPanel({
   const scriptRuntimeTokens = activeRequestScript === "pre"
     ? ["request.url", "request.method", "request.headers", "variables.get(key)", "variables.set(key, value)"]
     : ["request.url", "request.method", "request.headers", "response.status", "response.body", "variables.get(key)", "variables.set(key, value)"];
+
+  useEffect(() => {
+    if (draftRequest.method === "GET" && activeTab === "body") {
+      setActiveTab("headers");
+    }
+  }, [draftRequest.method, activeTab, setActiveTab]);
   const scriptVariableTokens = activeVars.map((variable) => `{{${variable.key}}}`);
   const currentScriptTitle = activeRequestScript === "pre" ? "Pre-request Script" : "Post-request Script";
 
@@ -483,6 +490,15 @@ export function RequestPanel({
           Save
         </button>
         <button
+          className="ghost-button"
+          type="button"
+          onClick={onOpenRequestCode}
+          title="Generate Code Snippet"
+        >
+          <Code2 size={16} />
+          Code
+        </button>
+        <button
           className="send-button request-send-button"
           type="button"
           onClick={onSendRequest}
@@ -495,8 +511,10 @@ export function RequestPanel({
 
       <div className="request-workspace">
         <div className="tab-row" role="tablist" aria-label="Request configuration">
-          {(["body", "headers", "auth", "scripts", "variables", "settings"] as const).map((tab) => {
-            const hasScript = tab === "scripts" && (preScript.trim() !== "" || postScript.trim() !== "");
+          {(["body", "headers", "auth", "scripts", "variables", "settings"] as const)
+            .filter((tab) => !(tab === "body" && draftRequest.method === "GET"))
+            .map((tab) => {
+              const hasScript = tab === "scripts" && (preScript.trim() !== "" || postScript.trim() !== "");
             const scriptUnsaved = tab === "scripts" && scriptsDirty;
             return (
               <button
@@ -542,6 +560,26 @@ export function RequestPanel({
                   { value: "application/octet-stream", label: "📦 Binary (Octet Stream)" }
                 ]}
               />
+              {draftRequest.bodyMimeType === "application/json" && (
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => {
+                    if (!draftRequest.body) return;
+                    try {
+                      const parsed = JSON.parse(draftRequest.body);
+                      const beautified = JSON.stringify(parsed, null, 2);
+                      updateDraft({ body: beautified });
+                    } catch (err) {
+                      alert("Cannot beautify: Invalid JSON format");
+                    }
+                  }}
+                  style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}
+                  title="Beautify JSON"
+                >
+                  <WandSparkles size={14} /> Beautify
+                </button>
+              )}
             </div>
 
             {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
@@ -570,6 +608,7 @@ export function RequestPanel({
                       containerStyle={{ flex: 1 } as CSSProperties}
                     />
                     <VariableInput
+                      type={isSensitiveKey(item.key) ? "password" : "text"}
                       activeVariables={activeVars}
                       value={item.value}
                       placeholder="Value"
@@ -720,6 +759,7 @@ export function RequestPanel({
                         />
 
                         <VariableInput
+                          type={isSensitiveKey(header.key) ? "password" : "text"}
                           activeVariables={activeVars}
                           value={header.value}
                           placeholder="Header value"
@@ -787,7 +827,7 @@ export function RequestPanel({
             <div className="auth-config-fields" aria-label="Bearer token credential">
               <label>
                 <span>Token</span>
-                <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
+                <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
               </label>
             </div>
           )}
@@ -796,7 +836,7 @@ export function RequestPanel({
               <label>
                 <span>Token</span>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 } as CSSProperties} />
+                  <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 } as CSSProperties} />
                   <button className="primary-action" type="button" onClick={async () => {
                     try {
                       const token = await obtainOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));

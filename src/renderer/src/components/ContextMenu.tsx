@@ -1,4 +1,4 @@
-import { Edit2, Eye, FolderTree, KeyRound, Plus, Trash2, Variable, Terminal, Upload, Download } from "lucide-react";
+import { Copy, Edit2, Eye, FolderTree, KeyRound, Plus, Trash2, Variable, Terminal, Upload, Download } from "lucide-react";
 import type { SavedRequest } from "../types";
 
 export interface ContextMenuTarget {
@@ -59,6 +59,7 @@ export interface ContextMenuProps {
   onStartRequestRename: (request: SavedRequest) => void;
   onViewRequest: (reqId: string) => void;
   onDeleteRequest: (reqId: string) => void;
+  onDuplicateRequest: (reqId: string) => void;
   onDeleteCollection: (collectionId: string) => void;
   onCurlImport: () => void;
   onImport: () => void;
@@ -80,6 +81,7 @@ export function ContextMenu({
   onStartRequestRename,
   onViewRequest,
   onDeleteRequest,
+  onDuplicateRequest,
   onDeleteCollection,
   onCurlImport,
   onImport,
@@ -231,6 +233,18 @@ export function ContextMenu({
             {...hoverHandlers()}
           >
             <Eye size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> View Request
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              const reqId = target.id;
+              if (reqId) onDuplicateRequest(reqId);
+              onClose();
+            }}
+            style={requestItemStyle}
+            {...hoverHandlers()}
+          >
+            <Copy size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Duplicate
           </button>
           <div style={{ height: "1px", backgroundColor: "var(--color-border)", margin: "4px 0" }} />
           <button

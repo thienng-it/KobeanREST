@@ -232,9 +232,6 @@ export function Sidebar({
     >
       <div className="brand-row">
         <div className="brand-mark">KR</div>
-        <div className="brand-copy">
-          <strong>KobeanREST</strong>
-        </div>
         <div className="brand-actions">
           <button
             type="button"
@@ -242,7 +239,7 @@ export function Sidebar({
             aria-label="Switch workspace"
             title={`Current: ${workspace?.name ?? "Workspace"} — click to switch`}
             onClick={onOpenWorkspaceSwitcher}
-            style={{ display: "flex", alignItems: "center", gap: "4px", maxWidth: "130px", padding: "4px 8px", borderRadius: "6px" }}
+            style={{ display: "flex", alignItems: "center", gap: "4px", width: "auto", maxWidth: "130px", padding: "4px 8px", borderRadius: "6px" }}
           >
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "12px", fontWeight: 600 }}>
               {workspace?.name ?? "Workspace"}

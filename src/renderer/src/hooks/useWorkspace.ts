@@ -723,6 +723,32 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     }
   }
 
+  async function handleDuplicateRequest(reqId: string) {
+    if (!workspace) return;
+    const reqToDup = workspace.requests.find((r) => r.id === reqId);
+    if (!reqToDup) return;
+    try {
+      const newReq = await createRequest(reqToDup.folderId);
+      const duplicatedReq = {
+        ...reqToDup,
+        id: newReq.id, // keep the newly generated UUID
+        name: `${reqToDup.name} (copy)`,
+      };
+      await saveRequest(duplicatedReq);
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          requests: [...prev.requests, duplicatedReq]
+        };
+      });
+      setSelectedRequestId(duplicatedReq.id);
+    } catch (err) {
+      console.error("Failed to duplicate request", diagnosticMessage(err));
+      alert("Failed to duplicate request: " + diagnosticMessage(err));
+    }
+  }
+
   async function importCurlRequest(fields: Partial<SavedRequest>) {
     try {
       let targetFolderId = workspace?.folders?.[0]?.id;
@@ -831,6 +857,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     cancelSidebarRename,
     applySidebarRename,
     handleSaveRequest,
+    handleDuplicateRequest,
     handleDeleteRequest,
     handleCreateFolder,
     handleCreateCollection,

@@ -2,6 +2,11 @@ import { PRODUCT_DOCS_URL } from "./product-contract";
 import { redactDiagnosticError } from "./services/redaction";
 import type { EnvironmentVariable, SavedRequest, WorkspaceSummary } from "./types";
 
+export function isSensitiveKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+  return ["token", "bearer", "password", "secret", "sensitive", "api_key", "apikey", "auth"].some(k => normalized.includes(k));
+}
+
 export function formatTimestamp(createdAt: string): string {
   try {
     return new Date(createdAt.replace(' ', 'T') + 'Z').toLocaleString();

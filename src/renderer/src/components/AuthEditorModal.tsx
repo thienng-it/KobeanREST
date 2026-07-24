@@ -92,7 +92,7 @@ export function AuthEditorModal({
           <div className="auth-config-fields" aria-label="Token credential">
             <label>
               <span>Token</span>
-              <VariableInput activeVariables={activeVars} value={draft.config.token ?? ""} onChange={(v) => updateConfig({ token: v.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
+              <VariableInput type="password" activeVariables={activeVars} value={draft.config.token ?? ""} onChange={(v) => updateConfig({ token: v.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
             </label>
           </div>
         )}
@@ -102,7 +102,7 @@ export function AuthEditorModal({
             <label>
               <span>Token</span>
               <div style={{ display: "flex", gap: "8px" }}>
-                <VariableInput activeVariables={activeVars} value={draft.config.token ?? ""} onChange={(v) => updateConfig({ token: v.target.value })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 }} />
+                <VariableInput type="password" activeVariables={activeVars} value={draft.config.token ?? ""} onChange={(v) => updateConfig({ token: v.target.value })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 }} />
                 <button type="button" onClick={async () => {
                   try {
                     const token = await obtainOAuth2Token(draft.config, buildVariableMap(activeVars));

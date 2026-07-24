@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { EnvironmentVariable } from "../types";
 
 const VARIABLE_PATTERN = /(\{\{[^{}]+\}\})/g;
@@ -48,8 +49,12 @@ export function VariableInput({
     startOffset: number;
   } | null>(null);
 
+  const [showPassword, setShowPassword] = useState(false);
+  const isPasswordProp = rest.type === "password";
+  const actualType = isPasswordProp && !showPassword ? "password" : (isPasswordProp ? "text" : rest.type);
+
   const strValue = String(value);
-  const hasVariables = /\{\{[^{}]+\}\}/.test(strValue);
+  const hasVariables = actualType !== "password" && /\{\{[^{}]+\}\}/.test(strValue);
 
   const checkAutocomplete = () => {
     const el = inputRef.current || (backdropRef.current?.parentElement?.querySelector('textarea') as HTMLTextAreaElement);
@@ -341,11 +346,39 @@ export function VariableInput({
           boxSizing: "border-box",
           position: "relative",
           zIndex: 2,
+          paddingRight: isPasswordProp ? "28px" : undefined,
           ...style,
         }}
         className={className}
         {...rest}
+        type={actualType}
       />
+
+      {isPasswordProp && (
+        <button
+          type="button"
+          onClick={() => setShowPassword(p => !p)}
+          tabIndex={-1}
+          style={{
+            position: "absolute",
+            right: "8px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "transparent",
+            border: "none",
+            color: "var(--color-text-dim)",
+            cursor: "pointer",
+            zIndex: 3,
+            padding: "4px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          title={showPassword ? "Hide value" : "Show value"}
+        >
+          {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+        </button>
+      )}
 
       {/* Tooltip */}
       {activeTooltip && (

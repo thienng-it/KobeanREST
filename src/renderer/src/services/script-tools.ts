@@ -1,5 +1,6 @@
-import type { SavedRequest } from "../types";
+import type { SavedRequest, ApiAuthMode, AuthConfig } from "../types";
 import { resolvedMethodLabel } from "../components/MethodSelector";
+import { applyAuth } from "./auth";
 
 export type ScriptEditorMode = "javascript" | "json" | "xml" | "text" | "mcp";
 
@@ -343,14 +344,26 @@ function prettifyXml(content: string): string {
 export function generateRequestCodeSnippet(
   request: SavedRequest,
   target: RequestCodeSnippetTarget,
+  effectiveAuth?: { mode: ApiAuthMode; config: AuthConfig }
 ): string {
+  let finalUrl = request.url;
+  let finalHeaders = request.headers;
+
+  if (effectiveAuth && effectiveAuth.mode !== "none") {
+    const applied = applyAuth(effectiveAuth.mode, effectiveAuth.config, finalUrl, finalHeaders);
+    finalUrl = applied.url;
+    finalHeaders = applied.headers;
+  }
+
+  const resolvedRequest = { ...request, url: finalUrl, headers: finalHeaders };
+
   if (target === "curl") {
-    return generateCurlSnippet(request);
+    return generateCurlSnippet(resolvedRequest);
   }
   if (target === "node") {
-    return generateNodeSnippet(request);
+    return generateNodeSnippet(resolvedRequest);
   }
-  return generateFetchSnippet(request);
+  return generateFetchSnippet(resolvedRequest);
 }
 
 function generateCurlSnippet(request: SavedRequest): string {

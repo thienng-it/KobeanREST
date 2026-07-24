@@ -147,6 +147,7 @@ export function App() {
     applySidebarRename,
     handleSaveRequest,
     handleDeleteRequest,
+    handleDuplicateRequest,
     handleCreateFolder,
     handleCreateCollection,
     handleCreateSubFolder,
@@ -328,7 +329,6 @@ export function App() {
   const bottomDockStripHeight = 36;
   const currentScriptValue = activeRequestScript === "pre" ? preScript : postScript;
   const selectedScriptSnippet = SCRIPT_SNIPPETS.find((snippet) => snippet.id === activeSnippetId) ?? SCRIPT_SNIPPETS[0];
-  const requestCodeSnippet = draftRequest ? generateRequestCodeSnippet(draftRequest, requestCodeTarget) : "";
   const requestFolder = draftRequest
     ? workspace?.folders.find((folder) => folder.id === draftRequest.folderId) ?? null
     : null;
@@ -337,6 +337,7 @@ export function App() {
     : null;
   const folderPath = [requestCollection?.name, requestFolder?.name].filter(Boolean).join(" / ");
   const effectiveAuth = draftRequest ? getEffectiveAuth(draftRequest, workspace) : null;
+  const requestCodeSnippet = draftRequest ? generateRequestCodeSnippet(draftRequest, requestCodeTarget, effectiveAuth ?? undefined) : "";
 
   function updateDraft(fields: Partial<SavedRequest>) {
     if (draftRequest) {
@@ -917,51 +918,53 @@ export function App() {
             onOpenWindow={() => setResponseWindowOpen(true)}
             onResizerMouseDown={handleResponsePanelResizerMouseDown}
           />
-          <section className="script-console" aria-label="Script console">
-            {scriptOutputExpanded && (
-              <div id="script-console-content" className="script-console-content">
-                {scriptOutputLog.length === 0 ? (
-                  <span className="script-output-empty">Script output will appear here after prettify or send.</span>
-                ) : (
-                  scriptOutputLog.map((entry, index) => {
-                    if (entry.type === "test_pass" || entry.type === "test_fail") {
-                      const passed = entry.type === "test_pass";
+          {!(responseState.kind === "idle" && !currentResponse) && (
+            <section className="script-console" aria-label="Script console">
+              {scriptOutputExpanded && (
+                <div id="script-console-content" className="script-console-content">
+                  {scriptOutputLog.length === 0 ? (
+                    <span className="script-output-empty">Script output will appear here after prettify or send.</span>
+                  ) : (
+                    scriptOutputLog.map((entry, index) => {
+                      if (entry.type === "test_pass" || entry.type === "test_fail") {
+                        const passed = entry.type === "test_pass";
+                        return (
+                          <div key={`${entry.message}-${index}`} className="script-output-line" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ 
+                              fontWeight: 800, fontSize: "10px", padding: "1px 6px", borderRadius: "4px",
+                              backgroundColor: passed ? "color-mix(in srgb, var(--color-status-2xx) 15%, transparent)" : "color-mix(in srgb, var(--color-status-error) 15%, transparent)",
+                              color: passed ? "var(--color-status-2xx)" : "var(--color-status-error)",
+                              border: `1px solid ${passed ? "color-mix(in srgb, var(--color-status-2xx) 40%, transparent)" : "color-mix(in srgb, var(--color-status-error) 40%, transparent)"}`
+                            }}>{passed ? "PASSED" : "FAILED"}</span>
+                            <span style={{ color: passed ? "var(--color-status-2xx)" : "var(--color-status-error)" }}>{entry.name}</span>
+                            {!passed && entry.errMessage && (
+                              <span style={{ color: "var(--color-status-error)", marginLeft: "4px" }}>| {entry.errMessage}</span>
+                            )}
+                          </div>
+                        );
+                      }
                       return (
-                        <div key={`${entry.message}-${index}`} className="script-output-line" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ 
-                            fontWeight: 800, fontSize: "10px", padding: "1px 6px", borderRadius: "4px",
-                            backgroundColor: passed ? "color-mix(in srgb, var(--color-status-2xx) 15%, transparent)" : "color-mix(in srgb, var(--color-status-error) 15%, transparent)",
-                            color: passed ? "var(--color-status-2xx)" : "var(--color-status-error)",
-                            border: `1px solid ${passed ? "color-mix(in srgb, var(--color-status-2xx) 40%, transparent)" : "color-mix(in srgb, var(--color-status-error) 40%, transparent)"}`
-                          }}>{passed ? "PASSED" : "FAILED"}</span>
-                          <span style={{ color: passed ? "var(--color-status-2xx)" : "var(--color-status-error)" }}>{entry.name}</span>
-                          {!passed && entry.errMessage && (
-                            <span style={{ color: "var(--color-status-error)", marginLeft: "4px" }}>| {entry.errMessage}</span>
-                          )}
+                        <div key={`${entry.message}-${index}`} className={`script-output-line ${entry.tone}`}>
+                          {entry.message}
                         </div>
                       );
-                    }
-                    return (
-                      <div key={`${entry.message}-${index}`} className={`script-output-line ${entry.tone}`}>
-                        {entry.message}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-            <button
-              className="script-console-toggle"
-              type="button"
-              aria-expanded={scriptOutputExpanded}
-              aria-controls="script-console-content"
-              onClick={() => setScriptOutputExpanded((expanded) => !expanded)}
-            >
-              <span>Console</span>
-              <span>{scriptOutputLog.length}</span>
-              <ChevronUp className={scriptOutputExpanded ? "script-console-chevron open" : "script-console-chevron"} size={14} />
-            </button>
-          </section>
+                    })
+                  )}
+                </div>
+              )}
+              <button
+                className="script-console-toggle"
+                type="button"
+                aria-expanded={scriptOutputExpanded}
+                aria-controls="script-console-content"
+                onClick={() => setScriptOutputExpanded((expanded) => !expanded)}
+              >
+                <span>Console</span>
+                <span>{scriptOutputLog.length}</span>
+                <ChevronUp className={scriptOutputExpanded ? "script-console-chevron open" : "script-console-chevron"} size={14} />
+              </button>
+            </section>
+          )}
         </div>
       </section>
 
@@ -1107,6 +1110,7 @@ export function App() {
           onStartRequestRename={startRequestRename}
           onViewRequest={setSelectedRequestId}
           onDeleteRequest={handleDeleteRequest}
+          onDuplicateRequest={handleDuplicateRequest}
           onDeleteCollection={handleDeleteCollection}
           onCurlImport={() => setCurlImportOpen(true)}
           onImport={() => void handleImport()}

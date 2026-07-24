@@ -49,13 +49,7 @@ export async function initializeLocalStore(): Promise<PersistenceStatus> {
   return invoke<PersistenceStatus>("initialize_persistence");
 }
 
-export async function loadLocalWorkspace(): Promise<WorkspaceSummary> {
-  if (!isTauriRuntime()) {
-    throw new Error("Workspace loading is not available in browser preview");
-  }
-
-  const workspace = await invoke<WorkspaceSummary>("load_workspace");
-  
+const parseWorkspaceFields = (workspace: WorkspaceSummary) => {
   const parseFields = (entity: any) => {
     if (typeof entity.authConfig === "string") {
       try {
@@ -76,8 +70,16 @@ export async function loadLocalWorkspace(): Promise<WorkspaceSummary> {
   workspace.requests?.forEach(parseFields);
   workspace.folders?.forEach(parseFields);
   workspace.collections?.forEach(parseFields);
-
   return workspace;
+};
+
+export async function loadLocalWorkspace(): Promise<WorkspaceSummary> {
+  if (!isTauriRuntime()) {
+    throw new Error("Workspace loading is not available in browser preview");
+  }
+
+  const workspace = await invoke<WorkspaceSummary>("load_workspace");
+  return parseWorkspaceFields(workspace);
 }
 
 export async function recordRequestHistory(entry: RequestHistoryEntry): Promise<void> {
@@ -156,12 +158,14 @@ export async function deleteWorkspace(workspaceId: string): Promise<void> {
 
 export async function switchWorkspace(workspaceId: string): Promise<WorkspaceSummary> {
   if (!window.__TAURI_INTERNALS__) return loadLocalWorkspace();
-  return invoke<WorkspaceSummary>("switch_workspace", { workspaceId });
+  const workspace = await invoke<WorkspaceSummary>("switch_workspace", { workspaceId });
+  return parseWorkspaceFields(workspace);
 }
 
 export async function loadWorkspaceById(workspaceId: string): Promise<WorkspaceSummary> {
   if (!window.__TAURI_INTERNALS__) return loadLocalWorkspace();
-  return invoke<WorkspaceSummary>("load_workspace_by_id", { workspaceId });
+  const workspace = await invoke<WorkspaceSummary>("load_workspace_by_id", { workspaceId });
+  return parseWorkspaceFields(workspace);
 }
 
 export async function createCollection(name: string): Promise<string> {

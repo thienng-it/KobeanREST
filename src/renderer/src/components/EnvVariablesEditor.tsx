@@ -1,6 +1,7 @@
 import { AlignLeft, Check, Eye, EyeOff, Plus, Trash2, X } from "lucide-react";
 import { useRef, useState } from "react";
 import type { EnvironmentVariable } from "../types";
+import { isSensitiveKey } from "../app-utils";
 
 function parseBulkText(text: string): Array<{ key: string; value: string }> {
   return text
@@ -61,6 +62,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
 
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
+  const [showNewValue, setShowNewValue] = useState(false);
 
   // Ref to track all elements inside the currently-editing row
   const editingRowRef = useRef<HTMLDivElement | null>(null);
@@ -261,7 +263,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                           className="env-inline-input"
                           value={editingValueDraft}
                           aria-label="Edit value"
-                          type="text"
+                          type={isSensitiveKey(editingKeyDraft) && !(visibleValues[v.key] ?? showValues) ? "password" : "text"}
                           spellCheck={false}
                           autoCorrect="off"
                           autoCapitalize="off"
@@ -363,7 +365,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                   onChange={(e) => setNewValue(e.target.value)}
                   placeholder="Value"
                   aria-label="New variable value"
-                  type="text"
+                  type={isSensitiveKey(newKey) && !showNewValue ? "password" : "text"}
                   spellCheck={false}
                   autoCorrect="off"
                   autoCapitalize="off"
@@ -371,6 +373,15 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                     if (e.key === "Enter") void handleAdd();
                   }}
                 />
+                <button
+                  type="button"
+                  className="env-icon-button"
+                  aria-label="Toggle new variable visibility"
+                  onClick={() => setShowNewValue(p => !p)}
+                  style={{ marginLeft: "8px" }}
+                >
+                  {showNewValue ? <EyeOff size={12} /> : <Eye size={12} />}
+                </button>
               </div>
             </div>
             <div className="env-add-variable-actions">
