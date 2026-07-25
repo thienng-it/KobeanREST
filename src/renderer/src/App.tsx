@@ -337,10 +337,9 @@ export function App() {
     if (!isResponsePanelResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const nextHeight = window.innerHeight - e.clientY - 24;
-      if (nextHeight >= 180 && nextHeight <= 720) {
-        setBottomDockHeight(nextHeight);
-      }
+      const maxHeight = Math.max(160, window.innerHeight - 280);
+      const nextHeight = Math.min(maxHeight, Math.max(140, window.innerHeight - e.clientY - 24));
+      setBottomDockHeight(nextHeight);
     };
 
     const handleMouseUp = () => {
@@ -923,10 +922,7 @@ export function App() {
           </div>
         )}
 
-        <div
-          className="workspace-main"
-          style={{ gridTemplateRows: activeBottomDock === 'response' ? `minmax(0, 1fr) ${bottomDockHeight + bottomDockStripHeight}px` : `minmax(0, 1fr) ${bottomDockStripHeight}px` }}
-        >
+        <div className="workspace-main">
           {draftRequest ? (
             <RequestPanel
               draftRequest={draftRequest}

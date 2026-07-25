@@ -52,12 +52,22 @@ export function BottomDock({
   if (responseState.kind === "idle" && !currentResponse) {
     return null;
   }
+
   return (
     <section
       className="bottom-dock"
       aria-label="Bottom dock"
       style={{ height: open ? `${bottomDockHeight + bottomDockStripHeight}px` : `${bottomDockStripHeight}px` }}
     >
+      {open && (
+        <div
+          className="bottom-dock-resizer"
+          role="separator"
+          aria-label="Resize request and response panel"
+          onMouseDown={onResizerMouseDown}
+          title="Drag to resize response panel height"
+        />
+      )}
       <div className="bottom-dock-strip">
         <button
           className={open ? "bottom-dock-tab active" : "bottom-dock-tab"}
