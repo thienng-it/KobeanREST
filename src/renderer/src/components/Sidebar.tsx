@@ -31,6 +31,7 @@ export interface SidebarProps {
 
   // Draft (live request name being edited elsewhere)
   draftRequest: SavedRequest | null;
+  isDraftDirty?: boolean;
 
   // Rename-in-place state
   renamingSidebarItem: { id: string; type: "folder" | "collection" } | null;
@@ -91,6 +92,7 @@ export function Sidebar({
   collapsedFolders,
   scriptStatus,
   draftRequest,
+  isDraftDirty,
   renamingSidebarItem,
   sidebarNameDraft,
   renamingRequestId,
@@ -572,6 +574,14 @@ export function Sidebar({
                                 <button
                                   type="button"
                                   className="sidebar-icon-button"
+                                  aria-label={`New request in ${folder.name}`}
+                                  onClick={() => void onCreateRequest(folder.id)}
+                                >
+                                  <Plus size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="sidebar-icon-button"
                                   aria-label={`Rename folder ${folder.name}`}
                                   onClick={() => onStartSidebarRename("folder", folder.id, folder.name)}
                                 >
@@ -657,6 +667,21 @@ export function Sidebar({
                                       >
                                         <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
                                         <span onDoubleClick={() => onStartRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
+                                        {request.id === draftRequest?.id && isDraftDirty && (
+                                          <span
+                                            className="sidebar-request-dirty-dot"
+                                            title="Unsaved changes"
+                                            style={{
+                                              display: "inline-block",
+                                              width: "6px",
+                                              height: "6px",
+                                              borderRadius: "50%",
+                                              backgroundColor: "#f59e0b",
+                                              marginLeft: "6px",
+                                              flexShrink: 0,
+                                            }}
+                                          />
+                                        )}
                                       </button>
                                     )}
                                     <div className="sidebar-row-actions">

@@ -179,9 +179,9 @@ export async function loadWorkspaceById(workspaceId: string): Promise<WorkspaceS
   return parseWorkspaceFields(workspace);
 }
 
-export async function createCollection(name: string): Promise<string> {
+export async function createCollection(name: string, workspaceId?: string): Promise<string> {
   if (!isTauriRuntime()) return `preview-collection-${Date.now()}`;
-  return invoke<string>("create_collection", { name });
+  return invoke<string>("create_collection", { name, workspaceId: workspaceId ?? null });
 }
 
 export async function reorderItems(itemType: string, ids: string[]): Promise<void> {

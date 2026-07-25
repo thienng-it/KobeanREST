@@ -1,4 +1,4 @@
-import { useEffect, useState, useTransition, useRef, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useState, useTransition, useRef, useMemo, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ChevronDown, ChevronUp, Download, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
@@ -27,6 +27,7 @@ import { useAuth } from "./hooks/useAuth";
 import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceSwitcherModal } from "./components/WorkspaceSwitcherModal";
+import { CreateRequestModal } from "./components/CreateRequestModal";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 
 import {
@@ -91,7 +92,7 @@ export function App() {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const [headersPresetMenuOpen, setHeadersPresetMenuOpen] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<import("./components/ConfirmDialog").ConfirmDialogState | null>(null);
   const [newVarKey, setNewVarKey] = useState("");
   const [newVarValue, setNewVarValue] = useState("");
   const [newVarSecret, setNewVarSecret] = useState(false);
@@ -100,6 +101,8 @@ export function App() {
   const [collectionEditorOpen, setCollectionEditorOpen] = useState(false);
   const [collectionEditorTarget, setCollectionEditorTarget] = useState<string>("");
   const [curlImportOpen, setCurlImportOpen] = useState(false);
+  const [createRequestModalOpen, setCreateRequestModalOpen] = useState(false);
+  const [createRequestInitialFolderId, setCreateRequestInitialFolderId] = useState<string | undefined>(undefined);
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
   const [moveToModal, setMoveToModal] = useState<{ type: "request" | "folder"; id: string } | null>(null);
 
@@ -158,6 +161,7 @@ export function App() {
     handleDeleteCollection,
     toggleFolder,
     handleCreateRequest,
+    handleCreateRequestWithDetails,
     importCurlRequest,
     handleSetActiveEnvironment,
     handleCreateEnvironment,
@@ -722,11 +726,35 @@ export function App() {
     }
   }
 
+  const isDraftDirty = useMemo(() => {
+    if (!draftRequest || !workspace) return false;
+    const original = workspace.requests.find((r) => r.id === draftRequest.id);
+    if (!original) return false;
+    return JSON.stringify(original) !== JSON.stringify(draftRequest);
+  }, [draftRequest, workspace]);
+
+  function promptSaveRequest() {
+    if (!draftRequest) return;
+    if (!isDraftDirty) {
+      void handleSaveRequest();
+      return;
+    }
+    setConfirmDialog({
+      title: "Save Request Changes",
+      message: `Do you want to save the changes made to "${draftRequest.name}"?`,
+      confirmLabel: "Save Changes",
+      confirmVariant: "primary",
+      onConfirm: () => {
+        void handleSaveRequest();
+      },
+    });
+  }
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        void handleSaveRequest();
+        promptSaveRequest();
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
         e.preventDefault();
@@ -735,7 +763,7 @@ export function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [draftRequest]);
+  }, [draftRequest, isDraftDirty, workspace]);
 
   const selectionReplaceFnRef = useRef<((varName: string) => void) | null>(null);
   const pendingSelectionRef = useRef<{ text: string; replaceFn: ((varName: string) => void) | null } | null>(null);
@@ -823,6 +851,7 @@ export function App() {
         collapsedFolders={collapsedFolders}
         scriptStatus={scriptStatus}
         draftRequest={draftRequest}
+        isDraftDirty={isDraftDirty}
         renamingSidebarItem={renamingSidebarItem}
         sidebarNameDraft={sidebarNameDraft}
         renamingRequestId={renamingRequestId}
@@ -835,7 +864,11 @@ export function App() {
         onDeleteCollection={handleDeleteCollection}
         onSelectRequest={setSelectedRequestId}
         onDeleteRequest={handleDeleteRequest}
-        onCreateRequest={handleCreateRequest}
+        onCreateRequest={(folderId) => {
+          setCreateRequestInitialFolderId(folderId);
+          setCreateRequestModalOpen(true);
+          return Promise.resolve();
+        }}
         onStartSidebarRename={startSidebarRename}
         onCancelSidebarRename={cancelSidebarRename}
         onApplySidebarRename={applySidebarRename}
@@ -921,8 +954,9 @@ export function App() {
               setScriptOutputExpanded={setScriptOutputExpanded}
               headersPresetMenuOpen={headersPresetMenuOpen}
               setHeadersPresetMenuOpen={setHeadersPresetMenuOpen}
+              isDirty={isDraftDirty}
               onUpdateDraft={updateDraft}
-              onSaveRequest={handleSaveRequest}
+              onSaveRequest={promptSaveRequest}
               onSendRequest={sendSelectedRequest}
               onSaveScripts={handleSaveScripts}
               scriptEditorActionsRef={scriptEditorActionsRef}
@@ -947,7 +981,10 @@ export function App() {
                   <button
                     type="button"
                     className="primary-button"
-                    onClick={() => void handleCreateRequest("")}
+                    onClick={() => {
+                      setCreateRequestInitialFolderId(undefined);
+                      setCreateRequestModalOpen(true);
+                    }}
                   >
                     + New Request
                   </button>
@@ -1179,7 +1216,10 @@ export function App() {
           menu={contextMenu}
           requests={workspace?.requests ?? []}
           onClose={() => setContextMenu(null)}
-          onCreateRequest={handleCreateRequest}
+          onCreateRequest={(folderId) => {
+            setCreateRequestInitialFolderId(folderId);
+            setCreateRequestModalOpen(true);
+          }}
           onCreateSubFolder={handleCreateSubFolder}
           onEditFolderAuth={(folderId) => {
             setAuthEditorTarget({ id: folderId, type: 'folder' });
@@ -1220,6 +1260,18 @@ export function App() {
           onMove={handleMoveItem}
         />
       )}
+
+      <CreateRequestModal
+        open={createRequestModalOpen}
+        workspace={workspace}
+        workspaces={workspaceList}
+        initialFolderId={createRequestInitialFolderId}
+        onClose={() => setCreateRequestModalOpen(false)}
+        onCreate={async (name, method, locationTarget, targetWorkspaceId) => {
+          setCollectionSearch("");
+          await handleCreateRequestWithDetails(name, method, locationTarget, targetWorkspaceId);
+        }}
+      />
 
       <SetEnvVarModal
         open={setEnvVarModal.open}
