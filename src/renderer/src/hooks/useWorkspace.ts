@@ -32,10 +32,13 @@ import {
 
 import { diagnosticMessage } from "../app-utils";
 import type { ContextMenuState } from "../components/ContextMenu";
-import type { WorkspaceSummary, WorkspaceListItem, SavedRequest, ScopedVariable, ScopedVariableEntityType } from "../types";
+import type { WorkspaceSummary, WorkspaceListItem, SavedRequest, ScopedVariable, ScopedVariableEntityType, HttpMethod, FolderSummary } from "../types";
 
-interface ConfirmDialogState {
+export interface ConfirmDialogState {
+  title?: string;
   message: string;
+  confirmLabel?: string;
+  confirmVariant?: "primary" | "danger";
   onConfirm: () => void;
 }
 
@@ -723,6 +726,94 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     }
   }
 
+  async function handleCreateRequestWithDetails(name: string, method: string, locationTarget: string) {
+    try {
+      let targetFolderId = "";
+      let createdColObj: { id: string; name: string } | null = null;
+      let createdFolderObj: FolderSummary | null = null;
+
+      if (locationTarget.startsWith("new_col:")) {
+        const colName = locationTarget.replace("new_col:", "").trim() || "New Collection";
+        const colId = await createCollection(colName);
+        createdColObj = { id: colId, name: colName };
+        const folderObj = await createFolder("Requests", colId);
+        createdFolderObj = folderObj;
+        targetFolderId = folderObj.id;
+      } else if (locationTarget.startsWith("collection:")) {
+        const colId = locationTarget.replace("collection:", "");
+        const existingFolder = workspace?.folders.find((f) => f.collectionId === colId);
+        if (existingFolder) {
+          targetFolderId = existingFolder.id;
+        } else {
+          const folderObj = await createFolder("Requests", colId);
+          createdFolderObj = folderObj;
+          targetFolderId = folderObj.id;
+        }
+      } else if (locationTarget.startsWith("folder:")) {
+        targetFolderId = locationTarget.replace("folder:", "");
+      } else {
+        targetFolderId = locationTarget;
+      }
+
+      if (!targetFolderId) {
+        if (workspace && workspace.folders.length > 0) {
+          targetFolderId = workspace.folders[0].id;
+        } else {
+          let colId = workspace?.collections?.[0]?.id;
+          if (!colId) {
+            colId = await createCollection("Default Collection");
+            createdColObj = { id: colId, name: "Default Collection" };
+          }
+          const folderObj = await createFolder("Requests", colId);
+          createdFolderObj = folderObj;
+          targetFolderId = folderObj.id;
+        }
+      }
+
+      const newReq = await createRequest(targetFolderId);
+      const updatedReq: SavedRequest = {
+        ...newReq,
+        name: name.trim() || "New Request",
+        method: (method as HttpMethod) || "GET",
+      };
+      await saveRequest(updatedReq);
+
+      setCollapsedFolders((prev) => ({
+        ...prev,
+        [targetFolderId]: false,
+      }));
+
+      // Re-fetch fresh local workspace to ensure collections, folders, and request are synchronized
+      try {
+        const freshWorkspace = await loadLocalWorkspace();
+        setWorkspace(freshWorkspace);
+      } catch {
+        setWorkspace((prev) => {
+          if (!prev) return null;
+          const nextCols = [...(prev.collections || [])];
+          if (createdColObj && !nextCols.some((c) => c.id === createdColObj!.id)) {
+            nextCols.push(createdColObj);
+          }
+          const nextFolders = [...(prev.folders || [])];
+          if (createdFolderObj && !nextFolders.some((f) => f.id === createdFolderObj!.id)) {
+            nextFolders.push(createdFolderObj);
+          }
+          const existing = prev.requests.filter((r) => r.id !== newReq.id);
+          return {
+            ...prev,
+            collections: nextCols,
+            folders: nextFolders,
+            requests: [...existing, updatedReq],
+          };
+        });
+      }
+
+      setSelectedRequestId(updatedReq.id);
+    } catch (err) {
+      console.error(diagnosticMessage(err));
+    }
+  }
+
   async function handleDuplicateRequest(reqId: string) {
     if (!workspace) return;
     const reqToDup = workspace.requests.find((r) => r.id === reqId);
@@ -968,6 +1059,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     handleDeleteCollection,
     toggleFolder,
     handleCreateRequest,
+    handleCreateRequestWithDetails,
     importCurlRequest,
     handleSetActiveEnvironment,
     handleCreateEnvironment,

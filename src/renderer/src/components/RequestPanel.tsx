@@ -190,6 +190,7 @@ export interface RequestPanelProps {
   setHeadersPresetMenuOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
 
   // cross-cutting actions (remain in App)
+  isDirty?: boolean;
   onUpdateDraft: (fields: Partial<SavedRequest>) => void;
   onSaveRequest: () => void;
   onSendRequest: () => void;
@@ -237,6 +238,7 @@ export function RequestPanel({
   setScriptOutputExpanded,
   headersPresetMenuOpen,
   setHeadersPresetMenuOpen,
+  isDirty,
   onUpdateDraft,
   onSaveRequest,
   onSendRequest,
@@ -467,19 +469,69 @@ export function RequestPanel({
                 title="Double-click to edit request name"
               >
                 {draftRequest.name}
+                {isDirty && (
+                  <span
+                    className="request-dirty-dot"
+                    title="Unsaved changes"
+                    style={{
+                      display: "inline-block",
+                      width: "7px",
+                      height: "7px",
+                      borderRadius: "50%",
+                      backgroundColor: "#f59e0b",
+                      marginLeft: "8px",
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    ●
+                  </span>
+                )}
               </h1>
             )}
           </div>
         </div>
         <button
-          className="ghost-button request-save-button"
+          className={`request-save-button ${isDirty ? "is-dirty" : "ghost-button"}`}
           type="button"
           onClick={onSaveRequest}
           title="Save (Cmd/Ctrl + S)"
-          style={{ padding: "6px 12px", height: "auto" }}
+          style={{
+            padding: "6px 14px",
+            height: "32px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            borderRadius: "6px",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: "pointer",
+            ...(isDirty
+              ? {
+                  background: "var(--color-accent-surface, rgba(59, 130, 246, 0.15))",
+                  color: "var(--color-accent, #3b82f6)",
+                  border: "1px solid var(--color-accent, #3b82f6)",
+                }
+              : {
+                  background: "transparent",
+                  color: "var(--color-text)",
+                  border: "1px solid var(--color-border)",
+                }),
+          }}
         >
           <Save size={14} />
           Save
+          {isDirty && (
+            <span
+              className="save-dirty-dot"
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                backgroundColor: "#f59e0b",
+                marginLeft: "2px",
+              }}
+            />
+          )}
         </button>
       </div>
 
