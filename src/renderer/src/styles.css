@@ -577,34 +577,51 @@ button:disabled {
   opacity: 0.5;
 }
 
-/* Custom Glassmorphic Scrollbars */
+/* Custom Auto-Hiding Glassmorphic Scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
+  background: transparent;
   border-radius: 999px;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.2s ease;
+}
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.16);
+  border: 1px solid transparent;
   background-clip: padding-box;
 }
-:root:not([data-theme="light"]):not([data-theme="warm"]) ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border: 2px solid transparent;
+:root:not([data-theme="light"]):not([data-theme="warm"]) *:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.24);
-  border: 2px solid transparent;
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid transparent;
   background-clip: padding-box;
 }
 :root:not([data-theme="light"]):not([data-theme="warm"]) ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.28);
-  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid transparent;
   background-clip: padding-box;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+:root[data-theme="light"] *:hover,
+:root[data-theme="warm"] *:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 }
 
 .app-shell {
@@ -707,7 +724,7 @@ button:disabled {
   flex-direction: column;
   gap: 14px;
   min-height: 0;
-  padding: 20px 20px 0;
+  padding: 16px 4px 0 16px;
   border-right: 1px solid var(--color-border);
   background: var(--color-sidebar);
   backdrop-filter: blur(24px) saturate(180%);
@@ -735,6 +752,7 @@ button:disabled {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  padding-right: 12px;
 }
 
 .brand-row,
@@ -755,6 +773,7 @@ button:disabled {
   gap: 12px;
   width: 100%;
   min-width: 0;
+  padding-right: 12px;
 }
 
 .brand-copy {
@@ -770,13 +789,7 @@ button:disabled {
   margin-left: auto;
 }
 
-.sidebar-content {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  width: 100%;
-  min-width: 0;
-}
+
 
 .sidebar-resizer {
   position: relative;
