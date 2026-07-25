@@ -578,10 +578,10 @@ export function RequestPanel({
                 type="button"
               >
                 {tab}
-                {hasScript && (
+                {scriptUnsaved && (
                   <span
-                    className={`tab-script-indicator${scriptUnsaved ? " dirty" : ""}`}
-                    title={scriptUnsaved ? "Scripts have unsaved changes" : "Scripts configured"}
+                    className="tab-script-indicator dirty"
+                    title="Scripts have unsaved changes"
                     aria-hidden="true"
                   />
                 )}
@@ -991,8 +991,8 @@ export function RequestPanel({
                 }
               >
                 Pre-request
-                {preScript.trim() !== "" && (
-                  <span className={`script-dot${preScriptDirty ? " dirty" : ""}`} aria-hidden="true" />
+                {preScriptDirty && (
+                  <span className="script-dot dirty" aria-hidden="true" title="Pre-request script has unsaved changes" />
                 )}
               </button>
               <button
@@ -1010,8 +1010,8 @@ export function RequestPanel({
                 }
               >
                 Post-request
-                {postScript.trim() !== "" && (
-                  <span className={`script-dot${postScriptDirty ? " dirty" : ""}`} aria-hidden="true" />
+                {postScriptDirty && (
+                  <span className="script-dot dirty" aria-hidden="true" title="Post-request script has unsaved changes" />
                 )}
               </button>
             </div>
