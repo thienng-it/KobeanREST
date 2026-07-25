@@ -1264,11 +1264,12 @@ export function App() {
       <CreateRequestModal
         open={createRequestModalOpen}
         workspace={workspace}
+        workspaces={workspaceList}
         initialFolderId={createRequestInitialFolderId}
         onClose={() => setCreateRequestModalOpen(false)}
-        onCreate={async (name, method, locationTarget) => {
+        onCreate={async (name, method, locationTarget, targetWorkspaceId) => {
           setCollectionSearch("");
-          await handleCreateRequestWithDetails(name, method, locationTarget);
+          await handleCreateRequestWithDetails(name, method, locationTarget, targetWorkspaceId);
         }}
       />
 

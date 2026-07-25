@@ -308,17 +308,22 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     }
   }
 
-  async function handleCreateCollection() {
+  async function handleCreateCollection(targetWorkspaceId?: string) {
     const name = "New Collection";
     try {
-      const collectionId = await createCollection(name);
-      setWorkspace(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          collections: [...(prev.collections ?? []), { id: collectionId, name }]
-        };
-      });
+      const activeWsId = targetWorkspaceId || workspace?.id;
+      const collectionId = await createCollection(name, activeWsId);
+      if (activeWsId && activeWsId !== workspace?.id) {
+        await handleSwitchWorkspace(activeWsId);
+      } else {
+        setWorkspace(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            collections: [...(prev.collections ?? []), { id: collectionId, name }]
+          };
+        });
+      }
     } catch (err) {
       console.error("Failed to create collection", diagnosticMessage(err));
       alert("Failed to create collection: " + diagnosticMessage(err));
@@ -726,22 +731,34 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     }
   }
 
-  async function handleCreateRequestWithDetails(name: string, method: string, locationTarget: string) {
+  async function handleCreateRequestWithDetails(
+    name: string,
+    method: string,
+    locationTarget: string,
+    targetWorkspaceId?: string
+  ) {
     try {
+      const activeWsId = targetWorkspaceId || workspace?.id;
+
+      if (activeWsId && activeWsId !== workspace?.id) {
+        await handleSwitchWorkspace(activeWsId);
+      }
+
       let targetFolderId = "";
       let createdColObj: { id: string; name: string } | null = null;
       let createdFolderObj: FolderSummary | null = null;
 
       if (locationTarget.startsWith("new_col:")) {
         const colName = locationTarget.replace("new_col:", "").trim() || "New Collection";
-        const colId = await createCollection(colName);
+        const colId = await createCollection(colName, activeWsId);
         createdColObj = { id: colId, name: colName };
         const folderObj = await createFolder("Requests", colId);
         createdFolderObj = folderObj;
         targetFolderId = folderObj.id;
       } else if (locationTarget.startsWith("collection:")) {
         const colId = locationTarget.replace("collection:", "");
-        const existingFolder = workspace?.folders.find((f) => f.collectionId === colId);
+        const currentWsFolders = workspace?.folders || [];
+        const existingFolder = currentWsFolders.find((f) => f.collectionId === colId);
         if (existingFolder) {
           targetFolderId = existingFolder.id;
         } else {
@@ -761,7 +778,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
         } else {
           let colId = workspace?.collections?.[0]?.id;
           if (!colId) {
-            colId = await createCollection("Default Collection");
+            colId = await createCollection("Default Collection", activeWsId);
             createdColObj = { id: colId, name: "Default Collection" };
           }
           const folderObj = await createFolder("Requests", colId);

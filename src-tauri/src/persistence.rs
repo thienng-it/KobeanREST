@@ -192,11 +192,26 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     ensure_request_query_params_column(&connection)?;
     ensure_request_history_response_columns(&connection)?;
     seed_default_workspace(&mut connection)?;
+    sync_request_workspace_ids(&connection)?;
 
     Ok(PersistenceStatus {
         database_path: path.to_string_lossy().to_string(),
         migrated: true,
     })
+}
+
+fn sync_request_workspace_ids(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute(
+            "UPDATE requests SET workspace_id = (
+                SELECT collections.workspace_id FROM folders JOIN collections ON collections.id = folders.collection_id WHERE folders.id = requests.folder_id
+            ) WHERE EXISTS (
+                SELECT 1 FROM folders JOIN collections ON collections.id = folders.collection_id WHERE folders.id = requests.folder_id AND collections.workspace_id IS NOT requests.workspace_id
+            )",
+            [],
+        )
+        .map_err(|e| format!("failed to sync request workspace IDs: {e}"))?;
+    Ok(())
 }
 
 fn ensure_request_body_columns(connection: &Connection) -> Result<(), String> {
@@ -1710,12 +1725,19 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
     let mut connection = open_database(&app)?;
     let transaction = connection.transaction().map_err(|e| e.to_string())?;
 
-    let workspace_id = first_workspace_id(&transaction)?;
+    let workspace_id: String = transaction
+        .query_row(
+            "SELECT collections.workspace_id FROM folders JOIN collections ON collections.id = folders.collection_id WHERE folders.id = ?1",
+            rusqlite::params![request.folder_id],
+            |row| row.get(0),
+        )
+        .unwrap_or_else(|_| first_workspace_id(&transaction).unwrap_or_default());
 
     transaction.execute(
         "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, (SELECT COALESCE(MAX(position), -1) + 1 FROM requests WHERE folder_id = ?3))
          ON CONFLICT(id) DO UPDATE SET
+            workspace_id = excluded.workspace_id,
             folder_id = excluded.folder_id,
             name = excluded.name,
             method = excluded.method,
