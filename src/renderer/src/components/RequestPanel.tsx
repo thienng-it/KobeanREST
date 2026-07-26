@@ -210,11 +210,16 @@ export interface RequestPanelProps {
 
   // diagnostic for prettify errors
   diagnosticMessage: (error: unknown) => string;
+
+  activeEnvironmentName?: string;
+  onSaveVariable?: (envName: string, key: string, value: string) => Promise<void> | void;
 }
 
 export function RequestPanel({
   draftRequest,
   activeVars,
+  activeEnvironmentName,
+  onSaveVariable,
   isSending,
   folderPath,
   effectiveAuth,
@@ -543,6 +548,8 @@ export function RequestPanel({
         />
         <VariableInput
           activeVariables={activeVars}
+          activeEnvironmentName={activeEnvironmentName}
+          onSaveVariable={onSaveVariable}
           value={draftRequest.url}
           aria-label="Request URL"
           onChange={(e) => handleUrlChange(e.target.value)}

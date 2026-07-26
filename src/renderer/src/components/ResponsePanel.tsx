@@ -18,7 +18,7 @@ interface ResponsePanelProps {
   isResponseTabPending: boolean;
   responseTab: ResponseTab;
   previewMode: PreviewMode;
-  activeBottomDock: "response" | null;
+  activeBottomDock: "response" | "console" | null;
   scriptOutputLog?: ScriptOutputEntry[];
 
   onTabChange: (tab: ResponseTab) => void;

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Check, Copy, X, Plus } from "lucide-react";
 import { EnvironmentVariable } from "../types";
+import { saveVariable } from "../services/local-store";
 
 const VARIABLE_PATTERN = /(\{\{[^{}]+\}\})/g;
 
@@ -11,16 +12,187 @@ interface TooltipState {
   isResolved: boolean;
   x: number;
   y: number;
+  placement?: "top" | "bottom";
 }
 
-interface VariableInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface VariablePopoverCardProps {
+  tooltipKey: string;
+  tooltipValue: string;
+  isResolved: boolean;
+  x: number;
+  y: number;
+  placement?: "top" | "bottom";
+  activeEnvironmentName?: string;
+  onSaveVariable?: (envName: string, key: string, value: string) => Promise<void> | void;
+  onClose: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  onInputFocus: () => void;
+}
+
+function VariablePopoverCard({
+  tooltipKey,
+  tooltipValue,
+  isResolved,
+  x,
+  y,
+  placement = "top",
+  activeEnvironmentName,
+  onSaveVariable,
+  onClose,
+  onMouseEnter,
+  onMouseLeave,
+  onInputFocus,
+}: VariablePopoverCardProps) {
+  const [editValue, setEditValue] = useState(tooltipValue);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const isBottom = placement === "bottom";
+
+  useEffect(() => {
+    setEditValue(tooltipValue);
+    setSavedSuccess(false);
+  }, [tooltipKey, tooltipValue]);
+
+  const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const targetEnv = activeEnvironmentName || "Environment";
+      if (onSaveVariable) {
+        await onSaveVariable(targetEnv, tooltipKey, editValue);
+      } else {
+        await saveVariable(targetEnv, tooltipKey, editValue);
+      }
+      setSavedSuccess(true);
+      setTimeout(() => {
+        onClose();
+      }, 250);
+    } catch (err) {
+      console.error("Failed to save variable from popover:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCopy = () => {
+    if (!editValue) return;
+    void navigator.clipboard.writeText(editValue);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void handleSave();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className={`variable-popover-card placement-${placement}`}
+      style={{
+        left: `${x}px`,
+        top: `${y}px`,
+        transform: isBottom ? "translate(-50%, 0)" : "translate(-50%, -100%)",
+      }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div className="variable-popover-header">
+        <div className="variable-popover-title">
+          <span className="variable-popover-braces">{"{{"}</span>
+          <span className="variable-popover-name">{tooltipKey}</span>
+          <span className="variable-popover-braces">{"}}"}</span>
+        </div>
+        <div className="variable-popover-header-right">
+          <span className={`variable-popover-badge ${isResolved ? "resolved" : "unresolved"}`}>
+            {isResolved ? activeEnvironmentName || "Environment" : "Unresolved"}
+          </span>
+          <button
+            type="button"
+            className="variable-popover-close-btn"
+            onClick={onClose}
+            title="Close"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      </div>
+
+      <div className="variable-popover-body">
+        <div className="variable-popover-field">
+          <div className="variable-popover-input-wrapper">
+            <input
+              type="text"
+              className="variable-popover-input"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onFocus={onInputFocus}
+              onKeyDown={handleKeyDown}
+              placeholder={isResolved ? "Enter variable value..." : "Set variable value..."}
+              autoFocus
+            />
+            {editValue && (
+              <button
+                type="button"
+                className="variable-popover-icon-btn"
+                onClick={handleCopy}
+                title="Copy value"
+              >
+                {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="variable-popover-actions">
+          <button
+            type="button"
+            className={`variable-popover-save-btn ${savedSuccess ? "saved" : ""}`}
+            onClick={() => void handleSave()}
+            disabled={isSaving}
+          >
+            {savedSuccess ? (
+              <>
+                <Check size={12} /> Saved!
+              </>
+            ) : isResolved ? (
+              "Update Variable"
+            ) : (
+              <>
+                <Plus size={12} /> Add to Environment
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <div className={`variable-popover-arrow ${isBottom ? "arrow-top" : "arrow-bottom"}`} />
+    </div>
+  );
+}
+
+export interface VariableInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   activeVariables: EnvironmentVariable[];
+  activeEnvironmentName?: string;
+  onSaveVariable?: (envName: string, key: string, value: string) => Promise<void> | void;
   containerStyle?: React.CSSProperties;
   containerClassName?: string;
 }
 
 export function VariableInput({
   activeVariables,
+  activeEnvironmentName,
+  onSaveVariable,
   value = "",
   onChange,
   onScroll,
@@ -29,6 +201,7 @@ export function VariableInput({
   onKeyUp,
   onKeyDown,
   onSelect,
+  onDoubleClick,
   style,
   className,
   containerStyle,
@@ -38,6 +211,10 @@ export function VariableInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+
+  const isHoveringPopoverRef = useRef(false);
+  const isPinnedRef = useRef(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isFocused, setIsFocused] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
@@ -51,13 +228,51 @@ export function VariableInput({
 
   const [showPassword, setShowPassword] = useState(false);
   const isPasswordProp = rest.type === "password";
-  const actualType = isPasswordProp && !showPassword ? "password" : (isPasswordProp ? "text" : rest.type);
+  const actualType = isPasswordProp && !showPassword ? "password" : isPasswordProp ? "text" : rest.type;
 
   const strValue = String(value);
   const hasVariables = actualType !== "password" && /\{\{[^{}]+\}\}/.test(strValue);
 
+  const cancelCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    if (isPinnedRef.current || isHoveringPopoverRef.current) return;
+    cancelCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      if (!isPinnedRef.current && !isHoveringPopoverRef.current) {
+        setActiveTooltip(null);
+      }
+    }, 300);
+  }, [cancelCloseTimer]);
+
+  const closePopoverImmediately = useCallback(() => {
+    cancelCloseTimer();
+    isPinnedRef.current = false;
+    isHoveringPopoverRef.current = false;
+    setActiveTooltip(null);
+  }, [cancelCloseTimer]);
+
+  // Click outside to dismiss pinned popover
+  useEffect(() => {
+    if (!activeTooltip) return;
+
+    function handlePointerDownOutside(e: PointerEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        closePopoverImmediately();
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDownOutside);
+    return () => window.removeEventListener("pointerdown", handlePointerDownOutside);
+  }, [activeTooltip, closePopoverImmediately]);
+
   const checkAutocomplete = () => {
-    const el = inputRef.current || (backdropRef.current?.parentElement?.querySelector('textarea') as HTMLTextAreaElement);
+    const el = inputRef.current || (backdropRef.current?.parentElement?.querySelector("textarea") as HTMLTextAreaElement);
     if (!el) return;
     const val = el.value;
     const cursor = el.selectionStart ?? 0;
@@ -67,7 +282,7 @@ export function VariableInput({
       const prefix = match[1].toLowerCase();
       const options = activeVariables.filter((v) => v.key.toLowerCase().includes(prefix));
       if (options.length > 0) {
-        setAutocomplete(prev => ({
+        setAutocomplete((prev) => ({
           prefix,
           options,
           selectedIndex: prev ? Math.min(prev.selectedIndex, options.length - 1) : 0,
@@ -81,7 +296,7 @@ export function VariableInput({
 
   const applyAutocomplete = (variable: EnvironmentVariable) => {
     if (!autocomplete) return;
-    const el = inputRef.current || (backdropRef.current?.parentElement?.querySelector('textarea') as HTMLTextAreaElement);
+    const el = inputRef.current || (backdropRef.current?.parentElement?.querySelector("textarea") as HTMLTextAreaElement);
     if (!el) return;
     const val = strValue;
     const start = autocomplete.startOffset;
@@ -94,7 +309,7 @@ export function VariableInput({
     }
     setAutocomplete(null);
     setTimeout(() => {
-      const currentEl = inputRef.current || (backdropRef.current?.parentElement?.querySelector('textarea') as HTMLTextAreaElement);
+      const currentEl = inputRef.current || (backdropRef.current?.parentElement?.querySelector("textarea") as HTMLTextAreaElement);
       if (currentEl) {
         const newCursor = start + 4 + variable.key.length;
         currentEl.setSelectionRange(newCursor, newCursor);
@@ -105,22 +320,22 @@ export function VariableInput({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (autocomplete) {
-      if (e.key === 'ArrowDown') {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
-        setAutocomplete(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex + 1) % prev.options.length } : null);
+        setAutocomplete((prev) => (prev ? { ...prev, selectedIndex: (prev.selectedIndex + 1) % prev.options.length } : null));
         return;
       }
-      if (e.key === 'ArrowUp') {
+      if (e.key === "ArrowUp") {
         e.preventDefault();
-        setAutocomplete(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex - 1 + prev.options.length) % prev.options.length } : null);
+        setAutocomplete((prev) => (prev ? { ...prev, selectedIndex: (prev.selectedIndex - 1 + prev.options.length) % prev.options.length } : null));
         return;
       }
-      if (e.key === 'Enter' || e.key === 'Tab') {
+      if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         applyAutocomplete(autocomplete.options[autocomplete.selectedIndex]);
         return;
       }
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         e.preventDefault();
         setAutocomplete(null);
         return;
@@ -130,14 +345,12 @@ export function VariableInput({
     if (onKeyDown) onKeyDown(e as any);
   };
 
-  // Sync scroll position
   const syncScroll = () => {
     if (inputRef.current && backdropRef.current) {
       backdropRef.current.scrollLeft = inputRef.current.scrollLeft;
     }
   };
 
-  // Sync styles from input to backdrop
   const syncStyles = () => {
     if (inputRef.current && backdropRef.current) {
       const inputStyle = window.getComputedStyle(inputRef.current);
@@ -170,18 +383,14 @@ export function VariableInput({
     syncScroll();
   }, [strValue, isFocused]);
 
-  // Sync on mount and window resize
   useEffect(() => {
     syncStyles();
     window.addEventListener("resize", syncStyles);
     return () => window.removeEventListener("resize", syncStyles);
   }, []);
 
-  /**
-   * Show tooltip for a given variable span element and mouse position.
-   */
   const showTooltipForSpan = useCallback(
-    (span: Element, clientX: number, clientY: number) => {
+    (span: Element) => {
       const varName = (span as HTMLElement).dataset.varname;
       if (!varName) return;
 
@@ -192,44 +401,46 @@ export function VariableInput({
       const parentRect = containerRef.current!.getBoundingClientRect();
       const spanRect = span.getBoundingClientRect();
 
+      const spaceAbove = spanRect.top;
+      const placement: "top" | "bottom" = spaceAbove < 180 ? "bottom" : "top";
+
+      const y = placement === "top"
+        ? spanRect.top - parentRect.top - 6
+        : spanRect.bottom - parentRect.top + 6;
+
       setActiveTooltip({
         key: varName,
         value: val,
         isSecret: false,
         isResolved,
         x: spanRect.left - parentRect.left + spanRect.width / 2,
-        y: spanRect.top - parentRect.top - 8,
+        y,
+        placement,
       });
     },
     [activeVariables]
   );
 
-  /**
-   * Handle mousemove on the input: temporarily hide the input's pointer-events
-   * so elementFromPoint can reach the backdrop span underneath.
-   */
-  const handleInputMouseMove = useCallback(
+  // Trigger popover on double click on {{...}} span
+  const handleInputDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLInputElement>) => {
       const input = inputRef.current;
       if (!input) return;
 
-      // Temporarily disable pointer-events on the input so we can hit-test beneath it
       input.style.pointerEvents = "none";
       const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
       input.style.pointerEvents = "";
 
       if (elemBelow && elemBelow.classList.contains("variable-highlight")) {
-        showTooltipForSpan(elemBelow, e.clientX, e.clientY);
-      } else {
-        setActiveTooltip(null);
+        cancelCloseTimer();
+        isPinnedRef.current = true;
+        showTooltipForSpan(elemBelow);
       }
-    },
-    [showTooltipForSpan]
-  );
 
-  const handleInputMouseLeave = useCallback(() => {
-    setActiveTooltip(null);
-  }, []);
+      if (onDoubleClick) onDoubleClick(e);
+    },
+    [showTooltipForSpan, cancelCloseTimer, onDoubleClick]
+  );
 
   const renderHighlightedText = () => {
     if (!strValue) return null;
@@ -240,16 +451,13 @@ export function VariableInput({
       if (isVar) {
         const varName = part.slice(2, -2).trim();
         const exists = activeVariables.some((v) => v.key === varName);
+        const isActivePopover = activeTooltip?.key === varName;
         const spanClassName = exists
-          ? "variable-highlight resolved"
-          : "variable-highlight unresolved";
+          ? `variable-highlight resolved ${isActivePopover ? "active-popover" : ""}`
+          : `variable-highlight unresolved ${isActivePopover ? "active-popover" : ""}`;
 
         return (
-          <span
-            key={index}
-            className={spanClassName}
-            data-varname={varName}
-          >
+          <span key={index} className={spanClassName} data-varname={varName}>
             {part}
           </span>
         );
@@ -301,8 +509,7 @@ export function VariableInput({
         autoCapitalize="off"
         onChange={(e) => {
           if (onChange) onChange(e);
-          setActiveTooltip(null);
-          // Small defer to let React state update before syncing scroll
+          if (!isPinnedRef.current) closePopoverImmediately();
           setTimeout(() => {
             syncScroll();
             checkAutocomplete();
@@ -311,7 +518,7 @@ export function VariableInput({
         onScroll={(e) => {
           syncScroll();
           if (onScroll) onScroll(e);
-          setActiveTooltip(null);
+          if (!isPinnedRef.current) closePopoverImmediately();
         }}
         onFocus={(e) => {
           setIsFocused(true);
@@ -320,7 +527,6 @@ export function VariableInput({
         onBlur={(e) => {
           setIsFocused(false);
           if (onBlur) onBlur(e);
-          setActiveTooltip(null);
         }}
         onKeyUp={(e) => {
           syncScroll();
@@ -334,8 +540,7 @@ export function VariableInput({
           if (onSelect) onSelect(e);
         }}
         onMouseUp={checkAutocomplete}
-        onMouseMove={hasVariables ? handleInputMouseMove : undefined}
-        onMouseLeave={hasVariables ? handleInputMouseLeave : undefined}
+        onDoubleClick={hasVariables ? handleInputDoubleClick : onDoubleClick}
         style={{
           width: "100%",
           background: "transparent",
@@ -357,7 +562,7 @@ export function VariableInput({
       {isPasswordProp && (
         <button
           type="button"
-          onClick={() => setShowPassword(p => !p)}
+          onClick={() => setShowPassword((p) => !p)}
           tabIndex={-1}
           style={{
             position: "absolute",
@@ -380,40 +585,48 @@ export function VariableInput({
         </button>
       )}
 
-      {/* Tooltip */}
+      {/* Popover Card */}
       {activeTooltip && (
-        <div
-          className="variable-tooltip"
-          style={{
-            left: `${activeTooltip.x}px`,
-            top: `${activeTooltip.y}px`,
-            transform: "translate(-50%, -100%)",
+        <VariablePopoverCard
+          tooltipKey={activeTooltip.key}
+          tooltipValue={activeTooltip.value}
+          isResolved={activeTooltip.isResolved}
+          x={activeTooltip.x}
+          y={activeTooltip.y}
+          placement={activeTooltip.placement}
+          activeEnvironmentName={activeEnvironmentName}
+          onSaveVariable={onSaveVariable}
+          onClose={closePopoverImmediately}
+          onMouseEnter={() => {
+            cancelCloseTimer();
+            isHoveringPopoverRef.current = true;
           }}
-        >
-          {activeTooltip.isResolved ? (
-            <div style={{ opacity: 0.9, fontFamily: "monospace", fontSize: "11px" }}>
-              {activeTooltip.value}
-            </div>
-          ) : (
-            <div style={{ color: "#f87171", fontWeight: 500 }}>
-              Unresolved variable (not in active environment)
-            </div>
-          )}
-          <div className="variable-tooltip-arrow" />
-        </div>
+          onMouseLeave={() => {
+            isHoveringPopoverRef.current = false;
+            scheduleClose();
+          }}
+          onInputFocus={() => {
+            cancelCloseTimer();
+            isPinnedRef.current = true;
+          }}
+        />
       )}
     </div>
   );
 }
 
-interface VariableTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface VariableTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   activeVariables: EnvironmentVariable[];
+  activeEnvironmentName?: string;
+  onSaveVariable?: (envName: string, key: string, value: string) => Promise<void> | void;
   containerStyle?: React.CSSProperties;
   containerClassName?: string;
 }
 
 export function VariableTextarea({
   activeVariables,
+  activeEnvironmentName,
+  onSaveVariable,
   value = "",
   onChange,
   onScroll,
@@ -422,6 +635,7 @@ export function VariableTextarea({
   onKeyUp,
   onKeyDown,
   onSelect,
+  onDoubleClick,
   style,
   className,
   containerStyle,
@@ -432,10 +646,15 @@ export function VariableTextarea({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
 
+  const isHoveringPopoverRef = useRef(false);
+  const isPinnedRef = useRef(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [isFocused, setIsFocused] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
 
   const strValue = String(value);
+  const hasVariables = /\{\{[^{}]+\}\}/.test(strValue);
 
   const [autocomplete, setAutocomplete] = useState<{
     prefix: string;
@@ -443,6 +662,43 @@ export function VariableTextarea({
     selectedIndex: number;
     startOffset: number;
   } | null>(null);
+
+  const cancelCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    if (isPinnedRef.current || isHoveringPopoverRef.current) return;
+    cancelCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      if (!isPinnedRef.current && !isHoveringPopoverRef.current) {
+        setActiveTooltip(null);
+      }
+    }, 300);
+  }, [cancelCloseTimer]);
+
+  const closePopoverImmediately = useCallback(() => {
+    cancelCloseTimer();
+    isPinnedRef.current = false;
+    isHoveringPopoverRef.current = false;
+    setActiveTooltip(null);
+  }, [cancelCloseTimer]);
+
+  useEffect(() => {
+    if (!activeTooltip) return;
+
+    function handlePointerDownOutside(e: PointerEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        closePopoverImmediately();
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDownOutside);
+    return () => window.removeEventListener("pointerdown", handlePointerDownOutside);
+  }, [activeTooltip, closePopoverImmediately]);
 
   const checkAutocomplete = () => {
     const el = textareaRef.current;
@@ -455,7 +711,7 @@ export function VariableTextarea({
       const prefix = match[1].toLowerCase();
       const options = activeVariables.filter((v) => v.key.toLowerCase().includes(prefix));
       if (options.length > 0) {
-        setAutocomplete(prev => ({
+        setAutocomplete((prev) => ({
           prefix,
           options,
           selectedIndex: prev ? Math.min(prev.selectedIndex, options.length - 1) : 0,
@@ -491,86 +747,32 @@ export function VariableTextarea({
     }, 0);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (autocomplete) {
-      if (e.key === 'ArrowDown') {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
-        setAutocomplete(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex + 1) % prev.options.length } : null);
+        setAutocomplete((prev) => (prev ? { ...prev, selectedIndex: (prev.selectedIndex + 1) % prev.options.length } : null));
         return;
       }
-      if (e.key === 'ArrowUp') {
+      if (e.key === "ArrowUp") {
         e.preventDefault();
-        setAutocomplete(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex - 1 + prev.options.length) % prev.options.length } : null);
+        setAutocomplete((prev) => (prev ? { ...prev, selectedIndex: (prev.selectedIndex - 1 + prev.options.length) % prev.options.length } : null));
         return;
       }
-      if (e.key === 'Enter' || e.key === 'Tab') {
+      if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         applyAutocomplete(autocomplete.options[autocomplete.selectedIndex]);
         return;
       }
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         e.preventDefault();
         setAutocomplete(null);
         return;
       }
     }
-    syncScroll();
-    if (onKeyDown) onKeyDown(e as any);
+    if (onKeyDown) onKeyDown(e);
   };
 
-  // Sync scroll position
-  const syncScroll = () => {
-    if (textareaRef.current && backdropRef.current) {
-      backdropRef.current.scrollTop = textareaRef.current.scrollTop;
-      backdropRef.current.scrollLeft = textareaRef.current.scrollLeft;
-    }
-  };
-
-  // Sync styles from textarea to backdrop
-  const syncStyles = () => {
-    if (textareaRef.current && backdropRef.current) {
-      const textareaStyle = window.getComputedStyle(textareaRef.current);
-      const backdrop = backdropRef.current;
-
-      const stylesToSync = [
-        "fontFamily",
-        "fontSize",
-        "lineHeight",
-        "fontWeight",
-        "letterSpacing",
-        "paddingTop",
-        "paddingRight",
-        "paddingBottom",
-        "paddingLeft",
-        "textTransform",
-        "textAlign",
-        "wordSpacing",
-        "wordBreak",
-        "overflowWrap",
-      ];
-
-      stylesToSync.forEach((prop) => {
-        // @ts-ignore
-        backdrop.style[prop] = textareaStyle[prop];
-      });
-    }
-  };
-
-  useEffect(() => {
-    syncStyles();
-    syncScroll();
-  }, [strValue, isFocused]);
-
-  // Sync on mount and window resize
-  useEffect(() => {
-    syncStyles();
-    window.addEventListener("resize", syncStyles);
-    return () => window.removeEventListener("resize", syncStyles);
-  }, []);
-
-  /**
-   * Show tooltip for a given variable span element.
-   */
   const showTooltipForSpan = useCallback(
     (span: Element) => {
       const varName = (span as HTMLElement).dataset.varname;
@@ -583,23 +785,27 @@ export function VariableTextarea({
       const parentRect = containerRef.current!.getBoundingClientRect();
       const spanRect = span.getBoundingClientRect();
 
+      const spaceAbove = spanRect.top;
+      const placement: "top" | "bottom" = spaceAbove < 180 ? "bottom" : "top";
+
+      const y = placement === "top"
+        ? spanRect.top - parentRect.top - 6
+        : spanRect.bottom - parentRect.top + 6;
+
       setActiveTooltip({
         key: varName,
         value: val,
         isSecret: false,
         isResolved,
         x: spanRect.left - parentRect.left + spanRect.width / 2,
-        y: spanRect.top - parentRect.top - 8,
+        y,
+        placement,
       });
     },
     [activeVariables]
   );
 
-  /**
-   * Handle mousemove on the textarea: temporarily disable pointer-events on
-   * the textarea so elementFromPoint can reach the backdrop span underneath.
-   */
-  const handleTextareaMouseMove = useCallback(
+  const handleTextareaDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLTextAreaElement>) => {
       const textarea = textareaRef.current;
       if (!textarea) return;
@@ -609,17 +815,15 @@ export function VariableTextarea({
       textarea.style.pointerEvents = "";
 
       if (elemBelow && elemBelow.classList.contains("variable-highlight")) {
+        cancelCloseTimer();
+        isPinnedRef.current = true;
         showTooltipForSpan(elemBelow);
-      } else {
-        setActiveTooltip(null);
       }
-    },
-    [showTooltipForSpan]
-  );
 
-  const handleTextareaMouseLeave = useCallback(() => {
-    setActiveTooltip(null);
-  }, []);
+      if (onDoubleClick) onDoubleClick(e);
+    },
+    [showTooltipForSpan, cancelCloseTimer, onDoubleClick]
+  );
 
   const renderHighlightedText = () => {
     if (!strValue) return null;
@@ -630,16 +834,13 @@ export function VariableTextarea({
       if (isVar) {
         const varName = part.slice(2, -2).trim();
         const exists = activeVariables.some((v) => v.key === varName);
+        const isActivePopover = activeTooltip?.key === varName;
         const spanClassName = exists
-          ? "variable-highlight resolved"
-          : "variable-highlight unresolved";
+          ? `variable-highlight resolved ${isActivePopover ? "active-popover" : ""}`
+          : `variable-highlight unresolved ${isActivePopover ? "active-popover" : ""}`;
 
         return (
-          <span
-            key={index}
-            className={spanClassName}
-            data-varname={varName}
-          >
+          <span key={index} className={spanClassName} data-varname={varName}>
             {part}
           </span>
         );
@@ -660,47 +861,40 @@ export function VariableTextarea({
         ...containerStyle,
       }}
     >
-      {/* Backdrop */}
       <div
         ref={backdropRef}
         className="variable-input-backdrop"
+        aria-hidden="true"
         style={{
           position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
+          display: "block",
           pointerEvents: "none",
           whiteSpace: "pre-wrap",
-          wordBreak: "break-all",
+          wordBreak: "break-word",
           overflow: "hidden",
           boxSizing: "border-box",
           backgroundColor: "transparent",
-          border: "1px solid transparent",
         }}
       >
         {renderHighlightedText()}
       </div>
 
-      {/* Textarea */}
       <textarea
         ref={textareaRef}
         value={value}
         spellCheck={false}
-        autoCorrect="off"
-        autoCapitalize="off"
         onChange={(e) => {
           if (onChange) onChange(e);
-          setActiveTooltip(null);
-          setTimeout(() => {
-            syncScroll();
-            checkAutocomplete();
-          }, 0);
+          if (!isPinnedRef.current) closePopoverImmediately();
+          setTimeout(() => checkAutocomplete(), 0);
         }}
         onScroll={(e) => {
-          syncScroll();
           if (onScroll) onScroll(e);
-          setActiveTooltip(null);
+          if (!isPinnedRef.current) closePopoverImmediately();
         }}
         onFocus={(e) => {
           setIsFocused(true);
@@ -709,102 +903,60 @@ export function VariableTextarea({
         onBlur={(e) => {
           setIsFocused(false);
           if (onBlur) onBlur(e);
-          setActiveTooltip(null);
         }}
         onKeyUp={(e) => {
-          syncScroll();
           checkAutocomplete();
           if (onKeyUp) onKeyUp(e);
         }}
         onKeyDown={handleKeyDown}
         onSelect={(e) => {
-          syncScroll();
           checkAutocomplete();
           if (onSelect) onSelect(e);
         }}
         onMouseUp={checkAutocomplete}
-        onMouseMove={handleTextareaMouseMove}
-        onMouseLeave={handleTextareaMouseLeave}
+        onDoubleClick={hasVariables ? handleTextareaDoubleClick : onDoubleClick}
         style={{
           width: "100%",
           background: "transparent",
           border: "none",
           outline: "none",
-          color: strValue ? "transparent" : "inherit",
+          color: "transparent",
           caretColor: "var(--color-text)",
           boxSizing: "border-box",
           position: "relative",
           zIndex: 2,
+          resize: "none",
           ...style,
         }}
         className={className}
         {...rest}
       />
 
-      {/* Tooltip */}
+      {/* Popover Card */}
       {activeTooltip && (
-        <div
-          className="variable-tooltip"
-          style={{
-            left: `${activeTooltip.x}px`,
-            top: `${activeTooltip.y}px`,
-            transform: "translate(-50%, -100%)",
+        <VariablePopoverCard
+          tooltipKey={activeTooltip.key}
+          tooltipValue={activeTooltip.value}
+          isResolved={activeTooltip.isResolved}
+          x={activeTooltip.x}
+          y={activeTooltip.y}
+          placement={activeTooltip.placement}
+          activeEnvironmentName={activeEnvironmentName}
+          onSaveVariable={onSaveVariable}
+          onClose={closePopoverImmediately}
+          onMouseEnter={() => {
+            cancelCloseTimer();
+            isHoveringPopoverRef.current = true;
           }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: "2px" }}>
-            {"{{"} {activeTooltip.key} {"}}"}
-          </div>
-          {activeTooltip.isResolved ? (
-            <div style={{ opacity: 0.9, fontFamily: "monospace", fontSize: "11px" }}>
-              Value: {activeTooltip.value}
-            </div>
-          ) : (
-            <div style={{ color: "#f87171", fontWeight: 500 }}>
-              Unresolved variable (not in active environment)
-            </div>
-          )}
-          <div className="variable-tooltip-arrow" />
-        </div>
-      )}
-
-      {/* Autocomplete Menu */}
-      {autocomplete && (
-        <div
-          className="variable-autocomplete-menu"
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            zIndex: 10,
-            background: 'var(--color-panel)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '6px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            maxHeight: '200px',
-            overflowY: 'auto',
-            minWidth: '200px',
-            marginTop: '4px',
+          onMouseLeave={() => {
+            isHoveringPopoverRef.current = false;
+            scheduleClose();
           }}
-        >
-          {autocomplete.options.map((opt, idx) => (
-            <div
-              key={opt.key}
-              onClick={() => applyAutocomplete(opt)}
-              style={{
-                padding: '6px 12px',
-                cursor: 'pointer',
-                background: idx === autocomplete.selectedIndex ? 'var(--color-surface-hover)' : 'transparent',
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: '8px',
-              }}
-              onMouseEnter={() => setAutocomplete(prev => prev ? { ...prev, selectedIndex: idx } : null)}
-            >
-              <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{opt.key}</span>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }}>{opt.value}</span>
-            </div>
-          ))}
-        </div>
+          onInputFocus={() => {
+            cancelCloseTimer();
+            isPinnedRef.current = true;
+          }}
+        />
       )}
     </div>
   );

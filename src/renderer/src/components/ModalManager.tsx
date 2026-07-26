@@ -23,7 +23,7 @@ interface ResponseWindowProps {
   isResponseTabPending: boolean;
   responseTab: ResponseTab;
   previewMode: PreviewMode;
-  activeBottomDock: "response" | null;
+  activeBottomDock: "response" | "console" | null;
   onTabChange: (tab: ResponseTab) => void;
   onPreviewModeChange: (mode: PreviewMode) => void;
   onDownload: () => void;
