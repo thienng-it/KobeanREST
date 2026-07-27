@@ -39,7 +39,7 @@ export function AppShell({ activeRoute, children }: AppShellProps) {
       </header>
       <main>{children}</main>
       <footer className="site-footer">
-        <span>KobeanREST is local-first: no app account, no hosted workspace, no required backend.</span>
+        <span>KobeanREST is local-first. Built with ❤️ by <a href="https://github.com/kobenguyent" target="_blank" rel="noreferrer">kobenguyent</a> & contributors for the open-source community.</span>
         <a href={repoUrl} target="_blank" rel="noreferrer">
           View repository
         </a>

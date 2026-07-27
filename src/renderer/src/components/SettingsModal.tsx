@@ -174,6 +174,13 @@ export function SettingsModal({
               />
             </label>
           </section>
+
+          <section className="settings-section">
+            <h3>About & Attribution</h3>
+            <p style={{ fontSize: "12px", color: "var(--color-muted)", margin: 0, lineHeight: 1.5 }}>
+              KobeanREST is a local-first desktop API client. Built with ❤️ by <strong>kobenguyent</strong> (Lead Contributor) & open-source contributors.
+            </p>
+          </section>
         </div>
 
         <div className="settings-footer">

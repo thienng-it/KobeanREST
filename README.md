@@ -133,4 +133,4 @@ KobeanREST is engineered to keep your workspace data private and local:
 
 ## 📄 License
 
-Distributed under the [MIT License](LICENSE). Built with ❤️ for the open-source developer community.
+Distributed under the [MIT License](LICENSE). Built with ❤️ by [kobenguyent](https://github.com/kobenguyent) (Lead Contributor) & the open-source developer community.
