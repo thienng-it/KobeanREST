@@ -6,6 +6,7 @@
   "description": "Local-first desktop API client for REST and HTTP workflows.",
   "scripts": {
     "test": "node --test",
+    "test:e2e": "node scripts/run-e2e-tests.mjs",
     "check:local-only": "node tests/local-only-contract.test.mjs",
     "check:release": "node scripts/check-release-preflight.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
@@ -37,6 +38,8 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "codeceptjs": "^3.6.10",
+    "playwright": "^1.50.0",
     "typescript": "^5.6.3",
     "vite": "^7.3.6"
   }
