@@ -83,9 +83,128 @@ const parseWorkspaceFields = (workspace: WorkspaceSummary) => {
   return workspace;
 };
 
+const DEFAULT_PREVIEW_WORKSPACE: WorkspaceSummary = {
+  id: "preview-workspace-1",
+  name: "Local Workspace",
+  activeEnvironment: "Development",
+  collections: [
+    {
+      id: "col-1",
+      name: "JSONPlaceholder REST API",
+      variables: []
+    },
+    {
+      id: "col-2",
+      name: "HTTP Testing Utilities",
+      variables: []
+    }
+  ],
+  folders: [
+    {
+      id: "f-1",
+      name: "Users & Posts",
+      collectionId: "col-1",
+      variables: []
+    },
+    {
+      id: "f-2",
+      name: "Headers & Auth",
+      collectionId: "col-2",
+      variables: []
+    }
+  ],
+  requests: [
+    {
+      id: "req-1",
+      folderId: "f-1",
+      name: "GET Users List",
+      method: "GET",
+      url: "{{baseUrl}}/users",
+      headers: [
+        { key: "Accept", value: "application/json", enabled: true }
+      ],
+      queryParams: [
+        { key: "_limit", value: "5", enabled: true }
+      ],
+      body: "",
+      bodyMimeType: "application/json",
+      bodyForm: [],
+      authMode: "none",
+      authConfig: {},
+      timeoutMs: 30000,
+      followRedirects: true,
+      variables: []
+    },
+    {
+      id: "req-2",
+      folderId: "f-1",
+      name: "POST Create Post",
+      method: "POST",
+      url: "{{baseUrl}}/posts",
+      headers: [
+        { key: "Content-Type", value: "application/json", enabled: true }
+      ],
+      queryParams: [],
+      body: '{\n  "title": "KobeanREST Web Preview",\n  "body": "Testing REST request execution directly in browser mode!",\n  "userId": 1\n}',
+      bodyMimeType: "application/json",
+      bodyForm: [],
+      authMode: "none",
+      authConfig: {},
+      timeoutMs: 30000,
+      followRedirects: true,
+      variables: []
+    },
+    {
+      id: "req-3",
+      folderId: "f-2",
+      name: "GET Request Headers",
+      method: "GET",
+      url: "https://httpbin.org/headers",
+      headers: [
+        { key: "User-Agent", value: "KobeanREST-Web/1.0", enabled: true },
+        { key: "X-Custom-Header", value: "KobeanREST-Demo", enabled: true }
+      ],
+      queryParams: [],
+      body: "",
+      bodyMimeType: "application/json",
+      bodyForm: [],
+      authMode: "none",
+      authConfig: {},
+      timeoutMs: 30000,
+      followRedirects: true,
+      variables: []
+    }
+  ],
+  environments: [
+    {
+      name: "Development",
+      variables: [
+        { key: "baseUrl", value: "https://jsonplaceholder.typicode.com" },
+        { key: "apiKey", value: "demo_key_dev_123" }
+      ]
+    },
+    {
+      name: "Production",
+      variables: [
+        { key: "baseUrl", value: "https://api.example.com" },
+        { key: "apiKey", value: "prod_key_xyz" }
+      ]
+    }
+  ]
+};
+
 export async function loadLocalWorkspace(): Promise<WorkspaceSummary> {
   if (!isTauriRuntime()) {
-    throw new Error("Workspace loading is not available in browser preview");
+    try {
+      const saved = localStorage.getItem("kr_browser_preview_workspace");
+      if (saved) {
+        return parseWorkspaceFields(JSON.parse(saved));
+      }
+    } catch {
+      // fallback
+    }
+    localStorage.setItem("kr_browser_preview_workspace", JSON.stringify(DEFAULT_PREVIEW_WORKSPACE));
+    return parseWorkspaceFields(JSON.parse(JSON.stringify(DEFAULT_PREVIEW_WORKSPACE)));
   }
 
   const workspace = await invoke<WorkspaceSummary>("load_workspace");
