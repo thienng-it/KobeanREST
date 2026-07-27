@@ -1,125 +1,136 @@
-# KobeanREST
+<div align="center">
 
-KobeanREST is a local-first desktop API client for REST and standard HTTP workflows. It is built for people who want a fast native app, local workspace ownership, and no hosted account requirement.
+# ⚡ KobeanREST
 
-## Product Contract
+**A fast, local-first desktop API client for REST & HTTP workflows.**
 
-- Download the app.
-- Launch it locally.
-- Build, send, save, import, and export REST requests from your machine.
-- Use it without a KobeanREST account, cloud workspace, hosted authentication service, or required backend.
+*No account required. No cloud sync forced. 100% local workspace ownership.*
 
-API request authentication remains in scope. Basic Auth, Bearer Token, API Key, OAuth 2.0, cookies, and client certificates authenticate requests to target APIs, not users into KobeanREST.
+[![Version](https://img.shields.io/github/v/release/thienng-it/KobeanREST?color=3b82f6&style=flat-square)](https://github.com/thienng-it/KobeanREST/releases/latest)
+[![License](https://img.shields.io/github/license/thienng-it/KobeanREST?color=10b981&style=flat-square)](LICENSE)
+[![Tauri 2](https://img.shields.io/badge/Tauri-2.0-22c55e?style=flat-square&logo=tauri)](https://tauri.app)
+[![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react)](https://react.dev)
+[![Docs Portal](https://img.shields.io/badge/Docs-Live-8b5cf6?style=flat-square)](https://thienng-it.github.io/KobeanREST/)
+[![Web Preview](https://img.shields.io/badge/Web_Preview-Try_Live-ec4899?style=flat-square)](https://thienng-it.github.io/KobeanREST/app/)
 
-## Public Links
+---
 
-- Documentation portal: <https://thienng-it.github.io/KobeanREST/>
-- Run in browser (web preview): <https://thienng-it.github.io/KobeanREST/app/>
-- Downloads: [docs/download.md](docs/download.md)
-- Release operations: [docs/release-operations.md](docs/release-operations.md)
-- Implementation roadmap: [docs/implementation-roadmap.md](docs/implementation-roadmap.md)
-- Release QA checklist: [docs/release-qa.md](docs/release-qa.md)
+[📖 Documentation](https://thienng-it.github.io/KobeanREST/) • [🚀 Try Web Preview](https://thienng-it.github.io/KobeanREST/app/) • [📦 Download Desktop App](https://github.com/thienng-it/KobeanREST/releases/latest) • [🗺️ Roadmap](docs/implementation-roadmap.md)
 
-## Highlights
+</div>
 
-- Native desktop shell with Tauri 2.
-- React, Vite, and TypeScript renderer with refined high-density desktop UI layout.
-- Bi-directional URL Query Parameters (`Params`) editor with real-time URL string sync (`?key=value`).
-- Rust native core for local persistence and desktop integrations.
-- SQLite-backed workspaces, collections, requests, environments, and history.
-- OS keychain-backed secret storage with encrypted vault fallback support.
-- Export/import flow that redacts secret values by default.
-- Optional signed updater flow using public GitHub Release metadata.
-- Public GitHub Pages documentation portal with multi-page product, download, developer, release, roadmap, and QA docs.
-- Browser preview build of the renderer, published alongside the docs portal, for trying the UI without installing the desktop app. Requests run through a local preview responder instead of the native HTTP client, and workspace data is not persisted between sessions.
-- Betterleak sensitive-data policy checked in CI through `npm run check:secrets`.
+<br />
 
-## Downloads
+## 🌟 Overview
 
-Installers are published through GitHub Releases and linked from the docs portal:
+**KobeanREST** is designed for software engineers, backend developers, and QA teams who need a high-performance REST API client without forced cloud lock-in or user registration. Download the app, launch it locally, and build, test, and save API requests directly on your machine.
 
-<https://github.com/thienng-it/KobeanREST/releases/latest>
+> **Local-First Contract:**
+> KobeanREST has **no user accounts, no login screens, no cloud telemetry, and no required backend service.** All workspace data is stored in local SQLite databases, and secret credentials remain safely secured in your operating system's native keychain.
 
-The download guide includes direct macOS, Windows, and Linux links, terminal download commands, checksum verification, and first-run notes for Gatekeeper, SmartScreen, and Linux AppImage permissions.
+---
 
-## Architecture
+## ✨ Key Features
+
+| Feature | Description |
+| :--- | :--- |
+| 🚀 **Native Tauri 2 Core** | Blazing-fast desktop performance powered by Rust with lightweight memory usage. |
+| 🎨 **High-Density Desktop UI** | Modern, compact aesthetic with refined focus states, single-ring inputs, and crisp typography. |
+| 🔄 **Bi-Directional Query Params** | Interactive `Params` tab with real-time bi-directional synchronization with the URL bar (`?key=value`). |
+| 🔐 **Keychain Secret Protection** | Sensitive values (API keys, tokens) stay outside SQLite in OS keychain / encrypted vault storage. |
+| 📦 **Local Persistence** | SQLite-backed storage for workspaces, collections, folders, requests, environment variables, and history. |
+| 📜 **Pre & Post Request Scripts** | Dynamic JavaScript execution environment with live logs, assertions, and variable injection. |
+| 🌐 **Live Web Preview** | Try KobeanREST instantly in any modern web browser without installing local desktop binaries. |
+| 🤖 **Automated Nightly Releases** | GitHub Actions bot continuously verifies builds and publishes signed release installers & updater manifests. |
+
+---
+
+## 📥 Downloads & Installation
+
+Official cross-platform installers are published through GitHub Releases:
+
+👉 **[Download Latest Version (GitHub Releases)](https://github.com/thienng-it/KobeanREST/releases/latest)**
+
+| Platform | Installer Format | Architecture |
+| :--- | :--- | :--- |
+| **macOS** | `.dmg` | Universal (Apple Silicon & Intel) |
+| **Windows** | `.msi` | x64 |
+| **Linux** | `.AppImage` / `.deb` | x64 |
+
+*Detailed installation instructions, checksum verification, and OS security notes are available in the [Download Guide](docs/download.md).*
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      React Renderer                         │
+│   (Request Builder, Params Sync, Env Editor, Bottom Dock)   │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ Tauri IPC Bridge
+┌──────────────────────────────▼──────────────────────────────┐
+│                    Rust Desktop Core                        │
+│   (Reqwest HTTP Engine, SQLite Persistence, Keychain Vault) │
+└─────────────────────────────────────────────────────────────┘
+```
 
 | Layer | Responsibility |
-| --- | --- |
-| Tauri 2 shell | Native desktop window, updater plugin, OS integration |
-| Rust core | SQLite persistence, command handlers, keychain-backed secrets |
-| React renderer | Request builder, environments, history, settings, update UI |
-| Docs site | Public GitHub Pages portal built from `docs-site/` |
-| CI | Tests, docs build, release preflight, and Betterleak sensitive-data scan |
+| :--- | :--- |
+| **Tauri 2 Shell** | Native window management, desktop shortcuts, auto-updater integration |
+| **Rust Native Core** | SQLite storage, HTTP client execution engine, OS keychain integrations |
+| **React Renderer** | CodeMirror editor, dynamic variable resolution `{{var}}`, theme engines |
+| **Docs Portal** | GitHub Pages documentation portal built from `docs-site/` |
 
-## Development
+---
 
-Install dependencies:
+## 🛠️ Development & Building
 
-```bash
-npm install
-```
+### Prerequisites
+- [Node.js](https://nodejs.org/) v22+
+- [Rust](https://www.rust-lang.org/) stable toolchain
+- Cargo & platform build dependencies
 
-Run the web renderer:
+### Local Setup
 
-```bash
-npm run dev
-```
+1. **Clone & Install Dependencies:**
+   ```bash
+   git clone https://github.com/thienng-it/KobeanREST.git
+   cd KobeanREST
+   npm install
+   ```
 
-Run the desktop shell:
+2. **Run Web Renderer (Dev Mode):**
+   ```bash
+   npm run dev
+   ```
 
-```bash
-npm run tauri dev
-```
+3. **Run Native Desktop App:**
+   ```bash
+   npm run tauri dev
+   ```
 
-Run the standard verification set:
+4. **Execute Verification & Tests:**
+   ```bash
+   npm test               # Run contract and unit test suite
+   npm run build          # Build TypeScript & Vite renderer
+   npm run build:docs     # Build documentation portal
+   npm run check:secrets  # Perform Betterleak sensitive-data scan
+   npm run check:release  # Run release preflight checks
+   ```
 
-```bash
-npm test
-npm run build
-npm run build:docs
-npm run check:secrets
-npm run check:release
-```
+---
 
-## Documentation Portal
+## 🔒 Security & Privacy
 
-The public documentation portal lives in `docs-site/` and is built for GitHub Pages.
+KobeanREST is engineered to keep your workspace data private and local:
 
-```bash
-npm run build:docs
-```
+- **Redacted Secret Exports:** Workspace exports redact sensitive environment variables by default.
+- **Redacted History:** Request history automatically masks sensitive URL query parameters and authorization headers.
+- **Automated Scanning:** Every commit and PR is scanned for credential leaks via `Betterleak` in CI (`npm run check:secrets`).
 
-GitHub Pages deployment is handled by `.github/workflows/docs-site.yml`.
+---
 
-## Security And Sensitive Data
+## 📄 License
 
-KobeanREST is designed so local workspace data stays local and raw secrets do not land in normal exports.
-
-Sensitive-data scanning is configured by `.betterleak` and executed by:
-
-```bash
-npm run check:secrets
-```
-
-CI runs the same scan in `.github/workflows/sensitive-data.yml`. The policy intentionally skips generated output and dependency directories such as `node_modules`, `dist`, `docs-site/dist`, and `src-tauri/target`.
-
-## Release
-
-Release builds are produced by `.github/workflows/release.yml` from version tags. The release workflow builds macOS DMG, Windows MSI, Linux AppImage, Linux deb, updater metadata, and SHA256 checksums.
-
-Before tagging a release, run:
-
-```bash
-npm test
-npm run build
-npm run build:docs
-npm run check:secrets
-npm run check:release
-```
-
-Operational release details are documented in [docs/release-operations.md](docs/release-operations.md).
-
-## Project Rules
-
-Agent-facing implementation rules live in [docs/agent-rules.md](docs/agent-rules.md). Product behavior, release status, and completed phases are tracked in [docs/implementation-roadmap.md](docs/implementation-roadmap.md).
+Distributed under the [MIT License](LICENSE). Built with ❤️ for the open-source developer community.
