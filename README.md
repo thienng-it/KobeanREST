@@ -23,7 +23,8 @@ API request authentication remains in scope. Basic Auth, Bearer Token, API Key, 
 ## Highlights
 
 - Native desktop shell with Tauri 2.
-- React, Vite, and TypeScript renderer.
+- React, Vite, and TypeScript renderer with refined high-density desktop UI layout.
+- Bi-directional URL Query Parameters (`Params`) editor with real-time URL string sync (`?key=value`).
 - Rust native core for local persistence and desktop integrations.
 - SQLite-backed workspaces, collections, requests, environments, and history.
 - OS keychain-backed secret storage with encrypted vault fallback support.
