@@ -4,8 +4,11 @@
     ".github",
     "docs",
     "docs-site",
+    "scripts",
     "src",
     "src-tauri",
+    "tests",
+    "codecept.conf.cjs",
     "README.md",
     "package.json",
     "tsconfig.json",
@@ -63,7 +66,7 @@
     {
       "label": "literal-secret-assignment",
       "regex": "\\b(?:API[_-]?KEY|ACCESS[_-]?TOKEN|REFRESH[_-]?TOKEN|CLIENT[_-]?SECRET|PASSWORD)\\b\\s*[:=]\\s*[\"']?([^\\s\"',`]{8,})",
-      "allow": "\\$\\{\\{|REPLACE_|YOUR_|example|placeholder|redacted|dummy|changeme"
+      "allow": "\\$\\{\\{|secrets\\.|REPLACE_|YOUR_|example|placeholder|redacted|dummy|changeme"
     }
   ]
 }
