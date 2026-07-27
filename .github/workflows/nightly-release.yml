@@ -1,0 +1,203 @@
+name: Nightly Auto-Release Bot
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Runs every night at 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-tag:
+    name: Check New Commits & Prepare Tag
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      tag_name: ${{ steps.check.outputs.tag_name }}
+      release_name: ${{ steps.check.outputs.release_name }}
+      is_prerelease: ${{ steps.check.outputs.is_prerelease }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for new commits and determine tag
+        id: check
+        shell: bash
+        run: |
+          # Get package version
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          VERSION_TAG="v${PKG_VERSION}"
+          DATE_STAMP=$(date -u +'%Y%m%d')
+
+          echo "Package version: ${PKG_VERSION}"
+
+          # Check if exact version tag exists on remote
+          if ! git rev-parse "${VERSION_TAG}" >/dev/null 2>&1; then
+            echo "Version tag ${VERSION_TAG} does not exist yet. Creating tag ${VERSION_TAG}."
+            git tag "${VERSION_TAG}"
+            git push origin "${VERSION_TAG}"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "tag_name=${VERSION_TAG}" >> "$GITHUB_OUTPUT"
+            echo "release_name=KobeanREST ${VERSION_TAG}" >> "$GITHUB_OUTPUT"
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Check if there are new commits on main since the last tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LATEST_TAG" ]; then
+            COMMITS_SINCE=$(git rev-list "${LATEST_TAG}..HEAD" --count)
+            echo "Commits since ${LATEST_TAG}: ${COMMITS_SINCE}"
+            if [ "$COMMITS_SINCE" -eq 0 ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+              echo "No new commits since ${LATEST_TAG}. Skipping nightly release."
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          # Create nightly pre-release tag
+          NIGHTLY_TAG="${VERSION_TAG}-nightly.${DATE_STAMP}"
+          if git rev-parse "${NIGHTLY_TAG}" >/dev/null 2>&1; then
+            NIGHTLY_TAG="${VERSION_TAG}-nightly.${DATE_STAMP}.$(date -u +'%H%M')"
+          fi
+
+          echo "Creating nightly tag: ${NIGHTLY_TAG}"
+          git tag "${NIGHTLY_TAG}"
+          git push origin "${NIGHTLY_TAG}"
+
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${NIGHTLY_TAG}" >> "$GITHUB_OUTPUT"
+          echo "release_name=KobeanREST Nightly Build (${NIGHTLY_TAG})" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+
+  build-and-deploy:
+    name: Build & Deploy ${{ matrix.platform.name }}
+    needs: check-and-tag
+    if: needs.check-and-tag.outputs.should_release == 'true'
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macOS
+            os: macos-latest
+            args: "--target universal-apple-darwin"
+            bundle_paths: |
+              src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+              src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig
+          - name: Windows
+            os: windows-latest
+            args: ""
+            bundle_paths: |
+              src-tauri/target/release/bundle/msi/*.msi
+              src-tauri/target/release/bundle/msi/*.msi.sig
+          - name: Linux
+            os: ubuntu-latest
+            args: ""
+            bundle_paths: |
+              src-tauri/target/release/bundle/appimage/*.AppImage
+              src-tauri/target/release/bundle/appimage/*.AppImage.sig
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/deb/*.deb.sig
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add macOS universal Rust targets
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Install Linux dependencies
+        if: matrix.platform.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Install libsodium (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg install libsodium:x64-windows-static-md
+          echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "SODIUM_USE_PKG_CONFIG=1" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run contract tests
+        run: npm test
+
+      - name: Build desktop installers & upload release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ needs.check-and-tag.outputs.tag_name }}
+          releaseName: ${{ needs.check-and-tag.outputs.release_name }}
+          releaseBody: "Automated nightly release build. Fast, native, local-first KobeanREST desktop client."
+          releaseDraft: false
+          prerelease: ${{ needs.check-and-tag.outputs.is_prerelease == 'true' }}
+          includeUpdaterJson: false
+          args: ${{ matrix.platform.args }}
+
+      - name: Upload platform bundle files
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.platform.name }}
+          path: ${{ matrix.platform.bundle_paths }}
+          if-no-files-found: warn
+
+  checksums-and-manifest:
+    name: Generate Checksums & Publish Manifest
+    needs: [check-and-tag, build-and-deploy]
+    if: needs.check-and-tag.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Download platform bundle files
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bundle-*
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS.txt
+        shell: bash
+        run: |
+          cd release-artifacts
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | xargs -0 shasum -a 256 > SHA256SUMS.txt
+
+      - name: Publish SHA256SUMS.txt to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ needs.check-and-tag.outputs.tag_name }}" release-artifacts/SHA256SUMS.txt --clobber --repo "${{ github.repository }}"
+
+      - name: Build merged updater manifest (latest.json)
+        run: node scripts/build-updater-manifest.mjs release-artifacts "${{ needs.check-and-tag.outputs.tag_name }}" "${{ github.repository }}"
+
+      - name: Publish latest.json to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ needs.check-and-tag.outputs.tag_name }}" release-artifacts/latest.json --clobber --repo "${{ github.repository }}"
