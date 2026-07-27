@@ -271,6 +271,15 @@ export function RequestPanel({
       setActiveTab("headers");
     }
   }, [draftRequest.method, activeTab, setActiveTab]);
+
+  useEffect(() => {
+    if (draftRequest.url && (!draftRequest.queryParams || draftRequest.queryParams.length === 0)) {
+      const parsed = parseQueryParamsFromUrl(draftRequest.url);
+      if (parsed.length > 0) {
+        updateDraft({ queryParams: parsed });
+      }
+    }
+  }, [draftRequest.id, draftRequest.url]);
   const scriptVariableTokens = activeVars.map((variable) => `{{${variable.key}}}`);
   const currentScriptTitle = activeRequestScript === "pre" ? "Pre-request Script" : "Post-request Script";
 
@@ -279,17 +288,59 @@ export function RequestPanel({
     onUpdateDraft(fields);
   }
 
+  function parseQueryParamsFromUrl(url: string): Array<{ key: string; value: string; enabled: boolean }> {
+    if (!url) return [];
+    const qIndex = url.indexOf("?");
+    if (qIndex === -1) return [];
+
+    const queryString = url.slice(qIndex + 1);
+    if (!queryString.trim()) return [];
+
+    const pairs = queryString.split("&");
+    const result: Array<{ key: string; value: string; enabled: boolean }> = [];
+
+    for (const pair of pairs) {
+      if (!pair) continue;
+      const eqIdx = pair.indexOf("=");
+      if (eqIdx >= 0) {
+        result.push({ key: pair.slice(0, eqIdx), value: pair.slice(eqIdx + 1), enabled: true });
+      } else {
+        result.push({ key: pair, value: "", enabled: true });
+      }
+    }
+
+    return result;
+  }
+
+  function syncParamsToUrl(currentUrl: string, params: Array<{ key: string; value: string; enabled: boolean }>): string {
+    const qIndex = currentUrl ? currentUrl.indexOf("?") : -1;
+    const baseUrlPart = currentUrl ? (qIndex >= 0 ? currentUrl.slice(0, qIndex) : currentUrl) : "";
+
+    const enabledParams = params.filter((p) => p.enabled && (p.key.trim() !== "" || p.value.trim() !== ""));
+    if (enabledParams.length === 0) {
+      return baseUrlPart;
+    }
+
+    const queryString = enabledParams
+      .map((p) => `${p.key}=${p.value}`)
+      .join("&");
+
+    return `${baseUrlPart}?${queryString}`;
+  }
+
   function handleUrlChange(val: string) {
     const trimmed = val.trim();
     if (/^curl\b/i.test(trimmed)) {
       try {
         const result = parseCurlCommand(trimmed);
         if (result && result.url) {
+          const parsedParams = parseQueryParamsFromUrl(result.url);
           updateDraft({
             method: result.method,
             customMethod: result.customMethod,
             url: result.url,
             headers: result.headers.length > 0 ? result.headers : draftRequest.headers,
+            queryParams: parsedParams.length > 0 ? parsedParams : draftRequest.queryParams,
             body: result.body,
             bodyMimeType: result.bodyMimeType,
             bodyForm: result.bodyForm,
@@ -302,7 +353,37 @@ export function RequestPanel({
         console.error("Failed to parse cURL in URL field", err);
       }
     }
-    updateDraft({ url: val });
+    const parsedParams = parseQueryParamsFromUrl(val);
+    updateDraft({
+      url: val,
+      queryParams: parsedParams.length > 0 ? parsedParams : draftRequest.queryParams,
+    });
+  }
+
+  function updateQueryParamField(index: number, field: "key" | "value", value: string) {
+    const queryParams = [...(draftRequest.queryParams ?? [])];
+    queryParams[index] = { ...queryParams[index], [field]: value };
+    const newUrl = syncParamsToUrl(draftRequest.url, queryParams);
+    updateDraft({ queryParams, url: newUrl });
+  }
+
+  function toggleQueryParamEnabled(index: number, enabled: boolean) {
+    const queryParams = [...(draftRequest.queryParams ?? [])];
+    queryParams[index] = { ...queryParams[index], enabled };
+    const newUrl = syncParamsToUrl(draftRequest.url, queryParams);
+    updateDraft({ queryParams, url: newUrl });
+  }
+
+  function removeQueryParam(index: number) {
+    const queryParams = (draftRequest.queryParams ?? []).filter((_, i) => i !== index);
+    const newUrl = syncParamsToUrl(draftRequest.url, queryParams);
+    updateDraft({ queryParams, url: newUrl });
+  }
+
+  function addQueryParam(nextParam = { key: "", value: "", enabled: true }) {
+    const queryParams = [...(draftRequest.queryParams ?? []), nextParam];
+    const newUrl = syncParamsToUrl(draftRequest.url, queryParams);
+    updateDraft({ queryParams, url: newUrl });
   }
 
   function updateHeaderField(index: number, field: "key" | "value", value: string) {
@@ -596,6 +677,81 @@ export function RequestPanel({
             );
           })}
         </div>
+
+        {activeTab === "params" && (
+          <div className="request-tab-panel">
+            <div className="headers-editor" aria-label="URL query parameters">
+              <div className="headers-table">
+                <div className="headers-table-toolbar">
+                  <div className="headers-toolbar-actions">
+                    <button
+                      type="button"
+                      className="ghost-button headers-add-button"
+                      onClick={() => addQueryParam()}
+                    >
+                      <Plus size={14} /> Add Parameter
+                    </button>
+                  </div>
+                </div>
+
+                <div className="headers-grid-body">
+                  <div className="headers-grid-header" aria-hidden="true">
+                    <span>On</span>
+                    <span>Key</span>
+                    <span>Value</span>
+                    <span>Actions</span>
+                  </div>
+
+                  <div className="headers-rows">
+                    {(draftRequest.queryParams && draftRequest.queryParams.length > 0
+                      ? draftRequest.queryParams
+                      : [{ key: "", value: "", enabled: true }]
+                    ).map((param, idx) => (
+                      <div className={param.enabled ? "headers-row" : "headers-row headers-row-disabled"} key={idx}>
+                        <label className="headers-toggle">
+                          <input
+                            type="checkbox"
+                            checked={param.enabled}
+                            onChange={(e) => toggleQueryParamEnabled(idx, e.target.checked)}
+                          />
+                        </label>
+
+                        <VariableInput
+                          activeVariables={activeVars}
+                          value={param.key}
+                          placeholder="Parameter key"
+                          onChange={(e) => updateQueryParamField(idx, "key", e.target.value)}
+                          className="headers-row-input-field"
+                          containerClassName="headers-row-input"
+                        />
+
+                        <VariableInput
+                          activeVariables={activeVars}
+                          value={param.value}
+                          placeholder="Parameter value"
+                          onChange={(e) => updateQueryParamField(idx, "value", e.target.value)}
+                          className="headers-row-input-field"
+                          containerClassName="headers-row-input"
+                        />
+
+                        <div className="headers-actions">
+                          <button
+                            type="button"
+                            className="icon-button headers-delete-button"
+                            aria-label={`Delete parameter ${param.key || idx + 1}`}
+                            onClick={() => removeQueryParam(idx)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {activeTab === "body" && (
           <div className="request-tab-panel request-body-panel">
