@@ -4,7 +4,7 @@ export const qaContent: DocsPageContent = {
   eyebrow: "QA & Issues",
   title: "Release checks for a real local desktop product.",
   description:
-    "The QA checklist focuses on launch behavior, offline use, request execution, persistence, import/export, updates, and installers.",
+    "Live QA analytics, historical trend database, desktop launch checks, offline resilience, and persistence verification.",
   sections: [
     {
       id: "smoke",
