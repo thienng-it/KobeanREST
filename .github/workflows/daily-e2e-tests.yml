@@ -44,7 +44,8 @@ jobs:
           if-no-files-found: ignore
 
       - name: Send QA Test Results via Email to Contributors
-        if: always()
+        if: always() && secrets.MAIL_USERNAME != ''
+        continue-on-error: true
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: ${{ secrets.MAIL_SERVER_ADDRESS || 'smtp.gmail.com' }}
