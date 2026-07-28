@@ -26,6 +26,36 @@ type RequestHeader = SavedRequest["headers"][number];
 type ScriptOutputEntry = { tone: "info" | "error"; message: string };
 
 const authModes = ["None", "Basic Auth", "Bearer Token", "API Key", "OAuth 2.0", "NTLM", "Kerberos"] as const;
+const HEADER_KEY_SUGGESTIONS = [
+  "Accept",
+  "Accept-Encoding",
+  "Accept-Language",
+  "Authorization",
+  "Cache-Control",
+  "Connection",
+  "Content-Length",
+  "Content-Type",
+  "Cookie",
+  "Host",
+  "Origin",
+  "Referer",
+  "User-Agent",
+  "X-API-Key",
+  "X-CSRF-Token",
+  "X-Forwarded-For",
+  "X-Requested-With",
+];
+
+const CONTENT_TYPE_SUGGESTIONS = [
+  "application/json",
+  "application/xml",
+  "application/x-www-form-urlencoded",
+  "multipart/form-data",
+  "text/plain",
+  "text/html",
+  "text/xml",
+  "application/octet-stream",
+];
 const AUTH_MODE_LABELS: Record<string, string> = {
   none: "None", basic: "Basic Auth", bearer: "Bearer Token",
   apiKey: "API Key", oauth2: "OAuth 2.0", ntlm: "NTLM", kerberos: "Kerberos"
@@ -929,27 +959,6 @@ export function RequestPanel({
                   <span>Actions</span>
                 </div>
 
-                <datalist id="header-key-options">
-                  <option value="Accept" />
-                  <option value="Authorization" />
-                  <option value="Cache-Control" />
-                  <option value="Content-Type" />
-                  <option value="Cookie" />
-                  <option value="Origin" />
-                  <option value="User-Agent" />
-                </datalist>
-
-                <datalist id="content-type-options">
-                  <option value="application/json" />
-                  <option value="application/xml" />
-                  <option value="text/xml" />
-                  <option value="application/x-www-form-urlencoded" />
-                  <option value="multipart/form-data" />
-                  <option value="application/octet-stream" />
-                  <option value="text/plain" />
-                  <option value="text/html" />
-                </datalist>
-
                 <div className="headers-rows">
                   {draftRequest.headers.map((header, idx) => {
                     return (
@@ -970,7 +979,8 @@ export function RequestPanel({
                           onPaste={(e) => handleHeaderPaste(idx, e)}
                           className="headers-row-input-field"
                           containerClassName="headers-row-input"
-                          list="header-key-options"
+                          suggestions={HEADER_KEY_SUGGESTIONS}
+                          suggestionBadge="HEADER"
                         />
 
                         <VariableInput
@@ -982,7 +992,8 @@ export function RequestPanel({
                           onPaste={(e) => handleHeaderPaste(idx, e)}
                           className="headers-row-input-field"
                           containerClassName="headers-row-input"
-                          list={header.key.toLowerCase() === "content-type" ? "content-type-options" : undefined}
+                          suggestions={header.key.toLowerCase() === "content-type" ? CONTENT_TYPE_SUGGESTIONS : undefined}
+                          suggestionBadge="MIME"
                         />
 
                         <div className="headers-actions">

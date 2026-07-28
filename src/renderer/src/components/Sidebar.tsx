@@ -269,7 +269,6 @@ export function Sidebar({
     }
     
     if (!payload || !onMoveItem || !workspace) {
-      alert(`Drop aborted: payload=${!!payload}, onMoveItem=${!!onMoveItem}, workspace=${!!workspace}`);
       setDragItem(null);
       setDragOverItem(null);
       return;
@@ -300,8 +299,6 @@ export function Sidebar({
         onToggleFolder(targetId);
       }
     }
-    
-    alert(`Drop successful! Moved ${payload.type} ${payload.id} to ${targetType} ${targetId} at ${position}`);
     
     setDragItem(null);
     setDragOverItem(null);

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Plus, X, Folder, FolderTree, FileText, Check, Briefcase } from "lucide-react";
-import type { WorkspaceSummary, WorkspaceListItem } from "../types";
+import type { WorkspaceSummary, WorkspaceListItem, HttpMethod } from "../types";
 import { loadWorkspaceById } from "../services/local-store";
 import { redactDiagnosticError } from "../services/redaction";
+import { MethodSelector } from "./MethodSelector";
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
@@ -206,20 +207,18 @@ export function CreateRequestModal({
           </div>
 
           <div className="create-request-field">
-            <label htmlFor="create-request-method" className="create-request-label">
+            <label className="create-request-label">
               HTTP Method
             </label>
-            <select
-              id="create-request-method"
-              className={`create-request-select method-badge-${method.toLowerCase()}`}
-              value={method}
-              onChange={(e) => setMethod(e.target.value)}
-              style={{ width: "160px" }}
-            >
-              {HTTP_METHODS.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
+            <div style={{ width: "160px" }}>
+              <MethodSelector
+                method={(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "CUSTOM"].includes(method.toUpperCase()) ? method.toUpperCase() : "CUSTOM") as HttpMethod}
+                customMethod={["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"].includes(method.toUpperCase()) ? undefined : method}
+                onChange={(nextMethod, customVal) => {
+                  setMethod(nextMethod === "CUSTOM" ? (customVal || "CUSTOM") : nextMethod);
+                }}
+              />
+            </div>
           </div>
 
           <div className="create-request-field">

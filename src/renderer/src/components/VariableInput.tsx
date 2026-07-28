@@ -188,6 +188,8 @@ export interface VariableInputProps extends React.InputHTMLAttributes<HTMLInputE
   onSaveVariable?: (envName: string, key: string, value: string) => Promise<void> | void;
   containerStyle?: React.CSSProperties;
   containerClassName?: string;
+  suggestions?: string[];
+  suggestionBadge?: string;
 }
 
 export function VariableInput({
@@ -207,6 +209,8 @@ export function VariableInput({
   className,
   containerStyle,
   containerClassName,
+  suggestions,
+  suggestionBadge,
   ...rest
 }: VariableInputProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -227,12 +231,35 @@ export function VariableInput({
     startOffset: number;
   } | null>(null);
 
+  const [suggestionState, setSuggestionState] = useState<{
+    open: boolean;
+    selectedIndex: number;
+  }>({ open: true, selectedIndex: 0 });
+
   const [showPassword, setShowPassword] = useState(false);
   const isPasswordProp = rest.type === "password";
   const actualType = isPasswordProp && !showPassword ? "password" : isPasswordProp ? "text" : rest.type;
 
   const strValue = String(value);
   const hasVariables = actualType !== "password" && /\{\{[^{}]+\}\}/.test(strValue);
+
+  const filteredSuggestions = useCallback(() => {
+    if (!suggestions || suggestions.length === 0) return [];
+    const val = strValue.trim().toLowerCase();
+    if (!val) return suggestions;
+    return suggestions.filter((s) => s.toLowerCase().includes(val));
+  }, [suggestions, strValue])();
+
+  const handleApplySuggestion = useCallback(
+    (sug: string) => {
+      if (onChange) {
+        const syntheticEvent = { target: { value: sug } } as any;
+        onChange(syntheticEvent);
+      }
+      setSuggestionState({ open: false, selectedIndex: 0 });
+    },
+    [onChange]
+  );
 
   const cancelCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -320,6 +347,38 @@ export function VariableInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (suggestions && suggestions.length > 0 && isFocused && filteredSuggestions.length > 0 && suggestionState.open !== false) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSuggestionState((prev) => ({
+          open: true,
+          selectedIndex: (prev.selectedIndex + 1) % filteredSuggestions.length,
+        }));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSuggestionState((prev) => ({
+          open: true,
+          selectedIndex: (prev.selectedIndex - 1 + filteredSuggestions.length) % filteredSuggestions.length,
+        }));
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        const item = filteredSuggestions[suggestionState.selectedIndex || 0];
+        if (item) {
+          e.preventDefault();
+          handleApplySuggestion(item);
+          return;
+        }
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSuggestionState({ open: false, selectedIndex: 0 });
+        return;
+      }
+    }
+
     if (autocomplete) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -611,6 +670,33 @@ export function VariableInput({
             isPinnedRef.current = true;
           }}
         />
+      )}
+
+      {/* Custom Suggestions Dropdown */}
+      {suggestions && suggestions.length > 0 && isFocused && suggestionState.open !== false && filteredSuggestions.length > 0 && (
+        <div
+          className="input-suggestions-dropdown"
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {filteredSuggestions.map((item, index) => {
+            const isSelected = index === (suggestionState.selectedIndex || 0);
+            return (
+              <button
+                key={item}
+                type="button"
+                className={`input-suggestion-item ${isSelected ? "selected" : ""}`}
+                onClick={() => handleApplySuggestion(item)}
+                onMouseEnter={() => setSuggestionState({ open: true, selectedIndex: index })}
+              >
+                <span className="input-suggestion-badge">
+                  {suggestionBadge || "OPT"}
+                </span>
+                <span className="input-suggestion-text">{item}</span>
+                {isSelected && <Check size={12} className="input-suggestion-check" />}
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );

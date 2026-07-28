@@ -21,6 +21,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 base64 = "0.22"
 keyring = "3"
+log = "0.4"
 reqwest = { version = "0.13", default-features = false, features = ["brotli", "deflate", "gzip", "json", "rustls"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
