@@ -7,10 +7,11 @@ import {
   Rocket,
   ShieldCheck,
   TerminalSquare,
+  BarChart3,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-export type SiteRoute = "home" | "product" | "downloads" | "developer" | "release" | "roadmap" | "qa";
+export type SiteRoute = "home" | "product" | "downloads" | "developer" | "release" | "roadmap" | "qa" | "analytics";
 
 export interface NavItem {
   route: SiteRoute;
@@ -32,6 +33,13 @@ export const navItems: NavItem[] = [
     href: "#/",
     description: "Start from the portal overview.",
     icon: Home,
+  },
+  {
+    route: "analytics",
+    label: "QA Dashboard",
+    href: "#/analytics",
+    description: "Real-time QA test analytics & historical trends.",
+    icon: BarChart3,
   },
   {
     route: "product",
@@ -70,7 +78,7 @@ export const navItems: NavItem[] = [
   },
   {
     route: "qa",
-    label: "QA & Issues",
+    label: "QA Check",
     href: "#/qa",
     description: "Release QA checklist and known issues.",
     icon: ShieldCheck,
