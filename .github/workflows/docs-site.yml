@@ -65,6 +65,7 @@ jobs:
         run: |
           mkdir -p docs-site/dist/app
           cp -r dist/. docs-site/dist/app/
+          cp docs-site/dist/index.html docs-site/dist/404.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

@@ -9,8 +9,14 @@ import { ReleasePage } from "./pages/ReleasePage";
 import { RoadmapPage } from "./pages/RoadmapPage";
 import { parseRoute, type SiteRoute } from "./site";
 
-function getRoute() {
-  return parseRoute(window.location.hash);
+function getRoute(): SiteRoute {
+  // Check hash first (e.g., #/qa or #qa)
+  if (window.location.hash && window.location.hash !== "#/") {
+    return parseRoute(window.location.hash);
+  }
+  // Fall back to pathname (e.g., /KobeanREST/qa or /qa)
+  const pathname = window.location.pathname.replace(/^\/KobeanREST\/?/, "").replace(/^\/+/, "");
+  return parseRoute(pathname);
 }
 
 export function App() {
@@ -19,7 +25,11 @@ export function App() {
   useEffect(() => {
     const updateRoute = () => setRoute(getRoute());
     window.addEventListener("hashchange", updateRoute);
-    return () => window.removeEventListener("hashchange", updateRoute);
+    window.addEventListener("popstate", updateRoute);
+    return () => {
+      window.removeEventListener("hashchange", updateRoute);
+      window.removeEventListener("popstate", updateRoute);
+    };
   }, []);
 
   const pages: Record<SiteRoute, React.ReactNode> = {
