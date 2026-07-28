@@ -1,4 +1,4 @@
-name: Daily E2E QA Automation & Email Report
+name: Daily E2E QA Automation
 
 on:
   schedule:
