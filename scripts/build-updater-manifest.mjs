@@ -1,13 +1,6 @@
 #!/usr/bin/env node
 // Merges per-platform Tauri updater signatures produced by the release matrix
 // build into a single, correct latest.json covering macOS, Windows, and Linux.
-//
-// This exists because tauri-action's built-in `includeUpdaterJson` uploads a
-// fresh latest.json per matrix job directly to the shared GitHub release.
-// Since the macOS/Windows/Linux build jobs run in parallel, each upload
-// clobbers the previous one, so the final latest.json only ever reflects
-// whichever platform finished last. Building the manifest once, after all
-// platform artifacts are collected, avoids that race.
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -25,8 +18,22 @@ if (!artifactsDir || !tag || !repo) {
 const version = tag.replace(/^v/, "");
 const files = readdirSync(artifactsDir);
 
-function findFile(predicate) {
-  return files.find((name) => predicate(name) && !name.endsWith(".sig"));
+function findSignedArtifact(predicates) {
+  // First priority: find a candidate that has a matching .sig file in artifactsDir
+  for (const predicate of predicates) {
+    const candidate = files.find(
+      (name) => predicate(name) && !name.endsWith(".sig") && files.includes(`${name}.sig`)
+    );
+    if (candidate) return candidate;
+  }
+
+  // Fallback: return candidate matching predicate even without .sig for logging diagnostic warning
+  for (const predicate of predicates) {
+    const candidate = files.find((name) => predicate(name) && !name.endsWith(".sig"));
+    if (candidate) return candidate;
+  }
+
+  return null;
 }
 
 function readSignature(assetFileName) {
@@ -56,17 +63,33 @@ function addPlatformEntries(entryNames, assetFileName) {
   }
 }
 
-const dmg = findFile((name) => name.endsWith(".dmg"));
-addPlatformEntries(["darwin-x86_64", "darwin-aarch64"], dmg);
+// macOS Updater Artifacts (.app.tar.gz, .tar.gz, or .dmg)
+const macOSArtifact = findSignedArtifact([
+  (name) => name.endsWith(".app.tar.gz"),
+  (name) => name.endsWith(".tar.gz"),
+  (name) => name.endsWith(".dmg"),
+]);
+addPlatformEntries(["darwin-x86_64", "darwin-aarch64"], macOSArtifact);
 
-const msi = findFile((name) => name.endsWith(".msi"));
-addPlatformEntries(["windows-x86_64", "windows-x86_64-msi"], msi);
+// Windows Updater Artifacts (.msi, .nsis.zip, .zip)
+const windowsArtifact = findSignedArtifact([
+  (name) => name.endsWith(".msi"),
+  (name) => name.endsWith(".zip"),
+]);
+addPlatformEntries(["windows-x86_64", "windows-x86_64-msi"], windowsArtifact);
 
-const appImage = findFile((name) => name.endsWith(".AppImage"));
-addPlatformEntries(["linux-x86_64", "linux-x86_64-appimage"], appImage);
+// Linux AppImage Artifacts (.AppImage.tar.gz, .AppImage)
+const linuxAppImageArtifact = findSignedArtifact([
+  (name) => name.endsWith(".AppImage.tar.gz"),
+  (name) => name.endsWith(".AppImage"),
+]);
+addPlatformEntries(["linux-x86_64", "linux-x86_64-appimage"], linuxAppImageArtifact);
 
-const deb = findFile((name) => name.endsWith(".deb"));
-addPlatformEntries(["linux-x86_64-deb"], deb);
+// Linux DEB Package (.deb)
+const linuxDebArtifact = findSignedArtifact([
+  (name) => name.endsWith(".deb"),
+]);
+addPlatformEntries(["linux-x86_64-deb"], linuxDebArtifact);
 
 const requiredPlatforms = ["darwin-x86_64", "darwin-aarch64", "windows-x86_64", "linux-x86_64"];
 const missing = requiredPlatforms.filter((name) => !platforms[name]);
