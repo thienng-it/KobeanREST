@@ -131,6 +131,15 @@ KobeanREST is engineered to keep your workspace data private and local:
 
 ---
 
+## 👥 Creators & Lead Contributors
+
+KobeanREST is created and architected with ❤️ by:
+
+- **Joseph Thien** ([@thienng-it](https://github.com/thienng-it)) — Creator & Principal System Architect
+- **Kobenguyent** ([@kobenguyent](https://github.com/kobenguyent)) — Creator & Lead Core Engineer
+
+---
+
 ## 📄 License
 
-Distributed under the [MIT License](LICENSE). Built with ❤️ by [kobenguyent](https://github.com/kobenguyent) (Lead Contributor) & the open-source developer community.
+Distributed under the [MIT License](LICENSE). Designed and built with ❤️ by **[Joseph Thien](https://github.com/thienng-it)** and **[Kobenguyent](https://github.com/kobenguyent)** alongside the open-source developer community.
