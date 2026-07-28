@@ -11,7 +11,7 @@ async function runE2ESuite() {
   await viteServer.listen();
   console.log("✅ App preview server running at http://localhost:4173");
 
-  const codecept = spawn("npx", ["codeceptjs", "run", "--steps"], {
+  const codecept = spawn("npx", ["codeceptjs", "run", "--config", "codecept.conf.cjs", "--steps"], {
     stdio: "inherit",
     shell: true,
     env: { ...process.env, CI: "true" }
