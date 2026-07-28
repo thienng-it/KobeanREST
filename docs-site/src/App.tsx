@@ -7,15 +7,14 @@ import { ProductPage } from "./pages/ProductPage";
 import { QaPage } from "./pages/QaPage";
 import { ReleasePage } from "./pages/ReleasePage";
 import { RoadmapPage } from "./pages/RoadmapPage";
-import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { parseRoute, type SiteRoute } from "./site";
 
 function getRoute(): SiteRoute {
-  // Check hash first (e.g., #/analytics or #analytics)
+  // Check hash first (e.g., #/qa or #qa)
   if (window.location.hash && window.location.hash !== "#/") {
     return parseRoute(window.location.hash);
   }
-  // Fall back to pathname (e.g., /KobeanREST/analytics or /analytics)
+  // Fall back to pathname (e.g., /KobeanREST/qa or /qa)
   const pathname = window.location.pathname.replace(/^\/KobeanREST\/?/, "").replace(/^\/+/, "");
   return parseRoute(pathname);
 }
@@ -35,7 +34,6 @@ export function App() {
 
   const pages: Record<SiteRoute, React.ReactNode> = {
     home: <HomePage />,
-    analytics: <AnalyticsPage />,
     product: <ProductPage />,
     downloads: <DownloadsPage />,
     developer: <DeveloperPage />,

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-export type SiteRoute = "home" | "product" | "downloads" | "developer" | "release" | "roadmap" | "qa" | "analytics";
+export type SiteRoute = "home" | "product" | "downloads" | "developer" | "release" | "roadmap" | "qa";
 
 export interface NavItem {
   route: SiteRoute;
@@ -33,13 +33,6 @@ export const navItems: NavItem[] = [
     href: "#/",
     description: "Start from the portal overview.",
     icon: Home,
-  },
-  {
-    route: "analytics",
-    label: "QA Dashboard",
-    href: "#/analytics",
-    description: "Real-time QA test analytics & historical trends.",
-    icon: BarChart3,
   },
   {
     route: "product",
@@ -78,10 +71,10 @@ export const navItems: NavItem[] = [
   },
   {
     route: "qa",
-    label: "QA Check",
+    label: "QA Dashboard",
     href: "#/qa",
-    description: "Release QA checklist and known issues.",
-    icon: ShieldCheck,
+    description: "Real-time QA test analytics, flakiness governance & daily trends.",
+    icon: BarChart3,
   },
 ];
 
@@ -94,6 +87,7 @@ export const portalStats = [
 
 export function parseRoute(hash: string): SiteRoute {
   const normalized = hash.replace(/^#\/?/, "").replace(/^\/+/, "").split("/")[0];
+  if (normalized === "analytics") return "qa";
   const routes = new Set<SiteRoute>(navItems.map((item) => item.route));
 
   if (!normalized) {
