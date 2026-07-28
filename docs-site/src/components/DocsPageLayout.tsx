@@ -3,9 +3,10 @@ import type { DocsPageContent } from "../content/shared";
 
 interface DocsPageLayoutProps {
   content: DocsPageContent;
+  children?: React.ReactNode;
 }
 
-export function DocsPageLayout({ content }: DocsPageLayoutProps) {
+export function DocsPageLayout({ content, children }: DocsPageLayoutProps) {
   return (
     <article className="docs-page">
       <header className="docs-hero">
@@ -17,6 +18,7 @@ export function DocsPageLayout({ content }: DocsPageLayoutProps) {
       <div className="docs-grid">
         <SectionNav sections={content.sections} />
         <div className="docs-sections">
+          {children}
           {content.sections.map((section) => (
             <section className="doc-section glass-panel" id={section.id} key={section.id}>
               <h2>{section.title}</h2>
