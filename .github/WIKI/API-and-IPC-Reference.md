@@ -1,6 +1,6 @@
-# 🔌 API & IPC Reference Specification
+# 🔌 API & Inter-Process Communication (IPC) Reference
 
-This reference documents the Tauri Inter-Process Communication (IPC) boundary bridging the React frontend renderer with the Rust desktop core.
+This specification documents the low-level Tauri Inter-Process Communication (IPC) boundary bridging the React frontend renderer with the native Rust desktop core.
 
 ---
 
@@ -11,11 +11,11 @@ Functions exposed via `invoke()` in `@tauri-apps/api/core`:
 ### 1. HTTP Execution Commands
 
 ```typescript
-// Invokes native Reqwest HTTP engine
+// Dispatches HTTP/HTTPS request via Rust Reqwest core engine
 invoke<ExecuteHttpResponse>("execute_http_request", { request: SavedRequest });
 ```
 
-### 2. Workspace & Persistence Commands
+### 2. Workspace & Persistence Operations
 
 ```typescript
 invoke<void>("initialize_persistence");
@@ -28,7 +28,7 @@ invoke<void>("delete_workspace", { workspaceId: string });
 invoke<WorkspaceSummary>("switch_workspace", { workspaceId: string });
 ```
 
-### 3. Collection & Folder Commands
+### 3. Collection & Folder Management
 
 ```typescript
 invoke<Collection>("create_collection", { workspaceId: string, name: string });
@@ -39,7 +39,7 @@ invoke<void>("update_folder", { folderId: string, name: string });
 invoke<void>("delete_folder", { folderId: string });
 ```
 
-### 4. Request & History Commands
+### 4. Request & History Operations
 
 ```typescript
 invoke<SavedRequest>("create_request", { folderId?: string, collectionId?: string });
@@ -50,7 +50,7 @@ invoke<void>("record_request_history", { entry: HistoryEntry });
 invoke<void>("clear_request_history", { workspaceId: string });
 ```
 
-### 5. Keychain Secret Commands
+### 5. Keychain Secret Operations
 
 ```typescript
 invoke<void>("store_secret", { key: string, value: string });
@@ -60,22 +60,26 @@ invoke<Record<string, string>>("resolve_secrets", { keys: string[] });
 
 ---
 
-## 📜 Scripting Shim Reference (`pm.*`)
+## 📜 Postman Scripting Shim API (`pm.*`)
 
-KobeanREST supports Postman-compatible scripting shims in Pre-request and Post-request script tabs:
+KobeanREST supports dynamic scripting in Pre-request and Post-request tabs:
 
 ```javascript
-// Variable getters and setters
-pm.environment.set("token", "secret_value_123");
-pm.environment.get("token");
-pm.globals.set("baseUrl", "https://api.example.com");
+// Environment and Global variable management
+pm.environment.set("accessToken", "secret_bearer_token");
+pm.environment.get("accessToken");
+pm.globals.set("apiHost", "https://api.kobeanrest.com");
 
 // Assertion tests
-pm.test("Status code is 200", function () {
+pm.test("Status code is 200 OK", function () {
     pm.response.to.have.status(200);
 });
 
-// Response inspection
-console.log("Response time:", pm.response.responseTime);
-console.log("Response body:", pm.response.json());
+pm.test("Response contains valid data array", function () {
+    const json = pm.response.json();
+    pm.expect(json.data).to.be.an("array");
+});
+
+// Response metadata inspection
+console.log("Response Latency:", pm.response.responseTime + " ms");
 ```

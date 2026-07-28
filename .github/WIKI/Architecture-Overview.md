@@ -1,58 +1,76 @@
-# 📐 Architecture & Systems Engineering
+# 📐 Architecture & Systems Engineering Specification
 
-KobeanREST is architected as a hybrid desktop application leveraging **Tauri 2** to achieve native-level desktop performance, minimal memory overhead, and strong OS-level security isolation.
-
----
-
-## 🏗️ High-Level System Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                                React Renderer                                    │
-│  - Application Shell (App.tsx)                                                   │
-│  - Request Panel, Params Sync, Body Editor, Header Presets                       │
-│  - Response Viewer (JSON, Raw, Headers, JQ Filter Engine via WASM)               │
-│  - Workspace / Environment / Auth Modals                                         │
-└────────────────────────────────────────┬─────────────────────────────────────────┘
-                                         │
-                                         │ Tauri IPC Protocol (JSON RPC)
-                                         │
-┌────────────────────────────────────────▼─────────────────────────────────────────┐
-│                              Rust Desktop Core                                   │
-│  - IPC Command Dispatcher (lib.rs)                                               │
-│  - HTTP Execution Engine (http_client.rs -> Reqwest/Tokio)                       │
-│  - Local Database Persistence (persistence.rs -> Rusqlite/SQLite)               │
-│  - Native OS Keychain Storage (secrets.rs -> Keyring crate)                     │
-│  - System Info & Local Integrity (local_only.rs)                                 │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
+KobeanREST is engineered as a high-performance desktop hybrid application. It leverages **Tauri 2** to bridge a modern **React 18 / TypeScript** frontend renderer with a lightweight, multi-threaded **Rust** backend core.
 
 ---
 
-## 📁 Architectural Components
+## 🏛️ System Topology & IPC Boundary
+
+The architecture explicitly isolates network request processing, local data storage, and secret vault security within native OS space, avoiding browser CORS restrictions and Electron resource bloat.
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   React 18 Renderer                                    │
+│                                                                                        │
+│  ┌───────────────────────────┐  ┌───────────────────────────┐  ┌────────────────────┐ │
+│  │   Request Builder (UI)    │  │   Response Panel (WASM)   │  │ Env / Auth Modals  │ │
+│  │  - Bi-directional Params  │  │  - JQ Engine (jq.wasm)    │  │ - Scope Resolver   │ │
+│  │  - CodeMirror Editor      │  │  - CodeMirror Viewer      │  │ - Variable Engine  │ │
+│  └─────────────┬─────────────┘  └─────────────┬─────────────┘  └─────────┬──────────┘ │
+└────────────────│──────────────────────────────│──────────────────────────│─────────────┘
+                 │                              │                          │
+                 └──────────────────────────────┼──────────────────────────┘
+                                                │
+                                                ▼ Tauri IPC Protocol (JSON-RPC Commands)
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    Rust Desktop Core                                   │
+│                                                                                        │
+│  ┌───────────────────────────┐  ┌───────────────────────────┐  ┌────────────────────┐ │
+│  │    IPC Command Router     │  │   Async Reqwest Client    │  │ SQLite Database    │ │
+│  │     (src-tauri/src/lib.rs)│  │ (http_client.rs / Tokio)  │  │ (persistence.rs)   │ │
+│  └─────────────┬─────────────┘  └─────────────┬─────────────┘  └─────────┬──────────┘ │
+│                │                              │                          │            │
+│                ▼                              ▼                          ▼            │
+│    ┌───────────────────────┐      ┌───────────────────────┐  ┌──────────────────────┐ │
+│    │ OS Keychain Vault     │      │ Remote Target Server  │  │ 001_initial.sql DB  │ │
+│    │ (secrets.rs / Keyring)│      │ (Direct TCP/TLS HTTP) │  │ (Local Data Store)   │ │
+│    └───────────────────────┘      └───────────────────────┘  └──────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔬 Subsystem Analysis
 
 ### 1. Tauri 2 Desktop Shell (`src-tauri/`)
-- **Native Windowing:** Manages application window lifecycle, menu bars, tray notifications, and native shortcuts.
-- **IPC Dispatcher (`src-tauri/src/lib.rs`):** Intercepts frontend function calls and routes them asynchronously to native Rust implementations.
-- **Updater Plugin (`tauri_plugin_updater`):** Handles background update checks and cryptographic signature validation using Ed25519 public keys.
+- **Native Process Control:** Manages OS windowing, system tray, application updates, and operating system events.
+- **IPC Dispatcher (`src-tauri/src/lib.rs`):** Maps TypeScript function calls to native Rust handlers via `#[tauri::command]`.
+- **Updater Plugin (`tauri_plugin_updater`):** Performs cryptographic Ed25519 public-key signature verification before applying downloaded binary packages.
 
-### 2. Rust Native Backend Services (`src-tauri/src/`)
-- **`http_client.rs`:** Executes non-CORS restricted HTTP/HTTPS network requests using Tokio and Reqwest. Bypasses standard browser origin restrictions, supports custom headers, binary payloads, basic/bearer auth, and custom TLS settings.
-- **`persistence.rs`:** Embedded SQLite database management engine. Executes database schema migrations (`001_initial.sql`), performs ACID-compliant transactions for workspace switching, collection tree reordering, request history recording, and variable CRUD.
-- **`secrets.rs`:** Integrates with native OS secrets infrastructure (macOS Keychain, Windows Credential Manager, Linux Secret Service). Ensures sensitive credentials are encrypted and stored outside SQLite.
-- **`local_only.rs`:** Enforces local-only execution integrity, contract validation, and offline mode assurances.
+### 2. Rust Native Backend (`src-tauri/src/`)
+- **HTTP Engine (`http_client.rs`):** Built on `tokio` and `reqwest`. Bypasses browser CORS limitations, supports HTTP/1.1 and HTTP/2, custom SSL/TLS certificates, redirect policy control, and custom headers.
+- **Persistence Engine (`persistence.rs`):** Manages SQLite connections via `rusqlite`. Handles transaction management, dynamic schema migrations, and relational cascading deletes.
+- **Secret Vault (`secrets.rs`):** Interoperates with native operating system keychains (`keyring` crate):
+  - macOS: Keychain Services API
+  - Windows: Credential Manager API
+  - Linux: Secret Service API / DBus
+- **Local Integrity Layer (`local_only.rs`):** Guarantees zero external network leakage from app internals.
 
 ### 3. Frontend Web Renderer (`src/renderer/src/`)
-- **State Management & UI Shell (`App.tsx`):** Coordinates 30+ reactive sub-states across request building, sidebar trees, response views, modal dialogs, and settings persistence.
-- **CodeMirror Integration:** Embedded CodeMirror 6 code editor providing syntax highlighting for JSON, JavaScript, headers, and request bodies.
-- **WebAssembly Query Engine (`jq.wasm`):** Embedded JQ processor executing real-time data transformations directly in client memory without sending data out.
-- **JS Sandbox Runtime (`services/script-runtime.ts`):** Isolated JavaScript execution sandbox handling pre-request and post-request test assertions and dynamic variable mutations (`pm.environment.set()`).
+- **Application Shell (`App.tsx`):** Coordinates 30+ reactive states, tab switching, workspace navigation, modal management, and theme engines.
+- **CodeMirror Integration:** Embedded CodeMirror 6 components for interactive request body editing and JSON syntax highlighting.
+- **WASM Query Engine (`jq.wasm`):** Client-side JQ filter execution compiled to WebAssembly. Enables real-time JSON filtering without network latency or external dependencies.
+- **Sandbox Scripting Engine (`services/script-runtime.ts`):** Isolated JavaScript sandbox providing `pm.*` API compatibility for pre-request dynamic payload manipulation and post-request test assertions.
 
 ---
 
-## 🔄 Variable Scoping & Resolution Hierarchy
+## 🔄 Dynamic Variable Resolution Pipeline
 
-When executing a request, variables specified in template syntax (`{{variable_name}}`) are resolved according to a strict cascading scope hierarchy:
+Variables defined in template syntax (`{{VAR_NAME}}`) undergo hierarchical cascading resolution:
+
+> [!NOTE]
+> **Resolution Priority Cascade (Highest to Lowest):**  
+> `Request Level` $\rightarrow$ `Folder Level` $\rightarrow$ `Collection Level` $\rightarrow$ `Active Environment` $\rightarrow$ `Global Scope`
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -76,25 +94,25 @@ When executing a request, variables specified in template syntax (`{{variable_na
 └──────────────────────────────────────────────────────────┘
 ```
 
-1. **Resolution Pipeline (`src/renderer/src/services/variables.ts`):**
-   - Extracts all template expressions matching `/\{\{([^}]+)\}\}/g`.
-   - Traverses the active workspace tree from Request $\rightarrow$ Folder $\rightarrow$ Collection $\rightarrow$ Active Environment $\rightarrow$ Global variables.
-   - Throws an `UnresolvedVariableError` if a variable is missing, aborting request execution before any network packet is dispatched.
-   - Excludes secret variables from raw template interpolation to prevent accidental logging.
+1. **Resolution Routine (`src/renderer/src/services/variables.ts`):**
+   - Parses request URL, headers, query parameters, and body for `/\{\{([^}]+)\}\}/g` tokens.
+   - Evaluates token against active hierarchy scope map.
+   - If an unresolved variable token is encountered, request execution halts immediately with an `UnresolvedVariableError` prior to sending any network packet.
+   - Secret variables are resolved directly from OS Keychain and excluded from diagnostic logs to prevent credential leaks.
 
 ---
 
-## 💾 Local SQLite Database Schema
-
-Defined in `src-tauri/migrations/001_initial.sql`:
+## 💾 SQLite Database Schema (`001_initial.sql`)
 
 ```sql
+-- Workspaces Table
 CREATE TABLE IF NOT EXISTS workspaces (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
 
+-- Environments Table
 CREATE TABLE IF NOT EXISTS environments (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -103,6 +121,7 @@ CREATE TABLE IF NOT EXISTS environments (
     FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 );
 
+-- Collections Table
 CREATE TABLE IF NOT EXISTS collections (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -111,6 +130,7 @@ CREATE TABLE IF NOT EXISTS collections (
     FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 );
 
+-- Folders Table
 CREATE TABLE IF NOT EXISTS folders (
     id TEXT PRIMARY KEY,
     collection_id TEXT NOT NULL,
@@ -120,6 +140,7 @@ CREATE TABLE IF NOT EXISTS folders (
     FOREIGN KEY(collection_id) REFERENCES collections(id) ON DELETE CASCADE
 );
 
+-- Requests Table
 CREATE TABLE IF NOT EXISTS requests (
     id TEXT PRIMARY KEY,
     collection_id TEXT NOT NULL,
@@ -135,6 +156,7 @@ CREATE TABLE IF NOT EXISTS requests (
     FOREIGN KEY(collection_id) REFERENCES collections(id) ON DELETE CASCADE
 );
 
+-- Request History Table
 CREATE TABLE IF NOT EXISTS request_history (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -147,3 +169,7 @@ CREATE TABLE IF NOT EXISTS request_history (
     created_at TEXT NOT NULL
 );
 ```
+
+---
+
+> 💡 **Next Steps:** Review [API & IPC Reference](API-and-IPC-Reference) for IPC function signatures, or explore [Testing & QA Matrix](Testing-and-Quality-Assurance) for quality verification gates.

@@ -1,96 +1,103 @@
-# 🧪 Testing & Quality Assurance (SDET Guide)
+# 🧪 Testing & Quality Assurance (SDET Engineering Specification)
 
-Quality assurance in KobeanREST is built on a multi-tiered test automation framework designed to guarantee desktop reliability, data safety, and performance.
-
----
-
-## 🏛️ The Test Engineering Pyramid
-
-```
-                  ┌──────────────────────┐
-                  │   E2E GUI Testing    │  CodeceptJS + Playwright
-                  │  (Desktop UI Flows)  │  (tests/e2e/*.cjs)
-                  └──────────┬───────────┘
-                             │
-            ┌────────────────┴────────────────┐
-            │   Contract & Integration Tests   │  Node.js Native Test Runner
-            │ (20+ Suited, 127 Test Invariants)│  (tests/*.test.mjs)
-            └────────────────┬────────────────┘
-                             │
-   ┌─────────────────────────┴─────────────────────────┐
-   │         Native Rust Unit & Preflight Tests        │  Cargo Test & Preflight
-   │     (http_client, persistence, check-secrets)     │  (src-tauri & scripts/)
-   └───────────────────────────────────────────────────┘
-```
+Quality assurance in KobeanREST follows a rigorous multi-tier test pyramid. Every pull request and release build must pass 127 automated contract tests, end-to-end GUI flows, and automated secret leak audits prior to release artifact generation.
 
 ---
 
-## 📋 Test Suites & Coverage Breakdown
+## 🏛️ Test Automation Pyramid
 
-### 1. Contract & Domain Invariant Test Suite (`tests/*.test.mjs`)
+```
+                       ┌──────────────────────────────┐
+                       │   End-to-End GUI Testing     │  CodeceptJS + Playwright
+                       │  (Desktop Rendered Interface) │  (tests/e2e/kobeanrest_e2e_test.cjs)
+                       └──────────────┬───────────────┘
+                                      │
+              ┌───────────────────────┴───────────────────────┐
+              │      Node.js Native Contract Test Suite       │  Native Node Test Runner
+              │   (127 Invariant Asserts Across 20 Suited)   │  (tests/*.test.mjs)
+              └───────────────┬───────────────────────────────┘
+                              │
+    ┌─────────────────────────┴─────────────────────────┐
+    │     Native Rust Compilation & Security Scans      │  Cargo Check & Betterleak
+    │  (http_client, persistence, check-secrets script) │  (src-tauri & scripts/)
+    └───────────────────────────────────────────────────┘
+```
+
+---
+
+## 📋 Comprehensive Contract Test Suite Matrix
 
 Executed natively via Node.js test runner (`npm test`):
 
-| Test Suite | Focus Area | Key Verifications |
+| Test Suite Module | Target Component | Core Verified Invariants |
 | :--- | :--- | :--- |
-| `api-auth-contract.test.mjs` | Authentication | Basic, Bearer, API Key, and OAuth token resolution. |
-| `auto-update-contract.test.mjs` | Auto-Updater | Cryptographic signature validation & manifest parsing. |
-| `docs-site-contract.test.mjs` | Documentation | Verifies portal routes, search index, and assets. |
-| `editable-ui-contract.test.mjs` | UI Components | Keyboard navigation, tab states, bi-directional query sync. |
-| `environment-editor-contract.test.mjs` | Environment Engine | Active environment persistence & variable editing. |
-| `history-viewer-contract.test.mjs` | Request History | Redaction of sensitive headers & URL query parameters. |
-| `import-export-contract.test.mjs` | Interoperability | Postman v2.1 import/export & cURL parsing integrity. |
-| `local-only-contract.test.mjs` | Privacy | Assures zero telemetry & zero external network calls. |
-| `multiple-workspace-contract.test.mjs` | Multi-Tenancy | Workspace switching & isolated database states. |
-| `native-readiness-contract.test.mjs` | Platform Readiness | Cargo lockfile pinning, Tauri icons, Xcode prerequisites. |
-| `persistence-contract.test.mjs` | SQLite Engine | Schema migrations, CRUD operations, transactions. |
-| `release-hardening-contract.test.mjs` | Release Security | Checksum generation & updater key protection. |
-| `release-operations-contract.test.mjs` | CI Pipelines | Release tagging flow & artifact bundling. |
-| `release-preflight-contract.test.mjs` | Pre-Release Audit | Validates public key configuration & build scripts. |
-| `rest-client-contract.test.mjs` | Network Engine | HTTP method execution & response state mapping. |
-| `secret-storage-contract.test.mjs` | Secret Engine | Keychain isolation & placeholder redaction. |
-| `security-privacy-contract.test.mjs` | Security Audit | Betterleak secret scanning & zero plain-text leaks. |
-| `settings-contract.test.mjs` | Application Config | Theme loading, auto-update toggle, font size configs. |
-| `variable-resolution-contract.test.mjs` | Template Engine | Scoped resolution (`{{var}}`) & exception handling. |
-
-### 2. End-to-End GUI Automation Suite (`tests/e2e/`)
-
-Driven by CodeceptJS and Playwright runner (`npm run test:e2e`):
-- Launches application renderer.
-- Simulates user interactions: workspace creation, collection creation, request execution, query param editing, theme switching.
-- Verifies DOM states, visual layouts, and response rendering.
+| `api-auth-contract.test.mjs` | `services/auth.ts` | Bearer, Basic, API Key, and OAuth token injection formats. |
+| `auto-update-contract.test.mjs` | `services/updater.ts` | Ed25519 signature validation & updater manifest parsing. |
+| `docs-site-contract.test.mjs` | `docs-site/` | Documentation site build, routing integrity, and static assets. |
+| `editable-ui-contract.test.mjs` | UI Components | Keyboard shortcuts, tab focus states, bi-directional query param sync. |
+| `environment-editor-contract.test.mjs` | Env Manager | Active environment state persistence & variable scope mutations. |
+| `history-viewer-contract.test.mjs` | History Panel | Automatic masking of sensitive query params & auth tokens in logs. |
+| `import-export-contract.test.mjs` | Interop Engine | Postman Collection v2.1 import/export structure & cURL parsing. |
+| `local-only-contract.test.mjs` | Local Core | Assures zero telemetry and zero unprompted outbound network connections. |
+| `multiple-workspace-contract.test.mjs` | Workspace Switcher | Workspace data isolation & SQLite schema context switching. |
+| `native-readiness-contract.test.mjs` | Tauri Shell | Cargo lockfile pinning, platform icons, Xcode setup verification. |
+| `persistence-contract.test.mjs` | Rust Persistence | SQLite schema DDL execution, CRUD operations, transaction safety. |
+| `release-hardening-contract.test.mjs` | Release Security | SHA256 checksum generation & updater key validation. |
+| `release-operations-contract.test.mjs` | GitHub Pipeline | Tagged release deployment flows & release bundle packaging. |
+| `release-preflight-contract.test.mjs` | Preflight Verification| Validates public key configuration & build script readiness. |
+| `rest-client-contract.test.mjs` | HTTP Engine | HTTP method execution (GET/POST/PUT/DELETE) & state mapping. |
+| `secret-storage-contract.test.mjs` | Keychain Vault | OS Keychain isolation & placeholder redaction filters (`[SECRET:id]`). |
+| `security-privacy-contract.test.mjs` | Security Audit | Source code scanning via `Betterleak` (`npm run check:secrets`). |
+| `settings-contract.test.mjs` | App Settings | Theme loading, auto-update toggle, font size, layout preferences. |
+| `variable-resolution-contract.test.mjs` | Variable Engine | Scoped resolution (`{{VAR}}`) & `UnresolvedVariableError` handling. |
 
 ---
 
-## ⚙️ CI/CD Quality Automation Pipelines
+## 🎭 End-to-End GUI Automation Suite
 
-Defined in `.github/workflows/`:
+Driven by **CodeceptJS** and **Playwright** (`npm run test:e2e`):
+- **Test File:** [tests/e2e/kobeanrest_e2e_test.cjs](file:///Users/josephnguyen/Desktop/KobeanREST/tests/e2e/kobeanrest_e2e_test.cjs)
+- **Configuration:** [codecept.conf.cjs](file:///Users/josephnguyen/Desktop/KobeanREST/codecept.conf.cjs)
+- **Automated User Flows:**
+  1. Application initialization & local database bootstrapping.
+  2. Workspace creation, collection addition, folder nested navigation.
+  3. URL entry, parameter synchronization, and header manipulation.
+  4. Request dispatch and response pane rendering (headers, status, time, WASM JQ transformation).
+  5. Environment variable declaration and live scope resolution.
+  6. Theme switching across all 6 high-contrast desktop themes.
 
-| Workflow File | Trigger | Responsibility |
+---
+
+## ⚙️ GitHub Actions CI/CD Pipeline Automation
+
+> [!NOTE]
+> All CI/CD workflows are located in `.github/workflows/`.
+
+| Workflow File | Trigger Event | Operational Responsibilities |
 | :--- | :--- | :--- |
-| `release.yml` | Tag push (`v*.*.*`) | Builds signed multi-platform installers (macOS, Windows, Linux), computes SHA256 checksums, updates updater manifest. |
-| `nightly-release.yml` | Daily Schedule / Workflow Dispatch | Automates daily nightly releases with latest commit state. |
-| `daily-e2e-tests.yml` | Daily Schedule (00:00 UTC) | Headless E2E test execution using Playwright on push and pull requests. |
-| `sensitive-data.yml` | Push / Pull Request | Secret leak detection using `Betterleak` (`npm run check:secrets`). |
+| `release.yml` | Tag push (`v*.*.*`) | Compiles signed production bundles for macOS (`.dmg`), Windows (`.msi`), Linux (`.AppImage`, `.deb`), computes SHA256 hashes, generates updater manifests. |
+| `nightly-release.yml` | Cron (00:00 UTC) / Manual | Builds nightly release binaries and publishes artifacts to GitHub Releases. |
+| `daily-e2e-tests.yml` | Cron / PR / Push | Runs headless Playwright E2E automation against pull requests. |
+| `sensitive-data.yml` | PR / Push | Scans commit diffs for exposed credentials using `Betterleak` (`npm run check:secrets`). |
 | `docs-site.yml` | Push to `main` | Builds and deploys documentation portal to GitHub Pages. |
 
 ---
 
-## 🛠️ Executing QA Verification Locally
+## 🛠️ Verification Execution Toolkit
 
 ```bash
-# Run all 127 Node.js contract tests
+# 1. Execute all 127 Node.js contract tests
 npm test
 
-# Run End-to-End GUI test suite
+# 2. Run CodeceptJS / Playwright E2E GUI test suite
 npm run test:e2e
 
-# Run security & secret leak detection scan
+# 3. Perform Betterleak security & secret leak audit
 npm run check:secrets
 
-# Run release preflight audit
+# 4. Execute release preflight verification audit
 npm run check:release
 
-# Verify Rust native core compilation
+# 5. Verify Rust native core compilation
 npm run check:native
 ```

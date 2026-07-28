@@ -1,94 +1,103 @@
-# 🛠️ Developer Guide & Environment Setup
+# 🛠️ Developer Setup & Engineering Guide
 
-This guide walks developers through setting up their environment, building KobeanREST locally, running dev servers, and packaging native desktop installers.
+This guide provides setup instructions for contributing to KobeanREST, running local development servers, executing verification test suites, and building native desktop installers.
 
 ---
 
-## 📋 System Prerequisites
+## 📋 System Prerequisites & Platform Toolchains
 
-### 1. Node.js Environment
-- Node.js `v22.0.0+`
-- npm `v10.0.0+`
+### 1. Core Runtimes
+- **Node.js:** `v22.0.0+`
+- **npm:** `v10.0.0+`
+- **Rust Toolchain:** Stable channel (pinned in `rust-toolchain.toml`)
 
-### 2. Rust Toolchain
-- Rust `stable` (pinned via `rust-toolchain.toml`)
-- Cargo package manager
-
-### 3. Platform Build Tools
+### 2. Operating System Build Dependencies
 - **macOS:** Xcode Command Line Tools (`xcode-select --install`).
-- **Windows:** C++ Build Tools for Visual Studio 2022 (MSVC).
-- **Linux:** `build-essential`, `libssl-dev`, `libgtk-3-dev`, `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`.
+- **Windows:** C++ Build Tools for Visual Studio 2022 with Windows SDK.
+- **Linux (Ubuntu/Debian):**
+  ```bash
+  sudo apt update && sudo apt install -y \
+    build-essential \
+    curl \
+    wget \
+    file \
+    libssl-dev \
+    libgtk-3-dev \
+    libwebkit2gtk-4.1-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev
+  ```
 
 ---
 
-## 🚀 Quickstart Development Workflow
+## 🚀 Quickstart Development Workflows
 
-### 1. Clone & Install Dependencies
+### 1. Repository Setup
 ```bash
 git clone https://github.com/thienng-it/KobeanREST.git
 cd KobeanREST
 npm install
 ```
 
-### 2. Launch Web Renderer (Dev Server)
-Runs Vite web server with hot-module replacement (HMR) at `http://localhost:5173`:
+### 2. Run Web Renderer Dev Server
+Launches Vite development server with Hot Module Replacement (HMR) at `http://localhost:5173`:
 ```bash
 npm run dev
 ```
 
-### 3. Launch Native Desktop App (Tauri Dev Mode)
-Compiles Rust native backend and launches the Tauri window with HMR:
+### 3. Run Native Desktop Shell (Tauri Dev Mode)
+Compiles the Rust native backend and launches the Tauri window:
 ```bash
 npm run tauri dev
 ```
 
 ---
 
-## 🏗️ Packaging Native Installers
+## 📦 Compiling Standalone Desktop Bundles
 
-To compile production desktop binaries:
+To generate platform-specific desktop installers:
 
 ```bash
 npm run tauri build
 ```
 
-This outputs platform-specific binaries into `src-tauri/target/release/bundle/`:
-- **macOS:** `.dmg` installer & standalone `.app` bundle.
+Compiled installers are placed in `src-tauri/target/release/bundle/`:
+- **macOS:** `.dmg` installer & standalone `.app` bundle (Universal Architecture).
 - **Windows:** `.msi` installer & `.exe` executable.
-- **Linux:** `.AppImage` & `.deb` package.
+- **Linux:** `.AppImage` & `.deb` distribution packages.
 
 ---
 
-## 📂 Codebase Directory Organization
+## 📂 Source Code Directory Organization
 
 ```
 KobeanREST/
 ├── .github/
 │   ├── workflows/             # GitHub Actions CI/CD workflows
 │   └── WIKI/                  # GitHub Wiki Documentation source
-├── docs/                      # Architectural docs & spec files
-├── docs-site/                 # GitHub Pages documentation web portal
-├── public/                    # Static public assets (jq.wasm)
+├── docs/                      # Architectural specs & documentation
+├── docs-site/                 # GitHub Pages documentation website
+├── public/                    # Static assets (jq.wasm WebAssembly module)
 ├── scripts/                   # Preflight, release & secret scanner scripts
 ├── src/
 │   └── renderer/
 │       └── src/
-│           ├── components/    # Modular React UI components
+│           ├── components/    # React UI components (RequestPanel, ResponsePanel, etc.)
 │           ├── hooks/         # Custom React hooks (useWorkspace, useAuth, etc.)
-│           ├── services/      # Core frontend services (local-store, http-client, variables, secrets)
-│           ├── App.tsx        # Application shell & root state component
-│           └── styles.css     # Global CSS styling & design system tokens
+│           ├── services/      # Core frontend services (local-store, http-client, variables)
+│           ├── App.tsx        # Main application state & UI shell
+│           └── styles.css     # Global CSS styling & design design tokens
 ├── src-tauri/                 # Tauri 2 Native Rust Application
-│   ├── capabilities/          # Tauri permission configuration
+│   ├── capabilities/          # Tauri IPC permission grants
 │   ├── migrations/            # SQLite migration scripts (001_initial.sql)
 │   ├── src/
-│   │   ├── http_client.rs     # Reqwest/Tokio HTTP engine
+│   │   ├── http_client.rs     # Async Reqwest HTTP engine
 │   │   ├── lib.rs             # Tauri command dispatcher & setup
-│   │   ├── local_only.rs      # Offline & storage status
-│   │   ├── persistence.rs     # SQLite Rusqlite database driver
+│   │   ├── local_only.rs      # Storage & offline integrity checks
+│   │   ├── persistence.rs     # Rusqlite database operations
 │   │   └── secrets.rs         # Native OS Keychain integration
-│   ├── Cargo.toml             # Rust package manifest
-│   └── tauri.conf.json        # Tauri window & app configuration
-├── tests/                     # Contract & E2E test suite
-└── package.json               # Node project manifest & scripts
+│   ├── Cargo.toml             # Rust dependencies
+│   └── tauri.conf.json        # Tauri configuration manifest
+├── tests/                     # Node.js contract & E2E test suite
+└── package.json               # Project manifest & scripts
 ```

@@ -1,60 +1,106 @@
-# ⚡ Welcome to the KobeanREST Wiki
+# ⚡ KobeanREST Technical & Product Wiki
 
-**KobeanREST** is a high-performance, privacy-focused, local-first desktop API client engineered for modern REST and HTTP workflows. Powered by **Tauri 2**, **Rust**, and **React 18 / TypeScript**, KobeanREST delivers zero forced cloud sync, native desktop speed, and native OS Keychain secret security.
+<div align="left">
+
+[![Tauri 2](https://img.shields.io/badge/Tauri-2.0-22c55e?style=for-the-badge&logo=tauri)](https://tauri.app)
+[![Rust Core](https://img.shields.io/badge/Rust-2021-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
+[![React 18](https://img.shields.io/badge/React-18-61dafb?style=for-the-badge&logo=react)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org)
+[![SQLite](https://img.shields.io/badge/Storage-SQLite-003b57?style=for-the-badge&logo=sqlite)](https://sqlite.org)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](https://github.com/thienng-it/KobeanREST/blob/main/LICENSE)
+
+</div>
 
 ---
 
-## 🧭 Navigating the Wiki
+> [!IMPORTANT]
+> **The Local-First API Client Manifesto**  
+> KobeanREST is engineered to deliver enterprise-grade REST and HTTP workflow management with **zero forced cloud synchronizations, zero user account barriers, and 100% offline data ownership**. All secrets stay locked inside native OS keychains.
 
-This wiki provides comprehensive technical, product, and QA documentation from the perspective of Principal Software Architecture, Senior Product Ownership, and Senior Software Development Engineering in Test (SDET).
+---
+
+## 🏛️ Executive Summary & Engineering Architecture
+
+KobeanREST decouples network execution and storage from browser renderer constraints by executing asynchronous HTTP operations natively through a Rust core.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            React Renderer (Vite UI)                         │
+│   Request Builder ──► Params Sync ──► Header Presets ──► WASM JQ Engine     │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ Tauri IPC Bridge (JSON-RPC)
+┌──────────────────────────────────────▼──────────────────────────────────────┐
+│                            Rust Native Core Engine                          │
+│   Async Reqwest HTTP ──► SQLite Persistence ──► OS Keychain Secret Vault    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🧭 Repository Knowledge Base & Role Navigation
+
+Select your domain below to navigate the technical specification:
 
 ### 📐 [Architecture & Systems Engineering](Architecture-Overview)
-- **Hybrid Desktop Architecture:** Tauri v2 Rust backend bridge & React 18 web renderer.
-- **Persistence & Storage:** Embedded SQLite schema, migrations, and local workspace management.
-- **Security & Secret Protection:** OS Keychain integration, Stronghold Argon2 encryption, and log redaction.
-- **Execution Pipeline:** Dynamic variable scoping hierarchy, JS sandbox, and WebAssembly JQ query engine.
+> Architectural blueprints, Tauri IPC dispatcher, SQLite migration schemas, secret keychain isolation, dynamic variable resolution, and WebAssembly execution engines.
 
-### 🎯 [Product Vision & Roadmap](Product-Vision-and-Features)
-- **Local-First Contract:** 100% offline ownership, zero telemetry, zero forced account registration.
-- **Feature Matrix:** Workspace isolation, dynamic environment variables, bi-directional query param sync, pre/post request scripts, response JQ filtering, and cURL/Postman import/export.
-- **Competitive Advantage:** Direct comparison against Postman, Insomnia, and Bruno.
-- **Release Strategy:** Nightly releases and automated updater manifest publishing.
+- ⚙️ **Core Tech:** Tauri 2.0 shell, Rust (Tokio, Reqwest, Rusqlite), React 18, CodeMirror 6.
+- 🔒 **Security Infrastructure:** OS Keychain API integration, Stronghold Argon2 encryption, and log redaction filters.
+- ⚡ **Performance:** Client-side `jq.wasm` WebAssembly engine for instant zero-latency response queries.
 
-### 🧪 [Testing & Quality Assurance (SDET)](Testing-and-Quality-Assurance)
-- **Test Pyramid:** 127 node contract tests + CodeceptJS/Playwright end-to-end automation.
-- **CI/CD Quality Gates:** GitHub Actions pipelines (`release.yml`, `nightly-release.yml`, `daily-e2e-tests.yml`, `sensitive-data.yml`).
-- **Release Preflight & Security Scans:** Automated secret leakage scanning with `check-secrets.mjs` and release preflight verification.
+---
+
+### 🎯 [Product Vision & Requirements (PO Specification)](Product-Vision-and-Features)
+> Product manifesto, feature matrix, competitive benchmarks against legacy tools, and release lifecycle management.
+
+- 📦 **Workspaces:** Multi-tenant workspace isolation with independent environment scopes.
+- 🔄 **Query Synchronization:** Bi-directional real-time sync between URL query string and interactive table editor.
+- 📜 **Scripting Sandbox:** Pre-request and post-request test assertions using a Postman-compatible `pm.*` runtime.
+- 📊 **Interoperability:** cURL parser, Postman Collection v2.1 import/export, and multi-language code generator.
+
+---
+
+### 🧪 [Quality Assurance & SDET Matrix](Testing-and-Quality-Assurance)
+> Multi-tier test pyramid, contract test suites, end-to-end automation specs, security audit controls, and CI/CD pipelines.
+
+- 🛡️ **Contract Tests:** 127 Node.js native contract tests verifying invariants across 20+ specialized domains.
+- 🎭 **E2E Automation:** CodeceptJS and Playwright runner testing native UI rendering and IPC flows.
+- 🤖 **CI/CD Automation:** Automated nightly releases, secret leakage scanning (`Betterleak`), and update manifest publishing.
+
+---
 
 ### 🛠️ [Developer Guide & Setup](Developer-Guide-and-Setup)
-- **Environment Setup:** Node.js 22+, Rust toolchain, and platform build dependencies.
-- **Development Workflows:** Dev server (`npm run dev`), native desktop dev (`npm run tauri dev`), and test execution commands.
-- **Packaging & Builds:** Generating standalone installers for macOS (.dmg), Windows (.msi), and Linux (.AppImage/.deb).
+> Prerequisites, toolchain setup, dev server workflows, and platform bundle compilation instructions.
+
+- 💻 **Dev Workflows:** `npm run dev` (Web preview) & `npm run tauri dev` (Native desktop shell).
+- 📦 **Release Bundles:** Standalone cross-platform installers for macOS (`.dmg`), Windows (`.msi`), and Linux (`.AppImage`, `.deb`).
+
+---
 
 ### 🔌 [API & IPC Reference](API-and-IPC-Reference)
-- **Tauri IPC Command Registry:** Complete map of Rust backend commands and TypeScript service calls.
-- **Database Schema:** SQLite table definitions for workspaces, environments, collections, requests, and history.
-- **Scripting Shim API:** `pm.*` Postman-compatible scripting reference.
+> Low-level IPC command registry signatures, database schema DDL, and Postman `pm.*` scripting shims.
+
+---
 
 ### 🛡️ [Security & Privacy Blueprint](Security-and-Privacy)
-- **Zero-Telemetry Model:** Architectural guarantee of local-only data processing.
-- **Cryptographic Auto-Updater:** Ed25519 public key verification for signed release binaries.
+> Zero-telemetry model, secret redaction engine, and cryptographic Ed25519 update manifest verification.
 
 ---
 
-## 📊 KobeanREST at a Glance
+## 📊 System Capability Overview
 
-| Parameter | Specification |
-| :--- | :--- |
-| **Desktop Shell** | Tauri 2.0 |
-| **Backend Core** | Rust 2021 Edition (Tokio, Reqwest, Rusqlite, Keyring) |
-| **Frontend Renderer** | React 18, TypeScript 5, Vite 7 |
-| **Local Database** | Embedded SQLite (`001_initial.sql`) |
-| **Query Engine** | WebAssembly `jq.wasm` |
-| **Secret Storage** | OS Keychain / Native Keyring (`secrets.rs`) |
-| **Test Automation** | 127 Node Contract Tests + CodeceptJS / Playwright E2E |
-| **CI/CD Platform** | GitHub Actions |
+| Subsystem | Specification | Operational Guarantee |
+| :--- | :--- | :--- |
+| **Desktop Shell** | Tauri 2.0 (Rust) | Native memory footprint (~45MB resting RAM) |
+| **Storage Engine** | Embedded SQLite (`001_initial.sql`) | ACID compliance & 100% local persistence |
+| **Secret Protection** | OS Keychain (`secrets.rs`) | Zero raw secrets stored in plain-text SQLite |
+| **Response Transformation**| `jq.wasm` (WebAssembly) | Client-side memory execution without network calls |
+| **Quality Gate** | 127 Contract Tests + E2E | Mandatory zero-failure pass rate prior to release |
 
 ---
 
-> 💡 **Repository Link:** [thienng-it/KobeanREST](https://github.com/thienng-it/KobeanREST)  
-> 🌐 **Documentation Site:** [thienng-it.github.io/KobeanREST](https://thienng-it.github.io/KobeanREST/)
+<div align="center">
+
+🌐 **Live Documentation Portal:** [thienng-it.github.io/KobeanREST](https://thienng-it.github.io/KobeanREST/) • 📦 **Latest Release:** [GitHub Releases](https://github.com/thienng-it/KobeanREST/releases/latest)
+
+</div>

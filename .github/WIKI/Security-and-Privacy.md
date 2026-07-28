@@ -1,23 +1,27 @@
-# 🛡️ Security & Privacy Blueprint
+# 🛡️ Security & Privacy Blueprint Specification
 
-Security and user privacy are foundational constraints in KobeanREST's architecture.
+Security and user privacy are fundamental engineering constraints in KobeanREST's system architecture.
 
 ---
 
 ## 🔒 Security Architecture Guarantees
 
+> [!IMPORTANT]
+> **Zero Telemetry Guarantee:**  
+> KobeanREST makes zero outbound calls to tracking backends, license verification servers, or analytics endpoints. All data processing occurs on local developer hardware.
+
 ### 1. Keychain Vault Integration
-Sensitive credentials (API tokens, OAuth client secrets, password fields) are isolated from local database backups:
+Sensitive credentials (API tokens, OAuth client secrets, password fields) are isolated from local database files:
 - Stored directly in native platform keychains (macOS Keychain, Windows Credential Manager, Linux Secret Service API).
 - SQLite database tables only store redacted secret metadata placeholders (`[SECRET:key_id]`).
 
-### 2. Zero-Telemetry & Offline Isolation
-- KobeanREST makes zero outbound calls to analytics servers, tracking APIs, or license verification backends.
+### 2. Sensitive Log Redaction Engine
 - Request history automatically redacts query parameter values containing sensitive keys (`token`, `key`, `auth`, `secret`, `password`).
+- Redaction runs before persisting history records to SQLite.
 
-### 3. Release Verification & Updater Public Key Signing
-- Releases published on GitHub Releases are signed using Ed25519 private keys in CI.
-- KobeanREST desktop binary verifies the cryptographic signature of updater manifests against a pinned public key before installing updates.
+### 3. Cryptographic Ed25519 Auto-Updater Signing
+- Releases published on GitHub Releases are cryptographically signed using Ed25519 private keys in CI.
+- KobeanREST desktop binaries verify signature authenticity against a pinned public key before installing any update.
 
 ### 4. Continuous Secret Leak Scanning (`npm run check:secrets`)
-- CI runs `Betterleak` preflight scans on every commit to prevent accidental commitment of credentials or private keys.
+- CI runs `Betterleak` preflight scans on every commit to prevent accidental commitment of credentials, tokens, or private keys.

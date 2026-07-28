@@ -1,21 +1,21 @@
 ### ⚡ KobeanREST Wiki
 
-* **[🏠 Home](Home)**
+* **[🏠 Wiki Home](Home)**
 
 ---
 
-#### 📐 Architecture & Engineering
+#### 📐 Systems Architecture
 * **[System Architecture](Architecture-Overview)**
 * **[API & IPC Reference](API-and-IPC-Reference)**
 * **[Security & Privacy](Security-and-Privacy)**
 
-#### 🎯 Product & Strategy
+#### 🎯 Product & Strategy (PO)
 * **[Product Vision & Features](Product-Vision-and-Features)**
 
 #### 🧪 Quality Assurance (SDET)
 * **[Testing & QA Matrix](Testing-and-Quality-Assurance)**
 
-#### 🛠️ Development
+#### 🛠️ Engineering Setup
 * **[Developer Setup & Guide](Developer-Guide-and-Setup)**
 
 ---

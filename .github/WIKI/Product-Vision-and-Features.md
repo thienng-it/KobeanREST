@@ -1,46 +1,85 @@
-# 🎯 Product Vision & Feature Matrix
+# 🎯 Product Vision & Feature Matrix Specification
 
-KobeanREST is built for developers who demand speed, privacy, and full control over their API test suits without corporate cloud surveillance or forced logins.
-
----
-
-## 📜 The Local-First Manifesto
-
-1. **Zero Forced Registration:** No mandatory user accounts, cloud logins, or authentication paywalls.
-2. **Offline-First Data Ownership:** All collections, environments, folders, and request histories reside in local SQLite files owned by the developer.
-3. **Keychain Secret Isolation:** API keys, OAuth tokens, and secrets are stored in native OS keychains, never exposed in plain text exports or database backups.
-4. **Zero Telemetry Guarantee:** No hidden tracking beacons, analytics scripts, or background cloud syncs.
+KobeanREST is designed specifically for software engineers, backend developers, and QA automation teams who require a high-density, high-performance API testing client without forced cloud lock-in or user tracking.
 
 ---
 
-## ⚡ Core Feature Matrix
+## 📜 The Local-First Software Manifesto
 
-| Feature Domain | Capability | Description |
-| :--- | :--- | :--- |
-| **Workspace Architecture** | **Multi-Workspace System** | Create and switch between isolated workspaces (e.g., Personal, Work, Project Alpha) with dedicated environments, collections, and settings. |
-| **Request Builder** | **Bi-Directional Query Params** | Seamless synchronization between URL query parameters (`?page=1&limit=10`) and interactive key-value table editor. |
-| | **HTTP Method Suite** | Full support for `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD`, `OPTIONS`. |
-| | **Body Editors** | JSON, Raw Text, Form Data, URL Encoded, GraphQL, Binary payload support with syntax highlighting. |
-| | **Authentication Engines** | No Auth, Bearer Token, Basic Auth, API Key (Header/Query), OAuth 2.0 (Auth Code & Client Credentials). |
-| **Variable Engine** | **Multi-Tier Scoping** | Global, Environment, Collection, Folder, and Request-level variables resolved via `{{variable_name}}`. |
-| | **Secret Redaction** | Masking sensitive values in request history, console logs, and export files. |
-| **Scripting Sandbox** | **Pre & Post Request Scripts** | Postman-compatible `pm.*` JavaScript sandbox for dynamic test assertions, header generation, and variable chaining. |
-| **Response Inspection** | **JQ Query Engine** | Real-time JSON transformation using embedded `jq.wasm` WebAssembly engine with built-in cheat sheet. |
-| | **Multi-Tab Viewer** | Pretty JSON, Raw, Headers, and Timeline performance breakdown. |
-| **Interoperability** | **Import / Export** | cURL command importer, Postman Collection v2.1 import/export, OpenAPI specification import. |
-| | **Code Snippet Generator** | One-click export to cURL, JavaScript (Fetch), Python (Requests), Node.js, Go, Rust, and Java. |
-| **Desktop Experience** | **Theme System** | High-contrast visual themes: Kobe Dark, Synthwave, Cyberpunk, Nord, Solarized, Light. |
-| | **Auto-Updater** | Background update checks backed by Ed25519 cryptographic public key verification. |
+> [!IMPORTANT]
+> **Four Core Pillars of KobeanREST Product Design:**
+> 1. **Zero Mandatory Cloud Dependencies:** Complete offline capability. Workspaces, environments, collections, and request logs reside 100% on local storage.
+> 2. **OS Keychain Secret Isolation:** Sensitive keys and tokens are stored in native encrypted keychains, never plain-text SQLite database files or unencrypted backup exports.
+> 3. **High-Density Desktop Performance:** Instant startup time, low memory footprint (~45MB resting RAM), powered by native Rust execution.
+> 4. **Zero Telemetry Guarantee:** No behavioral tracking, no third-party analytics scripts, no background sync calls to remote servers.
 
 ---
 
-## 🥊 KobeanREST vs. Alternatives
+## ⚡ Comprehensive Feature Breakdown
 
-| Feature / Metric | KobeanREST | Postman | Insomnia | Bruno |
+### 1. Workspace & Multi-Tenancy Architecture
+- **Multi-Workspace Isolation:** Create independent workspaces (e.g., *Production Microservices*, *Partner API Integration*, *Personal Sandbox*) with dedicated environments, collections, folders, and request histories.
+- **Workspace Switcher:** Seamless switching with state isolation.
+
+### 2. Request Composer & Params Engine
+- **Bi-Directional Query Sync:** Modifying the URL query string (`?status=active&limit=50`) instantly updates the key-value interactive table, and vice-versa.
+- **Header Presets & Auto-Completion:** Pre-built header presets (`Content-Type: application/json`, `Authorization`, `Accept`) with CodeMirror auto-completion.
+- **Full Method Matrix:** `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD`, `OPTIONS`.
+- **Flexible Body Payloads:** Raw JSON, Form Data, URL Encoded, Text, GraphQL, and Binary File upload.
+
+### 3. Authentication Engine
+- **Supported Auth Modes:**
+  - **No Auth:** Standard unauthenticated requests.
+  - **Bearer Token:** Token injection with automatic template variable resolution.
+  - **Basic Auth:** Username and password base64 encoding.
+  - **API Key:** Header or Query parameter key-value injection.
+  - **OAuth 2.0:** Client Credentials and Authorization Code flows with token retrieval.
+
+### 4. Dynamic Scripting Sandbox (`pm.*`)
+- **Pre-Request Scripts:** Execute custom JavaScript before request dispatch (e.g., generate dynamic timestamps, sign HMAC signatures).
+- **Post-Request Scripts (Tests):** Write assertions using Postman-compatible `pm.test()` syntax:
+  ```javascript
+  pm.test("Status code is 200 OK", function() {
+    pm.response.to.have.status(200);
+  });
+  pm.test("Response time is under 200ms", function() {
+    pm.expect(pm.response.responseTime).to.be.below(200);
+  });
+  ```
+
+### 5. WebAssembly Response JQ Query Engine
+- **Embedded `jq.wasm`:** Execute complex JSON filtering, selection, and transformations directly in client memory without external dependencies:
+  ```jq
+  .data.items[] | select(.status == "active") | {id: .id, name: .name}
+  ```
+- **Built-in Cheat Sheet:** Interactive JQ cheat sheet modal providing instant syntax references.
+
+### 6. Interoperability & Code Generator
+- **cURL Importer:** Paste cURL command strings to instantly auto-populate HTTP method, URL, headers, and request bodies.
+- **Postman Collection v2.1:** Full import and export compatibility for seamless migration.
+- **Multi-Language Code Snippet Generator:** One-click code generation for:
+  - cURL
+  - JavaScript (`fetch`)
+  - Python (`requests`)
+  - Node.js (`axios`, `http`)
+  - Go (`net/http`)
+  - Rust (`reqwest`)
+  - Java (`HttpClient`)
+
+---
+
+## 🥊 Benchmark Comparison Matrix
+
+| Operational Metric | KobeanREST ⚡ | Postman 🟠 | Insomnia 🟣 | Bruno 🟤 |
 | :--- | :---: | :---: | :---: | :---: |
-| **Account Required** | ❌ **No** | ⚠️ Yes | ⚠️ Optional | ❌ No |
-| **Cloud Sync Mandatory** | ❌ **No** | ⚠️ Yes | ⚠️ Yes | ❌ No |
-| **Secret Storage** | 🛡️ **OS Keychain** | ☁️ Cloud DB | ☁️ Cloud DB | 📁 Plain Text |
-| **Query Filter** | ⚡ **WebAssembly JQ** | ❌ Basic Filter | ❌ Limited | ❌ No |
-| **Native Performance** | ⚡ **Tauri 2 + Rust** | 🐌 Electron | 🐌 Electron | 🐌 Electron |
-| **Startup Memory** | 🚀 **~45MB** | 🐢 ~400MB+ | 🐢 ~350MB+ | 🐢 ~150MB+ |
+| **Account Required** | ❌ **No** | ⚠️ Forced | ⚠️ Optional | ❌ No |
+| **Cloud Sync Mandatory**| ❌ **No** | ⚠️ Forced | ⚠️ Mandatory | ❌ No |
+| **Secret Protection** | 🛡️ **OS Keychain** | ☁️ Remote Cloud DB | ☁️ Remote Cloud DB | 📁 Plain Text |
+| **JSON Query Engine** | ⚡ **Client JQ WASM** | ❌ None | ❌ Basic | ❌ None |
+| **Native Architecture** | 🦀 **Tauri 2 + Rust** | 🐌 Electron | 🐌 Electron | 🐌 Electron |
+| **RAM Footprint** | 🚀 **~45 MB** | 🐢 ~450 MB+ | 🐢 ~380 MB+ | 🐢 ~160 MB+ |
+| **Open Source License** | 📜 **MIT** | 🔒 Proprietary | 🔒 Proprietary | 📜 MIT |
+
+---
+
+> 💡 **Next Steps:** Refer to [Testing & QA Matrix](Testing-and-Quality-Assurance) to review automated test suites, or [Developer Setup & Guide](Developer-Guide-and-Setup) to build from source.
