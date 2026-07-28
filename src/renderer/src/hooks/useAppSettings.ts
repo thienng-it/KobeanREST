@@ -47,7 +47,7 @@ export function useAppSettings() {
   function updateAppSettings(fields: Partial<AppSettings>) {
     setAppSettings((prev) => {
       const next = { ...prev, ...fields };
-      saveAppSettings(next).catch((err) => console.error("Failed to save app settings", err));
+      saveAppSettings(next).catch((err) => console.error("Failed to save app settings", diagnosticMessage(err)));
       return next;
     });
   }

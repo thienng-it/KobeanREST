@@ -51,12 +51,12 @@ pub fn resolve_secrets(ref_ids: Vec<String>) -> Result<HashMap<String, String>, 
                     resolved.insert(ref_id, value);
                 }
                 Err(error) => {
-                    eprintln!("failed to read secret '{ref_id}': {error}");
+                    log::warn!("failed to read secret '{ref_id}': {error}");
                     resolved.insert(ref_id, String::new());
                 }
             },
             Err(error) => {
-                eprintln!("failed to open keychain entry for '{ref_id}': {error}");
+                log::warn!("failed to open keychain entry for '{ref_id}': {error}");
                 resolved.insert(ref_id, String::new());
             }
         }

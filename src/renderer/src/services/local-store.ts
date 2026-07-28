@@ -180,7 +180,8 @@ const DEFAULT_PREVIEW_WORKSPACE: WorkspaceSummary = {
       name: "Development",
       variables: [
         { key: "baseUrl", value: "https://jsonplaceholder.typicode.com" },
-        { key: "apiKey", value: "demo_key_dev_123" }
+        { key: "apiKey", value: "demo_key_dev_123" },
+        { key: "secretToken", value: "[secret stored outside SQLite]", secretRef: "kobeanrest://secrets/demo/secretToken" }
       ]
     },
     {

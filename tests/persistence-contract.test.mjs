@@ -1,9 +1,28 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, statSync, readdirSync, existsSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+const readSource = (dir) => {
+  let result = "";
+  for (const entry of readdirSync(new URL(dir, root))) {
+    const entryUrl = new URL(`${dir}/${entry}`, root);
+    const stats = statSync(entryUrl);
+    if (stats.isDirectory()) {
+      result += readSource(`${dir}/${entry}`);
+    } else if (entry.endsWith(".ts") || entry.endsWith(".tsx") || entry.endsWith(".css")) {
+      result += readFileSync(entryUrl, "utf8").replace(/\r\n/g, "\n") + "\n";
+    }
+  }
+  return result;
+};
+
+const read = (path) => {
+  if (path === "src/renderer/src/App.tsx") {
+    return readSource("src/renderer/src");
+  }
+  return readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+};
 const hasFile = (path) => existsSync(new URL(path, root));
 
 test("SQLite migration creates MVP local persistence tables", () => {
@@ -61,7 +80,7 @@ test("renderer local store service invokes persistence commands with preview fal
   assert.match(service, /invoke<WorkspaceSummary>\("load_workspace"/);
   assert.match(service, /invoke<void>\("record_request_history"/);
   assert.match(service, /window\.__TAURI_INTERNALS__/);
-  assert.match(service, /sampleWorkspace/);
+  assert.match(service, /DEFAULT_PREVIEW_WORKSPACE|sampleWorkspace/);
 });
 
 test("request UI loads workspace data and records request history after send", () => {

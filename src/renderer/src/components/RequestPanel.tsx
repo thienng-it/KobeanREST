@@ -7,6 +7,7 @@ import { ScriptEditor } from "./ScriptEditor";
 import { VariableInput, VariableTextarea } from "./VariableInput";
 import { BodyEditor } from "./BodyEditor";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
+import { redactDiagnosticError } from "../services/redaction";
 import { obtainOAuth2Token } from "../services/auth";
 import { buildVariableMap } from "../services/variables";
 import { isSensitiveKey } from "../app-utils";
@@ -350,7 +351,7 @@ export function RequestPanel({
           return;
         }
       } catch (err) {
-        console.error("Failed to parse cURL in URL field", err);
+        console.error("Failed to parse cURL in URL field", redactDiagnosticError(err));
       }
     }
     const parsedParams = parseQueryParamsFromUrl(val);

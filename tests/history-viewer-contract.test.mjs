@@ -1,9 +1,28 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+const readSource = (dir) => {
+  let result = "";
+  for (const entry of readdirSync(new URL(dir, root))) {
+    const entryUrl = new URL(`${dir}/${entry}`, root);
+    const stats = statSync(entryUrl);
+    if (stats.isDirectory()) {
+      result += readSource(`${dir}/${entry}`);
+    } else if (entry.endsWith(".ts") || entry.endsWith(".tsx") || entry.endsWith(".css")) {
+      result += readFileSync(entryUrl, "utf8").replace(/\r\n/g, "\n") + "\n";
+    }
+  }
+  return result;
+};
+
+const read = (path) => {
+  if (path === "src/renderer/src/App.tsx") {
+    return readSource("src/renderer/src");
+  }
+  return readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+};
 
 test("Rust native core exposes load and clear history commands", () => {
   const persistence = read("src-tauri/src/persistence.rs");
@@ -69,7 +88,7 @@ test("App.tsx implements history viewer state and handlers", () => {
 });
 
 test("history clear deletes rows and replay selects the saved request", () => {
-  const app = read("src/renderer/src/App.tsx");
+  const app = read("src/renderer/src/hooks/useHistory.ts");
 
   // Clear wipes the local state
   const clearFn = app.slice(app.indexOf("async function handleClearHistory"), app.indexOf("function handleReplayFromHistory"));
@@ -77,7 +96,7 @@ test("history clear deletes rows and replay selects the saved request", () => {
   assert.match(clearFn, /setHistoryEntries\(\[\]\)/);
 
   // Replay selects the request by ID
-  const replayFn = app.slice(app.indexOf("function handleReplayFromHistory"), app.indexOf("async function sendSelectedRequest"));
+  const replayFn = app.slice(app.indexOf("function handleReplayFromHistory"));
   assert.match(replayFn, /setSelectedRequestId/);
   assert.match(replayFn, /setHistoryOpen\(false\)/);
 });

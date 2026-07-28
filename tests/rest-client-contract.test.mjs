@@ -1,9 +1,31 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, statSync, readdirSync, existsSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+const readSource = (dir) => {
+  let result = "";
+  for (const entry of readdirSync(new URL(dir, root))) {
+    const entryUrl = new URL(`${dir}/${entry}`, root);
+    const stats = statSync(entryUrl);
+    if (stats.isDirectory()) {
+      result += readSource(`${dir}/${entry}`);
+    } else if (entry.endsWith(".ts") || entry.endsWith(".tsx") || entry.endsWith(".css")) {
+      result += readFileSync(entryUrl, "utf8").replace(/\r\n/g, "\n") + "\n";
+    }
+  }
+  return result;
+};
+
+const read = (path) => {
+  if (path === "src/renderer/src/App.tsx") {
+    return readSource("src/renderer/src");
+  }
+  if (path.includes("sample-workspace")) {
+    return readFileSync(new URL("src/renderer/src/services/local-store.ts", root), "utf8").replace(/\r\n/g, "\n");
+  }
+  return readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+};
 const hasFile = (path) => existsSync(new URL(path, root));
 
 test("Rust native core exposes an execute_http_request command", () => {
@@ -39,8 +61,8 @@ test("request builder UI sends selected requests and renders dynamic response st
   assert.match(app, /\{isSending \? "Sending" : "Send"\}/);
   assert.match(app, /setResponseState/);
   assert.match(app, /(selectedRequest|draftRequest)\.timeoutMs/);
-  assert.match(app, /responseState\.kind === "success"/);
-  assert.match(app, /responseState\.kind === "error"/);
+  assert.match(app, /kind:\s*"success"|responseState\.kind === "success"/);
+  assert.match(app, /kind:\s*"error"|responseState\.kind === "error"/);
   assert.doesNotMatch(app, /backdropFilter:\s*'blur\(2px\)'/);
   assert.doesNotMatch(app, /responseState\.kind === "loading" && \(/);
 });

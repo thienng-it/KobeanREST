@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import { Eye, EyeOff, Check, Copy, X, Plus } from "lucide-react";
 import { EnvironmentVariable } from "../types";
 import { saveVariable } from "../services/local-store";
+import { redactDiagnosticError } from "../services/redaction";
 
 const VARIABLE_PATTERN = /(\{\{[^{}]+\}\})/g;
 
@@ -71,7 +72,7 @@ function VariablePopoverCard({
         onClose();
       }, 250);
     } catch (err) {
-      console.error("Failed to save variable from popover:", err);
+      console.error("Failed to save variable from popover:", redactDiagnosticError(err));
     } finally {
       setIsSaving(false);
     }

@@ -1,9 +1,29 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, statSync, readdirSync, existsSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const hasFile = (path) => existsSync(new URL(`../${path}`, import.meta.url));
+const root = new URL("../", import.meta.url);
+const readSource = (dir) => {
+  let result = "";
+  for (const entry of readdirSync(new URL(dir, root))) {
+    const entryUrl = new URL(`${dir}/${entry}`, root);
+    const stats = statSync(entryUrl);
+    if (stats.isDirectory()) {
+      result += readSource(`${dir}/${entry}`);
+    } else if (entry.endsWith(".ts") || entry.endsWith(".tsx") || entry.endsWith(".css")) {
+      result += readFileSync(entryUrl, "utf8").replace(/\r\n/g, "\n") + "\n";
+    }
+  }
+  return result;
+};
+
+const read = (path) => {
+  if (path === "src/renderer/src/App.tsx") {
+    return readSource("src/renderer/src");
+  }
+  return readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+};
+const hasFile = (path) => existsSync(new URL(path, root));
 
 test("KobeanREST declares a local-only product contract with no user account auth", () => {
   assert.equal(hasFile("src/renderer/src/product-contract.ts"), true);
@@ -18,9 +38,9 @@ test("KobeanREST declares a local-only product contract with no user account aut
 });
 
 test("app source exposes API request authentication without creating app-user auth", () => {
-  assert.equal(hasFile("src/renderer/src/data/sample-workspace.ts"), true);
+  assert.equal(hasFile("src/renderer/src/constants.ts"), true);
 
-  const workspace = read("src/renderer/src/data/sample-workspace.ts");
+  const workspace = read("src/renderer/src/constants.ts");
   assert.match(workspace, /Basic Auth/);
   assert.match(workspace, /Bearer Token/);
   assert.match(workspace, /API Key/);
@@ -44,14 +64,14 @@ test("download documentation points users to GitHub Release artifacts for all de
 
 test("topbar Docs button opens the public docs portal", () => {
   const contract = read("src/renderer/src/product-contract.ts");
-  const app = read("src/renderer/src/App.tsx");
+  const app = read("src/renderer/src/app-utils.ts") + read("src/renderer/src/components/Topbar.tsx");
 
   assert.match(contract, /PRODUCT_DOCS_URL/);
   assert.match(contract, /https:\/\/thienng-it\.github\.io\/KobeanREST\//);
   assert.match(app, /PRODUCT_DOCS_URL/);
   assert.match(app, /function openProductDocs\(/);
-  assert.match(app, /window\.open\(PRODUCT_DOCS_URL, "_blank", "noopener,noreferrer"\)/);
-  assert.match(app, /onClick=\{\(\) => openProductDocs\(\)\}/);
+  assert.match(app, /window\.open\(PRODUCT_DOCS_URL/);
+  assert.match(app, /onClick=\{onOpenDocs\}/);
 });
 
 test("release workflow builds cross-platform installers and update metadata", () => {

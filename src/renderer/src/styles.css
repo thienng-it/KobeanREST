@@ -1133,6 +1133,12 @@ button:disabled {
   padding: 0 12px;
 }
 
+.environment-select:focus-visible,
+.environment-select .custom-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--color-accent, #3b82f6);
+}
+
 .environment-manage-button:hover {
   border-color: var(--color-border-strong);
   background: rgba(255, 255, 255, 0.82);
@@ -3850,9 +3856,9 @@ button:disabled {
   align-items: center;
   flex-shrink: 0;
   gap: 2px;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(4px);
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
   transition: opacity 140ms ease, transform 140ms ease;
 }
 
@@ -4104,6 +4110,12 @@ button:disabled {
   color: var(--color-text);
   background: var(--color-surface-hover);
   border-color: var(--color-border-tint);
+}
+
+.search-status {
+  font-size: 11px;
+  color: var(--color-muted);
+  padding: 4px 8px;
 }
 
 .settings-content {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, X, Folder, FolderTree, FileText, Check, Briefcase } from "lucide-react";
 import type { WorkspaceSummary, WorkspaceListItem } from "../types";
 import { loadWorkspaceById } from "../services/local-store";
+import { redactDiagnosticError } from "../services/redaction";
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
@@ -123,7 +124,7 @@ export function CreateRequestModal({
       await onCreate(trimmedName, method, locationTargetString, selectedWorkspaceId);
       onClose();
     } catch (err) {
-      console.error("Failed to create request from modal", err);
+      console.error("Failed to create request from modal", redactDiagnosticError(err));
     } finally {
       setIsSubmitting(false);
     }

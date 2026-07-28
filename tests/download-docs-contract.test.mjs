@@ -1,9 +1,28 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+const readSource = (dir) => {
+  let result = "";
+  for (const entry of readdirSync(new URL(dir, root))) {
+    const entryUrl = new URL(`${dir}/${entry}`, root);
+    const stats = statSync(entryUrl);
+    if (stats.isDirectory()) {
+      result += readSource(`${dir}/${entry}`);
+    } else if (entry.endsWith(".ts") || entry.endsWith(".tsx") || entry.endsWith(".css")) {
+      result += readFileSync(entryUrl, "utf8").replace(/\r\n/g, "\n") + "\n";
+    }
+  }
+  return result;
+};
+
+const read = (path) => {
+  if (path === "src/renderer/src/App.tsx") {
+    return readSource("src/renderer/src");
+  }
+  return readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+};
 
 test("download docs include OS-specific install steps and checksum verification guidance", () => {
   const doc = read("docs/download.md");

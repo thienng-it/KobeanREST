@@ -1,5 +1,5 @@
 import { useEffect, useState, useTransition, useRef, useMemo, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { ChevronDown, ChevronUp, Download, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, History, RefreshCw, Settings } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestVariables, resolveRequestFields, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, activeScopedVariablesList, resolveString } from "./services/variables";
@@ -118,7 +118,7 @@ export function App() {
         channel: "stable",
       });
       if (loadedSettings.updateChecksEnabled) {
-        void handleCheckForUpdates("automatic", { ...appSettings, updateChecksEnabled: loadedSettings.updateChecksEnabled });
+        void handleCheckForUpdates("automatic", loadedSettings);
       }
     },
     autoSaveEnabled: appSettings.autoSaveEnabled,

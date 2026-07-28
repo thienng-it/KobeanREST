@@ -71,6 +71,7 @@ export function buildVariableMap(
 ): Map<string, string> {
   const map = new Map<string, string>();
   for (const variable of variables) {
+    if (variable.secret || variable.secretRef) continue;
     map.set(variable.key, variable.value);
   }
   return map;

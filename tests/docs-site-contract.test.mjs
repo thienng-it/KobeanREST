@@ -1,9 +1,28 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+const readSource = (dir) => {
+  let result = "";
+  for (const entry of readdirSync(new URL(dir, root))) {
+    const entryUrl = new URL(`${dir}/${entry}`, root);
+    const stats = statSync(entryUrl);
+    if (stats.isDirectory()) {
+      result += readSource(`${dir}/${entry}`);
+    } else if (entry.endsWith(".ts") || entry.endsWith(".tsx") || entry.endsWith(".css")) {
+      result += readFileSync(entryUrl, "utf8").replace(/\r\n/g, "\n") + "\n";
+    }
+  }
+  return result;
+};
+
+const read = (path) => {
+  if (path === "docs-site/src/App.tsx") {
+    return readSource("docs-site/src");
+  }
+  return readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+};
 const hasFile = (path) => existsSync(new URL(path, root));
 
 test("docs site has a GitHub Pages-ready Vite app with hash routes", () => {

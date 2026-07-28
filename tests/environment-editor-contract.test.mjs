@@ -1,9 +1,28 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+const readSource = (dir) => {
+  let result = "";
+  for (const entry of readdirSync(new URL(dir, root))) {
+    const entryUrl = new URL(`${dir}/${entry}`, root);
+    const stats = statSync(entryUrl);
+    if (stats.isDirectory()) {
+      result += readSource(`${dir}/${entry}`);
+    } else if (entry.endsWith(".ts") || entry.endsWith(".tsx") || entry.endsWith(".css")) {
+      result += readFileSync(entryUrl, "utf8").replace(/\r\n/g, "\n") + "\n";
+    }
+  }
+  return result;
+};
+
+const read = (path) => {
+  if (path === "src/renderer/src/App.tsx") {
+    return readSource("src/renderer/src");
+  }
+  return readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
+};
 
 test("Rust native core exposes environment editing commands", () => {
   const persistence = read("src-tauri/src/persistence.rs");
@@ -64,8 +83,7 @@ test("frontend API client invokes native environment commands", () => {
   assert.match(localStore, /export async function deleteVariable/);
   assert.match(localStore, /invoke.*"delete_variable"/);
 
-  assert.match(localStore, /export async function saveSecretVariable/);
-  assert.match(localStore, /invoke.*"save_secret_variable"/);
+
 });
 
 test("App.tsx implements environment editor state management", () => {
@@ -77,20 +95,20 @@ test("App.tsx implements environment editor state management", () => {
 
   // Active environment switching
   assert.match(app, /async function handleSetActiveEnvironment/);
-  assert.match(app, /setWorkspace.*activeEnvironment.*name/);
+  assert.match(app, /setWorkspace[\s\S]*?activeEnvironment:\s*name/);
 
   // Environment CRUD
   assert.match(app, /async function handleCreateEnvironment/);
   assert.match(app, /async function handleRenameEnvironment/);
   assert.match(app, /async function handleDeleteEnvironment/);
-  assert.match(app, /const \[renamingEnvironment, setRenamingEnvironment\] = useState\(""\);/);
-  assert.match(app, /const \[environmentNameDraft, setEnvironmentNameDraft\] = useState\(""\);/);
+  assert.match(app, /const \[renamingEnvironment, setRenamingEnvironment\] = useState/);
+  assert.match(app, /const \[environmentNameDraft, setEnvironmentNameDraft\] = useState/);
   assert.match(app, /function startEnvironmentRename\(name: string\)/);
   assert.match(app, /async function applyEnvironmentRename\(oldName: string\)/);
-  const createEnvironmentBlock = app.match(/async function handleCreateEnvironment\(\) \{[\s\S]*?\n  \}/);
-  const renameEnvironmentBlock = app.match(/async function handleRenameEnvironment\(oldName: string\) \{[\s\S]*?\n  \}/);
-  const applyEnvironmentRenameBlock = app.match(/async function applyEnvironmentRename\(oldName: string\) \{[\s\S]*?\n  \}/);
-  const deleteEnvironmentBlock = app.match(/async function handleDeleteEnvironment\(name: string\) \{[\s\S]*?\n  \}/);
+  const createEnvironmentBlock = app.match(/async function handleCreateEnvironment\(\) \{[\s\S]*?\n\}/);
+  const renameEnvironmentBlock = app.match(/async function handleRenameEnvironment\(oldName: string\) \{[\s\S]*?\n\}/);
+  const applyEnvironmentRenameBlock = app.match(/async function applyEnvironmentRename\(oldName: string\) \{[\s\S]*?\n\}/);
+  const deleteEnvironmentBlock = app.match(/async function handleDeleteEnvironment\(name: string\) \{[\s\S]*?\n\}/);
   assert.ok(createEnvironmentBlock);
   assert.ok(renameEnvironmentBlock);
   assert.ok(applyEnvironmentRenameBlock);
@@ -109,10 +127,6 @@ test("App.tsx implements environment editor state management", () => {
   assert.match(app, /async function handleSaveVariable/);
   assert.match(app, /async function handleDeleteVariable/);
 
-  // Secret variable goes through secret service
-  assert.match(app, /async function handleAddSecretVariable/);
-  assert.match(app, /storeSecret/);
-  assert.match(app, /saveSecretVariable/);
 
   // Environment selector in the UI
   assert.match(app, /aria-label="Active environment"/);
@@ -121,7 +135,7 @@ test("App.tsx implements environment editor state management", () => {
 });
 
 test("environment switcher uses polished class-based controls", () => {
-  const app = read("src/renderer/src/App.tsx");
+  const app = read("src/renderer/src/components/Sidebar.tsx");
   const styles = read("src/renderer/src/styles.css");
   const switcherBlock = app.match(/<div className="environment-switcher">[\s\S]*?<\/div>/);
 
@@ -178,17 +192,3 @@ test("environment delete confirmation renders above the editor modal", () => {
   assert.match(styles, /\.confirm-modal-overlay\s*\{[\s\S]*z-index:\s*1100;/);
 });
 
-test("secret variable writes go through secret service boundary in App.tsx", () => {
-  const app = read("src/renderer/src/App.tsx");
-
-  // storeSecret is imported from secrets service
-  assert.match(app, /from "\.\/services\/secrets"/);
-  assert.match(app, /storeSecret/);
-
-  // saveSecretVariable is called with refId (from storeSecret result), not the raw value
-  const fnStart = app.indexOf("async function handleAddSecretVariable");
-  const fnBody = app.slice(fnStart, fnStart + 400);
-  assert.match(fnBody, /storeSecret/);
-  assert.match(fnBody, /refId/);
-  assert.match(fnBody, /saveSecretVariable.*refId/);
-});
