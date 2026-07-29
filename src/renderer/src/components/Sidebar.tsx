@@ -1,11 +1,46 @@
 import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { CustomSelect } from "./CustomSelect";
 import type { AppSettings, SavedRequest, WorkspaceSummary } from "../types";
 
 interface ContextMenuTarget {
   id: string;
   type: "folder" | "request" | "collection" | "workspace";
+}
+
+// Helper to encode/decode dnd-kit ids
+const encodeDragId = (type: string, id: string) => `${type}:${id}`;
+const decodeDragId = (encoded: string): { type: string; id: string } => {
+  const idx = encoded.indexOf(":");
+  if (idx === -1) return { type: "", id: encoded };
+  return { type: encoded.slice(0, idx), id: encoded.slice(idx + 1) };
+};
+
+interface DragItemData {
+  id: string;
+  type: "folder" | "request" | "collection";
+  parentId?: string;
+}
+
+interface DragOverState {
+  id: string;
+  type: "folder" | "request" | "collection";
+  position: "top" | "bottom" | "inside";
 }
 
 export interface SidebarProps {
@@ -82,6 +117,429 @@ export interface SidebarProps {
   onMoveItem?: (type: "folder" | "request" | "collection", draggedId: string, targetId: string, position: "top" | "bottom" | "inside") => Promise<void>;
 }
 
+// Draggable Collection Row
+function DraggableCollectionRow({
+  collection,
+  dragId,
+  isDragOver,
+  dragOverPosition,
+  isRenaming,
+  sidebarNameDraft,
+  onSidebarNameDraftChange,
+  onApplySidebarRename,
+  onCancelSidebarRename,
+  onStartSidebarRename,
+  onDeleteCollection,
+  onCreateFolder,
+  onContextMenu,
+  children,
+}: {
+  collection: { id: string; name: string };
+  dragId: string;
+  isDragOver: boolean;
+  dragOverPosition?: string;
+  isRenaming: boolean;
+  sidebarNameDraft: string;
+  onSidebarNameDraftChange: (value: string) => void;
+  onApplySidebarRename: () => Promise<void>;
+  onCancelSidebarRename: () => void;
+  onStartSidebarRename: (type: "collection", id: string, name: string) => void;
+  onDeleteCollection: (id: string) => void;
+  onCreateFolder: (collectionId: string) => Promise<void>;
+  onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
+  children?: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: dragId,
+  });
+  const { isOver, setNodeRef: setDroppableRef } = useDroppable({
+    id: dragId,
+  });
+
+  const style: CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : undefined,
+  };
+
+  return (
+    <div className="collection-group" style={{ marginBottom: "20px" }}>
+      <div
+        ref={(node) => {
+          setNodeRef(node);
+          setDroppableRef(node);
+        }}
+        style={style}
+        {...listeners}
+        {...attributes}
+        className={`folder-title sidebar-tree-row collection-title ${
+          (isDragOver || isOver) && dragOverPosition ? `drag-over-${dragOverPosition}` : ""
+        }`}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onContextMenu({ id: collection.id, type: "collection" }, e.clientX, e.clientY);
+        }}
+      >
+        <span
+          className="sidebar-drag-handle"
+          aria-hidden="true"
+          title="Drag to reorder"
+          style={{ pointerEvents: "none" }}
+        >
+          <GripVertical size={12} />
+        </span>
+        {isRenaming ? (
+          <input
+            value={sidebarNameDraft}
+            aria-label={`Rename collection ${collection.name}`}
+            autoFocus
+            onChange={(event) => onSidebarNameDraftChange(event.target.value)}
+            onBlur={() => void onApplySidebarRename()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                onCancelSidebarRename();
+              }
+            }}
+            style={{ flex: 1, minWidth: 0, border: "1px solid var(--color-border-tint)", borderRadius: "6px", background: "var(--color-surface)", color: "var(--color-text)", padding: "4px 8px", fontWeight: 700 }}
+          />
+        ) : (
+          <strong onDoubleClick={() => onStartSidebarRename("collection", collection.id, collection.name)}>{collection.name}</strong>
+        )}
+        <div className="sidebar-row-actions">
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            aria-label={`Rename collection ${collection.name}`}
+            onClick={() => onStartSidebarRename("collection", collection.id, collection.name)}
+          >
+            <Edit2 size={12} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            aria-label={`New folder in ${collection.name}`}
+            onClick={() => void onCreateFolder(collection.id)}
+          >
+            <Plus size={12} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-icon-button danger"
+            aria-label={`Delete collection ${collection.name}`}
+            onClick={() => onDeleteCollection(collection.id)}
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Draggable Folder Row
+function DraggableFolderRow({
+  folder,
+  dragId,
+  isDragOver,
+  dragOverPosition,
+  isRenaming,
+  isCollapsed,
+  sidebarNameDraft,
+  onSidebarNameDraftChange,
+  onApplySidebarRename,
+  onCancelSidebarRename,
+  onStartSidebarRename,
+  onToggleFolder,
+  onDeleteFolder,
+  onCreateRequest,
+  onContextMenu,
+  children,
+}: {
+  folder: { id: string; name: string; parentId?: string; collectionId?: string };
+  dragId: string;
+  isDragOver: boolean;
+  dragOverPosition?: string;
+  isRenaming: boolean;
+  isCollapsed: boolean;
+  sidebarNameDraft: string;
+  onSidebarNameDraftChange: (value: string) => void;
+  onApplySidebarRename: () => Promise<void>;
+  onCancelSidebarRename: () => void;
+  onStartSidebarRename: (type: "folder", id: string, name: string) => void;
+  onToggleFolder: (id: string) => void;
+  onDeleteFolder: (id: string) => void;
+  onCreateRequest: (folderId: string) => Promise<void>;
+  onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
+  children?: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: dragId,
+  });
+  const { isOver, setNodeRef: setDroppableRef } = useDroppable({
+    id: dragId,
+  });
+
+  const style: CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : undefined,
+  };
+
+  return (
+    <div className="folder-group">
+      <div
+        ref={(node) => {
+          setNodeRef(node);
+          setDroppableRef(node);
+        }}
+        style={style}
+        {...listeners}
+        {...attributes}
+        className={`folder-title sidebar-tree-row ${
+          (isDragOver || isOver) && dragOverPosition ? `drag-over-${dragOverPosition}` : ""
+        }`}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onContextMenu({ id: folder.id, type: "folder" }, e.clientX, e.clientY);
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "2px", minWidth: 0 }}>
+          <span
+            className="sidebar-drag-handle"
+            aria-hidden="true"
+            title="Drag to reorder"
+            style={{ pointerEvents: "none" }}
+          >
+            <GripVertical size={12} />
+          </span>
+          <button
+            type="button"
+            aria-expanded={!isCollapsed}
+            onClick={() => onToggleFolder(folder.id)}
+            className="folder-toggle-button"
+          >
+            <ChevronDown
+              size={14}
+              className={isCollapsed ? "folder-chevron collapsed" : "folder-chevron"}
+            />
+          </button>
+          {isRenaming ? (
+            <input
+              value={sidebarNameDraft}
+              aria-label={`Rename folder ${folder.name}`}
+              autoFocus
+              onChange={(event) => onSidebarNameDraftChange(event.target.value)}
+              onBlur={() => void onApplySidebarRename()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  event.currentTarget.blur();
+                } else if (event.key === "Escape") {
+                  event.preventDefault();
+                  onCancelSidebarRename();
+                }
+              }}
+              style={{ minWidth: 0, width: "120px", border: "1px solid var(--color-border-tint)", borderRadius: "6px", background: "var(--color-surface)", color: "var(--color-text)", padding: "4px 8px", fontWeight: 700 }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => onToggleFolder(folder.id)}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+                onStartSidebarRename("folder", folder.id, folder.name);
+              }}
+              style={{ all: "unset", display: "flex", alignItems: "center", gap: "2px", cursor: "pointer" }}
+            >
+              {folder.name}
+            </button>
+          )}
+        </div>
+        <div className="sidebar-row-actions">
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            aria-label={`New request in ${folder.name}`}
+            onClick={() => void onCreateRequest(folder.id)}
+          >
+            <Plus size={12} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            aria-label={`Rename folder ${folder.name}`}
+            onClick={() => onStartSidebarRename("folder", folder.id, folder.name)}
+          >
+            <Edit2 size={12} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-icon-button danger"
+            aria-label={`Delete folder ${folder.name}`}
+            onClick={() => onDeleteFolder(folder.id)}
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Draggable Request Row
+function DraggableRequestRow({
+  request,
+  dragId,
+  isSelected,
+  isDragOver,
+  dragOverPosition,
+  isRenaming,
+  renameDraft,
+  onRenameDraftChange,
+  onApplyRequestRename,
+  onStopRequestRename,
+  onStartRequestRename,
+  onSelectRequest,
+  onDeleteRequest,
+  methodClass,
+  resolvedMethodLabel,
+  draftRequest,
+  isDraftDirty,
+  scriptStatus,
+  onContextMenu,
+}: {
+  request: { id: string; name: string; method: string; customMethod?: string; folderId: string };
+  dragId: string;
+  isSelected: boolean;
+  isDragOver: boolean;
+  dragOverPosition?: string;
+  isRenaming: boolean;
+  renameDraft: string;
+  onRenameDraftChange: (value: string) => void;
+  onApplyRequestRename: (id: string) => void;
+  onStopRequestRename: () => void;
+  onStartRequestRename: (request: any) => void;
+  onSelectRequest: (id: string) => void;
+  onDeleteRequest: (id: string) => void;
+  methodClass: (method: string) => string;
+  resolvedMethodLabel: (method: string, customMethod?: string) => string;
+  draftRequest: SavedRequest | null;
+  isDraftDirty?: boolean;
+  scriptStatus: Record<string, boolean>;
+  onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: dragId,
+  });
+  const { isOver, setNodeRef: setDroppableRef } = useDroppable({
+    id: dragId,
+  });
+
+  const style: CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : undefined,
+  };
+
+  return (
+    <div
+      ref={(node) => {
+        setNodeRef(node);
+        setDroppableRef(node);
+      }}
+      key={request.id}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`${isSelected ? "request-row sidebar-tree-row active" : "request-row sidebar-tree-row"} ${
+        (isDragOver || isOver) && dragOverPosition ? `drag-over-${dragOverPosition}` : ""
+      }`}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onContextMenu({ id: request.id, type: "request" }, e.clientX, e.clientY);
+      }}
+    >
+      {isRenaming ? (
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "2px" }}>
+          <span
+            className="sidebar-drag-handle"
+            aria-hidden="true"
+            title="Drag to reorder"
+            style={{ pointerEvents: "none" }}
+          >
+            <GripVertical size={12} />
+          </span>
+          <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
+          <input
+            value={renameDraft}
+            aria-label={`Rename ${request.name}`}
+            placeholder="Request Name"
+            autoFocus
+            onChange={(event) => onRenameDraftChange(event.target.value)}
+            onBlur={() => onApplyRequestRename(request.id)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onApplyRequestRename(request.id);
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                onStopRequestRename();
+              }
+            }}
+            style={{ flex: 1, minWidth: 0, width: "100%", boxSizing: "border-box", border: "1px solid var(--color-border-tint)", borderRadius: "6px", background: "var(--color-surface)", color: "var(--color-text)", padding: "4px 8px" }}
+          />
+          {scriptStatus[request.id] && (
+            <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#2563eb", marginLeft: "4px" }} title="Has scripts" />
+          )}
+        </div>
+      ) : (
+        <button
+          style={{ all: "unset", flex: 1, display: "flex", alignItems: "center", gap: "2px", cursor: "pointer" }}
+          onClick={() => onSelectRequest(request.id)}
+          type="button"
+        >
+          <span
+            className="sidebar-drag-handle"
+            aria-hidden="true"
+            title="Drag to reorder"
+            style={{ pointerEvents: "none" }}
+          >
+            <GripVertical size={12} />
+          </span>
+          <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
+          <span onDoubleClick={() => onStartRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
+          {request.id === draftRequest?.id && isDraftDirty && (
+            <span
+              className="sidebar-request-dirty-dot"
+              title="Unsaved changes"
+              style={{
+                display: "inline-block",
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                backgroundColor: "#f59e0b",
+                marginLeft: "6px",
+                flexShrink: 0,
+              }}
+            />
+          )}
+        </button>
+      )}
+      <div className="sidebar-row-actions">
+        <button type="button" className="sidebar-icon-button" aria-label={`Rename ${request.name}`} onClick={() => onStartRequestRename(request)}>
+          <Edit2 size={12} />
+        </button>
+        <button type="button" className="sidebar-icon-button danger" aria-label="Delete request" onClick={() => onDeleteRequest(request.id)}>
+          <Trash2 size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function Sidebar({
   workspace,
   selectedRequestId,
@@ -135,17 +593,20 @@ export function Sidebar({
 }: SidebarProps) {
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const themeRef = useRef<HTMLDivElement>(null);
-  
-  // Drag and drop state
-  const [dragItem, setDragItem] = useState<{ id: string; type: "folder" | "request" | "collection"; parentId?: string } | null>(null);
-  const [dragOverItem, setDragOverItem] = useState<{ id: string; type: "folder" | "request" | "collection"; position: "top" | "bottom" | "inside" } | null>(null);
 
-  const clearRowDrag = () => {
-    // Only clear dragOverItem here. dragItem will be cleared by handleDrop on successful drop,
-    // or overwritten on next dragStart. This prevents race condition where dragend fires
-    // before drop in some browsers/React synthetic events.
-    setDragOverItem(null);
-  };
+  // Drag and drop state
+  const [activeDragItem, setActiveDragItem] = useState<DragItemData | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<DragOverState | null>(null);
+
+  // dnd-kit sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement required to start drag
+      },
+    }),
+    useSensor(KeyboardSensor),
+  );
 
   useEffect(() => {
     if (!themeMenuOpen) return;
@@ -227,101 +688,100 @@ export function Sidebar({
     );
   }
 
-  const handleDragStart = (e: React.DragEvent, id: string, type: "folder" | "request" | "collection", parentId?: string) => {
-    e.stopPropagation();
-    setDragItem({ id, type, parentId });
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", id);
-    e.dataTransfer.setData("application/json", JSON.stringify({ id, type, parentId }));
-  };
+  // --- dnd-kit handlers ---
 
-  const handleDragOver = (e: React.DragEvent, id: string, type: "folder" | "request" | "collection") => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = "move";
+  function handleDragStart(event: DragStartEvent) {
+    const { active } = event;
+    const { type, id } = decodeDragId(active.id as string);
+
+    // Find parentId if needed
+    let parentId: string | undefined;
+    if (type === "folder" && workspace) {
+      const folder = workspace.folders.find(f => f.id === id);
+      parentId = folder?.parentId;
+    } else if (type === "request" && workspace) {
+      const request = workspace.requests.find(r => r.id === id);
+      parentId = request?.folderId;
+    }
+
+    setActiveDragItem({ id, type: type as any, parentId });
+    setDragOverItem(null);
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event;
+
+    if (!over || !activeDragItem) {
+      setDragOverItem(null);
+      return;
+    }
+
+    const { type: activeType } = decodeDragId(active.id as string);
+    const { type: overType, id: overId } = decodeDragId(over.id as string);
+
+    // Don't allow dropping on self
+    if (active.id === over.id) {
+      setDragOverItem(null);
+      return;
+    }
+
+    let position: "top" | "bottom" | "inside" = "bottom";
 
     // Collections only reorder against collections (top/bottom); never "inside".
-    if (dragItem?.type === "collection") {
-      if (type !== "collection") return;
-      const tr = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const position: "top" | "bottom" = e.clientY - tr.top < (tr.bottom - tr.top) / 2 ? "top" : "bottom";
-      setDragOverItem({ id, type, position });
-      return;
-    }
-
-    const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const hoverMiddleY = (targetRect.bottom - targetRect.top) / 2;
-    const hoverClientY = e.clientY - targetRect.top;
-
-    let position: "top" | "bottom" | "inside" = "bottom";
-
-    if (dragItem?.type === "request" && type === "folder") {
-      position = "inside";
-    } else if (hoverClientY < hoverMiddleY) {
-      position = "top";
-    }
-
-    setDragOverItem({ id, type, position });
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOverItem(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, targetId: string, targetType: "folder" | "request" | "collection", targetParentId?: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    let payload = dragItem;
-    try {
-      const dataStr = e.dataTransfer.getData("application/json");
-      if (dataStr) {
-        payload = JSON.parse(dataStr);
+    if (activeType === "collection") {
+      if (overType !== "collection") {
+        setDragOverItem(null);
+        return;
       }
-    } catch (err) {
-      // ignore
-    }
-
-    if (!payload || !onMoveItem || !workspace) {
-      setDragItem(null);
-      setDragOverItem(null);
-      return;
-    }
-
-    if (payload.id === targetId) {
-      setDragItem(null);
-      setDragOverItem(null);
-      return;
-    }
-
-    const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const hoverMiddleY = (targetRect.bottom - targetRect.top) / 2;
-    const hoverClientY = e.clientY - targetRect.top;
-
-    // Collections only reorder top/bottom against other collections.
-    let position: "top" | "bottom" | "inside" = "bottom";
-    if (payload.type === "collection" || targetType === "collection") {
-      position = hoverClientY < hoverMiddleY ? "top" : "bottom";
-    } else if (payload.type === "request" && targetType === "folder") {
+      position = "bottom";
+    } else if (activeType === "request" && overType === "folder") {
       position = "inside";
-    } else if (hoverClientY < hoverMiddleY) {
-      position = "top";
     }
 
-    void onMoveItem(payload.type, payload.id, targetId, position);
+    setDragOverItem({
+      id: overId,
+      type: overType as any,
+      position
+    });
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (!over || !activeDragItem || !onMoveItem || !workspace) {
+      setActiveDragItem(null);
+      setDragOverItem(null);
+      return;
+    }
+
+    if (active.id === over.id) {
+      setActiveDragItem(null);
+      setDragOverItem(null);
+      return;
+    }
+
+    const { type: activeType, id: activeId } = decodeDragId(active.id as string);
+    const { type: overType, id: overId } = decodeDragId(over.id as string);
+
+    let position: "top" | "bottom" | "inside" = "bottom";
+    if (activeType === "collection" || overType === "collection") {
+      position = "bottom";
+    } else if (activeType === "request" && overType === "folder") {
+      position = "inside";
+    }
 
     // Auto-expand folder if dropping a request into it
-    if (payload.type === "request" && targetType === "folder") {
-      if (collapsedFolders[targetId]) {
-        onToggleFolder(targetId);
+    if (activeType === "request" && overType === "folder") {
+      if (collapsedFolders[overId]) {
+        onToggleFolder(overId);
       }
     }
 
-    setDragItem(null);
+    void onMoveItem(activeType as any, activeId, overId, position);
+
+    setActiveDragItem(null);
     setDragOverItem(null);
-  };
+  }
 
 
   function folderMatchesCollectionSearch(folderId: string): boolean | undefined {
@@ -335,6 +795,150 @@ export function Sidebar({
     if (matchesCollectionSearch(collection.name)) return true;
     return workspace?.folders.some((folder) => folder.collectionId === collection.id && folderMatchesCollectionSearch(folder.id));
   });
+
+  // Render drag overlay
+  function renderDragOverlay() {
+    if (!activeDragItem) return null;
+
+    const { id, type } = activeDragItem;
+
+    if (type === "collection" && workspace) {
+      const collection = workspace.collections?.find(c => c.id === id);
+      if (collection) {
+        return (
+          <div className="folder-title sidebar-tree-row collection-title" style={{ opacity: 0.8, background: 'var(--color-surface)', padding: '8px 12px', borderRadius: '6px' }}>
+            <GripVertical size={12} />
+            <strong>{collection.name}</strong>
+          </div>
+        );
+      }
+    }
+
+    if (type === "folder" && workspace) {
+      const folder = workspace.folders.find(f => f.id === id);
+      if (folder) {
+        return (
+          <div className="folder-title sidebar-tree-row" style={{ opacity: 0.8, background: 'var(--color-surface)', padding: '8px 12px', borderRadius: '6px' }}>
+            <GripVertical size={12} />
+            <ChevronDown size={14} />
+            <span>{folder.name}</span>
+          </div>
+        );
+      }
+    }
+
+    if (type === "request" && workspace) {
+      const request = workspace.requests.find(r => r.id === id);
+      if (request) {
+        return (
+          <div className="request-row sidebar-tree-row" style={{ opacity: 0.8, background: 'var(--color-surface)', padding: '8px 12px', borderRadius: '6px' }}>
+            <GripVertical size={12} />
+            <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>
+              {resolvedMethodLabel(request.method, request.customMethod)}
+            </span>
+            <span>{request.name}</span>
+          </div>
+        );
+      }
+    }
+
+    return null;
+  }
+
+  // Recursive folder render function
+  const renderFolders = (parentId: string | undefined, depth: number, forceShowAll: boolean, collectionId: string) => {
+    const folders = (workspace?.folders ?? [])
+      .filter((f) => (parentId === undefined ? f.collectionId === collectionId && !f.parentId : f.parentId === parentId))
+      .filter((f) => forceShowAll || folderMatchesCollectionSearch(f.id));
+
+    if (folders.length === 0) return null;
+
+    return (
+      <div style={{ paddingLeft: `${depth * 12}px` }}>
+        {folders.map((folder) => {
+          const folderNameMatches = matchesCollectionSearch(folder.name);
+          const showFolderContents = forceShowAll || (folderNameMatches ?? false);
+          const isFolderCollapsed = !isCollectionSearchActive && collapsedFolders[folder.id];
+          const folderRequests = (workspace?.requests ?? [])
+            .filter((r) => r.folderId === folder.id)
+            .filter((r) => showFolderContents || requestMatchesCollectionSearch(r));
+
+          const folderDragId = encodeDragId("folder", folder.id);
+          const isFolderRenaming = renamingSidebarItem?.type === "folder" && renamingSidebarItem.id === folder.id;
+          const isFolderDragOver = dragOverItem?.id === folder.id && dragOverItem.type === "folder";
+
+          return (
+            <DraggableFolderRow
+              key={folder.id}
+              folder={folder}
+              dragId={folderDragId}
+              isDragOver={isFolderDragOver}
+              dragOverPosition={isFolderDragOver ? dragOverItem?.position : undefined}
+              isRenaming={isFolderRenaming}
+              isCollapsed={isFolderCollapsed}
+              sidebarNameDraft={sidebarNameDraft}
+              onSidebarNameDraftChange={onSidebarNameDraftChange}
+              onApplySidebarRename={onApplySidebarRename}
+              onCancelSidebarRename={onCancelSidebarRename}
+              onStartSidebarRename={onStartSidebarRename}
+              onToggleFolder={onToggleFolder}
+              onDeleteFolder={onDeleteFolder}
+              onCreateRequest={onCreateRequest}
+              onContextMenu={onContextMenu}
+            >
+              <div
+                className={isFolderCollapsed ? "folder-children collapsed" : "folder-children"}
+                aria-hidden={isFolderCollapsed}
+              >
+                <div className="folder-children-inner">
+                  {renderFolders(folder.id, depth + 1, showFolderContents, collectionId)}
+                  {folderRequests.length === 0 && (
+                    <div
+                      className={`empty-folder sidebar-tree-row ${
+                        isFolderDragOver && dragOverItem?.position === "inside" ? "drag-over-inside" : ""
+                      }`}
+                      style={{ paddingLeft: "12px", opacity: 0.5, fontStyle: "italic", fontSize: "11px" }}
+                    >
+                    </div>
+                  )}
+                  {folderRequests.map((request) => {
+                    const requestDragId = encodeDragId("request", request.id);
+                    const isRequestRenaming = renamingRequestId === request.id;
+                    const isRequestDragOver = dragOverItem?.id === request.id && dragOverItem.type === "request";
+
+                    return (
+                      <DraggableRequestRow
+                        key={request.id}
+                        request={request}
+                        dragId={requestDragId}
+                        isSelected={request.id === selectedRequestId}
+                        isDragOver={isRequestDragOver}
+                        dragOverPosition={isRequestDragOver ? dragOverItem?.position : undefined}
+                        isRenaming={isRequestRenaming}
+                        renameDraft={renameDraft}
+                        onRenameDraftChange={onRenameDraftChange}
+                        onApplyRequestRename={onApplyRequestRename}
+                        onStopRequestRename={onStopRequestRename}
+                        onStartRequestRename={onStartRequestRename}
+                        onSelectRequest={onSelectRequest}
+                        onDeleteRequest={onDeleteRequest}
+                        methodClass={methodClass}
+                        resolvedMethodLabel={resolvedMethodLabel}
+                        draftRequest={draftRequest}
+                        isDraftDirty={isDraftDirty}
+                        scriptStatus={scriptStatus}
+                        onContextMenu={onContextMenu}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </DraggableFolderRow>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <aside
@@ -444,325 +1048,51 @@ export function Sidebar({
           </div>
         )}
 
-        <section className="nav-section">
-          <h2>
-            <FolderTree size={15} />
-            Collections
-          </h2>
-          {visibleCollections.map((collection) => (
-            <div className="collection-group" key={collection.id} style={{ marginBottom: "20px" }}>
-              <div
-                className={`folder-title sidebar-tree-row collection-title ${
-                  dragOverItem?.id === collection.id && dragOverItem.type === "collection" ? `drag-over-${dragOverItem.position}` : ""
-                }`}
-                draggable={!(renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id)}
-                onDragStart={(e) => handleDragStart(e, collection.id, "collection")}
-                onDragEnd={clearRowDrag}
-                onDragEnter={(e) => e.preventDefault()}
-                onDragOver={(e) => handleDragOver(e, collection.id, "collection")}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, collection.id, "collection")}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  onContextMenu({ id: collection.id, type: "collection" }, e.clientX, e.clientY);
-                }}
-              >
-                <span
-                  className="sidebar-drag-handle"
-                  aria-hidden="true"
-                  title="Drag to reorder"
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <section className="nav-section">
+            <h2>
+              <FolderTree size={15} />
+              Collections
+            </h2>
+            {visibleCollections.map((collection) => {
+              const collectionDragId = encodeDragId("collection", collection.id);
+              const isCollectionRenaming = renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id;
+              const isCollectionDragOver = dragOverItem?.id === collection.id && dragOverItem.type === "collection";
+              const collectionNameMatches = matchesCollectionSearch(collection.name) ?? false;
+
+              return (
+                <DraggableCollectionRow
+                  key={collection.id}
+                  collection={collection}
+                  dragId={collectionDragId}
+                  isDragOver={isCollectionDragOver}
+                  dragOverPosition={isCollectionDragOver ? dragOverItem?.position : undefined}
+                  isRenaming={isCollectionRenaming}
+                  sidebarNameDraft={sidebarNameDraft}
+                  onSidebarNameDraftChange={onSidebarNameDraftChange}
+                  onApplySidebarRename={onApplySidebarRename}
+                  onCancelSidebarRename={onCancelSidebarRename}
+                  onStartSidebarRename={onStartSidebarRename}
+                  onDeleteCollection={onDeleteCollection}
+                  onCreateFolder={onCreateFolder}
+                  onContextMenu={onContextMenu}
                 >
-                  <GripVertical size={12} />
-                </span>
-                {renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id ? (
-                  <input
-                    value={sidebarNameDraft}
-                    aria-label={`Rename collection ${collection.name}`}
-                    autoFocus
-                    onChange={(event) => onSidebarNameDraftChange(event.target.value)}
-                    onBlur={() => void onApplySidebarRename()}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        event.currentTarget.blur();
-                      } else if (event.key === "Escape") {
-                        event.preventDefault();
-                        onCancelSidebarRename();
-                      }
-                    }}
-                    style={{ flex: 1, minWidth: 0, border: "1px solid var(--color-border-tint)", borderRadius: "6px", background: "var(--color-surface)", color: "var(--color-text)", padding: "4px 8px", fontWeight: 700 }}
-                  />
-                ) : (
-                  <strong onDoubleClick={() => onStartSidebarRename("collection", collection.id, collection.name)}>{collection.name}</strong>
-                )}
-                <div className="sidebar-row-actions">
-                  <button
-                    type="button"
-                    className="sidebar-icon-button"
-                    aria-label={`Rename collection ${collection.name}`}
-                    onClick={() => onStartSidebarRename("collection", collection.id, collection.name)}
-                  >
-                    <Edit2 size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    className="sidebar-icon-button"
-                    aria-label={`New folder in ${collection.name}`}
-                    onClick={() => void onCreateFolder(collection.id)}
-                  >
-                    <Plus size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    className="sidebar-icon-button danger"
-                    aria-label={`Delete collection ${collection.name}`}
-                    onClick={() => void onDeleteCollection(collection.id)}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              </div>
+                  {renderFolders(undefined, 0, collectionNameMatches, collection.id)}
+                </DraggableCollectionRow>
+              );
+            })}
+          </section>
 
-              {(() => {
-                const collectionNameMatches = matchesCollectionSearch(collection.name);
-                const renderFolders = (parentId: string | undefined, depth = 0, forceShowAll = false) => {
-                  const folders = (workspace?.folders ?? [])
-                    .filter((f) => (parentId === undefined ? f.collectionId === collection.id && !f.parentId : f.parentId === parentId))
-                    .filter((f) => forceShowAll || folderMatchesCollectionSearch(f.id));
-
-                  if (folders.length === 0) return null;
-
-                  return (
-                    <div style={{ paddingLeft: `${depth * 12}px` }}>
-                      {folders.map((folder) => {
-                        const folderNameMatches = matchesCollectionSearch(folder.name);
-                        const showFolderContents = forceShowAll || folderNameMatches;
-                        const isFolderCollapsed = !isCollectionSearchActive && collapsedFolders[folder.id];
-                        const folderRequests = (workspace?.requests ?? [])
-                          .filter((r) => r.folderId === folder.id)
-                          .filter((r) => showFolderContents || requestMatchesCollectionSearch(r));
-                        return (
-                          <div className="folder-group" key={folder.id}>
-                              <div
-                                className={`folder-title sidebar-tree-row ${
-                                  dragOverItem?.id === folder.id && dragOverItem.type === "folder" ? `drag-over-${dragOverItem.position}` : ""
-                                }`}
-                                draggable={!(renamingSidebarItem?.type === "folder" && renamingSidebarItem.id === folder.id)}
-                                onDragStart={(e) => handleDragStart(e, folder.id, "folder", folder.parentId)}
-                                onDragEnd={clearRowDrag}
-                                onDragEnter={(e) => e.preventDefault()}
-                                onDragOver={(e) => handleDragOver(e, folder.id, "folder")}
-                                onDragLeave={handleDragLeave}
-                                onDrop={(e) => handleDrop(e, folder.id, "folder", folder.parentId)}
-                                onContextMenu={(e) => {
-                                  e.preventDefault();
-                                  onContextMenu({ id: folder.id, type: "folder" }, e.clientX, e.clientY);
-                                }}
-                              >
-                              <div style={{ display: "flex", alignItems: "center", gap: "2px", minWidth: 0 }}>
-                                <span
-                                  className="sidebar-drag-handle"
-                                  aria-hidden="true"
-                                  title="Drag to reorder"
-                                >
-                                  <GripVertical size={12} />
-                                </span>
-                                <button
-                                  type="button"
-                                  aria-expanded={!isFolderCollapsed}
-                                  onClick={() => onToggleFolder(folder.id)}
-                                  className="folder-toggle-button"
-                                >
-                                  <ChevronDown
-                                    size={14}
-                                    className={isFolderCollapsed ? "folder-chevron collapsed" : "folder-chevron"}
-                                  />
-                                </button>
-                                {renamingSidebarItem?.type === "folder" && renamingSidebarItem.id === folder.id ? (
-                                  <input
-                                    value={sidebarNameDraft}
-                                    aria-label={`Rename folder ${folder.name}`}
-                                    autoFocus
-                                    onChange={(event) => onSidebarNameDraftChange(event.target.value)}
-                                    onBlur={() => void onApplySidebarRename()}
-                                    onKeyDown={(event) => {
-                                      if (event.key === "Enter") {
-                                        event.preventDefault();
-                                        event.currentTarget.blur();
-                                      } else if (event.key === "Escape") {
-                                        event.preventDefault();
-                                        onCancelSidebarRename();
-                                      }
-                                    }}
-                                    style={{ minWidth: 0, width: "120px", border: "1px solid var(--color-border-tint)", borderRadius: "6px", background: "var(--color-surface)", color: "var(--color-text)", padding: "4px 8px", fontWeight: 700 }}
-                                  />
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => onToggleFolder(folder.id)}
-                                    onDoubleClick={(event) => {
-                                      event.stopPropagation();
-                                      onStartSidebarRename("folder", folder.id, folder.name);
-                                    }}
-                                    style={{ all: "unset", display: "flex", alignItems: "center", gap: "2px", cursor: "pointer" }}
-                                  >
-                                    {folder.name}
-                                  </button>
-                                )}
-                              </div>
-                              <div className="sidebar-row-actions">
-                                <button
-                                  type="button"
-                                  className="sidebar-icon-button"
-                                  aria-label={`New request in ${folder.name}`}
-                                  onClick={() => void onCreateRequest(folder.id)}
-                                >
-                                  <Plus size={12} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="sidebar-icon-button"
-                                  aria-label={`Rename folder ${folder.name}`}
-                                  onClick={() => onStartSidebarRename("folder", folder.id, folder.name)}
-                                >
-                                  <Edit2 size={12} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="sidebar-icon-button danger"
-                                  aria-label={`Delete folder ${folder.name}`}
-                                  onClick={() => void onDeleteFolder(folder.id)}
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </div>
-                            </div>
-                            <div
-                              className={isFolderCollapsed ? "folder-children collapsed" : "folder-children"}
-                              aria-hidden={isFolderCollapsed}
-                            >
-                              <div className="folder-children-inner">
-                                {renderFolders(folder.id, depth + 1, showFolderContents)}
-                                {folderRequests.length === 0 && (
-                                  <div
-                                    className={`empty-folder sidebar-tree-row ${
-                                      dragOverItem?.id === folder.id && dragOverItem.type === "folder" ? "drag-over-inside" : ""
-                                    }`}
-                                    style={{ paddingLeft: "12px", opacity: 0.5, fontStyle: "italic", fontSize: "11px" }}
-                                    onDragEnter={(e) => e.preventDefault()}
-                                    onDragOver={(e) => handleDragOver(e, folder.id, "folder")}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={(e) => handleDrop(e, folder.id, "folder", folder.parentId)}
-                                  >
-                                  </div>
-                                )}
-                                {folderRequests.map((request) => (
-                                  <div
-                                    key={request.id}
-                                    className={`${request.id === selectedRequestId ? "request-row sidebar-tree-row active" : "request-row sidebar-tree-row"} ${
-                                      dragOverItem?.id === request.id && dragOverItem.type === "request" ? `drag-over-${dragOverItem.position}` : ""
-                                    }`}
-                                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                                    draggable={renamingRequestId !== request.id}
-                                    onDragStart={(e) => handleDragStart(e, request.id, "request", request.folderId)}
-                                    onDragEnd={clearRowDrag}
-                                    onDragEnter={(e) => e.preventDefault()}
-                                    onDragOver={(e) => handleDragOver(e, request.id, "request")}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={(e) => handleDrop(e, request.id, "request", request.folderId)}
-                                    onContextMenu={(e) => {
-                                      e.preventDefault();
-                                      onContextMenu({ id: request.id, type: "request" }, e.clientX, e.clientY);
-                                    }}
-                                  >
-                                    {renamingRequestId === request.id ? (
-                                      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "2px" }}>
-                                        <span
-                                          className="sidebar-drag-handle"
-                                          aria-hidden="true"
-                                          title="Drag to reorder"
-                                        >
-                                          <GripVertical size={12} />
-                                        </span>
-                                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
-                                        <input
-                                          value={renameDraft}
-                                          aria-label={`Rename ${request.name}`}
-                                          placeholder="Request Name"
-                                          autoFocus
-                                          onChange={(event) => onRenameDraftChange(event.target.value)}
-                                          onBlur={() => onApplyRequestRename(request.id)}
-                                          onKeyDown={(event) => {
-                                            if (event.key === "Enter") {
-                                              event.preventDefault();
-                                              onApplyRequestRename(request.id);
-                                            } else if (event.key === "Escape") {
-                                              event.preventDefault();
-                                              onStopRequestRename();
-                                            }
-                                          }}
-                                          style={{ flex: 1, minWidth: 0, width: "100%", boxSizing: "border-box", border: "1px solid var(--color-border-tint)", borderRadius: "6px", background: "var(--color-surface)", color: "var(--color-text)", padding: "4px 8px" }}
-                                        />
-                                        {scriptStatus[request.id] && (
-                                          <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#2563eb", marginLeft: "4px" }} title="Has scripts" />
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <button
-                                        style={{ all: "unset", flex: 1, display: "flex", alignItems: "center", gap: "2px", cursor: "pointer" }}
-                                        onClick={() => onSelectRequest(request.id)}
-                                        type="button"
-                                      >
-                                        <span
-                                          className="sidebar-drag-handle"
-                                          aria-hidden="true"
-                                          title="Drag to reorder"
-                                        >
-                                          <GripVertical size={12} />
-                                        </span>
-                                        <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
-                                        <span onDoubleClick={() => onStartRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
-                                        {request.id === draftRequest?.id && isDraftDirty && (
-                                          <span
-                                            className="sidebar-request-dirty-dot"
-                                            title="Unsaved changes"
-                                            style={{
-                                              display: "inline-block",
-                                              width: "6px",
-                                              height: "6px",
-                                              borderRadius: "50%",
-                                              backgroundColor: "#f59e0b",
-                                              marginLeft: "6px",
-                                              flexShrink: 0,
-                                            }}
-                                          />
-                                        )}
-                                      </button>
-                                    )}
-                                    <div className="sidebar-row-actions">
-                                      <button type="button" className="sidebar-icon-button" aria-label={`Rename ${request.name}`} onClick={() => onStartRequestRename(request)}>
-                                        <Edit2 size={12} />
-                                      </button>
-                                      <button type="button" className="sidebar-icon-button danger" aria-label="Delete request" onClick={() => onDeleteRequest(request.id)}>
-                                        <Trash2 size={12} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                };
-
-                return renderFolders(undefined, 0, collectionNameMatches);
-              })()}
-            </div>
-          ))}
-        </section>
+          <DragOverlay>
+            {renderDragOverlay()}
+          </DragOverlay>
+        </DndContext>
       </div>
 
       <div className="sidebar-footer">
