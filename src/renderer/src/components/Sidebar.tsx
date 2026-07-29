@@ -1,4 +1,4 @@
-import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { CustomSelect } from "./CustomSelect";
 import type { AppSettings, SavedRequest, WorkspaceSummary } from "../types";
@@ -79,7 +79,7 @@ export interface SidebarProps {
 
   // Workspace switcher
   onOpenWorkspaceSwitcher?: () => void;
-  onMoveItem?: (type: "folder" | "request", draggedId: string, targetId: string, position: "top" | "bottom" | "inside") => Promise<void>;
+  onMoveItem?: (type: "folder" | "request" | "collection", draggedId: string, targetId: string, position: "top" | "bottom" | "inside") => Promise<void>;
 }
 
 export function Sidebar({
@@ -137,8 +137,12 @@ export function Sidebar({
   const themeRef = useRef<HTMLDivElement>(null);
   
   // Drag and drop state
-  const [dragItem, setDragItem] = useState<{ id: string; type: "folder" | "request"; parentId?: string } | null>(null);
-  const [dragOverItem, setDragOverItem] = useState<{ id: string; type: "folder" | "request"; position: "top" | "bottom" | "inside" } | null>(null);
+  const [dragItem, setDragItem] = useState<{ id: string; type: "folder" | "request" | "collection"; parentId?: string } | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<{ id: string; type: "folder" | "request" | "collection"; position: "top" | "bottom" | "inside" } | null>(null);
+
+  const clearRowDrag = () => {
+    // No-op kept for backwards compatibility if needed, or we can just remove it from onDragEnd.
+  };
 
   useEffect(() => {
     if (!themeMenuOpen) return;
@@ -220,7 +224,7 @@ export function Sidebar({
     );
   }
 
-  const handleDragStart = (e: React.DragEvent, id: string, type: "folder" | "request", parentId?: string) => {
+  const handleDragStart = (e: React.DragEvent, id: string, type: "folder" | "request" | "collection", parentId?: string) => {
     e.stopPropagation();
     setDragItem({ id, type, parentId });
     e.dataTransfer.effectAllowed = "move";
@@ -228,23 +232,32 @@ export function Sidebar({
     e.dataTransfer.setData("application/json", JSON.stringify({ id, type, parentId }));
   };
 
-  const handleDragOver = (e: React.DragEvent, id: string, type: "folder" | "request") => {
+  const handleDragOver = (e: React.DragEvent, id: string, type: "folder" | "request" | "collection") => {
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = "move";
-    
+
+    // Collections only reorder against collections (top/bottom); never "inside".
+    if (dragItem?.type === "collection") {
+      if (type !== "collection") return;
+      const tr = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const position: "top" | "bottom" = e.clientY - tr.top < (tr.bottom - tr.top) / 2 ? "top" : "bottom";
+      setDragOverItem({ id, type, position });
+      return;
+    }
+
     const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const hoverMiddleY = (targetRect.bottom - targetRect.top) / 2;
     const hoverClientY = e.clientY - targetRect.top;
-    
+
     let position: "top" | "bottom" | "inside" = "bottom";
-    
+
     if (dragItem?.type === "request" && type === "folder") {
       position = "inside";
     } else if (hoverClientY < hoverMiddleY) {
       position = "top";
     }
-    
+
     setDragOverItem({ id, type, position });
   };
 
@@ -254,10 +267,10 @@ export function Sidebar({
     setDragOverItem(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetId: string, targetType: "folder" | "request", targetParentId?: string) => {
+  const handleDrop = (e: React.DragEvent, targetId: string, targetType: "folder" | "request" | "collection", targetParentId?: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     let payload = dragItem;
     try {
       const dataStr = e.dataTransfer.getData("application/json");
@@ -267,39 +280,42 @@ export function Sidebar({
     } catch (err) {
       // ignore
     }
-    
+
     if (!payload || !onMoveItem || !workspace) {
       setDragItem(null);
       setDragOverItem(null);
       return;
     }
-    
+
     if (payload.id === targetId) {
       setDragItem(null);
       setDragOverItem(null);
       return;
     }
-    
+
     const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const hoverMiddleY = (targetRect.bottom - targetRect.top) / 2;
     const hoverClientY = e.clientY - targetRect.top;
-    
+
+    // Collections only reorder top/bottom against other collections.
     let position: "top" | "bottom" | "inside" = "bottom";
-    if (payload.type === "request" && targetType === "folder") {
+    if (payload.type === "collection" || targetType === "collection") {
+      position = hoverClientY < hoverMiddleY ? "top" : "bottom";
+    } else if (payload.type === "request" && targetType === "folder") {
       position = "inside";
     } else if (hoverClientY < hoverMiddleY) {
       position = "top";
     }
 
     void onMoveItem(payload.type, payload.id, targetId, position);
-    
+
     // Auto-expand folder if dropping a request into it
     if (payload.type === "request" && targetType === "folder") {
       if (collapsedFolders[targetId]) {
         onToggleFolder(targetId);
       }
     }
-    
+
     setDragItem(null);
     setDragOverItem(null);
   };
@@ -433,12 +449,28 @@ export function Sidebar({
           {visibleCollections.map((collection) => (
             <div className="collection-group" key={collection.id} style={{ marginBottom: "20px" }}>
               <div
-                className="folder-title sidebar-tree-row collection-title"
+                className={`folder-title sidebar-tree-row collection-title ${
+                  dragOverItem?.id === collection.id && dragOverItem.type === "collection" ? `drag-over-${dragOverItem.position}` : ""
+                }`}
+                draggable={!(renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id)}
+                onDragStart={(e) => handleDragStart(e, collection.id, "collection")}
+                onDragEnd={clearRowDrag}
+                onDragEnter={(e) => e.preventDefault()}
+                onDragOver={(e) => handleDragOver(e, collection.id, "collection")}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, collection.id, "collection")}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   onContextMenu({ id: collection.id, type: "collection" }, e.clientX, e.clientY);
                 }}
               >
+                <span
+                  className="sidebar-drag-handle"
+                  aria-hidden="true"
+                  title="Drag to reorder"
+                >
+                  <GripVertical size={12} />
+                </span>
                 {renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id ? (
                   <input
                     value={sidebarNameDraft}
@@ -512,8 +544,9 @@ export function Sidebar({
                                 className={`folder-title sidebar-tree-row ${
                                   dragOverItem?.id === folder.id && dragOverItem.type === "folder" ? `drag-over-${dragOverItem.position}` : ""
                                 }`}
-                                draggable
+                                draggable={!(renamingSidebarItem?.type === "folder" && renamingSidebarItem.id === folder.id)}
                                 onDragStart={(e) => handleDragStart(e, folder.id, "folder", folder.parentId)}
+                                onDragEnd={clearRowDrag}
                                 onDragEnter={(e) => e.preventDefault()}
                                 onDragOver={(e) => handleDragOver(e, folder.id, "folder")}
                                 onDragLeave={handleDragLeave}
@@ -524,6 +557,13 @@ export function Sidebar({
                                 }}
                               >
                               <div style={{ display: "flex", alignItems: "center", gap: "2px", minWidth: 0 }}>
+                                <span
+                                  className="sidebar-drag-handle"
+                                  aria-hidden="true"
+                                  title="Drag to reorder"
+                                >
+                                  <GripVertical size={12} />
+                                </span>
                                 <button
                                   type="button"
                                   aria-expanded={!isFolderCollapsed}
@@ -620,8 +660,9 @@ export function Sidebar({
                                       dragOverItem?.id === request.id && dragOverItem.type === "request" ? `drag-over-${dragOverItem.position}` : ""
                                     }`}
                                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                                    draggable
+                                    draggable={renamingRequestId !== request.id}
                                     onDragStart={(e) => handleDragStart(e, request.id, "request", request.folderId)}
+                                    onDragEnd={clearRowDrag}
                                     onDragEnter={(e) => e.preventDefault()}
                                     onDragOver={(e) => handleDragOver(e, request.id, "request")}
                                     onDragLeave={handleDragLeave}
@@ -633,6 +674,13 @@ export function Sidebar({
                                   >
                                     {renamingRequestId === request.id ? (
                                       <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "2px" }}>
+                                        <span
+                                          className="sidebar-drag-handle"
+                                          aria-hidden="true"
+                                          title="Drag to reorder"
+                                        >
+                                          <GripVertical size={12} />
+                                        </span>
                                         <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
                                         <input
                                           value={renameDraft}
@@ -662,6 +710,13 @@ export function Sidebar({
                                         onClick={() => onSelectRequest(request.id)}
                                         type="button"
                                       >
+                                        <span
+                                          className="sidebar-drag-handle"
+                                          aria-hidden="true"
+                                          title="Drag to reorder"
+                                        >
+                                          <GripVertical size={12} />
+                                        </span>
                                         <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
                                         <span onDoubleClick={() => onStartRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
                                         {request.id === draftRequest?.id && isDraftDirty && (

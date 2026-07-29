@@ -1435,6 +1435,30 @@ button:disabled {
 
 .sidebar-tree-row {
   justify-content: space-between;
+  transition: background 140ms ease, border-color 90ms ease;
+}
+
+.sidebar-drag-handle {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-soft);
+  opacity: 0.35;
+  cursor: grab;
+  touch-action: none;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.sidebar-drag-handle:hover,
+.sidebar-tree-row:hover .sidebar-drag-handle {
+  opacity: 1;
+  color: var(--color-text-active);
+}
+
+.sidebar-drag-handle:active {
+  cursor: grabbing;
 }
 
 .sidebar-row-actions {

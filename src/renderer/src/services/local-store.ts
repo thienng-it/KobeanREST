@@ -314,6 +314,11 @@ export async function updateFolder(folderId: string, name: string): Promise<void
   return invoke<void>("update_folder", { folderId, name });
 }
 
+export async function moveFolder(folderId: string, parentId: string | undefined, collectionId: string | undefined): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("move_folder", { folderId, parentId, collectionId });
+}
+
 export async function updateCollection(collectionId: string, name: string): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("update_collection", { collectionId, name });
