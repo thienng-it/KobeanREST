@@ -1851,6 +1851,48 @@ pub fn update_folder(app: AppHandle, folder_id: String, name: String) -> Result<
     Ok(())
 }
 
+/// Reparent a folder: set its collection_id + parent_id and append it at the end of
+/// the new sibling group. Collection_id follows the parent (or the supplied value
+/// when moving to a collection root).
+#[tauri::command]
+pub fn move_folder(
+    app: AppHandle,
+    folder_id: String,
+    parent_id: Option<String>,
+    collection_id: Option<String>,
+) -> Result<(), String> {
+    ensure_database(&app)?;
+    let mut connection = open_database(&app)?;
+    let tx = connection.transaction().map_err(|e| format!("failed to start tx: {e}"))?;
+
+    let final_collection_id = match &parent_id {
+        Some(pid) => tx
+            .query_row(
+                "SELECT collection_id FROM folders WHERE id = ?1",
+                rusqlite::params![pid],
+                |row| row.get::<_, String>(0),
+            )
+            .map_err(|e| format!("parent folder not found: {e}"))?,
+        None => collection_id
+            .ok_or_else(|| "collection_id required when moving to a collection root".to_string())?,
+    };
+
+    if parent_id.as_deref() == Some(&folder_id) {
+        return Err("cannot move a folder into itself".to_string());
+    }
+
+    tx.execute(
+        "UPDATE folders SET collection_id = ?2, parent_id = ?3,
+         position = (SELECT COALESCE(MAX(position), -1) + 1 FROM folders WHERE collection_id = ?2 AND parent_id IS ?3)
+         WHERE id = ?1",
+        rusqlite::params![folder_id, final_collection_id, parent_id],
+    )
+    .map_err(|e| format!("failed to move folder: {e}"))?;
+
+    tx.commit().map_err(|e| format!("failed to commit: {e}"))?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn update_collection(app: AppHandle, collection_id: String, name: String) -> Result<(), String> {
     ensure_database(&app)?;

@@ -164,7 +164,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -187,7 +186,7 @@ jobs:
           echo "SODIUM_USE_PKG_CONFIG=1" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install dependencies
-        run: npm ci
+        run: npm i
 
       - name: Run contract tests
         run: npm test
@@ -227,7 +226,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
 
       - name: Download platform bundle files
         uses: actions/download-artifact@v4

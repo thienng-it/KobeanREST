@@ -61,7 +61,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -86,7 +85,7 @@ jobs:
       # --------------------------------
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm i
 
       - name: Run local-only contract tests
         run: npm test

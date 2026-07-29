@@ -930,33 +930,116 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     input.click();
   }
 
-  async function handleMoveItem(type: "folder" | "request", draggedId: string, targetId: string, position: "top" | "bottom" | "inside") {
+  async function handleMoveItem(type: "folder" | "request" | "collection", draggedId: string, targetId: string, position: "top" | "bottom" | "inside") {
     if (!workspace) return;
     try {
-      const { reorderItems, saveRequest } = await import("../services/local-store");
-      const { invoke } = await import("@tauri-apps/api/core");
+      const { reorderItems, saveRequest, moveFolder } = await import("../services/local-store");
+
+      const reportError = (msg: string, err: unknown) => {
+        console.error(msg, err);
+        setDeleteError(String(err));
+      };
+
+      if (type === "collection") {
+        const collections = workspace.collections ?? [];
+        const ids = collections.map(c => c.id);
+        const fromIdx = ids.indexOf(draggedId);
+        const targetIdx = ids.indexOf(targetId);
+        if (fromIdx === -1 || targetIdx === -1 || fromIdx === targetIdx) return;
+
+        const next = [...ids];
+        next.splice(fromIdx, 1);
+        let insertIdx = targetIdx > fromIdx ? targetIdx - 1 : targetIdx;
+        insertIdx = position === "bottom" ? insertIdx + 1 : insertIdx;
+        next.splice(insertIdx, 0, draggedId);
+
+        const ordered = next.map(id => collections.find(c => c.id === id)!).filter(Boolean);
+        setWorkspace({ ...workspace, collections: ordered });
+        await reorderItems("collection", next);
+        return;
+      }
 
       if (type === "folder") {
-        // Find dragged and target
         const dragged = workspace.folders.find(f => f.id === draggedId);
         const target = workspace.folders.find(f => f.id === targetId);
-        if (!dragged || !target) return;
+        if (!dragged) return;
 
-        let newParentId = target.parentId;
-        let newCollectionId = target.collectionId;
-        
-        if (position === "inside") {
+        // Drop into a folder → reparent + reorder; drop onto a sibling → reorder within same parent.
+        let newParentId: string | undefined;
+        let newCollectionId: string | undefined;
+        if (position === "inside" && target) {
+          // Guard: cannot drop a folder into itself or one of its descendants.
+          if (target.id === dragged.id) return;
+          const isDescendant = (ancestorId: string, candidateId: string): boolean => {
+            let cur: string | undefined = candidateId;
+            const seen = new Set<string>();
+            while (cur) {
+              if (cur === ancestorId) return true;
+              if (seen.has(cur)) return false; // ponytail: cycle guard, positions are tree-shaped but defend anyway
+              seen.add(cur);
+              cur = workspace.folders.find(f => f.id === cur)?.parentId;
+            }
+            return false;
+          };
+          if (isDescendant(dragged.id, target.id)) return;
           newParentId = target.id;
-          newCollectionId = target.collectionId;
+          newCollectionId = target.collectionId ?? dragged.collectionId;
+        } else if (target) {
+          newParentId = target.parentId;
+          newCollectionId = target.collectionId ?? dragged.collectionId;
+        } else {
+          return;
         }
 
-        // We need a backend command to fully update a folder's parent & collection, or we can just stick to reordering for folders since our backend doesn't support full folder move yet.
-        // Wait, the backend update_folder ONLY updates the name.
-        // For now, I will use invoke to run a raw SQL query or wait, we just skip folder moving across parents for now if backend doesn't support it?
-        // Let's check if there's a way.
-        
-        // As a quick fix for the user's main request: dragging a REQUEST to a sub-folder:
-      } else if (type === "request") {
+        const sameScope =
+          dragged.parentId === newParentId && dragged.collectionId === newCollectionId;
+
+        // Compute the new sibling order optimistically.
+        const siblings = (workspace.folders ?? []).filter(
+          f => f.parentId === newParentId && (f.collectionId ?? undefined) === (newCollectionId ?? undefined),
+        );
+        let ids = siblings.map(f => f.id);
+        const draggedIdx = ids.indexOf(draggedId);
+        if (draggedIdx > -1) ids.splice(draggedIdx, 1);
+
+        if (position === "inside" || !target) {
+          ids.push(draggedId);
+        } else {
+          // Re-insert relative to target after removal (target index may shift if it was after dragged).
+          let targetIdx = ids.indexOf(target.id);
+          if (targetIdx === -1) ids.push(draggedId);
+          else {
+            const insertIdx = position === "top" ? targetIdx : targetIdx + 1;
+            ids.splice(insertIdx, 0, draggedId);
+          }
+        }
+
+        // Reparent dragged in local state + reorder folders array to match sibling order.
+        const updatedDragged = { ...dragged, parentId: newParentId, collectionId: newCollectionId };
+        let foldersList = workspace.folders.map(f => (f.id === dragged.id ? updatedDragged : f));
+        if (!sameScope) {
+          // Rebuild the array so the dragged folder sits in its new sibling group order.
+          const byId = new Map(foldersList.map(f => [f.id, f] as const));
+          const orderedIds = new Set(ids);
+          const moved: typeof foldersList = [];
+          for (const id of ids) {
+            const f = byId.get(id);
+            if (f) moved.push(f);
+          }
+          const rest = foldersList.filter(f => !orderedIds.has(f.id));
+          foldersList = [...rest, ...moved];
+        }
+
+        setWorkspace({ ...workspace, folders: foldersList });
+
+        if (!sameScope) {
+          await moveFolder(dragged.id, newParentId, newCollectionId);
+        }
+        await reorderItems("folder", ids);
+        return;
+      }
+
+      if (type === "request") {
         const dragged = workspace.requests.find(r => r.id === draggedId);
         let targetFolderId: string | undefined;
         let targetReqId: string | undefined;
@@ -973,37 +1056,34 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
           }
         }
 
-        if (!dragged || !targetFolderId) {
-          alert(`Move aborted: dragged=${!!dragged}, targetFolderId=${targetFolderId}`);
-          return;
-        }
+        if (!dragged || !targetFolderId) return;
 
         let requestsList = [...workspace.requests];
-        
+
         // If moved to a new folder, update the request!
         if (dragged.folderId !== targetFolderId) {
           const updatedRequest = { ...dragged, folderId: targetFolderId };
-          
+
           // Fire and forget for optimistic UI
-          saveRequest(updatedRequest).catch(err => {
-            console.error("Save request failed", err);
-            alert("Database Error: Could not save moved request. " + String(err));
-          });
-          
+          saveRequest(updatedRequest).catch(err => reportError("Save request failed", err));
+
           requestsList = requestsList.map(r => r.id === dragged.id ? updatedRequest : r);
         }
 
         // Reorder
         const list = requestsList.filter(r => r.folderId === targetFolderId);
         const ids = list.map(r => r.id);
-        
+
         const draggedIdx = ids.indexOf(draggedId);
         if (draggedIdx > -1) ids.splice(draggedIdx, 1);
-        
+
         if (targetReqId) {
           let targetIdx = ids.indexOf(targetReqId);
-          const insertIdx = position === "top" ? targetIdx : targetIdx + 1;
-          ids.splice(insertIdx, 0, draggedId);
+          if (targetIdx === -1) ids.push(draggedId);
+          else {
+            const insertIdx = position === "top" ? targetIdx : targetIdx + 1;
+            ids.splice(insertIdx, 0, draggedId);
+          }
         } else {
           // Dropped "inside" a folder, put at the end
           ids.push(draggedId);
@@ -1023,7 +1103,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       }
     } catch (err) {
       console.error("Failed to move item", err);
-      alert("Move Item Error: " + String(err));
+      setDeleteError("Move Item Error: " + String(err));
     }
   }
 
