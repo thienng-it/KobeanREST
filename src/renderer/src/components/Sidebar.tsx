@@ -141,7 +141,9 @@ export function Sidebar({
   const [dragOverItem, setDragOverItem] = useState<{ id: string; type: "folder" | "request" | "collection"; position: "top" | "bottom" | "inside" } | null>(null);
 
   const clearRowDrag = () => {
-    setDragItem(null);
+    // Only clear dragOverItem here. dragItem will be cleared by handleDrop on successful drop,
+    // or overwritten on next dragStart. This prevents race condition where dragend fires
+    // before drop in some browsers/React synthetic events.
     setDragOverItem(null);
   };
 
