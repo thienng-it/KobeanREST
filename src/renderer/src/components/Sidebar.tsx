@@ -288,6 +288,7 @@ function DraggableFolderRow({
     opacity: isDragging ? 0.5 : undefined,
   };
 
+  const isFolderCollapsed = isCollapsed;
   return (
     <div className="folder-group">
       <div
@@ -317,13 +318,13 @@ function DraggableFolderRow({
           </span>
           <button
             type="button"
-            aria-expanded={!isCollapsed}
+            aria-expanded={!isFolderCollapsed}
             onClick={() => onToggleFolder(folder.id)}
             className="folder-toggle-button"
           >
             <ChevronDown
               size={14}
-              className={isCollapsed ? "folder-chevron collapsed" : "folder-chevron"}
+              className={isFolderCollapsed ? "folder-chevron collapsed" : "folder-chevron"}
             />
           </button>
           {isRenaming ? (
@@ -901,36 +902,30 @@ export function Sidebar({
                     >
                     </div>
                   )}
-                  {folderRequests.map((request) => {
-                    const requestDragId = encodeDragId("request", request.id);
-                    const isRequestRenaming = renamingRequestId === request.id;
-                    const isRequestDragOver = dragOverItem?.id === request.id && dragOverItem.type === "request";
-
-                    return (
-                      <DraggableRequestRow
-                        key={request.id}
-                        request={request}
-                        dragId={requestDragId}
-                        isSelected={request.id === selectedRequestId}
-                        isDragOver={isRequestDragOver}
-                        dragOverPosition={isRequestDragOver ? dragOverItem?.position : undefined}
-                        isRenaming={isRequestRenaming}
-                        renameDraft={renameDraft}
-                        onRenameDraftChange={onRenameDraftChange}
-                        onApplyRequestRename={onApplyRequestRename}
-                        onStopRequestRename={onStopRequestRename}
-                        onStartRequestRename={onStartRequestRename}
-                        onSelectRequest={onSelectRequest}
-                        onDeleteRequest={onDeleteRequest}
-                        methodClass={methodClass}
-                        resolvedMethodLabel={resolvedMethodLabel}
-                        draftRequest={draftRequest}
-                        isDraftDirty={isDraftDirty}
-                        scriptStatus={scriptStatus}
-                        onContextMenu={onContextMenu}
-                      />
-                    );
-                  })}
+                  {folderRequests.map((request) => (
+                    <DraggableRequestRow
+                      key={request.id}
+                      request={request}
+                      dragId={encodeDragId("request", request.id)}
+                      isSelected={request.id === selectedRequestId}
+                      isDragOver={dragOverItem?.id === request.id && dragOverItem.type === "request"}
+                      dragOverPosition={dragOverItem?.id === request.id && dragOverItem.type === "request" ? dragOverItem?.position : undefined}
+                      isRenaming={renamingRequestId === request.id}
+                      renameDraft={renameDraft}
+                      onRenameDraftChange={onRenameDraftChange}
+                      onApplyRequestRename={onApplyRequestRename}
+                      onStopRequestRename={onStopRequestRename}
+                      onStartRequestRename={onStartRequestRename}
+                      onSelectRequest={onSelectRequest}
+                      onDeleteRequest={onDeleteRequest}
+                      methodClass={methodClass}
+                      resolvedMethodLabel={resolvedMethodLabel}
+                      draftRequest={draftRequest}
+                      isDraftDirty={isDraftDirty}
+                      scriptStatus={scriptStatus}
+                      onContextMenu={onContextMenu}
+                    />
+                  ))}
                 </div>
               </div>
             </DraggableFolderRow>
@@ -1060,33 +1055,26 @@ export function Sidebar({
               <FolderTree size={15} />
               Collections
             </h2>
-            {visibleCollections.map((collection) => {
-              const collectionDragId = encodeDragId("collection", collection.id);
-              const isCollectionRenaming = renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id;
-              const isCollectionDragOver = dragOverItem?.id === collection.id && dragOverItem.type === "collection";
-              const collectionNameMatches = matchesCollectionSearch(collection.name) ?? false;
-
-              return (
-                <DraggableCollectionRow
-                  key={collection.id}
-                  collection={collection}
-                  dragId={collectionDragId}
-                  isDragOver={isCollectionDragOver}
-                  dragOverPosition={isCollectionDragOver ? dragOverItem?.position : undefined}
-                  isRenaming={isCollectionRenaming}
-                  sidebarNameDraft={sidebarNameDraft}
-                  onSidebarNameDraftChange={onSidebarNameDraftChange}
-                  onApplySidebarRename={onApplySidebarRename}
-                  onCancelSidebarRename={onCancelSidebarRename}
-                  onStartSidebarRename={onStartSidebarRename}
-                  onDeleteCollection={onDeleteCollection}
-                  onCreateFolder={onCreateFolder}
-                  onContextMenu={onContextMenu}
-                >
-                  {renderFolders(undefined, 0, collectionNameMatches, collection.id)}
-                </DraggableCollectionRow>
-              );
-            })}
+            {visibleCollections.map((collection) => (
+              <DraggableCollectionRow
+                key={collection.id}
+                collection={collection}
+                dragId={encodeDragId("collection", collection.id)}
+                isDragOver={dragOverItem?.id === collection.id && dragOverItem.type === "collection"}
+                dragOverPosition={dragOverItem?.id === collection.id && dragOverItem.type === "collection" ? dragOverItem?.position : undefined}
+                isRenaming={renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id}
+                sidebarNameDraft={sidebarNameDraft}
+                onSidebarNameDraftChange={onSidebarNameDraftChange}
+                onApplySidebarRename={onApplySidebarRename}
+                onCancelSidebarRename={onCancelSidebarRename}
+                onStartSidebarRename={onStartSidebarRename}
+                onDeleteCollection={onDeleteCollection}
+                onCreateFolder={onCreateFolder}
+                onContextMenu={onContextMenu}
+              >
+                {renderFolders(undefined, 0, matchesCollectionSearch(collection.name) ?? false, collection.id)}
+              </DraggableCollectionRow>
+            ))}
           </section>
 
           <DragOverlay>

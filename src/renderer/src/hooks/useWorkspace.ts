@@ -1169,6 +1169,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     applyEnvironmentRename,
     cancelEnvironmentRename,
     handleLoadScriptStatuses,
+    loadWorkspace,
     handleExport,
     handleImport,
     handleMoveItem,

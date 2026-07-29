@@ -28,6 +28,7 @@ import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceSwitcherModal } from "./components/WorkspaceSwitcherModal";
 import { CreateRequestModal } from "./components/CreateRequestModal";
+import { UniversalImportModal } from "./components/UniversalImportModal";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 
 import {
@@ -40,6 +41,7 @@ import {
   recordRequestHistory,
   getScripts,
   loadHistoryResponse,
+  importWorkspaceData,
 } from "./services/local-store";
 import type { SavedRequest } from "./types";
 
@@ -176,7 +178,11 @@ export function App() {
     handleExport,
     handleImport,
     handleMoveItem,
+    loadWorkspace,
   } = ws;
+
+  const [universalImportModalOpen, setUniversalImportModalOpen] = useState(false);
+  const [universalImportInitialContent, setUniversalImportInitialContent] = useState("");
 
   const {
     historyOpen, setHistoryOpen,
@@ -887,8 +893,14 @@ export function App() {
         onCheckForUpdates={() => void handleCheckForUpdates("manual")}
         onOpenSettings={() => setSettingsOpen(true)}
         onExport={() => void handleExport()}
-        onImport={() => void handleImport()}
-        onCurlImport={() => setCurlImportOpen(true)}
+        onImport={() => {
+          setUniversalImportInitialContent("");
+          setUniversalImportModalOpen(true);
+        }}
+        onCurlImport={() => {
+          setUniversalImportInitialContent("");
+          setUniversalImportModalOpen(true);
+        }}
         onOpenWorkspaceSwitcher={() => setWorkspaceSwitcherOpen(true)}
         onMoveItem={handleMoveItem}
       />
@@ -1189,8 +1201,14 @@ export function App() {
           onDeleteRequest={handleDeleteRequest}
           onDuplicateRequest={handleDuplicateRequest}
           onDeleteCollection={handleDeleteCollection}
-          onCurlImport={() => setCurlImportOpen(true)}
-          onImport={() => void handleImport()}
+          onCurlImport={() => {
+            setUniversalImportInitialContent("");
+            setUniversalImportModalOpen(true);
+          }}
+          onImport={() => {
+            setUniversalImportInitialContent("");
+            setUniversalImportModalOpen(true);
+          }}
           onExport={() => void handleExport()}
           onSetSelectionAsVariable={(text) => {
             if (!workspace?.activeEnvironment) {
@@ -1258,6 +1276,16 @@ export function App() {
         onRename={(id, name) => void handleRenameWorkspace(id, name)}
         onDelete={(id) => void handleDeleteWorkspace(id)}
         onClose={() => setWorkspaceSwitcherOpen(false)}
+      />
+
+      <UniversalImportModal
+        isOpen={universalImportModalOpen}
+        onClose={() => setUniversalImportModalOpen(false)}
+        initialContent={universalImportInitialContent}
+        onImportSuccess={async (jsonPayload) => {
+          await importWorkspaceData(jsonPayload);
+          await loadWorkspace();
+        }}
       />
     </main>
   );

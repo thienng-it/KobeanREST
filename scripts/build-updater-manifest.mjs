@@ -16,7 +16,44 @@ if (!artifactsDir || !tag || !repo) {
 }
 
 const version = tag.replace(/^v/, "");
-const files = readdirSync(artifactsDir);
+
+function getAllFiles(dirPath) {
+  let fileList = [];
+  try {
+    const entries = readdirSync(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        fileList = fileList.concat(getAllFiles(fullPath));
+      } else {
+        fileList.push(entry.name);
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return fileList;
+}
+
+function findFileInDir(dirPath, filename) {
+  try {
+    const entries = readdirSync(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        const found = findFileInDir(fullPath, filename);
+        if (found) return found;
+      } else if (entry.name === filename) {
+        return fullPath;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+const files = getAllFiles(artifactsDir);
 
 function findSignedArtifact(predicates) {
   // First priority: find a candidate that has a matching .sig file in artifactsDir
@@ -38,10 +75,11 @@ function findSignedArtifact(predicates) {
 
 function readSignature(assetFileName) {
   const sigName = `${assetFileName}.sig`;
-  if (!files.includes(sigName)) {
+  const sigPath = findFileInDir(artifactsDir, sigName);
+  if (!sigPath) {
     return null;
   }
-  return readFileSync(join(artifactsDir, sigName), "utf8").trim();
+  return readFileSync(sigPath, "utf8").trim();
 }
 
 function downloadUrl(assetFileName) {

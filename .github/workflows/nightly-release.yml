@@ -143,6 +143,8 @@ jobs:
             bundle_paths: |
               src-tauri/target/release/bundle/msi/*.msi
               src-tauri/target/release/bundle/msi/*.msi.sig
+              src-tauri/target/release/bundle/msi/*.zip
+              src-tauri/target/release/bundle/msi/*.zip.sig
               src-tauri/target/release/bundle/nsis/*.zip
               src-tauri/target/release/bundle/nsis/*.zip.sig
           - name: Linux
@@ -238,6 +240,8 @@ jobs:
         shell: bash
         run: |
           cd release-artifacts
+          find . -mindepth 2 -type f -exec mv {} . \;
+          find . -mindepth 1 -type d -exec rm -rf {} +
           find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | xargs -0 shasum -a 256 > SHA256SUMS.txt
 
       - name: Publish SHA256SUMS.txt to release
