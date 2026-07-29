@@ -141,7 +141,8 @@ export function Sidebar({
   const [dragOverItem, setDragOverItem] = useState<{ id: string; type: "folder" | "request" | "collection"; position: "top" | "bottom" | "inside" } | null>(null);
 
   const clearRowDrag = () => {
-    // No-op kept for backwards compatibility if needed, or we can just remove it from onDragEnd.
+    setDragItem(null);
+    setDragOverItem(null);
   };
 
   useEffect(() => {
