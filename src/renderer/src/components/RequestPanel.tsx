@@ -698,27 +698,44 @@ export function RequestPanel({
           {(["params", "body", "headers", "auth", "scripts", "variables", "settings", "code"] as const)
             .filter((tab) => !(tab === "body" && draftRequest.method === "GET"))
             .map((tab) => {
-              const hasScript = tab === "scripts" && (preScript.trim() !== "" || postScript.trim() !== "");
-            const scriptUnsaved = tab === "scripts" && scriptsDirty;
-            return (
-              <button
-                className={activeTab === tab ? "tab active" : "tab"}
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                role="tab"
-                type="button"
-              >
-                {tab}
-                {scriptUnsaved && (
-                  <span
-                    className="tab-script-indicator dirty"
-                    title="Scripts have unsaved changes"
-                    aria-hidden="true"
-                  />
-                )}
-              </button>
-            );
-          })}
+              let hasData = false;
+              let isDirty = false;
+
+              if (tab === "params") {
+                hasData = !!draftRequest.queryParams?.some(p => p.key.trim() !== '' || p.value.trim() !== '');
+              } else if (tab === "body") {
+                hasData = !!(draftRequest.body && draftRequest.body.trim() !== '') || 
+                          !!(draftRequest.bodyForm && draftRequest.bodyForm.some(f => f.key.trim() !== '' || f.value.trim() !== ''));
+              } else if (tab === "headers") {
+                hasData = draftRequest.headers.some(h => h.key.trim() !== '' || h.value.trim() !== '');
+              } else if (tab === "auth") {
+                hasData = draftRequest.authMode !== "inherit" && draftRequest.authMode !== "none";
+              } else if (tab === "scripts") {
+                hasData = preScript.trim() !== "" || postScript.trim() !== "";
+                isDirty = scriptsDirty;
+              } else if (tab === "variables") {
+                hasData = !!draftRequest.variables && draftRequest.variables.length > 0;
+              }
+
+              return (
+                <button
+                  className={activeTab === tab ? "tab active" : "tab"}
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  role="tab"
+                  type="button"
+                >
+                  {tab}
+                  {(hasData || isDirty) && (
+                    <span
+                      className={`tab-script-indicator ${isDirty ? 'dirty' : ''}`}
+                      title={isDirty ? "Unsaved changes" : "Contains data"}
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              );
+            })}
         </div>
 
         {activeTab === "params" && (
@@ -896,7 +913,7 @@ export function RequestPanel({
                 <BodyEditor
                   value={draftRequest.body ?? ""}
                   onChange={(val) => updateDraft({ body: val })}
-                  variables={Object.keys(activeVars)}
+                  variables={activeVars}
                   mimeType={draftRequest.headers?.find(h => h.key.toLowerCase() === 'content-type')?.value || "application/json"}
                   placeholder="// Request body"
                   height="100%"

@@ -28,6 +28,7 @@ import { RequestPanel } from "./components/RequestPanel";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceSwitcherModal } from "./components/WorkspaceSwitcherModal";
 import { CreateRequestModal } from "./components/CreateRequestModal";
+import { TabBar } from "./components/TabBar";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 
@@ -43,7 +44,7 @@ import {
   loadHistoryResponse,
   importWorkspaceData,
 } from "./services/local-store";
-import type { SavedRequest } from "./types";
+import type { SavedRequest, Tab } from "./types";
 import type { ScriptOutputEntry } from "./hooks/useScripts";
 
 const SIDEBAR_MIN_WIDTH = 260;
@@ -91,6 +92,8 @@ export function App() {
   const [bottomDockHeight, setBottomDockHeight] = useState(320);
   const [isResponsePanelResizing, setIsResponsePanelResizing] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
   const [headersPresetMenuOpen, setHeadersPresetMenuOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<import("./components/ConfirmDialog").ConfirmDialogState | null>(null);
@@ -827,6 +830,116 @@ export function App() {
     return JSON.stringify(original) !== JSON.stringify(draftRequest);
   }, [draftRequest, workspace]);
 
+  // Update tab dirty state
+  useEffect(() => {
+    if (!activeTabId || !draftRequest) return;
+    setTabs((prev) =>
+      prev.map((tab) =>
+        tab.id === activeTabId ? { ...tab, isDirty: isDraftDirty } : tab
+      )
+    );
+  }, [isDraftDirty, activeTabId, draftRequest]);
+
+  // Handle requests that are selected outside of openRequestTab (e.g., after creation, deletion, etc.)
+  useEffect(() => {
+    if (!selectedRequestId) {
+      return;
+    }
+    // If this request is already in a tab, just activate that tab
+    const existingTab = tabs.find((tab) => tab.type === "request" && tab.entityId === selectedRequestId);
+    if (existingTab) {
+      if (activeTabId !== existingTab.id) {
+        setActiveTabId(existingTab.id);
+      }
+      return;
+    }
+    // Otherwise, create a new tab for this request
+    const request = workspace?.requests.find((r) => r.id === selectedRequestId);
+    if (!request) return;
+    const newTab: Tab = {
+      id: `request-${request.id}-${Date.now()}`,
+      type: "request",
+      entityId: request.id,
+      name: request.name,
+      method: request.method,
+      isDirty: false,
+    };
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }, [selectedRequestId, tabs, activeTabId, workspace]);
+
+  function openFolderTab(folderId: string) {
+    const folder = workspace?.folders.find((f) => f.id === folderId);
+    if (!folder) return;
+
+    const existingTab = tabs.find((tab) => tab.type === "folder" && tab.entityId === folderId);
+    if (existingTab) {
+      setActiveTabId(existingTab.id);
+      setFolderScriptsTarget(folderId);
+      setFolderScriptsOpen(true);
+      return;
+    }
+
+    const newTab: Tab = {
+      id: `folder-${folderId}-${Date.now()}`,
+      type: "folder",
+      entityId: folderId,
+      name: folder.name,
+      isDirty: false,
+    };
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+    setFolderScriptsTarget(folderId);
+    setFolderScriptsOpen(true);
+  }
+
+  function closeTab(tabId: string, e?: React.MouseEvent) {
+    e?.stopPropagation();
+
+    const tabToClose = tabs.find((tab) => tab.id === tabId);
+    if (tabToClose?.isDirty) {
+      setConfirmDialog({
+        title: "Unsaved Changes",
+        message: `You have unsaved changes in "${tabToClose.name}". Are you sure you want to close it? Your changes will be lost.`,
+        confirmLabel: "Close Tab",
+        confirmVariant: "danger",
+        onConfirm: () => performCloseTab(tabId),
+      });
+      return;
+    }
+
+    performCloseTab(tabId);
+  }
+
+  function performCloseTab(tabId: string) {
+    setTabs((prev) => {
+      const index = prev.findIndex((tab) => tab.id === tabId);
+      if (index === -1) return prev;
+
+      const newTabs = prev.filter((tab) => tab.id !== tabId);
+
+      if (activeTabId === tabId) {
+        if (newTabs.length > 0) {
+          const newIndex = Math.min(index, newTabs.length - 1);
+          const nextTab = newTabs[newIndex];
+          setActiveTabId(nextTab.id);
+          if (nextTab.type === "request") {
+            setSelectedRequestId(nextTab.entityId);
+          } else if (nextTab.type === "folder") {
+            setFolderScriptsTarget(nextTab.entityId);
+            setFolderScriptsOpen(true);
+          }
+        } else {
+          setActiveTabId(null);
+          setSelectedRequestId(null);
+        }
+      }
+
+      return newTabs;
+    });
+  }
+
   function promptSaveRequest() {
     if (!draftRequest) return;
     if (!isDraftDirty) {
@@ -1035,6 +1148,20 @@ export function App() {
         )}
 
         <div className="workspace-main">
+          <TabBar
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onTabClick={(tab) => {
+              setActiveTabId(tab.id);
+              if (tab.type === "request") {
+                setSelectedRequestId(tab.entityId);
+              } else if (tab.type === "folder") {
+                setFolderScriptsTarget(tab.entityId);
+                setFolderScriptsOpen(true);
+              }
+            }}
+            onTabClose={closeTab}
+          />
           {draftRequest ? (
             <RequestPanel
               draftRequest={draftRequest}

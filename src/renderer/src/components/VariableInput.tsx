@@ -17,7 +17,7 @@ interface TooltipState {
   placement?: "top" | "bottom";
 }
 
-interface VariablePopoverCardProps {
+export interface VariablePopoverCardProps {
   tooltipKey: string;
   tooltipValue: string;
   isResolved: boolean;
@@ -32,7 +32,7 @@ interface VariablePopoverCardProps {
   onInputFocus: () => void;
 }
 
-function VariablePopoverCard({
+export function VariablePopoverCard({
   tooltipKey,
   tooltipValue,
   isResolved,

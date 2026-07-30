@@ -1,14 +1,25 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { basicSetup } from 'codemirror';
 import { EditorState, Compartment } from '@codemirror/state';
 import { javascript } from '@codemirror/lang-javascript';
 import { autocompletion } from '@codemirror/autocomplete';
 import { EditorView } from '@codemirror/view';
+import { VariablePopoverCard } from './VariableInput';
+import type { EnvironmentVariable } from '../types';
+
+interface TooltipState {
+  key: string;
+  value: string;
+  isResolved: boolean;
+  x: number;
+  y: number;
+  placement: "top" | "bottom";
+}
 
 interface BodyEditorProps {
   value: string;
   onChange: (value: string) => void;
-  variables: string[];
+  variables: EnvironmentVariable[];
   mimeType: string;
   placeholder?: string;
   height?: string;
@@ -18,7 +29,29 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
 
+  const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
+  const isHoveringPopoverRef = useRef(false);
+  const closeTimerRef = useRef<NodeJS.Timeout>();
+
+  const scheduleClose = useCallback(() => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
+      if (!isHoveringPopoverRef.current) {
+        setActiveTooltip(null);
+      }
+    }, 100);
+  }, []);
+
+  const cancelCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  }, []);
+
   const languageConf = new Compartment();
+  const variablesRef = useRef(variables);
+
+  useEffect(() => {
+    variablesRef.current = variables;
+  }, [variables]);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -31,13 +64,74 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
 
       return {
         from: word.from,
-        options: variables.map(v => ({
-          label: `{{${v}}}`,
+        options: variablesRef.current.map(v => ({
+          label: `{{${v.key}}}`,
           type: 'variable',
           detail: 'Environment Variable'
         }))
       };
     };
+
+    const onMouseMove = (e: MouseEvent, view: EditorView) => {
+      if (isHoveringPopoverRef.current) return;
+      
+      const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+      if (pos === null) {
+        scheduleClose();
+        return;
+      }
+      
+      const coords = view.coordsAtPos(pos);
+      if (!coords) return;
+      
+      // If mouse is too far from the character bounding box, treat as not hovered
+      if (e.clientX < coords.left - 8 || e.clientX > coords.right + 8 || e.clientY < coords.top - 8 || e.clientY > coords.bottom + 8) {
+        scheduleClose();
+        return;
+      }
+
+      const line = view.state.doc.lineAt(pos);
+      const lineText = line.text;
+      const regex = /\{\{([a-zA-Z0-9_]+)\}\}/g;
+      let match;
+      let found = false;
+      while ((match = regex.exec(lineText)) !== null) {
+        const start = line.from + match.index;
+        const end = start + match[0].length;
+        // Check if mouse is hovering over this variable
+        if (pos >= start && pos <= end) {
+          found = true;
+          const varName = match[1];
+          const variable = variablesRef.current.find(v => v.key === varName);
+          if (variable) {
+            cancelCloseTimer();
+            // Calculate center of the variable text
+            const startCoords = view.coordsAtPos(start);
+            const endCoords = view.coordsAtPos(end);
+            if (startCoords && endCoords) {
+              const isTopSpaceAvailable = startCoords.top > 250;
+              setActiveTooltip({
+                key: varName,
+                value: variable.value,
+                isResolved: true,
+                x: startCoords.left + (endCoords.right - startCoords.left) / 2,
+                y: isTopSpaceAvailable ? startCoords.top - 6 : startCoords.bottom + 6,
+                placement: isTopSpaceAvailable ? "top" : "bottom",
+              });
+            }
+          }
+          break;
+        }
+      }
+      if (!found) {
+        scheduleClose();
+      }
+    };
+
+    const eventHandlers = EditorView.domEventHandlers({
+      mousemove: onMouseMove,
+      mouseleave: () => scheduleClose(),
+    });
 
     let languageExtension: any = [];
     if (mimeType.includes('json') || mimeType.includes('javascript')) {
@@ -50,6 +144,7 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
         basicSetup,
         languageConf.of(languageExtension),
         autocompletion({ override: [variableCompletion] }),
+        eventHandlers,
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -132,5 +227,34 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
     }
   }, [mimeType]);
 
-  return <div ref={editorRef} style={{ width: '100%', height, minHeight: '100%' }} />;
+  return (
+    <>
+      <div ref={editorRef} style={{ width: '100%', height, minHeight: '100%' }} />
+      {activeTooltip && (
+        <VariablePopoverCard
+          tooltipKey={activeTooltip.key}
+          tooltipValue={activeTooltip.value}
+          isResolved={activeTooltip.isResolved}
+          x={activeTooltip.x}
+          y={activeTooltip.y}
+          placement={activeTooltip.placement}
+          onClose={() => {
+            setActiveTooltip(null);
+          }}
+          onMouseEnter={() => {
+            isHoveringPopoverRef.current = true;
+            cancelCloseTimer();
+          }}
+          onMouseLeave={() => {
+            isHoveringPopoverRef.current = false;
+            scheduleClose();
+          }}
+          onInputFocus={() => {
+            isHoveringPopoverRef.current = true;
+            cancelCloseTimer();
+          }}
+        />
+      )}
+    </>
+  );
 }

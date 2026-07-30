@@ -1,5 +1,14 @@
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "CUSTOM";
 
+export interface Tab {
+  id: string;
+  type: "request" | "folder";
+  entityId: string;
+  name: string;
+  method?: HttpMethod;
+  isDirty?: boolean;
+}
+
 export type ApiAuthMode = "none" | "basic" | "bearer" | "apiKey" | "oauth2" | "ntlm" | "kerberos";
 
 export interface AuthConfig {
