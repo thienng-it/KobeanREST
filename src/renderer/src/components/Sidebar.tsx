@@ -800,16 +800,24 @@ export function Sidebar({
   }
 
 
-  function folderMatchesCollectionSearch(folderId: string): boolean | undefined {
+  function folderMatchesCollectionSearch(folderId: string): boolean {
     const folder = workspace?.folders.find((item) => item.id === folderId);
     if (!folder) return false;
     if (matchesCollectionSearch(folder.name)) return true;
-    return workspace?.requests.some((request) => request.folderId === folderId && requestMatchesCollectionSearch(request));
+    
+    const hasMatchingRequest = workspace?.requests.some((request) => request.folderId === folderId && requestMatchesCollectionSearch(request));
+    if (hasMatchingRequest) return true;
+
+    const hasMatchingChildFolder = workspace?.folders.some((f) => f.parentId === folderId && folderMatchesCollectionSearch(f.id));
+    return !!hasMatchingChildFolder;
   }
 
   const visibleCollections = (workspace?.collections ?? []).filter((collection) => {
     if (matchesCollectionSearch(collection.name)) return true;
-    return workspace?.folders.some((folder) => folder.collectionId === collection.id && folderMatchesCollectionSearch(folder.id));
+    const hasMatchingFolder = workspace?.folders.some((folder) => folder.collectionId === collection.id && folderMatchesCollectionSearch(folder.id));
+    if (hasMatchingFolder) return true;
+    const hasMatchingRootRequest = workspace?.requests.some((request) => request.folderId === collection.id && requestMatchesCollectionSearch(request));
+    return !!hasMatchingRootRequest;
   });
 
   // Render drag overlay
