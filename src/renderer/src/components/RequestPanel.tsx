@@ -709,7 +709,7 @@ export function RequestPanel({
               } else if (tab === "headers") {
                 hasData = draftRequest.headers.some(h => h.key.trim() !== '' || h.value.trim() !== '');
               } else if (tab === "auth") {
-                hasData = draftRequest.authMode !== "inherit" && draftRequest.authMode !== "none";
+                hasData = draftRequest.authMode !== "none";
               } else if (tab === "scripts") {
                 hasData = preScript.trim() !== "" || postScript.trim() !== "";
                 isDirty = scriptsDirty;

@@ -31,7 +31,7 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
 
   const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
   const isHoveringPopoverRef = useRef(false);
-  const closeTimerRef = useRef<NodeJS.Timeout>();
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scheduleClose = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
