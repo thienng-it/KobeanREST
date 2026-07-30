@@ -191,6 +191,7 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     ensure_request_body_columns(&connection)?;
     ensure_request_query_params_column(&connection)?;
     ensure_request_history_response_columns(&connection)?;
+    ensure_requests_fk_removed(&connection)?;
     seed_default_workspace(&mut connection)?;
     sync_request_workspace_ids(&connection)?;
 
@@ -422,7 +423,7 @@ pub fn create_collection(app: AppHandle, name: String, workspace_id: Option<Stri
     let connection = open_database(&app)?;
     let workspace_id = match workspace_id {
         Some(id) => id,
-        None => first_workspace_id(&connection)?,
+        None => active_workspace_id(&connection)?
     };
     let collection_id = format!("collection-{}", uuid::Uuid::new_v4());
     connection
@@ -1241,9 +1242,9 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
                 requests.body_form,
                 requests.query_params
              FROM requests
-             JOIN folders ON folders.id = requests.folder_id
+             LEFT JOIN folders ON folders.id = requests.folder_id
              WHERE requests.workspace_id = ?1
-             ORDER BY folders.position, requests.position, requests.name",
+             ORDER BY COALESCE(folders.position, 0), requests.position, requests.name",
         )
         .map_err(|error| format!("failed to prepare requests query: {error}"))?;
     let rows = statement
@@ -1321,6 +1322,54 @@ fn collect_rows<T>(
         .collect()
 }
 
+fn ensure_requests_fk_removed(connection: &Connection) -> Result<(), String> {
+    let mut stmt = connection
+        .prepare("PRAGMA foreign_key_list(requests)")
+        .map_err(|e| e.to_string())?;
+    
+    let mut has_folders_fk = false;
+    let iter = stmt.query_map([], |row| {
+        let table: String = row.get(2)?;
+        Ok(table)
+    }).map_err(|e| e.to_string())?;
+
+    for table_res in iter {
+        if let Ok(table) = table_res {
+            if table == "folders" {
+                has_folders_fk = true;
+            }
+        }
+    }
+    
+    if has_folders_fk {
+        let create_sql: String = connection.query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='requests'",
+            [],
+            |row| row.get(0)
+        ).map_err(|e| e.to_string())?;
+        
+        // Remove the foreign key constraint
+        let new_create_sql = create_sql
+            .replace("folder_id TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE", "folder_id TEXT NOT NULL")
+            .replace("CREATE TABLE requests", "CREATE TABLE new_requests")
+            .replace("CREATE TABLE \"requests\"", "CREATE TABLE new_requests");
+            
+        connection.execute_batch(&format!(
+            "PRAGMA foreign_keys=OFF;
+             BEGIN TRANSACTION;
+             {} ;
+             INSERT INTO new_requests SELECT * FROM requests;
+             DROP TABLE requests;
+             ALTER TABLE new_requests RENAME TO requests;
+             COMMIT;
+             PRAGMA foreign_keys=ON;",
+             new_create_sql
+        )).map_err(|e| e.to_string())?;
+    }
+    
+    Ok(())
+}
+
 fn first_workspace_id(connection: &Connection) -> Result<String, String> {
     connection
         .query_row(
@@ -1329,6 +1378,34 @@ fn first_workspace_id(connection: &Connection) -> Result<String, String> {
             |row| row.get(0),
         )
         .map_err(|error| format!("failed to resolve active workspace: {error}"))
+}
+
+/// Returns the active workspace id, mirroring the logic used by load_workspace.
+/// Falls back to the oldest workspace if no active workspace is recorded.
+fn active_workspace_id(connection: &Connection) -> Result<String, String> {
+    let active_id: Option<String> = connection
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'last_active_workspace_id'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| format!("failed to read active workspace setting: {e}"))?;
+
+    if let Some(id) = active_id {
+        let exists: bool = connection
+            .query_row(
+                "SELECT COUNT(*) FROM workspaces WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|e| format!("failed to verify workspace: {e}"))?
+            > 0;
+        if exists {
+            return Ok(id);
+        }
+    }
+    first_workspace_id(connection)
 }
 
 fn environment_id(environment: &str) -> &'static str {
@@ -1731,6 +1808,13 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
             rusqlite::params![request.folder_id],
             |row| row.get(0),
         )
+        .or_else(|_| {
+            transaction.query_row(
+                "SELECT workspace_id FROM collections WHERE id = ?1",
+                rusqlite::params![request.folder_id],
+                |row| row.get(0),
+            )
+        })
         .unwrap_or_else(|_| first_workspace_id(&transaction).unwrap_or_default());
 
     transaction.execute(
@@ -1916,8 +2000,8 @@ pub fn delete_collection(app: AppHandle, collection_id: String) -> Result<(), St
         .execute(
             "DELETE FROM request_headers WHERE request_id IN (
                 SELECT requests.id FROM requests
-                JOIN folders ON folders.id = requests.folder_id
-                WHERE folders.collection_id = ?1
+                LEFT JOIN folders ON folders.id = requests.folder_id
+                WHERE folders.collection_id = ?1 OR requests.folder_id = ?1
             )",
             rusqlite::params![&collection_id],
         )
@@ -1931,15 +2015,15 @@ pub fn delete_collection(app: AppHandle, collection_id: String) -> Result<(), St
                 ))
                 OR (entity_type = 'request' AND entity_id IN (
                     SELECT requests.id FROM requests
-                    JOIN folders ON folders.id = requests.folder_id
-                    WHERE folders.collection_id = ?1
+                    LEFT JOIN folders ON folders.id = requests.folder_id
+                    WHERE folders.collection_id = ?1 OR requests.folder_id = ?1
                 ))",
             rusqlite::params![&collection_id],
         )
         .map_err(|e| e.to_string())?;
     transaction
         .execute(
-            "DELETE FROM requests WHERE folder_id IN (
+            "DELETE FROM requests WHERE folder_id = ?1 OR folder_id IN (
                 SELECT id FROM folders WHERE collection_id = ?1
             )",
             rusqlite::params![&collection_id],
@@ -2047,7 +2131,7 @@ fn find_environment_id(
 pub fn create_environment(app: AppHandle, name: String) -> Result<EnvironmentSummary, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
-    let workspace_id = first_workspace_id(&connection)?;
+    let workspace_id = active_workspace_id(&connection)?;
     let env_id = format!("env-{}", uuid::Uuid::new_v4());
     connection
         .execute(
@@ -2070,7 +2154,7 @@ pub fn rename_environment(
 ) -> Result<(), String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
-    let workspace_id = first_workspace_id(&connection)?;
+    let workspace_id = active_workspace_id(&connection)?;
     let env_id = find_environment_id(&connection, &workspace_id, &old_name)?;
     let next_name = new_name.trim();
     if next_name.is_empty() {
@@ -2106,7 +2190,7 @@ pub fn rename_environment(
 pub fn delete_environment(app: AppHandle, name: String) -> Result<(), String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
-    let workspace_id = first_workspace_id(&connection)?;
+    let workspace_id = active_workspace_id(&connection)?;
     let env_id = find_environment_id(&connection, &workspace_id, &name)?;
     connection
         .execute(
@@ -2140,7 +2224,7 @@ pub fn delete_environment(app: AppHandle, name: String) -> Result<(), String> {
 pub fn set_active_environment(app: AppHandle, name: String) -> Result<(), String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
-    let workspace_id = first_workspace_id(&connection)?;
+    let workspace_id = active_workspace_id(&connection)?;
     connection
         .execute(
             "UPDATE workspaces SET active_environment = ?2 WHERE id = ?1",
@@ -2159,7 +2243,7 @@ pub fn save_variable(
 ) -> Result<(), String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
-    let workspace_id = first_workspace_id(&connection)?;
+    let workspace_id = active_workspace_id(&connection)?;
     let env_id = find_environment_id(&connection, &workspace_id, &environment_name)?;
     let updated = connection
         .execute(
@@ -2187,7 +2271,7 @@ pub fn delete_variable(
 ) -> Result<(), String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
-    let workspace_id = first_workspace_id(&connection)?;
+    let workspace_id = active_workspace_id(&connection)?;
     let env_id = find_environment_id(&connection, &workspace_id, &environment_name)?;
     connection
         .execute(
@@ -2207,7 +2291,7 @@ pub fn save_secret_variable(
 ) -> Result<(), String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
-    let workspace_id = first_workspace_id(&connection)?;
+    let workspace_id = active_workspace_id(&connection)?;
     let env_id = find_environment_id(&connection, &workspace_id, &environment_name)?;
     let updated = connection
         .execute(

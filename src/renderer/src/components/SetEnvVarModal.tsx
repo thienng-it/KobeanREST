@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { EnvironmentVariable, ScopedVariableEntityType } from "../types";
+import { CustomSelect } from "./CustomSelect";
 
 export type EnvVarScope =
   | { type: "environment"; envName: string }
@@ -184,25 +185,18 @@ export function SetEnvVarModal({
                 <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--color-text-soft)", marginBottom: "6px" }}>
                   Environment
                 </label>
-                <select
+                <CustomSelect
+                  ariaLabel="Environment"
                   value={selectedEnv}
-                  onChange={(e) => setSelectedEnv(e.target.value)}
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    padding: "8px 10px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--color-border)",
-                    background: "var(--color-surface)",
-                    color: "var(--color-text)",
-                    fontSize: "13px",
-                    outline: "none",
-                  }}
-                >
-                  {environments.map((env) => (
-                    <option key={env.name} value={env.name}>{env.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedEnv(val)}
+                  options={[
+                    { value: "global", label: "Global Variables (All Environments)" },
+                    ...environments.map((env) => ({
+                      value: env.name,
+                      label: env.name
+                    }))
+                  ]}
+                />
               </div>
             )}
 

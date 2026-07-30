@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Eye, EyeOff, Check, Copy, X, Plus } from "lucide-react";
 import { EnvironmentVariable } from "../types";
 import { saveVariable } from "../services/local-store";
@@ -95,13 +96,15 @@ function VariablePopoverCard({
     }
   };
 
-  return (
+  return createPortal(
     <div
       className={`variable-popover-card placement-${placement}`}
       style={{
+        position: "fixed",
         left: `${x}px`,
         top: `${y}px`,
         transform: isBottom ? "translate(-50%, 0)" : "translate(-50%, -100%)",
+        zIndex: 999999,
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -140,7 +143,6 @@ function VariablePopoverCard({
               onFocus={onInputFocus}
               onKeyDown={handleKeyDown}
               placeholder={isResolved ? "Enter variable value..." : "Set variable value..."}
-              autoFocus
             />
             {editValue && (
               <button
@@ -178,7 +180,8 @@ function VariablePopoverCard({
       </div>
 
       <div className={`variable-popover-arrow ${isBottom ? "arrow-top" : "arrow-bottom"}`} />
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -465,15 +468,15 @@ export function VariableInput({
       const placement: "top" | "bottom" = spaceAbove < 180 ? "bottom" : "top";
 
       const y = placement === "top"
-        ? spanRect.top - parentRect.top - 6
-        : spanRect.bottom - parentRect.top + 6;
+        ? spanRect.top - 6
+        : spanRect.bottom + 6;
 
       setActiveTooltip({
         key: varName,
         value: val,
         isSecret: false,
         isResolved,
-        x: spanRect.left - parentRect.left + spanRect.width / 2,
+        x: spanRect.left + spanRect.width / 2,
         y,
         placement,
       });
@@ -481,9 +484,15 @@ export function VariableInput({
     [activeVariables]
   );
 
-  // Trigger popover on double click on {{...}} span
-  const handleInputDoubleClick = useCallback(
+  const lastMoveTimeRef = useRef(0);
+  const handleInputMouseMove = useCallback(
     (e: React.MouseEvent<HTMLInputElement>) => {
+      const now = Date.now();
+      if (now - lastMoveTimeRef.current < 30) return;
+      lastMoveTimeRef.current = now;
+
+      if (isPinnedRef.current || isHoveringPopoverRef.current) return;
+
       const input = inputRef.current;
       if (!input) return;
 
@@ -491,15 +500,16 @@ export function VariableInput({
       const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
       input.style.pointerEvents = "";
 
-      if (elemBelow && elemBelow.classList.contains("variable-highlight")) {
+      if (elemBelow && elemBelow.classList.contains("variable-highlight") && elemBelow.classList.contains("resolved")) {
         cancelCloseTimer();
-        isPinnedRef.current = true;
+        const varName = (elemBelow as HTMLElement).dataset.varname;
+        if (activeTooltip?.key === varName) return; // already showing
         showTooltipForSpan(elemBelow);
+      } else {
+        scheduleClose();
       }
-
-      if (onDoubleClick) onDoubleClick(e);
     },
-    [showTooltipForSpan, cancelCloseTimer, onDoubleClick]
+    [showTooltipForSpan, cancelCloseTimer, scheduleClose, activeTooltip]
   );
 
   const renderHighlightedText = () => {
@@ -600,7 +610,11 @@ export function VariableInput({
           if (onSelect) onSelect(e);
         }}
         onMouseUp={checkAutocomplete}
-        onDoubleClick={hasVariables ? handleInputDoubleClick : onDoubleClick}
+        onDoubleClick={onDoubleClick}
+        onMouseMove={hasVariables ? handleInputMouseMove : undefined}
+        onMouseLeave={() => {
+          if (!isPinnedRef.current && !isHoveringPopoverRef.current) scheduleClose();
+        }}
         style={{
           width: "100%",
           background: "transparent",
@@ -876,15 +890,15 @@ export function VariableTextarea({
       const placement: "top" | "bottom" = spaceAbove < 180 ? "bottom" : "top";
 
       const y = placement === "top"
-        ? spanRect.top - parentRect.top - 6
-        : spanRect.bottom - parentRect.top + 6;
+        ? spanRect.top - 6
+        : spanRect.bottom + 6;
 
       setActiveTooltip({
         key: varName,
         value: val,
         isSecret: false,
         isResolved,
-        x: spanRect.left - parentRect.left + spanRect.width / 2,
+        x: spanRect.left + spanRect.width / 2,
         y,
         placement,
       });
@@ -892,8 +906,15 @@ export function VariableTextarea({
     [activeVariables]
   );
 
-  const handleTextareaDoubleClick = useCallback(
+  const lastMoveTimeRef = useRef(0);
+  const handleTextareaMouseMove = useCallback(
     (e: React.MouseEvent<HTMLTextAreaElement>) => {
+      const now = Date.now();
+      if (now - lastMoveTimeRef.current < 30) return;
+      lastMoveTimeRef.current = now;
+
+      if (isPinnedRef.current || isHoveringPopoverRef.current) return;
+
       const textarea = textareaRef.current;
       if (!textarea) return;
 
@@ -901,15 +922,16 @@ export function VariableTextarea({
       const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
       textarea.style.pointerEvents = "";
 
-      if (elemBelow && elemBelow.classList.contains("variable-highlight")) {
+      if (elemBelow && elemBelow.classList.contains("variable-highlight") && elemBelow.classList.contains("resolved")) {
         cancelCloseTimer();
-        isPinnedRef.current = true;
+        const varName = (elemBelow as HTMLElement).dataset.varname;
+        if (activeTooltip?.key === varName) return; // already showing
         showTooltipForSpan(elemBelow);
+      } else {
+        scheduleClose();
       }
-
-      if (onDoubleClick) onDoubleClick(e);
     },
-    [showTooltipForSpan, cancelCloseTimer, onDoubleClick]
+    [showTooltipForSpan, cancelCloseTimer, scheduleClose, activeTooltip]
   );
 
   const renderHighlightedText = () => {
@@ -1001,7 +1023,11 @@ export function VariableTextarea({
           if (onSelect) onSelect(e);
         }}
         onMouseUp={checkAutocomplete}
-        onDoubleClick={hasVariables ? handleTextareaDoubleClick : onDoubleClick}
+        onDoubleClick={onDoubleClick}
+        onMouseMove={hasVariables ? handleTextareaMouseMove : undefined}
+        onMouseLeave={() => {
+          if (!isPinnedRef.current && !isHoveringPopoverRef.current) scheduleClose();
+        }}
         style={{
           width: "100%",
           background: "transparent",

@@ -291,6 +291,7 @@ body {
   background: var(--color-bg-base);
   position: relative;
   overflow: hidden;
+  font-size: 13px;
 }
 
 /* Background Ambient Blobs */
@@ -756,7 +757,7 @@ button:disabled {
 .sidebar-content {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 8px;
   width: 100%;
   min-width: 0;
   flex: 1;
@@ -1325,7 +1326,7 @@ button:disabled {
 }
 
 .folder-group {
-  margin-bottom: 16px;
+  margin-bottom: 4px;
 }
 
 .folder-title,
@@ -1343,7 +1344,7 @@ button:disabled {
   align-items: center;
   gap: 7px;
   width: 100%;
-  padding: 6px 0;
+  padding: 2px 0;
   font-weight: 600;
   font-size: 13px;
   color: var(--color-text);
@@ -1438,6 +1439,16 @@ button:disabled {
   transition: background 140ms ease, border-color 90ms ease;
 }
 
+.sidebar-item-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+}
+
 .sidebar-drag-handle {
   display: inline-grid;
   place-items: center;
@@ -1510,8 +1521,8 @@ button:disabled {
   align-items: center;
   gap: 9px;
   width: 100%;
-  min-height: 34px;
-  padding: 7px 10px;
+  min-height: 28px;
+  padding: 4px 8px;
   border-radius: 8px;
   text-align: left;
   border: 1px solid transparent;
@@ -1834,8 +1845,8 @@ button:disabled {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px 24px 24px;
+  gap: 8px;
+  padding: 4px 8px 8px;
   overflow: hidden;
 }
 
@@ -2120,7 +2131,7 @@ button:disabled {
   min-height: 140px;
   overflow: visible;
   gap: 12px;
-  padding: 12px;
+  padding: 4px 8px 8px 8px;
   border-radius: 16px;
 }
 
@@ -3356,7 +3367,7 @@ button:disabled {
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: 16px;
+  padding: 8px;
 }
 
 .panel-heading {
@@ -3534,6 +3545,40 @@ button:disabled {
   color: #991b1b;
 }
 
+.import-toast {
+  top: 66px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.import-toast-info {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-modal);
+  color: var(--color-text-muted);
+}
+
+.import-toast-success {
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  background: rgba(34, 197, 94, 0.08);
+  color: #166534;
+}
+
+:root:not([data-theme="light"]):not([data-theme="warm"]) .import-toast-success {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.import-toast-error {
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.08);
+  color: #991b1b;
+}
+
+:root:not([data-theme="light"]):not([data-theme="warm"]) .import-toast-error {
+  color: #fca5a5;
+}
+
 .status-column {
   display: grid;
   gap: 12px;
@@ -3597,7 +3642,7 @@ button:disabled {
   }
 
   .workspace {
-    padding: 18px;
+    padding: 8px;
     overflow-y: auto;
   }
 
@@ -3610,8 +3655,8 @@ button:disabled {
 
 @media (max-height: 860px) {
   .workspace {
-    gap: 12px;
-    padding: 16px 20px 20px;
+    gap: 8px;
+    padding: 4px 8px 8px;
   }
 
   .workspace-main {
@@ -3620,7 +3665,7 @@ button:disabled {
 
   .request-panel,
   .response-viewer {
-    padding: 14px;
+    padding: 4px 8px 8px 8px;
   }
 
   .request-title-row h1 {
@@ -5570,6 +5615,135 @@ button:disabled {
   font-size: 11px;
   max-width: 420px;
   opacity: 0.7;
+}
+
+.console-detail-panel {
+  margin-top: 8px;
+  margin-left: 24px;
+  padding-left: 12px;
+  border-left: 2px solid var(--color-border-strong, rgba(0,0,0,0.12));
+  font-size: 11px;
+}
+
+.console-detail-section {
+  margin-bottom: 8px;
+}
+
+.console-detail-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #667085);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.console-detail-toggle:hover {
+  color: var(--color-text-soft, #475467);
+}
+
+.console-detail-count {
+  background: var(--color-surface-muted, rgba(0,0,0,0.05));
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+}
+
+.console-detail-body {
+  padding-left: 16px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.console-kv-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.console-kv-key {
+  min-width: 100px;
+  color: var(--color-text-muted, #667085);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.console-kv-val {
+  color: var(--color-text, #1d2939);
+  word-break: break-word;
+  flex: 1;
+}
+
+.console-headers-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.console-headers-table td {
+  padding: 3px 0;
+  vertical-align: top;
+}
+
+.console-header-key {
+  color: var(--color-text-muted, #667085);
+  padding-right: 16px !important;
+  min-width: 140px;
+  font-weight: 500;
+}
+
+.console-header-value {
+  color: var(--color-text, #1d2939);
+  word-break: break-all;
+}
+
+.console-body-pre {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--color-surface-muted, rgba(0,0,0,0.03));
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+:root[data-theme="dark"] .console-detail-panel,
+:root[data-theme="matrix"] .console-detail-panel,
+:root[data-theme="cyberpunk"] .console-detail-panel,
+:root[data-theme="warm"] .console-detail-panel {
+  border-left-color: var(--color-border-strong, rgba(255,255,255,0.14));
+}
+
+:root[data-theme="dark"] .console-kv-val,
+:root[data-theme="matrix"] .console-kv-val,
+:root[data-theme="cyberpunk"] .console-kv-val,
+:root[data-theme="warm"] .console-kv-val {
+  color: var(--color-text, #f2f4f7);
+}
+
+:root[data-theme="dark"] .console-header-value,
+:root[data-theme="matrix"] .console-header-value,
+:root[data-theme="cyberpunk"] .console-header-value,
+:root[data-theme="warm"] .console-header-value {
+  color: var(--color-text, #f2f4f7);
+}
+
+:root[data-theme="dark"] .console-body-pre,
+:root[data-theme="matrix"] .console-body-pre,
+:root[data-theme="cyberpunk"] .console-body-pre,
+:root[data-theme="warm"] .console-body-pre {
+  background: var(--color-surface-muted, rgba(255,255,255,0.05));
 }
 
 /* Postman-style Editable Variable Popover Card */

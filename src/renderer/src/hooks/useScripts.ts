@@ -4,13 +4,48 @@ import { diagnosticMessage, formatScriptLogValue } from "../app-utils";
 import { prettifyScriptContent, type ScriptEditorMode, type RequestCodeSnippetTarget } from "../services/script-tools";
 import { runKbScript, type KbScriptContext } from "../services/script-runtime";
 
-export type ScriptOutputEntry = {
-  tone: "info" | "error";
-  type?: "test_pass" | "test_fail" | "log";
-  message: string;
-  name?: string;
-  errMessage?: string;
-};
+export type ScriptOutputEntry =
+  | {
+      tone: "info" | "error";
+      type?: "test_pass" | "test_fail" | "log";
+      message: string;
+      name?: string;
+      errMessage?: string;
+    }
+  | {
+      type: "request";
+      tone: "info";
+      message: string;
+      request: {
+        method: string;
+        url: string;
+        headers: Array<{ key: string; value: string; enabled: boolean }>;
+        queryParams: Array<{ key: string; value: string; enabled: boolean }>;
+        body?: string;
+        authMode: string;
+        timeoutMs: number;
+        followRedirects: boolean;
+        timestamp: string;
+      };
+    }
+  | {
+      type: "response";
+      tone: "info" | "error";
+      message: string;
+      response: {
+        status: number;
+        statusText: string;
+        headers: Array<{ key: string; value: string; enabled: boolean }>;
+        body?: string;
+        durationMs: number;
+        dnsMs: number;
+        connectMs: number;
+        tlsMs: number;
+        requestMs: number;
+        sizeBytes: number;
+        contentType?: string;
+      };
+    };
 
 export function useScripts(selectedRequestId: string | null) {
   const [preScript, setPreScript] = useState("");
@@ -30,6 +65,12 @@ export function useScripts(selectedRequestId: string | null) {
   const [folderScriptsTarget, setFolderScriptsTarget] = useState<string>("");
   const [folderPreScript, setFolderPreScript] = useState("");
   const [folderPostScript, setFolderPostScript] = useState("");
+
+  const [collectionScriptsOpen, setCollectionScriptsOpen] = useState(false);
+  const [collectionScriptsTarget, setCollectionScriptsTarget] = useState<string>("");
+  const [collectionPreScript, setCollectionPreScript] = useState("");
+  const [collectionPostScript, setCollectionPostScript] = useState("");
+
   const scriptEditorActionsRef = useRef<{ insertText: (text: string) => void } | null>(null);
 
   useEffect(() => {
@@ -167,6 +208,34 @@ export function useScripts(selectedRequestId: string | null) {
     return entries;
   }
 
+  async function handleOpenCollectionScripts(collectionId: string) {
+    try {
+      const scripts = await getScripts(collectionId, 'collection');
+      const pre = scripts.find(s => s.scriptType === 'pre')?.content ?? "";
+      const post = scripts.find(s => s.scriptType === 'post')?.content ?? "";
+      setCollectionPreScript(pre);
+      setCollectionPostScript(post);
+      setCollectionScriptsTarget(collectionId);
+      setCollectionScriptsOpen(true);
+    } catch (err) {
+      console.error("Failed to load collection scripts", diagnosticMessage(err));
+      alert("Failed to load collection scripts: " + diagnosticMessage(err));
+    }
+  }
+
+  async function handleSaveCollectionScripts() {
+    if (!collectionScriptsTarget) return;
+    try {
+      await saveScript(collectionScriptsTarget, "collection", "pre", collectionPreScript);
+      await saveScript(collectionScriptsTarget, "collection", "post", collectionPostScript);
+      alert("Collection scripts saved successfully!");
+      setCollectionScriptsOpen(false);
+    } catch (err) {
+      console.error("Failed to save collection scripts", diagnosticMessage(err));
+      alert("Failed to save collection scripts: " + diagnosticMessage(err));
+    }
+  }
+
   const preScriptDirty = preScript !== savedPreScript;
   const postScriptDirty = postScript !== savedPostScript;
   const scriptsDirty = preScriptDirty || postScriptDirty;
@@ -187,8 +256,14 @@ export function useScripts(selectedRequestId: string | null) {
     folderScriptsTarget, setFolderScriptsTarget,
     folderPreScript, setFolderPreScript,
     folderPostScript, setFolderPostScript,
+    collectionScriptsOpen, setCollectionScriptsOpen,
+    collectionScriptsTarget, setCollectionScriptsTarget,
+    collectionPreScript, setCollectionPreScript,
+    collectionPostScript, setCollectionPostScript,
     scriptEditorActionsRef,
     insertScriptToken, setCurrentScriptValue, handlePrettifyScript,
-    handleOpenFolderScripts, handleSaveFolderScripts, handleSaveScripts, runScript
+    handleOpenFolderScripts, handleSaveFolderScripts,
+    handleOpenCollectionScripts, handleSaveCollectionScripts,
+    handleSaveScripts, runScript
   };
 }

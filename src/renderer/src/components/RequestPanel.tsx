@@ -1,9 +1,10 @@
-import { ChevronDown, Code2, Plus, Play, Save, Settings, Trash2, WandSparkles } from "lucide-react";
+import { ChevronDown, Code2, Plus, Play, Save, Settings, Trash2, WandSparkles, Copy, Check } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type MutableRefObject } from "react";
 import { createPortal } from "react-dom";
 import { CustomSelect } from "./CustomSelect";
 import { MethodSelector } from "./MethodSelector";
 import { ScriptEditor } from "./ScriptEditor";
+import { CodeSnippetViewer } from "./CodeSnippetViewer";
 import { VariableInput, VariableTextarea } from "./VariableInput";
 import { BodyEditor } from "./BodyEditor";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
@@ -23,7 +24,7 @@ import {
 import type { ApiAuthMode, AuthConfig, EnvironmentVariable, SavedRequest, ScopedVariableEntityType, WorkspaceSummary } from "../types";
 
 type RequestHeader = SavedRequest["headers"][number];
-type ScriptOutputEntry = { tone: "info" | "error"; message: string };
+import type { ScriptOutputEntry } from "../hooks/useScripts";
 
 const authModes = ["None", "Basic Auth", "Bearer Token", "API Key", "OAuth 2.0", "NTLM", "Kerberos"] as const;
 const HEADER_KEY_SUGGESTIONS = [
@@ -294,8 +295,8 @@ export function RequestPanel({
   const currentScriptValue = activeRequestScript === "pre" ? preScript : postScript;
   const selectedScriptSnippet = SCRIPT_SNIPPETS.find((snippet) => snippet.id === activeSnippetId) ?? SCRIPT_SNIPPETS[0];
   const scriptRuntimeTokens = activeRequestScript === "pre"
-    ? ["request.url", "request.method", "request.headers", "variables.get(key)", "variables.set(key, value)"]
-    : ["request.url", "request.method", "request.headers", "response.status", "response.body", "variables.get(key)", "variables.set(key, value)"];
+    ? ["request.url", "request.method", "request.headers", "variables.get(key)", "variables.set(key, value)","variables.unset(key)"]
+    : ["request.url", "request.method", "request.headers", "response.status", "response.body", "variables.get(key)", "variables.set(key, value)", "variables.unset(key)"];
 
   useEffect(() => {
     if (draftRequest.method === "GET" && activeTab === "body") {
@@ -313,6 +314,17 @@ export function RequestPanel({
   }, [draftRequest.id, draftRequest.url]);
   const scriptVariableTokens = activeVars.map((variable) => `{{${variable.key}}}`);
   const currentScriptTitle = activeRequestScript === "pre" ? "Pre-request Script" : "Post-request Script";
+
+  const [copiedCode, setCopiedCode] = useState(false);
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(codeSnippet);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy code snippet", err);
+    }
+  };
 
   // --- local editing helpers ---
   function updateDraft(fields: Partial<SavedRequest>) {
@@ -882,11 +894,12 @@ export function RequestPanel({
             ) : (
               <div className="request-body-editor-shell" style={{ flex: 1, minHeight: 0 }}>
                 <BodyEditor
-                  variables={activeVars.map(v => v.key)}
                   value={draftRequest.body ?? ""}
                   onChange={(val) => updateDraft({ body: val })}
-                  mimeType={draftRequest.bodyMimeType}
+                  variables={Object.keys(activeVars)}
+                  mimeType={draftRequest.headers?.find(h => h.key.toLowerCase() === 'content-type')?.value || "application/json"}
                   placeholder="// Request body"
+                  height="100%"
                 />
               </div>
             )}
@@ -1354,26 +1367,44 @@ export function RequestPanel({
       {activeTab === "code" && (
         <div className="request-tab-panel script-code-panel" style={{ display: "flex", flexDirection: "column" }}>
           <div className="script-code-modal-toolbar" style={{ borderBottom: "1px solid var(--color-border)", padding: "8px 16px", background: "var(--color-surface-muted)", borderRadius: 0 }}>
-            <select
+            <CustomSelect
               className="script-tool-select"
               value={codeTarget}
-              onChange={(event) => onTargetChange(event.target.value as import("../services/script-tools").RequestCodeSnippetTarget)}
-              aria-label="Request code snippet target"
-            >
-              <option value="curl">cURL</option>
-              <option value="fetch">Fetch</option>
-              <option value="node">Node</option>
-            </select>
-            <button
-              className="ghost-button script-tool-action"
-              type="button"
-              onClick={onInsertCode}
-              aria-label="Insert request code snippet"
-            >
-              Insert into script
-            </button>
+              onChange={(val) => onTargetChange(val as import("../services/script-tools").RequestCodeSnippetTarget)}
+              ariaLabel="Request code snippet target"
+              options={[
+                { value: "curl", label: "cURL" },
+                { value: "fetch", label: "Fetch" },
+                { value: "node", label: "Node" },
+                { value: "python", label: "Python (requests)" },
+                { value: "go", label: "Go" },
+                { value: "java", label: "Java (HttpClient)" }
+              ]}
+            />
+            <div style={{ display: "flex", gap: "8px", marginLeft: "auto" }}>
+              <button
+                className="ghost-button script-tool-action"
+                type="button"
+                onClick={handleCopyCode}
+                aria-label="Copy code snippet"
+                title="Copy to clipboard"
+              >
+                {copiedCode ? <Check size={14} style={{ color: "var(--color-success)" }} /> : <Copy size={14} />}
+                {copiedCode ? "Copied!" : "Copy"}
+              </button>
+              <button
+                className="ghost-button script-tool-action"
+                type="button"
+                onClick={onInsertCode}
+                aria-label="Insert request code snippet"
+              >
+                Insert into script
+              </button>
+            </div>
           </div>
-          <pre className="script-code-modal-preview" style={{ flex: 1, margin: 0, border: "none", borderRadius: 0, maxHeight: "none", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{codeSnippet}</pre>
+          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--color-surface)" }}>
+            <CodeSnippetViewer value={codeSnippet} language={codeTarget} />
+          </div>
         </div>
       )}
     </div>

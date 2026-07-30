@@ -2,7 +2,7 @@ import { useEffect, useState, useTransition, useRef, useMemo, type ClipboardEven
 import { ChevronDown, ChevronUp, Download, History, RefreshCw, Settings, PanelLeftOpen } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
-import { resolveRequestVariables, resolveRequestFields, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, activeScopedVariablesList, resolveString } from "./services/variables";
+import { resolveRequestVariables, resolveRequestFields, resolveRequestFieldsSafe, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, activeScopedVariablesList, resolveString } from "./services/variables";
 import { type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
 import { ContextMenu } from "./components/ContextMenu";
@@ -44,8 +44,7 @@ import {
   importWorkspaceData,
 } from "./services/local-store";
 import type { SavedRequest } from "./types";
-
-type ScriptOutputEntry = { tone: "info" | "error"; message: string };
+import type { ScriptOutputEntry } from "./hooks/useScripts";
 
 const SIDEBAR_MIN_WIDTH = 260;
 const SIDEBAR_DEFAULT_WIDTH = 320;
@@ -162,6 +161,8 @@ export function App() {
     handleDeleteFolder,
     handleDeleteCollection,
     toggleFolder,
+    expandAllFolders,
+    collapseAllFolders,
     handleCreateRequest,
     handleCreateRequestWithDetails,
     importCurlRequest,
@@ -177,8 +178,11 @@ export function App() {
     cancelEnvironmentRename,
     handleExport,
     handleImport,
+    handleImportPostmanCollection,
+    handleImportPostmanEnvironment,
     handleMoveItem,
-    loadWorkspace,
+    importToast,
+    loadWorkspace
   } = ws;
 
   const [universalImportModalOpen, setUniversalImportModalOpen] = useState(false);
@@ -219,9 +223,15 @@ export function App() {
     folderScriptsTarget, setFolderScriptsTarget,
     folderPreScript, setFolderPreScript,
     folderPostScript, setFolderPostScript,
+    collectionScriptsOpen, setCollectionScriptsOpen,
+    collectionScriptsTarget, setCollectionScriptsTarget,
+    collectionPreScript, setCollectionPreScript,
+    collectionPostScript, setCollectionPostScript,
     scriptEditorActionsRef,
     insertScriptToken, setCurrentScriptValue, handlePrettifyScript,
-    handleOpenFolderScripts, handleSaveFolderScripts, handleSaveScripts, runScript
+    handleOpenFolderScripts, handleSaveFolderScripts,
+    handleOpenCollectionScripts, handleSaveCollectionScripts,
+    handleSaveScripts, runScript
   } = useScripts(selectedRequestId);
 
   const responseCacheRef = useRef<Record<string, { state: ResponseState, log: ScriptOutputEntry[] }>>({});
@@ -410,7 +420,22 @@ export function App() {
     : null;
   const folderPath = [requestCollection?.name, requestFolder?.name].filter(Boolean).join(" / ");
   const effectiveAuth = draftRequest ? getEffectiveAuth(draftRequest, workspace) : null;
-  const requestCodeSnippet = draftRequest ? generateRequestCodeSnippet(draftRequest, requestCodeTarget, effectiveAuth ?? undefined) : "";
+  const requestCodeSnippet = draftRequest ? (() => {
+    const scopeWorkspace = workspace ?? { id: "tmp", name: "Temporary", activeEnvironment: "", environments: [], folders: [], requests: [] };
+    const scopedFolder = scopeWorkspace.folders.find((f) => f.id === draftRequest.folderId);
+    const variableMap = buildScopedVariableMap(scopeWorkspace, {
+      collectionId: scopedFolder?.collectionId,
+      folderId: draftRequest.folderId,
+      request: draftRequest,
+    });
+    const resolved = resolveRequestFieldsSafe(variableMap, draftRequest.url, draftRequest.headers, draftRequest.body);
+    const resolvedDraft = { ...draftRequest, url: resolved.url, headers: resolved.headers, body: resolved.body ?? "" };
+    const resolvedAuth = effectiveAuth ? {
+      mode: effectiveAuth.mode,
+      config: resolveAuthConfig(effectiveAuth.config, variableMap)
+    } : undefined;
+    return generateRequestCodeSnippet(resolvedDraft, requestCodeTarget, resolvedAuth);
+  })() : "";
 
   function updateDraft(fields: Partial<SavedRequest>) {
     if (draftRequest) {
@@ -515,19 +540,34 @@ export function App() {
       request: draftRequest,
     });
 
-    // 1. Execute Pre-scripts (Hierarchy: Folder -> Request)
+    // 1. Execute Pre-scripts (Hierarchy: Collection -> Folder -> Request)
     const persistVariable = (key: string, value: string) => {
       const envName = workspace?.activeEnvironment;
       if (!envName) return;
       void handleSaveVariable(envName, key, value);
     };
+    const removeVariable = (key: string) => {
+      const envName = workspace?.activeEnvironment;
+      if (!envName) return;
+      void handleDeleteVariable(envName, key);
+    };
     const preScriptsContext: KbScriptContext = {
       request: { ...draftRequest },
       variables: Object.fromEntries(variableMap),
       setVariable: persistVariable,
+      deleteVariable: removeVariable,
     };
     
     try {
+      if (scopedFolder?.collectionId) {
+        const collectionScripts = await getScripts(scopedFolder.collectionId, 'collection');
+        const preCollection = collectionScripts.find(s => s.scriptType === 'pre')?.content;
+        if (preCollection) {
+          const resolved = resolveString(preCollection, variableMap).resolved;
+          scriptOutputEntries.push(...(await runScript(resolved, preScriptsContext, "Collection pre-request")));
+        }
+      }
+
       const folderScripts = await getScripts(draftRequest.folderId, 'folder');
       const preFolder = folderScripts.find(s => s.scriptType === 'pre')?.content;
       if (preFolder) {
@@ -643,12 +683,32 @@ export function App() {
         ? (requestToSend.customMethod?.trim().toUpperCase() || "CUSTOM")
         : requestToSend.method;
 
+    // Log the outgoing request
+    scriptOutputEntries.push({
+      type: "request",
+      tone: "info",
+      message: `${effectiveMethod} ${authUrl}`,
+      request: {
+        method: effectiveMethod,
+        url: authUrl,
+        headers: authHeaders,
+        queryParams: requestToSend.queryParams || [],
+        body: resolvedBody,
+        authMode: finalAuthMode,
+        timeoutMs: requestToSend.timeoutMs,
+        followRedirects: requestToSend.followRedirects,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
     try {
       const response = await executeHttpRequest({
         method: effectiveMethod,
         url: authUrl,
         headers: authHeaders,
         body: resolvedBody,
+        bodyMimeType: requestToSend.bodyMimeType,
+        bodyForm: requestToSend.bodyForm,
         timeoutMs: requestToSend.timeoutMs,
         followRedirects: requestToSend.followRedirects,
       });
@@ -670,13 +730,33 @@ export function App() {
 
       setResponseState({ kind: "success", response });
       setAbortController(null);
-      
-      // 2. Execute Post-scripts (Hierarchy: Request -> Folder)
+
+      // Log the full response
+      scriptOutputEntries.push({
+        type: "response",
+        tone: response.status >= 400 ? "error" : "info",
+        message: `${response.status} ${response.statusText} — ${response.durationMs}ms`,
+        response: {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+          body: response.bodyText,
+          durationMs: response.durationMs,
+          dnsMs: response.dnsMs,
+          connectMs: response.connectMs,
+          tlsMs: response.tlsMs,
+          requestMs: response.requestMs,
+          sizeBytes: response.sizeBytes,
+          contentType: typeof response.contentType === 'string' ? response.contentType : undefined,
+        },
+      });
+      // 2. Execute Post-scripts (Hierarchy: Request -> Folder -> Collection)
       const postScriptsContext: KbScriptContext = {
         request: requestToSend,
         response: Object.freeze(response),
         variables: Object.fromEntries(updatedVariableMap),
         setVariable: persistVariable,
+        deleteVariable: removeVariable,
       };
       
       try {
@@ -692,6 +772,15 @@ export function App() {
         if (postFolder) {
           const resolved = resolveString(postFolder, updatedVariableMap).resolved;
           scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Folder post-response")));
+        }
+
+        if (scopedFolder2?.collectionId) {
+          const collectionScripts = await getScripts(scopedFolder2.collectionId, 'collection');
+          const postCollection = collectionScripts.find(s => s.scriptType === 'post')?.content;
+          if (postCollection) {
+            const resolved = resolveString(postCollection, updatedVariableMap).resolved;
+            scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Collection post-response")));
+          }
         }
       } catch (err) {
         console.error("Post-script execution failed", diagnosticMessage(err));
@@ -843,6 +932,15 @@ export function App() {
           {updateToast.message}
         </div>
       )}
+      {importToast && (
+        <div
+          className={`update-toast import-toast import-toast-${importToast.tone}`}
+          role="status"
+          aria-live="polite"
+        >
+          {importToast.message}
+        </div>
+      )}
       <Sidebar
         workspace={workspace}
         selectedRequestId={selectedRequestId}
@@ -886,6 +984,8 @@ export function App() {
         onOpenEnvironment={() => { setEnvEditorTarget(workspace?.activeEnvironment ?? ""); setEnvEditorOpen(true); }}
         onCollectionSearchChange={setCollectionSearch}
         onToggleFolder={toggleFolder}
+        onExpandAll={expandAllFolders}
+        onCollapseAll={collapseAllFolders}
         onContextMenu={(target, x, y) => setContextMenu({ x, y, target })}
         onDismissDeleteError={() => setDeleteError(null)}
         onOpenDocs={openProductDocs}
@@ -1003,7 +1103,7 @@ export function App() {
                     className="secondary-button"
                     onClick={() => setCurlImportOpen(true)}
                   >
-                    Import cURL
+                    Import
                   </button>
                   <button
                     type="button"
@@ -1135,6 +1235,23 @@ export function App() {
           onSaveScopedVariable: handleSaveScopedVariable,
           onDeleteScopedVariable: handleDeleteScopedVariable,
         }}
+        collectionScripts={{
+          open: collectionScriptsOpen,
+          collectionId: collectionScriptsTarget ?? "",
+          collectionName: workspace?.collections?.find((c) => c.id === collectionScriptsTarget)?.name ?? "",
+          preScript: collectionPreScript,
+          postScript: collectionPostScript,
+          activeVars,
+          collectionVariables: collectionScriptsTarget
+            ? (workspace?.collections?.find((c) => c.id === collectionScriptsTarget)?.variables ?? [])
+            : [],
+          onClose: () => setCollectionScriptsOpen(false),
+          onPreScriptChange: setCollectionPreScript,
+          onPostScriptChange: setCollectionPostScript,
+          onSave: handleSaveCollectionScripts,
+          onSaveScopedVariable: handleSaveScopedVariable,
+          onDeleteScopedVariable: handleDeleteScopedVariable,
+        }}
         collectionEditor={{
           open: collectionEditorOpen,
           collectionId: collectionEditorTarget,
@@ -1184,6 +1301,7 @@ export function App() {
             setCreateRequestInitialFolderId(folderId);
             setCreateRequestModalOpen(true);
           }}
+          onCreateFolder={handleCreateFolder}
           onCreateSubFolder={handleCreateSubFolder}
           onEditFolderAuth={(folderId) => {
             setAuthEditorTarget({ id: folderId, type: 'folder' });
@@ -1191,6 +1309,11 @@ export function App() {
           }}
           onEditFolderScripts={handleOpenFolderScripts}
           onEditFolderVariables={(folderId) => handleOpenFolderScripts(folderId)}
+          onEditCollectionAuth={(collectionId) => {
+            setAuthEditorTarget({ id: collectionId, type: 'collection' });
+            setAuthEditorOpen(true);
+          }}
+          onEditCollectionScripts={handleOpenCollectionScripts}
           onEditCollectionVariables={(collectionId) => {
             setCollectionEditorTarget(collectionId);
             setCollectionEditorOpen(true);
@@ -1282,6 +1405,8 @@ export function App() {
         isOpen={universalImportModalOpen}
         onClose={() => setUniversalImportModalOpen(false)}
         initialContent={universalImportInitialContent}
+        onImportCollection={handleImportPostmanCollection}
+        onImportEnvironment={handleImportPostmanEnvironment}
         onImportSuccess={async (jsonPayload) => {
           await importWorkspaceData(jsonPayload);
           await loadWorkspace();

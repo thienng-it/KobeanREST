@@ -21,6 +21,10 @@ pub struct ExecuteHttpRequest {
     pub headers: Vec<HeaderEntry>,
     #[serde(default)]
     pub body: Option<String>,
+    #[serde(default)]
+    pub body_mime_type: Option<String>,
+    #[serde(default)]
+    pub body_form: Vec<HeaderEntry>,
     #[serde(default = "default_timeout_ms")]
     pub timeout_ms: u64,
     #[serde(default = "default_follow_redirects")]
@@ -104,15 +108,48 @@ pub async fn execute_http_request(
     let client = build_client(&input)?;
     let mut request = client.request(method, &input.url);
 
+    // Track if Content-Type is already set in headers
+    let mut has_content_type = false;
+
     for header in input.headers.iter().filter(|header| header.enabled) {
         if header.key.trim().is_empty() {
             continue;
         }
+        let key_lower = header.key.trim().to_ascii_lowercase();
+        if key_lower == "content-type" {
+            has_content_type = true;
+        }
         request = request.header(header.key.trim(), header.value.as_str());
     }
 
-    if let Some(body) = input.body.as_ref().filter(|body| !body.is_empty()) {
-        request = request.body(body.clone());
+    // If Content-Type not set and bodyMimeType is provided, add it
+    if !has_content_type {
+        if let Some(mime_type) = input.body_mime_type.as_ref().filter(|m| !m.is_empty()) {
+            request = request.header(reqwest::header::CONTENT_TYPE, mime_type.as_str());
+        }
+    }
+
+    // Handle body: for application/x-www-form-urlencoded, use bodyForm if available
+    let body: Option<String> = if input.body_mime_type.as_deref() == Some("application/x-www-form-urlencoded")
+        && !input.body_form.is_empty()
+    {
+        let mut serializer = form_urlencoded::Serializer::new(String::new());
+        let mut has_params = false;
+        for item in input.body_form.iter().filter(|item| item.enabled && !item.key.is_empty()) {
+            serializer.append_pair(&item.key, &item.value);
+            has_params = true;
+        }
+        if has_params {
+            Some(serializer.finish())
+        } else {
+            input.body.clone().filter(|b| !b.is_empty())
+        }
+    } else {
+        input.body.clone().filter(|b| !b.is_empty())
+    };
+
+    if let Some(body_content) = body {
+        request = request.body(body_content);
     }
 
     let started = Instant::now();

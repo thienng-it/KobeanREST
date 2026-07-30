@@ -1,5 +1,6 @@
 import { RefreshCw, X } from "lucide-react";
 import type { AppSettings, UpdateStatus } from "../types";
+import { CustomSelect } from "./CustomSelect";
 
 export interface SettingsModalProps {
   open: boolean;
@@ -72,24 +73,21 @@ export function SettingsModal({
                 onChange={(e) => onSettingsChange({ autoSaveEnabled: e.target.checked })}
               />
             </label>
-            <label className="settings-field">
+            <label className="settings-field" style={{ alignItems: "center" }}>
               <span>Theme</span>
-              <select
+              <CustomSelect
                 className="settings-control"
                 value={appSettings.theme}
-                onChange={(e) => onSettingsChange({ theme: e.target.value as AppSettings["theme"] })}
-              >
-                <option value="system">System</option>
-                <optgroup label="Glass">
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                  <option value="warm">Warm / Sunset</option>
-                </optgroup>
-                <optgroup label="Neon">
-                  <option value="matrix">Matrix</option>
-                  <option value="cyberpunk">Cyberpunk</option>
-                </optgroup>
-              </select>
+                onChange={(val) => onSettingsChange({ theme: val as AppSettings["theme"] })}
+                options={[
+                  { value: "system", label: "System" },
+                  { value: "light", label: "Glass: Light" },
+                  { value: "dark", label: "Glass: Dark" },
+                  { value: "warm", label: "Glass: Warm / Sunset" },
+                  { value: "matrix", label: "Neon: Matrix" },
+                  { value: "cyberpunk", label: "Neon: Cyberpunk" }
+                ]}
+              />
             </label>
             <div className="settings-field">
               <span>Data location</span>
@@ -131,16 +129,17 @@ export function SettingsModal({
               <h3>Updates</h3>
               <p>Choose how the app behaves when update checks cannot reach the network.</p>
             </div>
-            <label className="settings-field">
+            <label className="settings-field" style={{ alignItems: "center" }}>
               <span>Offline behavior</span>
-              <select
+              <CustomSelect
                 className="settings-control"
                 value={appSettings.offlineBehavior}
-                onChange={(e) => onSettingsChange({ offlineBehavior: e.target.value as AppSettings["offlineBehavior"] })}
-              >
-                <option value="silent">Stay quiet when offline</option>
-                <option value="notice">Show a notice when update checks fail</option>
-              </select>
+                onChange={(val) => onSettingsChange({ offlineBehavior: val as AppSettings["offlineBehavior"] })}
+                options={[
+                  { value: "silent", label: "Stay quiet when offline" },
+                  { value: "notice", label: "Show a notice when update checks fail" }
+                ]}
+              />
             </label>
             <div className="settings-status">{updateStatus.lastCheckedLabel}</div>
           </section>

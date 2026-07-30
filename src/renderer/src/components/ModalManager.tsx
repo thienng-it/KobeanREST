@@ -7,6 +7,7 @@ import { UpdateDialogModal, type UpdateDialogModalProps } from "./UpdateDialogMo
 import { EnvironmentEditorModal, type EnvironmentEditorModalProps } from "./EnvironmentEditorModal";
 import { RequestCodeModal, type RequestCodeModalProps } from "./RequestCodeModal";
 import { FolderScriptsModal, type FolderScriptsModalProps } from "./FolderScriptsModal";
+import { CollectionScriptsModal, type CollectionScriptsModalProps } from "./CollectionScriptsModal";
 import { CollectionEditorModal, type CollectionEditorModalProps } from "./CollectionEditorModal";
 import { CurlImportModal, type CurlImportModalProps } from "./CurlImportModal";
 import { ResponsePanel, type ResponseTab } from "./ResponsePanel";
@@ -44,6 +45,7 @@ export interface ModalManagerProps {
   env: EnvironmentEditorModalProps;
   requestCode: RequestCodeModalProps;
   folderScripts: FolderScriptsModalProps;
+  collectionScripts: CollectionScriptsModalProps;
   collectionEditor: CollectionEditorModalProps;
   curlImport: CurlImportModalProps;
   responseWindow: ResponseWindowProps;
@@ -59,6 +61,7 @@ export function ModalManager({
   env,
   requestCode,
   folderScripts,
+  collectionScripts,
   collectionEditor,
   curlImport,
   responseWindow,
@@ -73,6 +76,7 @@ export function ModalManager({
       <EnvironmentEditorModal {...env} />
       <RequestCodeModal {...requestCode} />
       <FolderScriptsModal {...folderScripts} />
+      <CollectionScriptsModal {...collectionScripts} />
       <CollectionEditorModal {...collectionEditor} />
       <CurlImportModal {...curlImport} />
 

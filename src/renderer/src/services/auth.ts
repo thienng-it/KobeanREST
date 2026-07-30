@@ -1,5 +1,5 @@
 import type { ApiAuthMode, AuthConfig } from "../types";
-import { resolveString, containsVariables } from "./variables";
+import { containsVariables, resolveStringSafe } from "./variables";
 import { executeHttpRequest } from "./http-client";
 
 type Header = { key: string; value: string; enabled: boolean };
@@ -11,11 +11,7 @@ type Header = { key: string; value: string; enabled: boolean };
 function tryResolve(value: string | undefined, variableMap: Map<string, string>): string {
   if (!value) return "";
   if (!containsVariables(value)) return value;
-  try {
-    return resolveString(value, variableMap).resolved;
-  } catch {
-    return value;
-  }
+  return resolveStringSafe(value, variableMap);
 }
 
 /**
@@ -55,7 +51,27 @@ export function applyAuth(
   url: string,
   headers: Header[],
 ): { url: string; headers: Header[] } {
-  const resultHeaders = [...headers];
+  // Start with headers, but filter out any auth-related headers that will be set by auth tab
+  // This prevents duplicate headers when user sets Authorization in both Headers tab AND Auth tab
+  const resultHeaders = headers.filter((h) => {
+    const keyLower = h.key.toLowerCase();
+    // Remove Authorization if auth mode uses it
+    if (keyLower === "authorization") {
+      if (authMode === "basic" || authMode === "bearer" || authMode === "oauth2") {
+        return false; // Auth tab will set this; remove duplicates from Headers tab
+      }
+    }
+    // Remove apiKey header if auth mode uses it with header placement
+    if (authMode === "apiKey" && authConfig.keyName) {
+      if (keyLower === authConfig.keyName.toLowerCase()) {
+        if (authConfig.placement !== "query") {
+          return false; // Auth tab will set this header
+        }
+      }
+    }
+    return true;
+  });
+
   let resultUrl = url;
 
   switch (authMode) {

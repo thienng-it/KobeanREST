@@ -181,6 +181,29 @@ export function resolveString(
 }
 
 /**
+ * Replace all `{{variableName}}` references in a string using
+ * the provided variable map. Returns the resolved string.
+ *
+ * Does not throw if variables remain unresolved.
+ */
+export function resolveStringSafe(
+  text: string,
+  variableMap: Map<string, string>,
+): string {
+  return text.replace(VARIABLE_PATTERN, (fullMatch, rawName: string) => {
+    const name = rawName.trim();
+    if (variableMap.has(name)) {
+      return variableMap.get(name)!;
+    }
+    const generator = DYNAMIC_VARIABLES[name];
+    if (generator) {
+      return generator();
+    }
+    return fullMatch;
+  });
+}
+
+/**
  * Check whether a string contains any `{{...}}` variable references.
  */
 export function containsVariables(text: string): boolean {
@@ -216,6 +239,36 @@ export function resolveRequestFields(
   let resolvedBody = body;
   if (body && body.trim().length > 0) {
     resolvedBody = resolveString(body, variableMap).resolved;
+  }
+
+  return {
+    url: resolvedUrl,
+    headers: resolvedHeaders,
+    body: resolvedBody,
+  };
+}
+
+/**
+ * Resolve all variables in the URL, headers, and body of a request
+ * safely (does not throw if variables are unresolved).
+ */
+export function resolveRequestFieldsSafe(
+  variableMap: Map<string, string>,
+  url: string,
+  headers: Array<{ key: string; value: string; enabled: boolean }>,
+  body: string | undefined,
+): ResolvedRequestFields {
+  const resolvedUrl = resolveStringSafe(url, variableMap);
+
+  const resolvedHeaders = headers.map((header) => ({
+    key: header.key,
+    value: header.enabled ? resolveStringSafe(header.value, variableMap) : header.value,
+    enabled: header.enabled,
+  }));
+
+  let resolvedBody = body;
+  if (body && body.trim().length > 0) {
+    resolvedBody = resolveStringSafe(body, variableMap);
   }
 
   return {

@@ -1,5 +1,8 @@
-import { X } from "lucide-react";
+import { X, Copy, Check } from "lucide-react";
 import type { RequestCodeSnippetTarget } from "../services/script-tools";
+import { CustomSelect } from "./CustomSelect";
+import { CodeSnippetViewer } from "./CodeSnippetViewer";
+import { useState } from "react";
 
 export interface RequestCodeModalProps {
   open: boolean;
@@ -18,6 +21,17 @@ export function RequestCodeModal({
   onTargetChange,
   onInsert,
 }: RequestCodeModalProps) {
+  const [copiedCode, setCopiedCode] = useState(false);
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(codeSnippet);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy code snippet", err);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -44,26 +58,44 @@ export function RequestCodeModal({
           </button>
         </div>
         <div className="script-code-modal-toolbar">
-          <select
+          <CustomSelect
             className="script-tool-select"
             value={codeTarget}
-            onChange={(event) => onTargetChange(event.target.value as RequestCodeSnippetTarget)}
-            aria-label="Request code snippet target"
-          >
-            <option value="curl">cURL</option>
-            <option value="fetch">Fetch</option>
-            <option value="node">Node</option>
-          </select>
-          <button
-            className="ghost-button script-tool-action"
-            type="button"
-            onClick={onInsert}
-            aria-label="Insert request code snippet"
-          >
-            Insert into script
-          </button>
+            onChange={(val) => onTargetChange(val as RequestCodeSnippetTarget)}
+            ariaLabel="Request code snippet target"
+            options={[
+              { value: "curl", label: "cURL" },
+              { value: "fetch", label: "Fetch" },
+              { value: "node", label: "Node" },
+              { value: "python", label: "Python (requests)" },
+              { value: "go", label: "Go" },
+              { value: "java", label: "Java (HttpClient)" }
+            ]}
+          />
+          <div style={{ display: "flex", gap: "8px", marginLeft: "auto" }}>
+            <button
+              className="ghost-button script-tool-action"
+              type="button"
+              onClick={handleCopyCode}
+              aria-label="Copy code snippet"
+              title="Copy to clipboard"
+            >
+              {copiedCode ? <Check size={14} style={{ color: "var(--color-success)" }} /> : <Copy size={14} />}
+              {copiedCode ? "Copied!" : "Copy"}
+            </button>
+            <button
+              className="ghost-button script-tool-action"
+              type="button"
+              onClick={onInsert}
+              aria-label="Insert request code snippet"
+            >
+              Insert into script
+            </button>
+          </div>
         </div>
-        <pre className="script-code-modal-preview">{codeSnippet}</pre>
+        <div style={{ flex: 1, minHeight: "200px", display: "flex", flexDirection: "column" }}>
+          <CodeSnippetViewer value={codeSnippet} language={codeTarget} />
+        </div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import type { WorkspaceSummary, WorkspaceListItem, HttpMethod } from "../types";
 import { loadWorkspaceById } from "../services/local-store";
 import { redactDiagnosticError } from "../services/redaction";
 import { MethodSelector } from "./MethodSelector";
+import { CustomSelect } from "./CustomSelect";
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
@@ -70,11 +71,20 @@ export function CreateRequestModal({
     }
 
     function updateDefaultLocation(ws: WorkspaceSummary | null) {
-      if (initialFolderId && ws?.folders) {
-        const matchingFolder = ws.folders.find((f) => f.id === initialFolderId);
-        if (matchingFolder) {
-          setSelectedLocation({ type: "folder", id: matchingFolder.id, name: matchingFolder.name });
-          return;
+      if (initialFolderId) {
+        if (ws?.folders) {
+          const matchingFolder = ws.folders.find((f) => f.id === initialFolderId);
+          if (matchingFolder) {
+            setSelectedLocation({ type: "folder", id: matchingFolder.id, name: matchingFolder.name });
+            return;
+          }
+        }
+        if (ws?.collections) {
+          const matchingCol = ws.collections.find((c) => c.id === initialFolderId);
+          if (matchingCol) {
+            setSelectedLocation({ type: "collection", id: matchingCol.id, name: matchingCol.name });
+            return;
+          }
         }
       }
 
@@ -173,19 +183,16 @@ export function CreateRequestModal({
               <label htmlFor="create-request-workspace" className="create-request-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <Briefcase size={14} /> Target Workspace
               </label>
-              <select
-                id="create-request-workspace"
+              <CustomSelect
+                ariaLabel="Target Workspace"
                 className="create-request-select"
                 value={selectedWorkspaceId}
-                onChange={(e) => setSelectedWorkspaceId(e.target.value)}
-                style={{ width: "100%", height: "36px", borderRadius: "6px" }}
-              >
-                {workspaces.map((ws) => (
-                  <option key={ws.id} value={ws.id}>
-                    {ws.name} {ws.id === workspace?.id ? "(Current)" : ""}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setSelectedWorkspaceId(val)}
+                options={workspaces.map((ws) => ({
+                  value: ws.id,
+                  label: `${ws.name} ${ws.id === workspace?.id ? "(Current)" : ""}`
+                }))}
+              />
             </div>
           )}
 

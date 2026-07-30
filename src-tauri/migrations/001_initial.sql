@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS folders (
 CREATE TABLE IF NOT EXISTS requests (
   id TEXT PRIMARY KEY,
   workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  folder_id TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  folder_id TEXT NOT NULL,
   name TEXT NOT NULL,
   method TEXT NOT NULL,
   url TEXT NOT NULL,

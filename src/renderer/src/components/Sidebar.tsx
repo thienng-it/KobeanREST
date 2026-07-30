@@ -1,4 +1,4 @@
-import { ChevronDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
@@ -104,6 +104,8 @@ export interface SidebarProps {
   // Search & toggle & context menu
   onCollectionSearchChange: (value: string) => void;
   onToggleFolder: (folderId: string) => void;
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
   onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
   onDismissDeleteError: () => void;
 
@@ -131,6 +133,7 @@ function DraggableCollectionRow({
   onStartSidebarRename,
   onDeleteCollection,
   onCreateFolder,
+  onCreateRequest,
   onContextMenu,
   children,
 }: {
@@ -143,9 +146,10 @@ function DraggableCollectionRow({
   onSidebarNameDraftChange: (value: string) => void;
   onApplySidebarRename: () => Promise<void>;
   onCancelSidebarRename: () => void;
-  onStartSidebarRename: (type: "collection", id: string, name: string) => void;
-  onDeleteCollection: (id: string) => void;
+  onStartSidebarRename: (type: "collection" | "folder", id: string, initialName: string) => void;
+  onDeleteCollection: (collectionId: string) => void;
   onCreateFolder: (collectionId: string) => Promise<void>;
+  onCreateRequest: (folderId: string) => void;
   onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
   children?: React.ReactNode;
 }) {
@@ -162,7 +166,7 @@ function DraggableCollectionRow({
   };
 
   return (
-    <div className="collection-group" style={{ marginBottom: "20px" }}>
+    <div className="collection-group" style={{ marginBottom: "8px" }}>
       <div
         ref={(node) => {
           setNodeRef(node);
@@ -206,16 +210,16 @@ function DraggableCollectionRow({
             style={{ flex: 1, minWidth: 0, border: "1px solid var(--color-border-tint)", borderRadius: "6px", background: "var(--color-surface)", color: "var(--color-text)", padding: "4px 8px", fontWeight: 700 }}
           />
         ) : (
-          <strong onDoubleClick={() => onStartSidebarRename("collection", collection.id, collection.name)}>{collection.name}</strong>
+          <strong className="sidebar-item-name" onDoubleClick={() => onStartSidebarRename("collection", collection.id, collection.name)}>{collection.name}</strong>
         )}
         <div className="sidebar-row-actions">
           <button
             type="button"
             className="sidebar-icon-button"
-            aria-label={`Rename collection ${collection.name}`}
-            onClick={() => onStartSidebarRename("collection", collection.id, collection.name)}
+            aria-label={`New request in ${collection.name}`}
+            onClick={() => void onCreateRequest(collection.id)}
           >
-            <Edit2 size={12} />
+            <FilePlus size={12} />
           </button>
           <button
             type="button"
@@ -224,6 +228,14 @@ function DraggableCollectionRow({
             onClick={() => void onCreateFolder(collection.id)}
           >
             <Plus size={12} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            aria-label={`Rename collection ${collection.name}`}
+            onClick={() => onStartSidebarRename("collection", collection.id, collection.name)}
+          >
+            <Edit2 size={12} />
           </button>
           <button
             type="button"
@@ -353,9 +365,10 @@ function DraggableFolderRow({
                 event.stopPropagation();
                 onStartSidebarRename("folder", folder.id, folder.name);
               }}
-              style={{ all: "unset", display: "flex", alignItems: "center", gap: "2px", cursor: "pointer" }}
+              className="sidebar-item-name-btn"
+              style={{ all: "unset", display: "flex", alignItems: "center", gap: "2px", cursor: "pointer", flex: 1, minWidth: 0 }}
             >
-              {folder.name}
+              <span className="sidebar-item-name">{folder.name}</span>
             </button>
           )}
         </div>
@@ -498,7 +511,7 @@ function DraggableRequestRow({
         </div>
       ) : (
         <button
-          style={{ all: "unset", flex: 1, display: "flex", alignItems: "center", gap: "2px", cursor: "pointer" }}
+          style={{ all: "unset", flex: 1, display: "flex", alignItems: "center", gap: "2px", cursor: "pointer", minWidth: 0 }}
           onClick={() => onSelectRequest(request.id)}
           type="button"
         >
@@ -511,7 +524,7 @@ function DraggableRequestRow({
             <GripVertical size={12} />
           </span>
           <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
-          <span onDoubleClick={() => onStartRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
+          <span className="sidebar-item-name" onDoubleClick={() => onStartRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
           {request.id === draftRequest?.id && isDraftDirty && (
             <span
               className="sidebar-request-dirty-dot"
@@ -577,6 +590,8 @@ export function Sidebar({
   onOpenEnvironment,
   onCollectionSearchChange,
   onToggleFolder,
+  onExpandAll,
+  onCollapseAll,
   onContextMenu,
   onDismissDeleteError,
   theme = "system",
@@ -846,6 +861,44 @@ export function Sidebar({
     return null;
   }
 
+  // Render requests that live directly at the root of a collection
+  const renderCollectionRequests = (collectionId: string, forceShowAll: boolean) => {
+    const rootRequests = (workspace?.requests ?? [])
+      .filter((r) => r.folderId === collectionId)
+      .filter((r) => forceShowAll || requestMatchesCollectionSearch(r));
+
+    if (rootRequests.length === 0) return null;
+
+    return (
+      <div style={{ paddingLeft: '0px' }}>
+        {rootRequests.map((request) => (
+          <DraggableRequestRow
+            key={request.id}
+            request={request}
+            dragId={encodeDragId("request", request.id)}
+            isSelected={request.id === selectedRequestId}
+            isDragOver={dragOverItem?.id === request.id && dragOverItem.type === "request"}
+            dragOverPosition={dragOverItem?.id === request.id && dragOverItem.type === "request" ? dragOverItem?.position : undefined}
+            isRenaming={renamingRequestId === request.id}
+            renameDraft={renameDraft}
+            onRenameDraftChange={onRenameDraftChange}
+            onApplyRequestRename={onApplyRequestRename}
+            onStopRequestRename={onStopRequestRename}
+            onStartRequestRename={onStartRequestRename}
+            onSelectRequest={onSelectRequest}
+            onDeleteRequest={onDeleteRequest}
+            methodClass={methodClass}
+            resolvedMethodLabel={resolvedMethodLabel}
+            draftRequest={draftRequest}
+            isDraftDirty={isDraftDirty}
+            scriptStatus={scriptStatus}
+            onContextMenu={onContextMenu}
+          />
+        ))}
+      </div>
+    );
+  };
+
   // Recursive folder render function
   const renderFolders = (parentId: string | undefined, depth: number, forceShowAll: boolean, collectionId: string) => {
     const folders = (workspace?.folders ?? [])
@@ -1008,17 +1061,44 @@ export function Sidebar({
           </div>
         )}
 
-        <button
-          className="sidebar-new-collection-btn"
-          type="button"
-          onClick={() => void onCreateCollection()}
-          aria-label="Create new collection"
-        >
-          <Plus size={16} />
-          <span>New Collection</span>
-        </button>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
+          <button
+            className="sidebar-new-collection-btn"
+            type="button"
+            onClick={() => void onCreateCollection()}
+            aria-label="Create new collection"
+            style={{ flex: 1 }}
+          >
+            <Plus size={16} />
+            <span>New Collection</span>
+          </button>
+          {onExpandAll && (
+            <button
+              className="ghost-button"
+              type="button"
+              onClick={onExpandAll}
+              aria-label="Expand all folders"
+              title="Expand all"
+              style={{ padding: "6px", height: "auto" }}
+            >
+              <ChevronsDown size={15} />
+            </button>
+          )}
+          {onCollapseAll && (
+            <button
+              className="ghost-button"
+              type="button"
+              onClick={onCollapseAll}
+              aria-label="Collapse all folders"
+              title="Collapse all"
+              style={{ padding: "6px", height: "auto" }}
+            >
+              <ChevronsUp size={15} />
+            </button>
+          )}
+        </div>
 
-        <label className={collectionSearch ? "search-field has-value" : "search-field"}>
+        <label className={collectionSearch ? "search-field has-value" : "search-field"} style={{ marginTop: 0 }}>
           <Search size={15} />
           <input
             placeholder="Search collections, folders, requests"
@@ -1070,8 +1150,10 @@ export function Sidebar({
                 onStartSidebarRename={onStartSidebarRename}
                 onDeleteCollection={onDeleteCollection}
                 onCreateFolder={onCreateFolder}
+                onCreateRequest={onCreateRequest}
                 onContextMenu={onContextMenu}
               >
+                {renderCollectionRequests(collection.id, matchesCollectionSearch(collection.name) ?? false)}
                 {renderFolders(undefined, 0, matchesCollectionSearch(collection.name) ?? false, collection.id)}
               </DraggableCollectionRow>
             ))}

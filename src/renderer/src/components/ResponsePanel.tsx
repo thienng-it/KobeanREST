@@ -3,6 +3,7 @@ import { Clock3, Download, Eye, Search, HelpCircle, History } from "lucide-react
 import jq from "jq-web";
 import { JqHelpModal } from "./JqHelpModal";
 import { ResponseViewer } from "./ResponseViewer";
+import { CustomSelect } from "./CustomSelect";
 import { formatBytes, formatResponseBody, type ResponseState, type PreviewMode } from "../response-utils";
 import type { ExecuteHttpResponse } from "../types";
 import type { ScriptOutputEntry } from "../hooks/useScripts";
@@ -222,17 +223,18 @@ export function ResponsePanel({
           <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", width: "100%" }}>
             {responseTab === "preview" && (
               <div style={{ display: "flex", gap: "8px", alignItems: "center", marginRight: "auto" }}>
-                <select
+                <CustomSelect
+                  ariaLabel="Preview mode"
                   value={previewMode}
-                  onChange={(e) => onPreviewModeChange(e.target.value as PreviewMode)}
-                  style={{ fontSize: "12px", padding: "2px 6px", borderRadius: "4px", backgroundColor: "var(--color-surface-muted)", color: "var(--color-text)", border: "1px solid var(--color-border)", cursor: "pointer" }}
-                >
-                  <option value="rendered">Rendered</option>
-                  <option value="json">JSON</option>
-                  <option value="xml">XML</option>
-                  <option value="html">HTML</option>
-                  <option value="raw">Raw</option>
-                </select>
+                  onChange={(val) => onPreviewModeChange(val as PreviewMode)}
+                  options={[
+                    { value: "rendered", label: "Rendered" },
+                    { value: "json", label: "JSON" },
+                    { value: "xml", label: "XML" },
+                    { value: "html", label: "HTML" },
+                    { value: "raw", label: "Raw" }
+                  ]}
+                />
               </div>
             )}
 

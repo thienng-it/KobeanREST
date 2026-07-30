@@ -1,4 +1,4 @@
-import { Copy, Edit2, Eye, FolderTree, KeyRound, Plus, Trash2, Variable, Terminal, Upload, Download } from "lucide-react";
+import { Copy, Edit2, Eye, FolderTree, KeyRound, Plus, Trash2, Variable, Terminal, Upload, Download, FileText } from "lucide-react";
 import type { SavedRequest } from "../types";
 
 export interface ContextMenuTarget {
@@ -50,10 +50,13 @@ export interface ContextMenuProps {
   requests: SavedRequest[];
   onClose: () => void;
   onCreateRequest: (folderId: string) => void;
+  onCreateFolder: (collectionId: string) => Promise<void> | void;
   onCreateSubFolder: (folderId: string) => Promise<void> | void;
   onEditFolderAuth: (folderId: string) => void;
   onEditFolderScripts: (folderId: string) => void;
   onEditFolderVariables: (folderId: string) => void;
+  onEditCollectionAuth: (collectionId: string) => void;
+  onEditCollectionScripts: (collectionId: string) => void;
   onEditCollectionVariables: (collectionId: string) => void;
   onDeleteFolder: (folderId: string) => void;
   onStartRequestRename: (request: SavedRequest) => void;
@@ -73,10 +76,13 @@ export function ContextMenu({
   requests,
   onClose,
   onCreateRequest,
+  onCreateFolder,
   onCreateSubFolder,
   onEditFolderAuth,
   onEditFolderScripts,
   onEditFolderVariables,
+  onEditCollectionAuth,
+  onEditCollectionScripts,
   onEditCollectionVariables,
   onDeleteFolder,
   onStartRequestRename,
@@ -207,6 +213,57 @@ export function ContextMenu({
         <>
           <button
             className="context-menu-item"
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (target.id) void onCreateRequest(target.id);
+              onClose();
+            }}
+            style={itemStyle}
+            {...hoverHandlers()}
+          >
+            <Plus size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> New Request
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (target.id) {
+                await onCreateFolder(target.id);
+              }
+              onClose();
+            }}
+            style={itemStyle}
+            {...hoverHandlers()}
+          >
+            <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> New Folder
+          </button>
+          <div style={{ height: "1px", backgroundColor: "var(--color-border)", margin: "4px 0" }} />
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (target.id) onEditCollectionAuth(target.id);
+              onClose();
+            }}
+            style={itemStyle}
+            {...hoverHandlers()}
+          >
+            <KeyRound size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Auth
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (target.id) onEditCollectionScripts(target.id);
+              onClose();
+            }}
+            style={itemStyle}
+            {...hoverHandlers()}
+          >
+            <Edit2 size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Scripts
+          </button>
+          <button
+            className="context-menu-item"
             onClick={(e) => {
               e.stopPropagation();
               if (target.id) onEditCollectionVariables(target.id);
@@ -295,7 +352,7 @@ export function ContextMenu({
             style={requestItemStyle}
             {...hoverHandlers()}
           >
-            <Terminal size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Import cURL
+            <Terminal size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Import
           </button>
           <button
             className="context-menu-item"

@@ -18,7 +18,7 @@ export interface ScriptSnippet {
   body: string;
 }
 
-export type RequestCodeSnippetTarget = "curl" | "fetch" | "node";
+export type RequestCodeSnippetTarget = "curl" | "fetch" | "node" | "python" | "go" | "java";
 
 export const SCRIPT_EDITOR_MODES: ScriptEditorModeOption[] = [
   { value: "javascript", label: "JavaScript" },
@@ -363,6 +363,15 @@ export function generateRequestCodeSnippet(
   if (target === "node") {
     return generateNodeSnippet(resolvedRequest);
   }
+  if (target === "python") {
+    return generatePythonSnippet(resolvedRequest);
+  }
+  if (target === "go") {
+    return generateGoSnippet(resolvedRequest);
+  }
+  if (target === "java") {
+    return generateJavaSnippet(resolvedRequest);
+  }
   return generateFetchSnippet(resolvedRequest);
 }
 
@@ -395,6 +404,93 @@ function generateNodeSnippet(request: SavedRequest): string {
   const fetchSnippet = generateFetchSnippet(request);
   return `const response = ${fetchSnippet}
 console.log(response.status, await response.text());`;
+}
+
+function generatePythonSnippet(request: SavedRequest): string {
+  const method = resolvedMethodLabel(request.method, request.customMethod);
+  const headers = request.headers.filter((item) => item.enabled && item.key.trim());
+  const headerBlock = headers.length
+    ? `\nheaders = ${JSON.stringify(Object.fromEntries(headers.map((h) => [h.key, h.value])), null, 4)}`
+    : "";
+  const bodyBlock = request.body.trim() ? `\ndata = ${JSON.stringify(request.body)}` : "";
+  const args = [
+    `"${request.url}"`,
+    headers.length ? "headers=headers" : "",
+    request.body.trim() ? "data=data" : ""
+  ].filter(Boolean).join(", ");
+  
+  return `import requests
+${headerBlock}${bodyBlock}
+response = requests.request("${method}", ${args})
+print(response.text)`;
+}
+
+function generateGoSnippet(request: SavedRequest): string {
+  const method = resolvedMethodLabel(request.method, request.customMethod);
+  const headers = request.headers.filter((item) => item.enabled && item.key.trim());
+  
+  let bodyDecl = `var data *strings.Reader = nil`;
+  if (request.body.trim()) {
+    bodyDecl = `data := strings.NewReader(${JSON.stringify(request.body)})`;
+  }
+
+  let headerDecl = "";
+  if (headers.length > 0) {
+    headerDecl = headers.map(h => `req.Header.Set("${h.key}", "${h.value.replace(/"/g, '\\"')}")`).join("\n\t");
+  }
+
+  return `package main
+
+import (
+\t"fmt"
+\t"io"
+\t"net/http"
+\t"strings"
+)
+
+func main() {
+\t${bodyDecl}
+\treq, err := http.NewRequest("${method}", "${request.url}", ${request.body.trim() ? "data" : "nil"})
+\tif err != nil {
+\t\tpanic(err)
+\t}
+\t${headerDecl}
+\tclient := &http.Client{}
+\tresp, err := client.Do(req)
+\tif err != nil {
+\t\tpanic(err)
+\t}
+\tdefer resp.Body.Close()
+\tbodyText, _ := io.ReadAll(resp.Body)
+\tfmt.Printf("%s\\n", bodyText)
+}`;
+}
+
+function generateJavaSnippet(request: SavedRequest): string {
+  const method = resolvedMethodLabel(request.method, request.customMethod);
+  const headers = request.headers.filter((item) => item.enabled && item.key.trim());
+  
+  let headerDecl = headers.map(h => `.header("${h.key}", "${h.value.replace(/"/g, '\\"')}")`).join("\n            ");
+  let bodyMethod = request.body.trim() ? `HttpRequest.BodyPublishers.ofString(${JSON.stringify(request.body)})` : `HttpRequest.BodyPublishers.noBody()`;
+  
+  return `import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("${request.url}"))
+            ${headerDecl ? `\n            ${headerDecl}` : ""}
+            .method("${method}", ${bodyMethod})
+            .build();
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println(response.body());
+    }
+}`;
 }
 
 function quoteShell(value: string): string {

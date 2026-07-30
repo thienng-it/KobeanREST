@@ -2574,9 +2574,10 @@ dependencies = [
 
 [[package]]
 name = "kobeanrest"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "base64 0.22.1",
+ "form_urlencoded",
  "keyring",
  "log",
  "reqwest",
