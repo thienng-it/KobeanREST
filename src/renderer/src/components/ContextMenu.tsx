@@ -1,4 +1,4 @@
-import { Copy, Edit2, Eye, FolderTree, KeyRound, Plus, Trash2, Variable, Terminal, Upload, Download, FileText } from "lucide-react";
+import { Copy, Edit2, Eye, FolderTree, KeyRound, Play, Plus, Trash2, Variable, Terminal, Upload, Download, FileText } from "lucide-react";
 import type { SavedRequest } from "../types";
 
 export interface ContextMenuTarget {
@@ -69,6 +69,8 @@ export interface ContextMenuProps {
   onExport: () => void;
   onSetSelectionAsVariable?: (text: string) => void;
   onMoveItemTo?: (reqId: string, itemType: "request" | "folder") => void;
+  onRunFolder?: (folderId: string) => void;
+  onRunCollection?: (collectionId: string) => void;
 }
 
 export function ContextMenu({
@@ -95,6 +97,8 @@ export function ContextMenu({
   onExport,
   onSetSelectionAsVariable,
   onMoveItemTo,
+  onRunFolder,
+  onRunCollection,
 }: ContextMenuProps) {
   if (!menu) return null;
   const target = menu.target;
@@ -145,6 +149,18 @@ export function ContextMenu({
             {...hoverHandlers()}
           >
             <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> New Folder
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (target.id && onRunFolder) onRunFolder(target.id);
+              onClose();
+            }}
+            style={itemStyle}
+            {...hoverHandlers()}
+          >
+            <Play size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Run Folder
           </button>
           <button
             className="context-menu-item"
@@ -236,6 +252,18 @@ export function ContextMenu({
             {...hoverHandlers()}
           >
             <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> New Folder
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (target.id && onRunCollection) onRunCollection(target.id);
+              onClose();
+            }}
+            style={itemStyle}
+            {...hoverHandlers()}
+          >
+            <Play size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Run Collection
           </button>
           <div style={{ height: "1px", backgroundColor: "var(--color-border)", margin: "4px 0" }} />
           <button

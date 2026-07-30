@@ -31,6 +31,7 @@ import { CreateRequestModal } from "./components/CreateRequestModal";
 import { TabBar } from "./components/TabBar";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
+import { CollectionRunner } from "./components/CollectionRunner";
 
 import {
   SCRIPT_SNIPPETS,
@@ -109,6 +110,7 @@ export function App() {
   const [createRequestInitialFolderId, setCreateRequestInitialFolderId] = useState<string | undefined>(undefined);
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
   const [moveToModal, setMoveToModal] = useState<{ type: "request" | "folder"; id: string } | null>(null);
+  const [collectionRunner, setCollectionRunner] = useState<{ scopeId: string; scopeType: "folder" | "collection" } | null>(null);
 
   const ws = useWorkspace({
     setConfirmDialog,
@@ -1468,6 +1470,28 @@ export function App() {
             setSetEnvVarModal({ open: true, text });
           }}
           onMoveItemTo={(reqId, type) => setMoveToModal({ id: reqId, type })}
+          onRunFolder={(folderId) => setCollectionRunner({ scopeId: folderId, scopeType: "folder" })}
+          onRunCollection={(collectionId) => setCollectionRunner({ scopeId: collectionId, scopeType: "collection" })}
+        />
+      )}
+
+      {collectionRunner && workspace && (
+        <CollectionRunner
+          workspace={workspace}
+          scopeId={collectionRunner.scopeId}
+          scopeType={collectionRunner.scopeType}
+          onClose={() => setCollectionRunner(null)}
+          runScript={runScript}
+          persistVariable={(key, value) => {
+            const envName = workspace.activeEnvironment;
+            if (!envName) return;
+            void handleSaveVariable(envName, key, value);
+          }}
+          removeVariable={(key) => {
+            const envName = workspace.activeEnvironment;
+            if (!envName) return;
+            void handleDeleteVariable(envName, key);
+          }}
         />
       )}
 
