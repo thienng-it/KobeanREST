@@ -3,7 +3,7 @@ import type { SavedRequest } from "../types";
 
 export interface ContextMenuTarget {
   id: string;
-  type: "folder" | "request" | "collection" | "workspace" | "selection";
+  type: "folder" | "request" | "collection" | "workspace" | "selection" | "tab";
   selectionText?: string;
 }
 
@@ -71,6 +71,9 @@ export interface ContextMenuProps {
   onMoveItemTo?: (reqId: string, itemType: "request" | "folder") => void;
   onRunFolder?: (folderId: string) => void;
   onRunCollection?: (collectionId: string) => void;
+  onCloseTab?: (tabId: string) => void;
+  onCloseOtherTabs?: (tabId: string) => void;
+  onCloseAllTabs?: () => void;
 }
 
 export function ContextMenu({
@@ -99,6 +102,9 @@ export function ContextMenu({
   onMoveItemTo,
   onRunFolder,
   onRunCollection,
+  onCloseTab,
+  onCloseOtherTabs,
+  onCloseAllTabs,
 }: ContextMenuProps) {
   if (!menu) return null;
   const target = menu.target;
@@ -420,6 +426,43 @@ export function ContextMenu({
         >
           <Variable size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Set as Environment Variable
         </button>
+      )}
+      {target?.type === "tab" && (
+        <>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              onCloseTab?.(target.id);
+              onClose();
+            }}
+            style={requestItemStyle}
+            {...hoverHandlers()}
+          >
+            Close Current Tab
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              onCloseOtherTabs?.(target.id);
+              onClose();
+            }}
+            style={requestItemStyle}
+            {...hoverHandlers()}
+          >
+            Close Other Tabs
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              onCloseAllTabs?.();
+              onClose();
+            }}
+            style={requestItemStyle}
+            {...hoverHandlers()}
+          >
+            Close All Tabs
+          </button>
+        </>
       )}
     </div>
   );
