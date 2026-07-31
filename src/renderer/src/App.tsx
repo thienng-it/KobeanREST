@@ -1025,6 +1025,72 @@ export function App() {
     });
   }
 
+  function actuallyCloseTabs(tabIdsToClose: string[]) {
+    setTabs((prev) => {
+      const newTabs = prev.filter((t) => !tabIdsToClose.includes(t.id));
+
+      if (activeTabId && tabIdsToClose.includes(activeTabId)) {
+        if (newTabs.length > 0) {
+          const nextTab = newTabs[newTabs.length - 1];
+          setActiveTabId(nextTab.id);
+          if (nextTab.type === "request") {
+            setSelectedRequestId(nextTab.entityId);
+            lastSelectedRequestIdRef.current = nextTab.entityId;
+          } else if (nextTab.type === "folder") {
+            setSelectedRequestId(null);
+            lastSelectedRequestIdRef.current = null;
+            setFolderScriptsTarget(nextTab.entityId);
+            setFolderScriptsOpen(true);
+          } else if (nextTab.type === "environment") {
+            setSelectedRequestId(null);
+            lastSelectedRequestIdRef.current = null;
+          }
+        } else {
+          setActiveTabId(null);
+          setSelectedRequestId(null);
+          lastSelectedRequestIdRef.current = null;
+        }
+      }
+
+      return newTabs;
+    });
+  }
+
+  function handleCloseOtherTabs(excludeTabId: string) {
+    const tabsToClose = tabs.filter((t) => t.id !== excludeTabId);
+    if (tabsToClose.length === 0) return;
+
+    const dirtyCount = tabsToClose.filter((t) => t.isDirty).length;
+    const tabIdsToClose = tabsToClose.map((t) => t.id);
+
+    if (dirtyCount > 0) {
+      setConfirmDialog({
+        message: `You have unsaved changes in ${dirtyCount} tab(s). Are you sure you want to discard them?`,
+        confirmVariant: "danger",
+        onConfirm: () => actuallyCloseTabs(tabIdsToClose),
+      });
+    } else {
+      actuallyCloseTabs(tabIdsToClose);
+    }
+  }
+
+  function handleCloseAllTabs() {
+    if (tabs.length === 0) return;
+
+    const dirtyCount = tabs.filter((t) => t.isDirty).length;
+    const tabIdsToClose = tabs.map((t) => t.id);
+
+    if (dirtyCount > 0) {
+      setConfirmDialog({
+        message: `You have unsaved changes in ${dirtyCount} tab(s). Are you sure you want to discard them?`,
+        confirmVariant: "danger",
+        onConfirm: () => actuallyCloseTabs(tabIdsToClose),
+      });
+    } else {
+      actuallyCloseTabs(tabIdsToClose);
+    }
+  }
+
   function closeTab(tabId: string, e?: React.MouseEvent) {
     e?.stopPropagation();
 
@@ -1321,6 +1387,9 @@ export function App() {
               }
             }}
             onTabClose={closeTab}
+            onTabContextMenu={(tabId, x, y) => {
+              setContextMenu({ x, y, target: { id: tabId, type: "tab" } });
+            }}
           />
           {(() => {
             if (currentTab?.type === "environment") {
@@ -1666,6 +1735,9 @@ export function App() {
           onMoveItemTo={(reqId, type) => setMoveToModal({ id: reqId, type })}
           onRunFolder={(folderId) => setCollectionRunner({ scopeId: folderId, scopeType: "folder" })}
           onRunCollection={(collectionId) => setCollectionRunner({ scopeId: collectionId, scopeType: "collection" })}
+          onCloseTab={closeTab}
+          onCloseOtherTabs={handleCloseOtherTabs}
+          onCloseAllTabs={handleCloseAllTabs}
         />
       )}
 
