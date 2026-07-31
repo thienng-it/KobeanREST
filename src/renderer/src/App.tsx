@@ -46,7 +46,7 @@ import {
   loadHistoryResponse,
   importWorkspaceData,
 } from "./services/local-store";
-import type { SavedRequest, Tab } from "./types";
+import type {SavedRequest, Tab, WorkspaceSummary} from "./types";
 import type { ScriptOutputEntry } from "./hooks/useScripts";
 
 const SIDEBAR_MIN_WIDTH = 260;
@@ -555,7 +555,9 @@ export function App() {
 
     // Build the full scoped variable map (env → collection → folder → request)
     // upfront so scripts see all variables, not just environment variables.
-    const scopeWorkspace = workspace ?? { id: "tmp", name: "Temporary", activeEnvironment: "", environments: [], folders: [], requests: [] };
+    const scopeWorkspace = workspace 
+      ? (JSON.parse(JSON.stringify(workspace)) as WorkspaceSummary)
+      : { id: "tmp", name: "Temporary", activeEnvironment: "", environments: [], folders: [], requests: [] };
     const scopedFolder = scopeWorkspace.folders.find((f) => f.id === draftRequest.folderId);
     const variableMap = buildScopedVariableMap(scopeWorkspace, {
       collectionId: scopedFolder?.collectionId,
@@ -564,21 +566,46 @@ export function App() {
     });
 
     // 1. Execute Pre-scripts (Hierarchy: Collection -> Folder -> Request)
-    const persistVariable = (key: string, value: string) => {
+    const setLocalVariable = (key: string, value: string) => {
+      preScriptsContext.variables[key] = value;
+      variableMap.set(key, value);
+    };
+    const deleteLocalVariable = (key: string) => {
+      delete preScriptsContext.variables[key];
+      variableMap.delete(key);
+    };
+    const setEnvironmentVariable = (key: string, value: string) => {
       const envName = workspace?.activeEnvironment;
       if (!envName) return;
       void handleSaveVariable(envName, key, value);
+      
+      const env = scopeWorkspace.environments.find(e => e.name === envName);
+      if (env) {
+        const existing = env.variables.find(v => v.key === key);
+        if (existing) {
+          existing.value = value;
+        } else {
+          env.variables.push({ key, value });
+        }
+      }
     };
-    const removeVariable = (key: string) => {
+    const deleteEnvironmentVariable = (key: string) => {
       const envName = workspace?.activeEnvironment;
       if (!envName) return;
       void handleDeleteVariable(envName, key);
+      
+      const env = scopeWorkspace.environments.find(e => e.name === envName);
+      if (env) {
+        env.variables = env.variables.filter(v => v.key !== key);
+      }
     };
     const preScriptsContext: KbScriptContext = {
       request: { ...draftRequest },
       variables: Object.fromEntries(variableMap),
-      setVariable: persistVariable,
-      deleteVariable: removeVariable,
+      setLocalVariable,
+      deleteLocalVariable,
+      setEnvironmentVariable,
+      deleteEnvironmentVariable,
     };
     
     try {
@@ -591,11 +618,21 @@ export function App() {
         }
       }
 
-      const folderScripts = await getScripts(draftRequest.folderId, 'folder');
-      const preFolder = folderScripts.find(s => s.scriptType === 'pre')?.content;
-      if (preFolder) {
-        const resolved = resolveString(preFolder, variableMap).resolved;
-        scriptOutputEntries.push(...(await runScript(resolved, preScriptsContext, "Folder pre-request")));
+      const folderPath: import('./types').FolderSummary[] = [];
+      let currentFolder = scopedFolder;
+      while (currentFolder) {
+        folderPath.push(currentFolder);
+        currentFolder = scopeWorkspace.folders.find((f) => f.id === currentFolder?.parentId);
+      }
+      folderPath.reverse(); // root folder first
+
+      for (const folder of folderPath) {
+        const folderScripts = await getScripts(folder.id, 'folder');
+        const preFolder = folderScripts.find(s => s.scriptType === 'pre')?.content;
+        if (preFolder) {
+          const resolved = resolveString(preFolder, variableMap).resolved;
+          scriptOutputEntries.push(...(await runScript(resolved, preScriptsContext, `Folder (${folder.name}) pre-request`)));
+        }
       }
       
       const reqScripts = await getScripts(draftRequest.id, 'request');
@@ -778,8 +815,16 @@ export function App() {
         request: requestToSend,
         response: Object.freeze(response),
         variables: Object.fromEntries(updatedVariableMap),
-        setVariable: persistVariable,
-        deleteVariable: removeVariable,
+        setLocalVariable: (key, value) => {
+          postScriptsContext.variables[key] = value;
+          updatedVariableMap.set(key, value);
+        },
+        deleteLocalVariable: (key) => {
+          delete postScriptsContext.variables[key];
+          updatedVariableMap.delete(key);
+        },
+        setEnvironmentVariable,
+        deleteEnvironmentVariable,
       };
       
       try {
@@ -789,12 +834,20 @@ export function App() {
           const resolved = resolveString(postReq, updatedVariableMap).resolved;
           scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Request post-response")));
         }
-        
-        const folderScripts = await getScripts(requestToSend.folderId, 'folder');
-        const postFolder = folderScripts.find(s => s.scriptType === 'post')?.content;
-        if (postFolder) {
-          const resolved = resolveString(postFolder, updatedVariableMap).resolved;
-          scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Folder post-response")));
+        const folderPath2: import('./types').FolderSummary[] = [];
+        let currentFolder2 = scopedFolder2;
+        while (currentFolder2) {
+          folderPath2.push(currentFolder2);
+          currentFolder2 = scopeWorkspace.folders.find((f) => f.id === currentFolder2?.parentId);
+        }
+        // No reverse here, because post-scripts run from immediate folder up to root folder
+        for (const folder of folderPath2) {
+          const folderScripts = await getScripts(folder.id, 'folder');
+          const postFolder = folderScripts.find(s => s.scriptType === 'post')?.content;
+          if (postFolder) {
+            const resolved = resolveString(postFolder, updatedVariableMap).resolved;
+            scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, `Folder (${folder.name}) post-response`)));
+          }
         }
 
         if (scopedFolder2?.collectionId) {
@@ -919,7 +972,6 @@ export function App() {
   }
 
   function openEnvironmentTab(envName: string) {
-    void handleSetActiveEnvironment(envName);
     setSelectedRequestId(null);
     lastSelectedRequestIdRef.current = null;
     const existingTab = tabs.find((t) => t.type === "environment" && t.entityId === envName);
@@ -938,11 +990,39 @@ export function App() {
   }
 
   function handleDeleteEnvironmentAndCloseTabs(envName: string) {
-    handleDeleteEnvironment(envName);
-    const tabToClose = tabs.find((t) => t.type === "environment" && t.entityId === envName);
-    if (tabToClose) {
-      performCloseTab(tabToClose.id);
-    }
+    handleDeleteEnvironment(envName, () => {
+      setTabs((prev) => {
+        const tabToClose = prev.find((t) => t.type === "environment" && t.entityId === envName);
+        if (tabToClose) {
+          // Instead of calling performCloseTab, we directly remove it here to avoid asynchronous issues with state
+          const newTabs = prev.filter((t) => t.id !== tabToClose.id);
+          if (activeTabId === tabToClose.id) {
+            if (newTabs.length > 0) {
+              const nextTab = newTabs[newTabs.length - 1];
+              setActiveTabId(nextTab.id);
+              if (nextTab.type === "request") {
+                setSelectedRequestId(nextTab.entityId);
+                lastSelectedRequestIdRef.current = nextTab.entityId;
+              } else if (nextTab.type === "folder") {
+                setSelectedRequestId(null);
+                lastSelectedRequestIdRef.current = null;
+                setFolderScriptsTarget(nextTab.entityId);
+                setFolderScriptsOpen(true);
+              } else if (nextTab.type === "environment") {
+                setSelectedRequestId(null);
+                lastSelectedRequestIdRef.current = null;
+              }
+            } else {
+              setActiveTabId("");
+              setSelectedRequestId(null);
+              lastSelectedRequestIdRef.current = null;
+            }
+          }
+          return newTabs;
+        }
+        return prev;
+      });
+    });
   }
 
   function closeTab(tabId: string, e?: React.MouseEvent) {
@@ -1127,6 +1207,7 @@ export function App() {
       <Sidebar
         workspace={workspace}
         selectedRequestId={selectedRequestId}
+        selectedEnvironmentTab={currentTab?.type === 'environment' ? currentTab.entityId : null}
         activeEnvironment={workspace?.activeEnvironment || ""}
         sidebarWidth={sidebarWidth}
         isResizing={isSidebarResizing}

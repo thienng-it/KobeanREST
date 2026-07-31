@@ -99,8 +99,21 @@ export function buildScopedVariableMap(
   }
 
   if (scope.folderId) {
-    const folder = workspace.folders.find((f) => f.id === scope.folderId);
-    ingest(folder?.variables);
+    const folders: import("../types").FolderSummary[] = [];
+    let currentFolderId: string | undefined = scope.folderId;
+    while (currentFolderId) {
+      const folder = workspace.folders.find((f) => f.id === currentFolderId);
+      if (folder) {
+        folders.push(folder);
+        currentFolderId = folder.parentId;
+      } else {
+        break;
+      }
+    }
+    // Ingest from top-level down to the immediate folder.
+    for (let i = folders.length - 1; i >= 0; i--) {
+      ingest(folders[i].variables);
+    }
   }
 
   if (scope.request) {

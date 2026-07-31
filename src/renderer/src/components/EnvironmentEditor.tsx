@@ -339,15 +339,7 @@ export function EnvironmentEditor({
           {onDeleteEnvironment && (
             <button
               type="button"
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Delete environment "${environmentName}"? This cannot be undone.`
-                  )
-                ) {
-                  onDeleteEnvironment();
-                }
-              }}
+              onClick={onDeleteEnvironment}
               style={{
                 padding: "6px 12px",
                 border: "1px solid #ef4444",

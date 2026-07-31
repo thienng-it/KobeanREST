@@ -118,7 +118,9 @@ export function CollectionRunner({
   }, []);
 
   async function executeOne(req: SavedRequest): Promise<RequestResult> {
-    const scopeWorkspace = workspace;
+    const scopeWorkspace = workspace 
+      ? (JSON.parse(JSON.stringify(workspace)) as WorkspaceSummary)
+      : workspace;
     const folder = scopeWorkspace.folders.find((f) => f.id === req.folderId);
     const collectionId = folder?.collectionId;
     const variableMap = buildScopedVariableMap(scopeWorkspace, {
@@ -127,11 +129,50 @@ export function CollectionRunner({
       request: req,
     });
 
+    const setLocalVariable = (key: string, value: string) => {
+      preScriptsCtx.variables[key] = value;
+      variableMap.set(key, value);
+    };
+
+    const deleteLocalVariable = (key: string) => {
+      delete preScriptsCtx.variables[key];
+      variableMap.delete(key);
+    };
+
+    const setEnvironmentVariable = (key: string, value: string) => {
+      persistVariable(key, value);
+      const envName = scopeWorkspace?.activeEnvironment;
+      if (envName && scopeWorkspace) {
+        const env = scopeWorkspace.environments.find(e => e.name === envName);
+        if (env) {
+          const existing = env.variables.find(v => v.key === key);
+          if (existing) {
+            existing.value = value;
+          } else {
+            env.variables.push({ key, value });
+          }
+        }
+      }
+    };
+
+    const deleteEnvironmentVariable = (key: string) => {
+      removeVariable(key);
+      const envName = scopeWorkspace?.activeEnvironment;
+      if (envName && scopeWorkspace) {
+        const env = scopeWorkspace.environments.find(e => e.name === envName);
+        if (env) {
+          env.variables = env.variables.filter(v => v.key !== key);
+        }
+      }
+    };
+
     const preScriptsCtx: KbScriptContext = {
       request: { ...req },
       variables: Object.fromEntries(variableMap),
-      setVariable: persistVariable,
-      deleteVariable: removeVariable,
+      setLocalVariable,
+      deleteLocalVariable,
+      setEnvironmentVariable,
+      deleteEnvironmentVariable,
     };
 
     // Pre-scripts
@@ -141,9 +182,20 @@ export function CollectionRunner({
         const pre = collScripts.find((s) => s.scriptType === "pre")?.content;
         if (pre) await runScript(resolveString(pre, variableMap).resolved, preScriptsCtx, "Collection pre");
       }
-      const folderScripts = await getScripts(req.folderId, "folder");
-      const preF = folderScripts.find((s) => s.scriptType === "pre")?.content;
-      if (preF) await runScript(resolveString(preF, variableMap).resolved, preScriptsCtx, "Folder pre");
+      
+      const folderPath: import('../types').FolderSummary[] = [];
+      let currentFolder = folder;
+      while (currentFolder) {
+        folderPath.push(currentFolder);
+        currentFolder = scopeWorkspace?.folders.find((f) => f.id === currentFolder?.parentId);
+      }
+      folderPath.reverse(); // root folder first
+      
+      for (const f of folderPath) {
+        const folderScripts = await getScripts(f.id, "folder");
+        const preF = folderScripts.find((s) => s.scriptType === "pre")?.content;
+        if (preF) await runScript(resolveString(preF, variableMap).resolved, preScriptsCtx, `Folder (${f.name}) pre`);
+      }
       const reqScripts = await getScripts(req.id, "request");
       const preR = reqScripts.find((s) => s.scriptType === "pre")?.content;
       if (preR) await runScript(resolveString(preR, variableMap).resolved, preScriptsCtx, "Request pre");
@@ -220,16 +272,32 @@ export function CollectionRunner({
         request: requestToSend,
         response: Object.freeze(response),
         variables: Object.fromEntries(updatedVariableMap),
-        setVariable: persistVariable,
-        deleteVariable: removeVariable,
+        setLocalVariable: (key, value) => {
+          postCtx.variables[key] = value;
+          updatedVariableMap.set(key, value);
+        },
+        deleteLocalVariable: (key) => {
+          delete postCtx.variables[key];
+          updatedVariableMap.delete(key);
+        },
+        setEnvironmentVariable,
+        deleteEnvironmentVariable,
       };
       try {
         const reqScripts2 = await getScripts(requestToSend.id, "request");
         const postR = reqScripts2.find((s) => s.scriptType === "post")?.content;
         if (postR) await runScript(resolveString(postR, updatedVariableMap).resolved, postCtx, "Request post");
-        const folderScripts2 = await getScripts(requestToSend.folderId, "folder");
-        const postF = folderScripts2.find((s) => s.scriptType === "post")?.content;
-        if (postF) await runScript(resolveString(postF, updatedVariableMap).resolved, postCtx, "Folder post");
+        const folderPath2: import('../types').FolderSummary[] = [];
+        let currentFolder2 = folder;
+        while (currentFolder2) {
+          folderPath2.push(currentFolder2);
+          currentFolder2 = scopeWorkspace?.folders.find((f) => f.id === currentFolder2?.parentId);
+        }
+        for (const f of folderPath2) {
+          const folderScripts2 = await getScripts(f.id, "folder");
+          const postF = folderScripts2.find((s) => s.scriptType === "post")?.content;
+          if (postF) await runScript(resolveString(postF, updatedVariableMap).resolved, postCtx, `Folder (${f.name}) post`);
+        }
         if (collectionId) {
           const collScripts2 = await getScripts(collectionId, "collection");
           const postC = collScripts2.find((s) => s.scriptType === "post")?.content;

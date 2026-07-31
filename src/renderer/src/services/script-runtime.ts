@@ -11,9 +11,17 @@ export interface KbScriptContext {
   request: SavedRequest;
   response?: ExecuteHttpResponse;
   variables: Record<string, string>;
+  /** Update the local variable map used by the runner (for current execution only) */
+  setLocalVariable?: (key: string, value: string) => void;
+  /** Remove a local variable */
+  deleteLocalVariable?: (key: string) => void;
   /** Persist a variable to the active environment (called when scripts set a variable). */
-  setVariable?: (key: string, value: string) => void;
+  setEnvironmentVariable?: (key: string, value: string) => void;
   /** Remove a variable from the active environment. */
+  deleteEnvironmentVariable?: (key: string) => void;
+  /** @deprecated use setEnvironmentVariable */
+  setVariable?: (key: string, value: string) => void;
+  /** @deprecated use deleteEnvironmentVariable */
   deleteVariable?: (key: string) => void;
 }
 
@@ -66,8 +74,8 @@ function buildKbResponse(response: ExecuteHttpResponse) {
 
 function buildKbVariables(
   variables: Record<string, string>,
-  setVariable?: (key: string, value: string) => void,
-  deleteVariable?: (key: string) => void,
+  setLocalVariable?: (key: string, value: string) => void,
+  deleteLocalVariable?: (key: string) => void,
 ) {
   return new Proxy(variables, {
     get(target, prop) {
@@ -77,7 +85,7 @@ function buildKbVariables(
     set(target, prop, value) {
       if (typeof prop === "string") {
         target[prop] = String(value);
-        setVariable?.(prop, String(value));
+        setLocalVariable?.(prop, String(value));
       }
       return true;
     },
@@ -93,7 +101,7 @@ function buildKbVariables(
     deleteProperty(target, prop) {
       if (typeof prop === "string") {
         delete target[prop];
-        deleteVariable?.(prop);
+        deleteLocalVariable?.(prop);
       }
       return true;
     },
@@ -343,16 +351,20 @@ function buildKbObject(
   return {
     request: buildKbRequest(ctx.request),
     response: ctx.response ? buildKbResponse(ctx.response) : undefined,
-    variables: buildKbVariables(ctx.variables, ctx.setVariable),
+    variables: buildKbVariables(ctx.variables, ctx.setLocalVariable || ctx.setVariable, ctx.deleteLocalVariable || ctx.deleteVariable),
     environment: {
       get: (key: string): string | undefined => ctx.variables[key],
       set: (key: string, value: string) => {
         ctx.variables[key] = String(value);
-        ctx.setVariable?.(key, String(value));
+        if (ctx.setLocalVariable) ctx.setLocalVariable(key, String(value));
+        else if (ctx.setVariable) ctx.setVariable(key, String(value));
+        if (ctx.setEnvironmentVariable) ctx.setEnvironmentVariable(key, String(value));
       },
       unset: (key: string) => {
         delete ctx.variables[key];
-        ctx.deleteVariable?.(key);
+        if (ctx.deleteLocalVariable) ctx.deleteLocalVariable(key);
+        else if (ctx.deleteVariable) ctx.deleteVariable(key);
+        if (ctx.deleteEnvironmentVariable) ctx.deleteEnvironmentVariable(key);
       },
     },
     sendRequest: kbSendRequest,

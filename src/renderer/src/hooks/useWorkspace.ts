@@ -291,6 +291,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
   async function handleDeleteRequest(reqId: string) {
     setConfirmDialog({
       message: 'Are you sure you want to delete this request?',
+      confirmVariant: "danger",
       onConfirm: () => confirmDeleteRequest(reqId),
     });
   }
@@ -375,6 +376,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
   async function handleDeleteFolder(folderId: string) {
     setConfirmDialog({
       message: 'Are you sure you want to delete this folder and all its requests?',
+      confirmVariant: "danger",
       onConfirm: () => confirmDeleteFolder(folderId),
     });
   }
@@ -382,6 +384,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
   async function handleDeleteCollection(collectionId: string) {
     setConfirmDialog({
       message: 'Delete this collection and all folders and requests inside it?',
+      confirmVariant: "danger",
       onConfirm: () => confirmDeleteCollection(collectionId),
     });
   }
@@ -556,9 +559,10 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     }
   }
 
-  async function handleDeleteEnvironment(name: string) {
+  async function handleDeleteEnvironment(name: string, onSuccess?: () => void) {
     setConfirmDialog({
       message: `Delete environment "${name}" and all its variables?`,
+      confirmVariant: "danger",
       onConfirm: async () => {
         try {
           await deleteEnvironment(name);
@@ -578,6 +582,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
               return remaining[0]?.name ?? "";
             });
           }
+          onSuccess?.();
         } catch (err) {
           console.error("Failed to delete environment", diagnosticMessage(err));
           setDeleteError("Failed to delete environment: " + diagnosticMessage(err));

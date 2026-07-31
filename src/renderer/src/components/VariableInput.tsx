@@ -110,6 +110,7 @@ export function VariablePopoverCard({
       onMouseLeave={onMouseLeave}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="variable-popover-header">
         <div className="variable-popover-title">

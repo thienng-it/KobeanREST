@@ -46,6 +46,7 @@ interface DragOverState {
 export interface SidebarProps {
   workspace: WorkspaceSummary | null;
   selectedRequestId: string | null;
+  selectedEnvironmentTab: string | null;
   activeEnvironment: string;
   sidebarWidth: number;
   isResizing: boolean;
@@ -560,6 +561,7 @@ function DraggableRequestRow({
 export function Sidebar({
   workspace,
   selectedRequestId,
+  selectedEnvironmentTab,
   activeEnvironment,
   sidebarWidth,
   isResizing,
@@ -1188,7 +1190,7 @@ export function Sidebar({
               Environments
             </h2>
             {(workspace?.environments ?? []).map((env) => {
-              const isActive = env.name === activeEnvironment;
+              const isActive = env.name === selectedEnvironmentTab;
               return (
                 <div
                   key={env.name}
@@ -1207,12 +1209,7 @@ export function Sidebar({
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
-                    if (
-                      onDeleteEnvironment &&
-                      window.confirm(`Delete environment "${env.name}"?`)
-                    ) {
-                      onDeleteEnvironment(env.name);
-                    }
+                    onDeleteEnvironment?.(env.name);
                   }}
                 >
                   <div style={{ width: "16px", marginRight: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}>
