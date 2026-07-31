@@ -8,6 +8,7 @@ interface TabBarProps {
   activeTabId: string | null;
   onTabClick: (tab: Tab) => void;
   onTabClose: (tabId: string, e?: React.MouseEvent) => void;
+  onTabContextMenu?: (tabId: string, x: number, y: number) => void;
 }
 
 
@@ -39,6 +40,10 @@ export function TabBar({ tabs, activeTabId, onTabClick, onTabClose }: TabBarProp
           role="tab"
           aria-selected={activeTabId === tab.id}
           onClick={() => onTabClick(tab)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            onTabContextMenu?.(tab.id, e.clientX, e.clientY);
+          }}
           style={{
             display: "flex",
             alignItems: "center",
