@@ -13,7 +13,7 @@ interface TabBarProps {
 
 
 
-export function TabBar({ tabs, activeTabId, onTabClick, onTabClose }: TabBarProps) {
+export function TabBar({ tabs, activeTabId, onTabClick, onTabClose, onTabContextMenu }: TabBarProps) {
   if (tabs.length === 0) {
     return null;
   }
