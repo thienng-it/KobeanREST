@@ -1,4 +1,4 @@
-import { X, Folder } from "lucide-react";
+import { X, Folder, Globe } from "lucide-react";
 import type { Tab } from "../types";
 import type { HttpMethod } from "../types";
 import { methodClass } from "./MethodSelector";
@@ -102,7 +102,11 @@ export function TabBar({ tabs, activeTabId, onTabClick, onTabClose }: TabBarProp
             </>
           ) : (
             <>
-              <Folder size={12} style={{ flexShrink: 0 }} />
+              {tab.type === "environment" ? (
+                <Globe size={12} style={{ flexShrink: 0 }} />
+              ) : (
+                <Folder size={12} style={{ flexShrink: 0 }} />
+              )}
               <span
                 style={{
                   overflow: "hidden",

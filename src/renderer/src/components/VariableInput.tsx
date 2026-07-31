@@ -512,29 +512,26 @@ export function VariableInput({
     [showTooltipForSpan, cancelCloseTimer, scheduleClose, activeTooltip]
   );
 
-  const renderHighlightedText = () => {
-    if (!strValue) return null;
+  const buildBackdropHTML = () => {
+    if (!strValue) return "";
     const parts = strValue.split(VARIABLE_PATTERN);
-
-    return parts.map((part, index) => {
-      const isVar = part.startsWith("{{") && part.endsWith("}}");
-      if (isVar) {
+    return parts.map((part) => {
+      if (part.startsWith("{{") && part.endsWith("}}")) {
         const varName = part.slice(2, -2).trim();
         const exists = activeVariables.some((v) => v.key === varName);
         const isActivePopover = activeTooltip?.key === varName;
-        const spanClassName = exists
-          ? `variable-highlight resolved ${isActivePopover ? "active-popover" : ""}`
-          : `variable-highlight unresolved ${isActivePopover ? "active-popover" : ""}`;
-
-        return (
-          <span key={index} className={spanClassName} data-varname={varName}>
-            {part}
-          </span>
-        );
+        const cls = exists
+          ? `variable-highlight resolved${isActivePopover ? " active-popover" : ""}`
+          : `variable-highlight unresolved${isActivePopover ? " active-popover" : ""}`;
+        const safePart = part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeVarName = varName.replace(/"/g, "&quot;");
+        return `<span class="${cls}" data-varname="${safeVarName}">${safePart}</span>`;
       }
-      return <span key={index}>{part}</span>;
-    });
+      // Plain text — no wrapping span so no inter-span kerning gaps
+      return part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }).join("");
   };
+
 
   return (
     <div
@@ -566,9 +563,8 @@ export function VariableInput({
           boxSizing: "border-box",
           backgroundColor: "transparent",
         }}
-      >
-        {hasVariables ? renderHighlightedText() : null}
-      </div>
+        dangerouslySetInnerHTML={hasVariables ? { __html: buildBackdropHTML() } : undefined}
+      />
 
       {/* Input */}
       <input

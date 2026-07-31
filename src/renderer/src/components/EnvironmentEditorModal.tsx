@@ -107,9 +107,19 @@ export function EnvironmentEditorModal({
                     onClick={() => onEnvEditorTargetChange(env.name)}
                     className="env-list-button"
                   >
-                    {env.name}
+                    <span
+                      style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        flex: 1,
+                        textAlign: "left"
+                      }}
+                    >
+                      {env.name}
+                    </span>
                     {workspace?.activeEnvironment === env.name && (
-                      <span className="env-active-dot" aria-label="Active environment" />
+                      <span className="env-active-dot" aria-label="Active environment" style={{ flexShrink: 0 }} />
                     )}
                   </button>
                 )}

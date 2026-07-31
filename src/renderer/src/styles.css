@@ -4349,8 +4349,6 @@ button:disabled {
 
 .variable-highlight {
   border-radius: 4px;
-  padding: 1px 3px;
-  font-weight: 600;
   pointer-events: auto;
   cursor: help;
   display: inline;

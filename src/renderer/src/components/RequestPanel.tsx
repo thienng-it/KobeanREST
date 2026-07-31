@@ -755,13 +755,6 @@ export function RequestPanel({
                 </div>
 
                 <div className="headers-grid-body">
-                  <div className="headers-grid-header" aria-hidden="true">
-                    <span>On</span>
-                    <span>Key</span>
-                    <span>Value</span>
-                    <span>Actions</span>
-                  </div>
-
                   <div className="headers-rows">
                     {(draftRequest.queryParams && draftRequest.queryParams.length > 0
                       ? draftRequest.queryParams
@@ -982,12 +975,6 @@ export function RequestPanel({
               </div>
 
               <div className="headers-grid-body">
-                <div className="headers-grid-header" aria-hidden="true">
-                  <span>On</span>
-                  <span>Key</span>
-                  <span>Value</span>
-                  <span>Actions</span>
-                </div>
 
                 <div className="headers-rows">
                   {draftRequest.headers.map((header, idx) => {

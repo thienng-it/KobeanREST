@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { Trash2, Plus, Eye, EyeOff, Edit3, X, Check } from "lucide-react";
+import { Trash2, Plus, Eye, EyeOff, Edit3, X, Check, AlignLeft, CheckCircle2 } from "lucide-react";
 import { EnvironmentVariable } from "../types";
 
 export interface EnvironmentEditorProps {
@@ -8,6 +8,28 @@ export interface EnvironmentEditorProps {
   onUpdateVariables: (variables: EnvironmentVariable[]) => void;
   onRenameEnvironment?: (newName: string) => void;
   onDeleteEnvironment?: () => void;
+  isActiveEnvironment?: boolean;
+  onSetActiveEnvironment?: () => void;
+}
+
+function parseBulkText(text: string): Array<{ key: string; value: string }> {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"))
+    .map((line) => {
+      const eqIdx = line.indexOf("=");
+      if (eqIdx <= 0) return null;
+      const key = line.slice(0, eqIdx).trim();
+      const value = line.slice(eqIdx + 1).trim();
+      if (!key) return null;
+      return { key, value };
+    })
+    .filter((v): v is { key: string; value: string } => v !== null);
+}
+
+function toBulkText(variables: EnvironmentVariable[]): string {
+  return variables.map((v) => `${v.key}=${v.value}`).join("\n");
 }
 
 interface EditableVariable extends EnvironmentVariable {
@@ -20,6 +42,8 @@ export function EnvironmentEditor({
   onUpdateVariables,
   onRenameEnvironment,
   onDeleteEnvironment,
+  isActiveEnvironment,
+  onSetActiveEnvironment,
 }: EnvironmentEditorProps) {
   const toEditable = (vars: EnvironmentVariable[]): EditableVariable[] =>
     vars.map((v, i) => ({ ...v, _id: `${v.key}-${i}` }));
@@ -30,6 +54,8 @@ export function EnvironmentEditor({
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState(environmentName);
   const [visibleSecrets, setVisibleSecrets] = useState<Set<string>>(new Set());
+  const [isBulkEditing, setIsBulkEditing] = useState(false);
+  const [bulkText, setBulkText] = useState("");
 
   React.useEffect(() => {
     setEditingVars(toEditable(variables));
@@ -107,7 +133,20 @@ export function EnvironmentEditor({
   }, [environmentName]);
 
   return (
-    <div className="environment-editor" style={{ padding: "16px", height: "100%", display: "flex", flexDirection: "column" }}>
+    <div
+      className="environment-editor"
+      style={{
+        padding: "16px",
+        flex: "1 1 0%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        border: "1px solid var(--color-border)",
+        borderRadius: "16px",
+        background: "var(--color-panel)",
+        boxShadow: "0 12px 40px var(--color-shadow)",
+      }}
+    >
       <div
         style={{
           display: "flex",
@@ -182,35 +221,119 @@ export function EnvironmentEditor({
             </>
           )}
         </div>
-        {onDeleteEnvironment && (
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {onSetActiveEnvironment && (
+            <button
+              type="button"
+              onClick={onSetActiveEnvironment}
+              disabled={isActiveEnvironment}
+              style={{
+                padding: "6px 12px",
+                border: "1px solid",
+                borderColor: isActiveEnvironment ? "var(--color-text-active)" : "var(--color-border-strong)",
+                background: isActiveEnvironment ? "color-mix(in srgb, var(--color-text-active) 15%, transparent)" : "transparent",
+                color: isActiveEnvironment ? "var(--color-text-active)" : "var(--color-text)",
+                borderRadius: "6px",
+                cursor: isActiveEnvironment ? "default" : "pointer",
+                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                opacity: isActiveEnvironment ? 1 : 0.8,
+              }}
+            >
+              {isActiveEnvironment ? <CheckCircle2 size={14} /> : null}
+              {isActiveEnvironment ? "Active" : "Set Active"}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
-              if (
-                window.confirm(
-                  `Delete environment "${environmentName}"? This cannot be undone.`
-                )
-              ) {
-                onDeleteEnvironment();
+              if (isBulkEditing) {
+                // Apply bulk changes
+                const parsed = parseBulkText(bulkText);
+                const newVars: EnvironmentVariable[] = parsed.map((p) => ({
+                  key: p.key,
+                  value: p.value,
+                  enabled: true,
+                  secret: false,
+                }));
+                onUpdateVariables(newVars);
+                setIsBulkEditing(false);
+              } else {
+                setBulkText(toBulkText(variables));
+                setIsBulkEditing(true);
               }
             }}
             style={{
               padding: "6px 12px",
-              border: "1px solid #ef4444",
-              background: "transparent",
-              color: "#ef4444",
+              border: "1px solid var(--color-border-strong)",
+              background: isBulkEditing ? "var(--color-surface-hover)" : "transparent",
+              color: "var(--color-text)",
               borderRadius: "6px",
               cursor: "pointer",
               fontSize: "12px",
               display: "flex",
               alignItems: "center",
-              gap: "4px",
+              gap: "6px",
             }}
           >
-            <Trash2 size={14} />
-            Delete
+            {isBulkEditing ? <Check size={14} /> : <AlignLeft size={14} />}
+            {isBulkEditing ? "Save Bulk" : "Bulk Edit"}
           </button>
-        )}
+
+          {isBulkEditing && (
+            <button
+              type="button"
+              onClick={() => setIsBulkEditing(false)}
+              style={{
+                padding: "6px 12px",
+                border: "1px solid var(--color-border-strong)",
+                background: "transparent",
+                color: "var(--color-text)",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              Cancel
+            </button>
+          )}
+
+          {onDeleteEnvironment && (
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Delete environment "${environmentName}"? This cannot be undone.`
+                  )
+                ) {
+                  onDeleteEnvironment();
+                }
+              }}
+              style={{
+                padding: "6px 12px",
+                border: "1px solid #ef4444",
+                background: "transparent",
+                color: "#ef4444",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+            >
+              <Trash2 size={14} />
+              Delete
+            </button>
+          )}
+        </div>
       </div>
 
       <div
@@ -221,15 +344,35 @@ export function EnvironmentEditor({
           flexDirection: "column",
         }}
       >
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "separate",
-            borderSpacing: 0,
-            fontSize: "13px",
-          }}
-        >
-          <thead>
+        {isBulkEditing ? (
+          <textarea
+            value={bulkText}
+            onChange={(e) => setBulkText(e.target.value)}
+            placeholder={"KEY=value\nANOTHER_KEY=123\n# Comments are supported"}
+            style={{
+              flex: 1,
+              width: "100%",
+              resize: "none",
+              padding: "12px",
+              fontSize: "13px",
+              fontFamily: "var(--font-mono)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              border: "1px solid var(--color-border-strong)",
+              borderRadius: "6px",
+              outline: "none",
+            }}
+          />
+        ) : (
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "separate",
+              borderSpacing: 0,
+              fontSize: "13px",
+            }}
+          >
+            <thead>
             <tr style={{ position: "sticky", top: 0, background: "var(--color-surface-solid)" }}>
               <th
                 style={{
@@ -406,10 +549,13 @@ export function EnvironmentEditor({
                   </button>
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      
+      {!isBulkEditing && (
         <button
           type="button"
           onClick={addEmptyVariable}
@@ -430,7 +576,7 @@ export function EnvironmentEditor({
           <Plus size={14} />
           Add Variable
         </button>
-      </div>
+      )}
     </div>
   );
 }

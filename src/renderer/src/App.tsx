@@ -29,6 +29,7 @@ import { Sidebar } from "./components/Sidebar";
 import { WorkspaceSwitcherModal } from "./components/WorkspaceSwitcherModal";
 import { CreateRequestModal } from "./components/CreateRequestModal";
 import { TabBar } from "./components/TabBar";
+import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 import { CollectionRunner } from "./components/CollectionRunner";
@@ -843,19 +844,21 @@ export function App() {
   }, [isDraftDirty, activeTabId, draftRequest]);
 
   // Handle requests that are selected outside of openRequestTab (e.g., after creation, deletion, etc.)
+  const lastSelectedRequestIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!selectedRequestId) {
+    if (selectedRequestId === lastSelectedRequestIdRef.current) {
       return;
     }
-    // If this request is already in a tab, just activate that tab
+    lastSelectedRequestIdRef.current = selectedRequestId;
+    if (!selectedRequestId) return;
+    
     const existingTab = tabs.find((tab) => tab.type === "request" && tab.entityId === selectedRequestId);
     if (existingTab) {
-      if (activeTabId !== existingTab.id) {
-        setActiveTabId(existingTab.id);
-      }
+      setActiveTabId(existingTab.id);
       return;
     }
-    // Otherwise, create a new tab for this request
+    
     const request = workspace?.requests.find((r) => r.id === selectedRequestId);
     if (!request) return;
     const newTab: Tab = {
@@ -868,11 +871,13 @@ export function App() {
     };
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
-  }, [selectedRequestId, tabs, activeTabId, workspace]);
+  }, [selectedRequestId, tabs, workspace]);
 
   function openFolderTab(folderId: string) {
     const folder = workspace?.folders.find((f) => f.id === folderId);
     if (!folder) return;
+    setSelectedRequestId(null);
+    lastSelectedRequestIdRef.current = null;
 
     const existingTab = tabs.find((tab) => tab.type === "folder" && tab.entityId === folderId);
     if (existingTab) {
@@ -894,6 +899,33 @@ export function App() {
     setActiveTabId(newTab.id);
     setFolderScriptsTarget(folderId);
     setFolderScriptsOpen(true);
+  }
+
+  function openEnvironmentTab(envName: string) {
+    void handleSetActiveEnvironment(envName);
+    setSelectedRequestId(null);
+    lastSelectedRequestIdRef.current = null;
+    const existingTab = tabs.find((t) => t.type === "environment" && t.entityId === envName);
+    if (existingTab) {
+      setActiveTabId(existingTab.id);
+      return;
+    }
+    const newTab: Tab = {
+      id: `env-${Date.now()}`,
+      type: "environment",
+      entityId: envName,
+      name: envName,
+    };
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }
+
+  function handleDeleteEnvironmentAndCloseTabs(envName: string) {
+    handleDeleteEnvironment(envName);
+    const tabToClose = tabs.find((t) => t.type === "environment" && t.entityId === envName);
+    if (tabToClose) {
+      performCloseTab(tabToClose.id);
+    }
   }
 
   function closeTab(tabId: string, e?: React.MouseEvent) {
@@ -918,7 +950,7 @@ export function App() {
     setTabs((prev) => {
       const index = prev.findIndex((tab) => tab.id === tabId);
       if (index === -1) return prev;
-
+      const tabToClose = prev[index];
       const newTabs = prev.filter((tab) => tab.id !== tabId);
 
       if (activeTabId === tabId) {
@@ -928,16 +960,27 @@ export function App() {
           setActiveTabId(nextTab.id);
           if (nextTab.type === "request") {
             setSelectedRequestId(nextTab.entityId);
+            lastSelectedRequestIdRef.current = nextTab.entityId;
           } else if (nextTab.type === "folder") {
+            setSelectedRequestId(null);
+            lastSelectedRequestIdRef.current = null;
             setFolderScriptsTarget(nextTab.entityId);
             setFolderScriptsOpen(true);
+          } else if (nextTab.type === "environment") {
+            setSelectedRequestId(null);
+            lastSelectedRequestIdRef.current = null;
           }
         } else {
           setActiveTabId(null);
           setSelectedRequestId(null);
+          lastSelectedRequestIdRef.current = null;
+        }
+      } else {
+        if (tabToClose.type === "request" && tabToClose.entityId === selectedRequestId) {
+          setSelectedRequestId(null);
+          lastSelectedRequestIdRef.current = null;
         }
       }
-
       return newTabs;
     });
   }
@@ -1031,6 +1074,7 @@ export function App() {
   const handleGlobalContextMenu = (_e: React.MouseEvent<HTMLElement>) => {
     // Handled by the native listener in useEffect above
   };
+  const currentTab = activeTabId ? tabs.find((t) => t.id === activeTabId) : null;
 
   return (
     <main
@@ -1097,6 +1141,9 @@ export function App() {
         onRenameDraftChange={setRenameDraft}
         onSetActiveEnvironment={handleSetActiveEnvironment}
         onOpenEnvironment={() => { setEnvEditorTarget(workspace?.activeEnvironment ?? ""); setEnvEditorOpen(true); }}
+        onOpenEnvironmentTab={openEnvironmentTab}
+        onCreateEnvironment={handleCreateEnvironment}
+        onDeleteEnvironment={handleDeleteEnvironmentAndCloseTabs}
         onCollectionSearchChange={setCollectionSearch}
         onToggleFolder={toggleFolder}
         onExpandAll={expandAllFolders}
@@ -1157,14 +1204,48 @@ export function App() {
               setActiveTabId(tab.id);
               if (tab.type === "request") {
                 setSelectedRequestId(tab.entityId);
+                lastSelectedRequestIdRef.current = tab.entityId;
               } else if (tab.type === "folder") {
+                setSelectedRequestId(null);
+                lastSelectedRequestIdRef.current = null;
                 setFolderScriptsTarget(tab.entityId);
                 setFolderScriptsOpen(true);
+              } else if (tab.type === "environment") {
+                setSelectedRequestId(null);
+                lastSelectedRequestIdRef.current = null;
               }
             }}
             onTabClose={closeTab}
           />
-          {draftRequest ? (
+          {(() => {
+            if (currentTab?.type === "environment") {
+              return (
+                <EnvironmentEditor
+                  environmentName={currentTab.entityId}
+                  variables={
+                    workspace?.environments.find((e) => e.name === currentTab.entityId)
+                      ?.variables ?? []
+                  }
+                  onUpdateVariables={(newVars) => {
+                    if (!workspace) return;
+                    const updatedEnvs = workspace.environments.map((e) =>
+                      e.name === currentTab.entityId ? { ...e, variables: newVars } : e
+                    );
+                    setWorkspace({ ...workspace, environments: updatedEnvs });
+                  }}
+                  isActiveEnvironment={workspace?.activeEnvironment === currentTab.entityId}
+                  onSetActiveEnvironment={() => handleSetActiveEnvironment(currentTab.entityId)}
+                  onDeleteEnvironment={() => handleDeleteEnvironmentAndCloseTabs(currentTab.entityId)}
+                  onRenameEnvironment={(newName) => { /* rename is mostly handled in sidebar, but we can call applyEnvironmentRename */ }}
+                />
+              );
+            }
+            
+            if (currentTab?.type === "request" && !draftRequest) {
+              return null; // prevent ghosting while useWorkspace fetches the draftRequest
+            }
+
+            return draftRequest ? (
             <RequestPanel
               draftRequest={draftRequest}
               activeVars={activeVars}
@@ -1210,7 +1291,7 @@ export function App() {
               onSaveScopedVariable={handleSaveScopedVariable}
               onDeleteScopedVariable={handleDeleteScopedVariable}
             />
-          ) : (
+            ) : (
             <div className="workspace-empty-hero">
               <div className="workspace-empty-card">
                 <div className="workspace-empty-mark">KR</div>
@@ -1244,7 +1325,8 @@ export function App() {
                 </div>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           <BottomDock
             activeBottomDock={activeBottomDock}

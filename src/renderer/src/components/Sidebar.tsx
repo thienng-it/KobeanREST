@@ -100,6 +100,9 @@ export interface SidebarProps {
   // Environment management
   onSetActiveEnvironment: (name: string) => Promise<void>;
   onOpenEnvironment: () => void;
+  onOpenEnvironmentTab: (envName: string) => void;
+  onCreateEnvironment: () => void;
+  onDeleteEnvironment?: (envName: string) => void;
 
   // Search & toggle & context menu
   onCollectionSearchChange: (value: string) => void;
@@ -588,6 +591,9 @@ export function Sidebar({
   onRenameDraftChange,
   onSetActiveEnvironment,
   onOpenEnvironment,
+  onOpenEnvironmentTab,
+  onCreateEnvironment,
+  onDeleteEnvironment,
   onCollectionSearchChange,
   onToggleFolder,
   onExpandAll,
@@ -1080,30 +1086,6 @@ export function Sidebar({
             <Plus size={16} />
             <span>New Collection</span>
           </button>
-          {onExpandAll && (
-            <button
-              className="ghost-button"
-              type="button"
-              onClick={onExpandAll}
-              aria-label="Expand all folders"
-              title="Expand all"
-              style={{ padding: "6px", height: "auto" }}
-            >
-              <ChevronsDown size={15} />
-            </button>
-          )}
-          {onCollapseAll && (
-            <button
-              className="ghost-button"
-              type="button"
-              onClick={onCollapseAll}
-              aria-label="Collapse all folders"
-              title="Collapse all"
-              style={{ padding: "6px", height: "auto" }}
-            >
-              <ChevronsUp size={15} />
-            </button>
-          )}
         </div>
 
         <label className={collectionSearch ? "search-field has-value" : "search-field"} style={{ marginTop: 0 }}>
@@ -1139,9 +1121,35 @@ export function Sidebar({
           onDragEnd={handleDragEnd}
         >
           <section className="nav-section">
-            <h2>
-              <FolderTree size={15} />
-              Collections
+            <h2 style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <FolderTree size={15} />
+                Collections
+              </div>
+              <div style={{ display: "flex", gap: "2px" }}>
+                {onExpandAll && (
+                  <button
+                    className="sidebar-icon-button"
+                    type="button"
+                    onClick={onExpandAll}
+                    aria-label="Expand all folders"
+                    title="Expand all"
+                  >
+                    <ChevronsDown size={14} />
+                  </button>
+                )}
+                {onCollapseAll && (
+                  <button
+                    className="sidebar-icon-button"
+                    type="button"
+                    onClick={onCollapseAll}
+                    aria-label="Collapse all folders"
+                    title="Collapse all"
+                  >
+                    <ChevronsUp size={14} />
+                  </button>
+                )}
+              </div>
             </h2>
             {visibleCollections.map((collection) => (
               <DraggableCollectionRow
@@ -1171,6 +1179,136 @@ export function Sidebar({
             {renderDragOverlay()}
           </DragOverlay>
         </DndContext>
+
+        {/* Environments Section */}
+        {(workspace?.environments ?? []).length > 0 && (
+          <section className="nav-section" style={{ marginTop: "16px" }}>
+            <h2>
+              <Globe size={15} />
+              Environments
+            </h2>
+            {(workspace?.environments ?? []).map((env) => {
+              const isActive = env.name === activeEnvironment;
+              return (
+                <div
+                  key={env.name}
+                  className={`sidebar-tree-row ${isActive ? "active" : ""}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "6px 8px",
+                    cursor: "pointer",
+                    borderRadius: "6px",
+                    marginBottom: "2px",
+                    background: isActive ? "var(--color-surface-active)" : "transparent",
+                  }}
+                  onClick={() => {
+                    onOpenEnvironmentTab(env.name);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (
+                      onDeleteEnvironment &&
+                      window.confirm(`Delete environment "${env.name}"?`)
+                    ) {
+                      onDeleteEnvironment(env.name);
+                    }
+                  }}
+                >
+                  <div style={{ width: "16px", marginRight: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {isActive && (
+                      <div
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          background: "var(--color-accent)",
+                        }}
+                      />
+                    )}
+                  </div>
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: "13px",
+                      fontWeight: isActive ? 600 : 500,
+                      color: isActive ? "var(--color-text)" : "var(--color-text-soft)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {env.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-muted)",
+                      marginLeft: "8px",
+                    }}
+                  >
+                    {env.variables.length}
+                  </span>
+                </div>
+              );
+            })}
+
+            {onCreateEnvironment && (
+              <button
+                type="button"
+                onClick={() => void onCreateEnvironment()}
+                style={{
+                  width: "100%",
+                  marginTop: "4px",
+                  padding: "6px 8px",
+                  border: "1px dashed var(--color-border)",
+                  background: "transparent",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: "var(--color-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <Plus size={14} />
+                New Environment
+              </button>
+            )}
+          </section>
+        )}
+
+        {/* Empty environments state - show create button */}
+        {(!workspace?.environments || workspace.environments.length === 0) && onCreateEnvironment && (
+          <section className="nav-section" style={{ marginTop: "16px" }}>
+            <h2>
+              <Globe size={15} />
+              Environments
+            </h2>
+            <button
+              type="button"
+              onClick={() => void onCreateEnvironment()}
+              style={{
+                width: "100%",
+                marginTop: "4px",
+                padding: "6px 8px",
+                border: "1px dashed var(--color-border)",
+                background: "transparent",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "12px",
+                color: "var(--color-muted)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Plus size={14} />
+              New Environment
+            </button>
+          </section>
+        )}
       </div>
 
       <div className="sidebar-footer">
