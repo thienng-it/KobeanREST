@@ -89,6 +89,7 @@ export interface CollectionSummary {
   authMode?: ApiAuthMode;
   authConfig?: AuthConfig;
   variables?: ScopedVariable[];
+  defaultEnvironment?: string;
 }
 
 export interface WorkspaceListItem {

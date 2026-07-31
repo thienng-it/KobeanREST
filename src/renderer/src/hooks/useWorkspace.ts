@@ -8,6 +8,7 @@ import {
   createFolder,
   updateFolder,
   updateCollection,
+  updateCollectionDefaultEnvironment,
   deleteCollection,
   deleteFolder,
   createRequest,
@@ -250,6 +251,25 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       alert("Failed to rename: " + diagnosticMessage(err));
     }
   }
+
+  const handleUpdateCollectionDefaultEnvironment = async (collectionId: string, defaultEnvironment: string | null) => {
+    try {
+      await updateCollectionDefaultEnvironment(collectionId, defaultEnvironment);
+      setWorkspace((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          collections: prev.collections?.map((collection) =>
+            collection.id === collectionId ? { ...collection, defaultEnvironment: defaultEnvironment ?? undefined } : collection,
+          ) ?? [],
+        };
+      });
+    } catch (err) {
+      console.error("Failed to update collection default environment", diagnosticMessage(err));
+      alert("Failed to update collection default environment: " + diagnosticMessage(err));
+    }
+  };
+
 
   async function handleSaveRequest() {
     if (!draftRequest) return;
@@ -1308,6 +1328,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     handleSwitchWorkspace,
     handleRenameWorkspace,
     handleDeleteWorkspace,
+    updateCollectionDefaultEnvironment: handleUpdateCollectionDefaultEnvironment,
     handleCreateSubFolder,
     handleDeleteFolder,
     handleDeleteCollection,

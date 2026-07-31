@@ -1,4 +1,4 @@
-import { Copy, Edit2, Eye, FolderTree, KeyRound, Play, Plus, Trash2, Variable, Terminal, Upload, Download, FileText } from "lucide-react";
+import { Copy, Edit2, Eye, FolderTree, KeyRound, Play, Plus, Trash2, Variable, Terminal, Upload, Download, FileText, Settings } from "lucide-react";
 import type { SavedRequest } from "../types";
 
 export interface ContextMenuTarget {
@@ -300,7 +300,7 @@ export function ContextMenu({
             style={itemStyle}
             {...hoverHandlers()}
           >
-            <Variable size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Variables
+            <Settings size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Settings
           </button>
         </>
       )}

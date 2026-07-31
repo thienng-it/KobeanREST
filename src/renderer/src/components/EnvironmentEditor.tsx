@@ -10,6 +10,8 @@ export interface EnvironmentEditorProps {
   onDeleteEnvironment?: () => void;
   isActiveEnvironment?: boolean;
   onSetActiveEnvironment?: () => void;
+  collections?: { id: string; name: string; defaultEnvironment?: string }[];
+  onUpdateCollectionDefaultEnvironment?: (collectionId: string, defaultEnvironment: string | null) => Promise<void>;
 }
 
 function parseBulkText(text: string): Array<{ key: string; value: string }> {
@@ -44,6 +46,8 @@ export function EnvironmentEditor({
   onDeleteEnvironment,
   isActiveEnvironment,
   onSetActiveEnvironment,
+  collections = [],
+  onUpdateCollectionDefaultEnvironment,
 }: EnvironmentEditorProps) {
   const toEditable = (vars: EnvironmentVariable[]): EditableVariable[] =>
     vars.map((v, i) => ({ ...v, _id: `${v.key}-${i}` }));
@@ -245,6 +249,34 @@ export function EnvironmentEditor({
               {isActiveEnvironment ? <CheckCircle2 size={14} /> : null}
               {isActiveEnvironment ? "Active" : "Set Active"}
             </button>
+          )}
+
+          {onUpdateCollectionDefaultEnvironment && collections.length > 0 && (
+            <select
+              className="input"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  void onUpdateCollectionDefaultEnvironment(e.target.value, environmentName);
+                }
+              }}
+              style={{
+                padding: "5px 12px",
+                border: "1px solid var(--color-border-strong)",
+                background: "transparent",
+                color: "var(--color-text)",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "12px",
+              }}
+            >
+              <option value="" disabled>Set default for...</option>
+              {collections.map(c => (
+                <option key={c.id} value={c.id} disabled={c.defaultEnvironment === environmentName}>
+                  {c.name} {c.defaultEnvironment === environmentName ? "(Active)" : ""}
+                </option>
+              ))}
+            </select>
           )}
 
           <button

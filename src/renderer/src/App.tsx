@@ -1,4 +1,4 @@
-import { useEffect, useState, useTransition, useRef, useMemo, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useState, useTransition, useRef, useMemo, useCallback, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ChevronDown, ChevronUp, Download, History, RefreshCw, Settings, PanelLeftOpen } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
@@ -137,6 +137,7 @@ export function App() {
     handleSwitchWorkspace,
     handleRenameWorkspace,
     handleDeleteWorkspace,
+    updateCollectionDefaultEnvironment,
     selectedRequestId, setSelectedRequestId,
     draftRequest, setDraftRequest,
     databasePath,
@@ -194,6 +195,22 @@ export function App() {
   const [universalImportModalOpen, setUniversalImportModalOpen] = useState(false);
   const [universalImportInitialContent, setUniversalImportInitialContent] = useState("");
 
+  const handleSelectRequest = useCallback((id: string) => {
+    const request = workspace?.requests.find((r) => r.id === id);
+    if (request) {
+      const folder = workspace?.folders.find((f) => f.id === request.folderId);
+      if (folder && folder.collectionId) {
+        const collection = workspace?.collections?.find((c) => c.id === folder.collectionId);
+        if (collection && collection.defaultEnvironment) {
+          if (workspace?.activeEnvironment !== collection.defaultEnvironment) {
+            handleSetActiveEnvironment(collection.defaultEnvironment);
+          }
+        }
+      }
+    }
+    setSelectedRequestId(id);
+  }, [workspace, handleSetActiveEnvironment, setSelectedRequestId]);
+
   const {
     historyOpen, setHistoryOpen,
     historyEntries, setHistoryEntries,
@@ -202,7 +219,7 @@ export function App() {
     handleOpenHistory,
     handleClearHistory,
     handleReplayFromHistory,
-  } = useHistory(workspace, setSelectedRequestId);
+  } = useHistory(workspace, handleSelectRequest);
 
 
 
@@ -1024,10 +1041,16 @@ export function App() {
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 2) return;
+      
+      const target = e.target as HTMLElement;
+      if (target.closest(".sidebar")) {
+        pendingSelectionRef.current = null;
+        return;
+      }
+
       let text = window.getSelection()?.toString().trim() || "";
       let replaceFn: ((varName: string) => void) | null = null;
 
-      const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
         const input = target as HTMLInputElement | HTMLTextAreaElement;
         const start = input.selectionStart;
@@ -1074,6 +1097,7 @@ export function App() {
   const handleGlobalContextMenu = (_e: React.MouseEvent<HTMLElement>) => {
     // Handled by the native listener in useEffect above
   };
+  
   const currentTab = activeTabId ? tabs.find((t) => t.id === activeTabId) : null;
 
   return (
@@ -1124,7 +1148,7 @@ export function App() {
         onDeleteFolder={handleDeleteFolder}
         onCreateCollection={handleCreateCollection}
         onDeleteCollection={handleDeleteCollection}
-        onSelectRequest={setSelectedRequestId}
+        onSelectRequest={handleSelectRequest}
         onDeleteRequest={handleDeleteRequest}
         onCreateRequest={(folderId) => {
           setCreateRequestInitialFolderId(folderId);
@@ -1203,7 +1227,7 @@ export function App() {
             onTabClick={(tab) => {
               setActiveTabId(tab.id);
               if (tab.type === "request") {
-                setSelectedRequestId(tab.entityId);
+                handleSelectRequest(tab.entityId);
                 lastSelectedRequestIdRef.current = tab.entityId;
               } else if (tab.type === "folder") {
                 setSelectedRequestId(null);
@@ -1237,6 +1261,8 @@ export function App() {
                   onSetActiveEnvironment={() => handleSetActiveEnvironment(currentTab.entityId)}
                   onDeleteEnvironment={() => handleDeleteEnvironmentAndCloseTabs(currentTab.entityId)}
                   onRenameEnvironment={(newName) => { /* rename is mostly handled in sidebar, but we can call applyEnvironmentRename */ }}
+                  collections={workspace?.collections}
+                  onUpdateCollectionDefaultEnvironment={updateCollectionDefaultEnvironment}
                 />
               );
             }
@@ -1465,12 +1491,17 @@ export function App() {
         }}
         collectionEditor={{
           open: collectionEditorOpen,
-          collectionId: collectionEditorTarget,
+          collectionId: collectionEditorTarget ?? "",
           collectionName: workspace?.collections?.find((c) => c.id === collectionEditorTarget)?.name ?? "",
-          collectionVariables: workspace?.collections?.find((c) => c.id === collectionEditorTarget)?.variables ?? [],
+          collectionVariables: collectionEditorTarget
+            ? (workspace?.collections?.find((c) => c.id === collectionEditorTarget)?.variables ?? [])
+            : [],
+          defaultEnvironment: workspace?.collections?.find((c) => c.id === collectionEditorTarget)?.defaultEnvironment,
+          environments: workspace?.environments ?? [],
           onClose: () => setCollectionEditorOpen(false),
           onSaveScopedVariable: handleSaveScopedVariable,
           onDeleteScopedVariable: handleDeleteScopedVariable,
+          onUpdateCollectionDefaultEnvironment: updateCollectionDefaultEnvironment,
         }}
         curlImport={{
           open: curlImportOpen,
@@ -1531,7 +1562,7 @@ export function App() {
           }}
           onDeleteFolder={handleDeleteFolder}
           onStartRequestRename={startRequestRename}
-          onViewRequest={setSelectedRequestId}
+          onViewRequest={handleSelectRequest}
           onDeleteRequest={handleDeleteRequest}
           onDuplicateRequest={handleDuplicateRequest}
           onDeleteCollection={handleDeleteCollection}

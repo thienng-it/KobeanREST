@@ -8,6 +8,7 @@ import { CodeSnippetViewer } from "./CodeSnippetViewer";
 import { VariableInput, VariableTextarea } from "./VariableInput";
 import { BodyEditor } from "./BodyEditor";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
+import { AdvancedSendModal } from "./AdvancedSendModal";
 import { redactDiagnosticError } from "../services/redaction";
 import { obtainOAuth2Token } from "../services/auth";
 import { buildVariableMap } from "../services/variables";
@@ -314,6 +315,51 @@ export function RequestPanel({
   }, [draftRequest.id, draftRequest.url]);
   const scriptVariableTokens = activeVars.map((variable) => `{{${variable.key}}}`);
   const currentScriptTitle = activeRequestScript === "pre" ? "Pre-request Script" : "Post-request Script";
+
+  const [sendMenuOpen, setSendMenuOpen] = useState(false);
+  const [advancedSendMode, setAdvancedSendMode] = useState<"delay" | "interval" | null>(null);
+  const sendMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (sendMenuRef.current && !sendMenuRef.current.contains(event.target as Node)) {
+        setSendMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const [repeatIntervalId, setRepeatIntervalId] = useState<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (repeatIntervalId) clearInterval(repeatIntervalId);
+    };
+  }, [repeatIntervalId]);
+
+  const handleSendWithDelay = (delayMs: number) => {
+    setSendMenuOpen(false);
+    setTimeout(() => {
+      onSendRequest();
+    }, delayMs);
+  };
+
+  const handleSendInterval = (intervalMs: number) => {
+    setSendMenuOpen(false);
+    onSendRequest();
+    const id = setInterval(() => {
+      onSendRequest();
+    }, intervalMs);
+    setRepeatIntervalId(id);
+  };
+
+  const stopRepeat = () => {
+    if (repeatIntervalId) {
+      clearInterval(repeatIntervalId);
+      setRepeatIntervalId(null);
+    }
+  };
 
   const [copiedCode, setCopiedCode] = useState(false);
   const handleCopyCode = async () => {
@@ -682,15 +728,78 @@ export function RequestPanel({
           className="request-command-input-field"
           containerStyle={{ flex: 1 } as CSSProperties}
         />
-        <button
-          className="send-button request-send-button"
-          type="button"
-          onClick={onSendRequest}
-          disabled={isSending}
-        >
-          <Play size={17} />
-          {isSending ? "Sending" : "Send"}
-        </button>
+        {repeatIntervalId ? (
+          <button
+            className="send-button request-send-button"
+            type="button"
+            onClick={stopRepeat}
+            style={{ backgroundColor: "var(--color-danger)" }}
+          >
+            Stop Repeating
+          </button>
+        ) : (
+          <div style={{ display: "flex", gap: "1px" }}>
+            <button
+              className="send-button request-send-button"
+              style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+              type="button"
+              onClick={() => { setSendMenuOpen(false); onSendRequest(); }}
+              disabled={isSending}
+            >
+              <Play size={17} />
+              {isSending ? "Sending" : "Send"}
+            </button>
+            <div ref={sendMenuRef} style={{ position: "relative", display: "flex" }}>
+              <button
+                className="send-button request-send-button"
+                style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, padding: "0 2px" }}
+                type="button"
+                onClick={() => setSendMenuOpen(!sendMenuOpen)}
+                disabled={isSending}
+              >
+                <ChevronDown size={12} />
+              </button>
+              {sendMenuOpen && (
+                <div className="context-menu" style={{ position: "absolute", top: "100%", right: 0, marginTop: "4px", zIndex: 50, minWidth: "160px" }}>
+                  <button
+                    type="button"
+                    className="context-menu-item"
+                    onClick={() => {
+                      setSendMenuOpen(false);
+                      setAdvancedSendMode("delay");
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--color-surface-hover)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                    style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%" }}
+                  >
+                    Send after delay...
+                  </button>
+                  <button
+                    type="button"
+                    className="context-menu-item"
+                    onClick={() => {
+                      setSendMenuOpen(false);
+                      setAdvancedSendMode("interval");
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--color-surface-hover)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                    style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%" }}
+                  >
+                    Repeat on interval...
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="request-workspace">
@@ -700,22 +809,31 @@ export function RequestPanel({
             .map((tab) => {
               let hasData = false;
               let isDirty = false;
+              let count = 0;
 
               if (tab === "params") {
-                hasData = !!draftRequest.queryParams?.some(p => p.key.trim() !== '' || p.value.trim() !== '');
+                const items = draftRequest.queryParams?.filter(p => p.key.trim() !== '' || p.value.trim() !== '') || [];
+                hasData = items.length > 0;
+                count = items.length;
               } else if (tab === "body") {
                 hasData = !!(draftRequest.body && draftRequest.body.trim() !== '') || 
                           !!(draftRequest.bodyForm && draftRequest.bodyForm.some(f => f.key.trim() !== '' || f.value.trim() !== ''));
               } else if (tab === "headers") {
-                hasData = draftRequest.headers.some(h => h.key.trim() !== '' || h.value.trim() !== '');
+                const items = draftRequest.headers.filter(h => h.key.trim() !== '' || h.value.trim() !== '');
+                hasData = items.length > 0;
+                count = items.length;
               } else if (tab === "auth") {
                 hasData = draftRequest.authMode !== "none";
               } else if (tab === "scripts") {
                 hasData = preScript.trim() !== "" || postScript.trim() !== "";
                 isDirty = scriptsDirty;
               } else if (tab === "variables") {
-                hasData = !!draftRequest.variables && draftRequest.variables.length > 0;
+                const items = draftRequest.variables || [];
+                hasData = items.length > 0;
+                count = items.length;
               }
+
+              const tabLabel = (tab === "headers" || tab === "params") && count > 0 ? `${tab} (${count})` : tab;
 
               return (
                 <button
@@ -725,7 +843,7 @@ export function RequestPanel({
                   role="tab"
                   type="button"
                 >
-                  {tab}
+                  {tabLabel}
                   {(hasData || isDirty) && (
                     <span
                       className={`tab-script-indicator ${isDirty ? 'dirty' : ''}`}
@@ -1313,6 +1431,21 @@ export function RequestPanel({
           </div>
         </div>
       )}
+
+      <AdvancedSendModal
+        open={advancedSendMode !== null}
+        mode={advancedSendMode}
+        onClose={() => setAdvancedSendMode(null)}
+        onSubmit={(ms) => {
+          if (advancedSendMode === "delay") {
+            handleSendWithDelay(ms);
+          } else if (advancedSendMode === "interval") {
+            handleSendInterval(ms);
+          }
+          setAdvancedSendMode(null);
+        }}
+      />
+
       {activeTab === "settings" && (
         <div className="request-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' } as CSSProperties}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

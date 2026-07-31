@@ -324,6 +324,11 @@ export async function updateCollection(collectionId: string, name: string): Prom
   return invoke<void>("update_collection", { collectionId, name });
 }
 
+export async function updateCollectionDefaultEnvironment(collectionId: string, defaultEnvironment: string | null): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("update_collection_default_environment", { collectionId, defaultEnvironment });
+}
+
 export async function deleteCollection(collectionId: string): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("delete_collection", { collectionId });

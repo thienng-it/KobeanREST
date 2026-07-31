@@ -108,6 +108,8 @@ pub struct CollectionSummary {
     pub auth_config: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<Vec<ScopedVariable>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_environment: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -192,6 +194,7 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     ensure_request_query_params_column(&connection)?;
     ensure_request_history_response_columns(&connection)?;
     ensure_requests_fk_removed(&connection)?;
+    ensure_collection_default_environment_column(&connection)?;
     seed_default_workspace(&mut connection)?;
     sync_request_workspace_ids(&connection)?;
 
@@ -212,6 +215,33 @@ fn sync_request_workspace_ids(connection: &Connection) -> Result<(), String> {
             [],
         )
         .map_err(|e| format!("failed to sync request workspace IDs: {e}"))?;
+    Ok(())
+}
+
+fn ensure_collection_default_environment_column(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(collections)")
+        .map_err(|error| format!("failed to inspect collections table: {error}"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("failed to query collections table info: {error}"))?;
+
+    let mut has_default_env = false;
+    for column in columns {
+        if column.map_err(|error| format!("failed to read collections column: {error}"))?
+            == "default_environment"
+        {
+            has_default_env = true;
+            break;
+        }
+    }
+
+    if !has_default_env {
+        connection
+            .execute("ALTER TABLE collections ADD COLUMN default_environment TEXT", [])
+            .map_err(|error| format!("failed to add collections.default_environment column: {error}"))?;
+    }
+
     Ok(())
 }
 
@@ -1192,7 +1222,7 @@ fn load_folders(connection: &Connection, workspace_id: &str) -> Result<Vec<Folde
 fn load_collections(connection: &Connection, workspace_id: &str) -> Result<Vec<CollectionSummary>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT id, name, auth_mode, auth_config FROM collections
+            "SELECT id, name, auth_mode, auth_config, default_environment FROM collections
              WHERE workspace_id = ?1 ORDER BY position",
         )
         .map_err(|e| e.to_string())?;
@@ -1204,13 +1234,14 @@ fn load_collections(connection: &Connection, workspace_id: &str) -> Result<Vec<C
                 row.get::<_, String>(1)?,
                 row.get::<_, Option<String>>(2)?,
                 row.get::<_, Option<String>>(3)?,
+                row.get::<_, Option<String>>(4)?,
             ))
         })
         .map_err(|e| e.to_string())?;
 
     let mut collections = Vec::new();
     for row in rows {
-        let (id, name, auth_mode, auth_config) =
+        let (id, name, auth_mode, auth_config, default_environment) =
             row.map_err(|e| format!("failed to read collection: {e}"))?;
         collections.push(CollectionSummary {
             id: id.clone(),
@@ -1218,6 +1249,7 @@ fn load_collections(connection: &Connection, workspace_id: &str) -> Result<Vec<C
             auth_mode,
             auth_config,
             variables: Some(load_scoped_variables(connection, &id, "collection")?),
+            default_environment,
         });
     }
 
@@ -1990,6 +2022,18 @@ pub fn update_collection(app: AppHandle, collection_id: String, name: String) ->
     Ok(())
 }
 
+#[tauri::command]
+pub fn update_collection_default_environment(app: AppHandle, collection_id: String, default_environment: Option<String>) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    connection
+        .execute(
+            "UPDATE collections SET default_environment = ?2 WHERE id = ?1",
+            rusqlite::params![collection_id, default_environment],
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
 #[tauri::command]
 pub fn delete_collection(app: AppHandle, collection_id: String) -> Result<(), String> {
     ensure_database(&app)?;
