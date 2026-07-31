@@ -2,12 +2,13 @@ import { useEffect, useState, useTransition, useRef, useMemo, useCallback, type 
 import { ChevronDown, ChevronUp, Download, History, RefreshCw, Settings, PanelLeftOpen } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
-import { resolveRequestVariables, resolveRequestFields, resolveRequestFieldsSafe, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, activeScopedVariablesList, resolveString } from "./services/variables";
+import { resolveRequestVariables, resolveRequestFields, resolveRequestFieldsSafe, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, activeScopedVariablesList, resolveString, injectAsyncVariables } from "./services/variables";
 import { type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
 import { ContextMenu } from "./components/ContextMenu";
 import { SetEnvVarModal } from "./components/SetEnvVarModal";
 import { MoveToModal } from "./components/MoveToModal";
+import { ChainRequestModal } from "./components/ChainRequestModal";
 import { Topbar } from "./components/Topbar";
 import { BottomDock } from "./components/BottomDock";
 import { statusColor, type ResponseState, type PreviewMode } from "./response-utils";
@@ -112,6 +113,19 @@ export function App() {
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
   const [moveToModal, setMoveToModal] = useState<{ type: "request" | "folder"; id: string } | null>(null);
   const [collectionRunner, setCollectionRunner] = useState<{ scopeId: string; scopeType: "folder" | "collection" } | null>(null);
+  const [chainRequestModal, setChainRequestModal] = useState<{ open: boolean, initialValue: string, onSave: (val: string) => void } | null>(null);
+
+  useEffect(() => {
+    const handleOpenChainModal = (e: any) => {
+      setChainRequestModal({
+        open: true,
+        initialValue: e.detail.initialValue,
+        onSave: e.detail.onSave,
+      });
+    };
+    window.addEventListener("open-chain-modal", handleOpenChainModal);
+    return () => window.removeEventListener("open-chain-modal", handleOpenChainModal);
+  }, []);
 
   const ws = useWorkspace({
     setConfirmDialog,
@@ -667,6 +681,11 @@ export function App() {
     let resolvedBody: string | undefined;
 
     try {
+      if (scopeWorkspace) {
+        const textsToScan = [requestToSend.url, requestToSend.body, ...requestToSend.headers.map((h: any) => h.value)];
+        await injectAsyncVariables(updatedVariableMap, textsToScan, scopeWorkspace);
+      }
+      
       const resolved = resolveRequestFields(
         updatedVariableMap,
         requestToSend.url,
@@ -1827,6 +1846,16 @@ export function App() {
         onImportSuccess={async (jsonPayload) => {
           await importWorkspaceData(jsonPayload);
           await loadWorkspace();
+        }}
+      />
+
+      <ChainRequestModal
+        isOpen={chainRequestModal?.open || false}
+        initialValue={chainRequestModal?.initialValue || ""}
+        workspace={workspace}
+        onClose={() => setChainRequestModal(null)}
+        onSave={(newVal) => {
+          chainRequestModal?.onSave(newVal);
         }}
       />
     </main>

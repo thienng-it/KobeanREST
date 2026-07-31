@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import type { SavedRequest, WorkspaceSummary, ExecuteHttpResponse } from "../types";
 import { executeHttpRequest } from "../services/http-client";
-import { buildScopedVariableMap, resolveRequestFields, resolveString, UnresolvedVariableError } from "../services/variables";
+import { buildScopedVariableMap, resolveRequestFields, resolveString, UnresolvedVariableError, injectAsyncVariables } from "../services/variables";
 import { applyAuth, resolveAuthConfig, obtainOAuth2Token } from "../services/auth";
 import { getScripts } from "../services/local-store";
 import type { KbScriptContext } from "../services/script-runtime";
@@ -209,6 +209,9 @@ export function CollectionRunner({
     let resolvedBody: string | undefined;
 
     try {
+      const textsToScan = [requestToSend.url, requestToSend.body, ...requestToSend.headers.map((h: any) => h.value)];
+      await injectAsyncVariables(variableMap, textsToScan, scopeWorkspace);
+      
       const resolved = resolveRequestFields(variableMap, requestToSend.url, requestToSend.headers, requestToSend.body);
       resolvedUrl = resolved.url;
       resolvedHeaders = resolved.headers;

@@ -92,27 +92,27 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
 
       const line = view.state.doc.lineAt(pos);
       const lineText = line.text;
-      const regex = /\{\{([a-zA-Z0-9_]+)\}\}/g;
+      const regex = /\{\{([^{}]+)\}\}/g;
       let match;
       let found = false;
       while ((match = regex.exec(lineText)) !== null) {
         const start = line.from + match.index;
         const end = start + match[0].length;
-        // Check if mouse is hovering over this variable
         if (pos >= start && pos <= end) {
           found = true;
-          const varName = match[1];
+          const varName = match[1].trim();
           const variable = variablesRef.current.find(v => v.key === varName);
-          if (variable) {
+          const isResolved = !!variable || varName.startsWith("$response");
+          
+          if (isResolved) {
             cancelCloseTimer();
-            // Calculate center of the variable text
             const startCoords = view.coordsAtPos(start);
             const endCoords = view.coordsAtPos(end);
             if (startCoords && endCoords) {
               const isTopSpaceAvailable = startCoords.top > 250;
               setActiveTooltip({
                 key: varName,
-                value: variable.value,
+                value: variable ? variable.value : (varName.startsWith("$response") ? "(Extract from response)" : ""),
                 isResolved: true,
                 x: startCoords.left + (endCoords.right - startCoords.left) / 2,
                 y: isTopSpaceAvailable ? startCoords.top - 6 : startCoords.bottom + 6,
@@ -128,8 +128,41 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
       }
     };
 
+    const onClick = (e: MouseEvent, view: EditorView) => {
+      const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+      if (pos === null) return;
+      const line = view.state.doc.lineAt(pos);
+      const lineText = line.text;
+      const regex = /\{\{([^{}]+)\}\}/g;
+      let match;
+      while ((match = regex.exec(lineText)) !== null) {
+        const start = line.from + match.index;
+        const end = start + match[0].length;
+        if (pos >= start && pos <= end) {
+          const varName = match[1].trim();
+          if (varName.startsWith("$response")) {
+            setActiveTooltip(null);
+            window.dispatchEvent(
+              new CustomEvent("open-chain-modal", {
+                detail: {
+                  initialValue: varName,
+                  onSave: (newKey: string) => {
+                    view.dispatch({
+                      changes: { from: start + 2, to: end - 2, insert: newKey }
+                    });
+                  }
+                }
+              })
+            );
+          }
+          break;
+        }
+      }
+    };
+
     const eventHandlers = EditorView.domEventHandlers({
       mousemove: onMouseMove,
+      click: onClick,
       mouseleave: () => scheduleClose(),
     });
 

@@ -16,6 +16,33 @@ interface TooltipState {
   y: number;
   placement?: "top" | "bottom";
 }
+function DropdownPortal({ anchorRef, children }: { anchorRef: React.RefObject<HTMLElement | null>, children: React.ReactNode }) {
+  const [rect, setRect] = React.useState<DOMRect | null>(null);
+
+  React.useEffect(() => {
+    const updateRect = () => {
+      if (anchorRef.current) {
+        setRect(anchorRef.current.getBoundingClientRect());
+      }
+    };
+    updateRect();
+    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("resize", updateRect);
+    return () => {
+      window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener("resize", updateRect);
+    };
+  }, [anchorRef]);
+
+  if (!rect) return null;
+
+  return createPortal(
+    <div style={{ position: "fixed", top: rect.bottom + 4, left: rect.left, width: rect.width, zIndex: 100000 }}>
+      {children}
+    </div>,
+    document.body
+  );
+}
 
 export interface VariablePopoverCardProps {
   tooltipKey: string;
@@ -26,6 +53,7 @@ export interface VariablePopoverCardProps {
   placement?: "top" | "bottom";
   activeEnvironmentName?: string;
   onSaveVariable?: (envName: string, key: string, value: string) => Promise<void> | void;
+  onReplaceVariable?: (oldKey: string, newKey: string) => void;
   onClose: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
@@ -41,6 +69,7 @@ export function VariablePopoverCard({
   placement = "top",
   activeEnvironmentName,
   onSaveVariable,
+  onReplaceVariable,
   onClose,
   onMouseEnter,
   onMouseLeave,
@@ -115,7 +144,9 @@ export function VariablePopoverCard({
       <div className="variable-popover-header">
         <div className="variable-popover-title">
           <span className="variable-popover-braces">{"{{"}</span>
-          <span className="variable-popover-name">{tooltipKey}</span>
+          <span className="variable-popover-name">
+            {tooltipKey.startsWith("$response ") ? "$response" : tooltipKey}
+          </span>
           <span className="variable-popover-braces">{"}}"}</span>
         </div>
         <div className="variable-popover-header-right">
@@ -159,24 +190,47 @@ export function VariablePopoverCard({
         </div>
 
         <div className="variable-popover-actions">
-          <button
-            type="button"
-            className={`variable-popover-save-btn ${savedSuccess ? "saved" : ""}`}
-            onClick={() => void handleSave()}
-            disabled={isSaving}
-          >
-            {savedSuccess ? (
-              <>
-                <Check size={12} /> Saved!
-              </>
-            ) : isResolved ? (
-              "Update Variable"
-            ) : (
-              <>
-                <Plus size={12} /> Add to Environment
-              </>
-            )}
-          </button>
+          {tooltipKey.startsWith("$response") ? (
+            <button
+              type="button"
+              className="primary-button"
+              style={{ width: "100%" }}
+              onClick={() => {
+                onClose();
+                window.dispatchEvent(
+                  new CustomEvent("open-chain-modal", {
+                    detail: {
+                      initialValue: tooltipKey,
+                      onSave: (newKey: string) => {
+                        if (onReplaceVariable) onReplaceVariable(tooltipKey, newKey);
+                      },
+                    },
+                  })
+                );
+              }}
+            >
+              Edit Chain Request
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={`variable-popover-save-btn ${savedSuccess ? "saved" : ""}`}
+              onClick={() => void handleSave()}
+              disabled={isSaving}
+            >
+              {savedSuccess ? (
+                <>
+                  <Check size={12} /> Saved!
+                </>
+              ) : isResolved ? (
+                "Update Variable"
+              ) : (
+                <>
+                  <Plus size={12} /> Add to Environment
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -209,6 +263,7 @@ export function VariableInput({
   onKeyDown,
   onSelect,
   onDoubleClick,
+  onMouseUp,
   style,
   className,
   containerStyle,
@@ -253,6 +308,18 @@ export function VariableInput({
     if (!val) return suggestions;
     return suggestions.filter((s) => s.toLowerCase().includes(val));
   }, [suggestions, strValue])();
+
+  const handleReplaceVariable = useCallback((oldKey: string, newKey: string) => {
+    const el = inputRef.current || (backdropRef.current?.parentElement?.querySelector("textarea") as HTMLTextAreaElement);
+    if (!el) return;
+    const val = strValue;
+    // Replace the first matching instance - simplest approach
+    const newVal = val.replace(`{{${oldKey}}}`, `{{${newKey}}}`);
+    if (onChange) {
+      const syntheticEvent = { target: { value: newVal } } as any;
+      onChange(syntheticEvent);
+    }
+  }, [strValue, onChange]);
 
   const handleApplySuggestion = useCallback(
     (sug: string) => {
@@ -459,8 +526,8 @@ export function VariableInput({
       if (!varName) return;
 
       const variable = activeVariables.find((v) => v.key === varName);
-      const isResolved = !!variable;
-      const val = isResolved ? variable!.value : "";
+      const isResolved = !!variable || varName.startsWith("$response");
+      const val = variable ? variable.value : (varName.startsWith("$response") ? "(Extract from response)" : "");
 
       const parentRect = containerRef.current!.getBoundingClientRect();
       const spanRect = span.getBoundingClientRect();
@@ -519,14 +586,18 @@ export function VariableInput({
     return parts.map((part) => {
       if (part.startsWith("{{") && part.endsWith("}}")) {
         const varName = part.slice(2, -2).trim();
-        const exists = activeVariables.some((v) => v.key === varName);
+        const exists = varName.startsWith("$response") || activeVariables.some((v) => v.key === varName);
         const isActivePopover = activeTooltip?.key === varName;
         const cls = exists
           ? `variable-highlight resolved${isActivePopover ? " active-popover" : ""}`
           : `variable-highlight unresolved${isActivePopover ? " active-popover" : ""}`;
         const safePart = part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const safeVarName = varName.replace(/"/g, "&quot;");
-        return `<span class="${cls}" data-varname="${safeVarName}">${safePart}</span>`;
+        let displayPart = safePart;
+        if (varName.startsWith("$response ")) {
+          displayPart = "{{$response}}";
+        }
+        return `<span class="${cls}" data-varname="${safeVarName}">${displayPart}</span>`;
       }
       // Plain text — no wrapping span so no inter-span kerning gaps
       return part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -574,6 +645,40 @@ export function VariableInput({
         spellCheck={false}
         autoCorrect="off"
         autoCapitalize="off"
+        onMouseUp={(e) => {
+          checkAutocomplete();
+          if (onMouseUp) onMouseUp(e);
+          const input = inputRef.current;
+          if (!input) return;
+          
+          setTimeout(() => {
+            const cursorPos = input.selectionStart ?? 0;
+            let match;
+            const regex = /\{\{([^{}]+)\}\}/g;
+            while ((match = regex.exec(strValue)) !== null) {
+              const start = match.index;
+              const end = start + match[0].length;
+              if (cursorPos >= start && cursorPos <= end) {
+                const varName = match[1].trim();
+                const isResolved = varName.startsWith("$response") || activeVariables.some((v) => v.key === varName);
+                if (isResolved && varName.startsWith("$response")) {
+                  setActiveTooltip(null);
+                  window.dispatchEvent(
+                    new CustomEvent("open-chain-modal", {
+                      detail: {
+                        initialValue: varName,
+                        onSave: (newKey: string) => {
+                          handleReplaceVariable(varName, newKey);
+                        },
+                      },
+                    })
+                  );
+                }
+                break;
+              }
+            }
+          }, 10);
+        }}
         onChange={(e) => {
           if (onChange) onChange(e);
           if (!isPinnedRef.current) closePopoverImmediately();
@@ -606,7 +711,6 @@ export function VariableInput({
           checkAutocomplete();
           if (onSelect) onSelect(e);
         }}
-        onMouseUp={checkAutocomplete}
         onDoubleClick={onDoubleClick}
         onMouseMove={hasVariables ? handleInputMouseMove : undefined}
         onMouseLeave={() => {
@@ -667,6 +771,7 @@ export function VariableInput({
           placement={activeTooltip.placement}
           activeEnvironmentName={activeEnvironmentName}
           onSaveVariable={onSaveVariable}
+          onReplaceVariable={handleReplaceVariable}
           onClose={closePopoverImmediately}
           onMouseEnter={() => {
             cancelCloseTimer();
@@ -685,29 +790,64 @@ export function VariableInput({
 
       {/* Custom Suggestions Dropdown */}
       {suggestions && suggestions.length > 0 && isFocused && suggestionState.open !== false && filteredSuggestions.length > 0 && (
-        <div
-          className="input-suggestions-dropdown"
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          {filteredSuggestions.map((item, index) => {
-            const isSelected = index === (suggestionState.selectedIndex || 0);
-            return (
-              <button
-                key={item}
-                type="button"
-                className={`input-suggestion-item ${isSelected ? "selected" : ""}`}
-                onClick={() => handleApplySuggestion(item)}
-                onMouseEnter={() => setSuggestionState({ open: true, selectedIndex: index })}
-              >
-                <span className="input-suggestion-badge">
-                  {suggestionBadge || "OPT"}
-                </span>
-                <span className="input-suggestion-text">{item}</span>
-                {isSelected && <Check size={12} className="input-suggestion-check" />}
-              </button>
-            );
-          })}
-        </div>
+        <DropdownPortal anchorRef={containerRef}>
+          <div
+            className="input-suggestions-dropdown"
+            style={{ position: "relative", top: 0, left: 0, width: "100%" }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {filteredSuggestions.map((item, index) => {
+              const isSelected = index === (suggestionState.selectedIndex || 0);
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  className={`input-suggestion-item ${isSelected ? "selected" : ""}`}
+                  onClick={() => handleApplySuggestion(item)}
+                  onMouseEnter={() => setSuggestionState({ open: true, selectedIndex: index })}
+                >
+                  <span className="input-suggestion-badge">
+                    {suggestionBadge || "OPT"}
+                  </span>
+                  <span className="input-suggestion-text">{item}</span>
+                  {isSelected && <Check size={12} className="input-suggestion-check" />}
+                </button>
+              );
+            })}
+          </div>
+        </DropdownPortal>
+      )}
+
+      {/* Variable Autocomplete Dropdown */}
+      {autocomplete && autocomplete.options.length > 0 && isFocused && (
+        <DropdownPortal anchorRef={containerRef}>
+          <div
+            className="input-suggestions-dropdown"
+            style={{ position: "relative", top: 0, left: 0, width: "100%" }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {autocomplete.options.map((item, index) => {
+              const isSelected = index === autocomplete.selectedIndex;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`input-suggestion-item ${isSelected ? "selected" : ""}`}
+                  onClick={() => applyAutocomplete(item)}
+                  onMouseEnter={() => setAutocomplete((prev) => prev ? { ...prev, selectedIndex: index } : null)}
+                >
+                  <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-primary-dim)", color: "var(--color-primary)" }}>
+                    VAR
+                  </span>
+                  <span className="input-suggestion-text">{item.key}</span>
+                  <span className="input-suggestion-value" style={{ marginLeft: "auto", fontSize: "11px", color: "var(--color-text-dim)" }}>
+                    {item.secret ? "••••" : item.value}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </DropdownPortal>
       )}
     </div>
   );
@@ -734,6 +874,7 @@ export function VariableTextarea({
   onKeyDown,
   onSelect,
   onDoubleClick,
+  onMouseUp,
   style,
   className,
   containerStyle,
@@ -871,14 +1012,25 @@ export function VariableTextarea({
     if (onKeyDown) onKeyDown(e);
   };
 
+  const handleReplaceVariable = useCallback((oldKey: string, newKey: string) => {
+    const el = textareaRef.current || (backdropRef.current?.parentElement?.querySelector("textarea") as HTMLTextAreaElement);
+    if (!el) return;
+    const val = strValue;
+    const newVal = val.replace(`{{${oldKey}}}`, `{{${newKey}}}`);
+    if (onChange) {
+      const syntheticEvent = { target: { value: newVal } } as any;
+      onChange(syntheticEvent);
+    }
+  }, [strValue, onChange]);
+
   const showTooltipForSpan = useCallback(
     (span: Element) => {
       const varName = (span as HTMLElement).dataset.varname;
       if (!varName) return;
 
       const variable = activeVariables.find((v) => v.key === varName);
-      const isResolved = !!variable;
-      const val = isResolved ? variable!.value : "";
+      const isResolved = !!variable || varName.startsWith("$response");
+      const val = variable ? variable.value : (varName.startsWith("$response") ? "(Extract from response)" : "");
 
       const parentRect = containerRef.current!.getBoundingClientRect();
       const spanRect = span.getBoundingClientRect();
@@ -939,15 +1091,20 @@ export function VariableTextarea({
       const isVar = part.startsWith("{{") && part.endsWith("}}");
       if (isVar) {
         const varName = part.slice(2, -2).trim();
-        const exists = activeVariables.some((v) => v.key === varName);
+        const exists = varName.startsWith("$response") || activeVariables.some((v) => v.key === varName);
         const isActivePopover = activeTooltip?.key === varName;
         const spanClassName = exists
           ? `variable-highlight resolved ${isActivePopover ? "active-popover" : ""}`
           : `variable-highlight unresolved ${isActivePopover ? "active-popover" : ""}`;
 
+        let displayPart = part;
+        if (varName.startsWith("$response ")) {
+          displayPart = "{{$response}}";
+        }
+
         return (
           <span key={index} className={spanClassName} data-varname={varName}>
-            {part}
+            {displayPart}
           </span>
         );
       }
@@ -993,6 +1150,40 @@ export function VariableTextarea({
         ref={textareaRef}
         value={value}
         spellCheck={false}
+        onMouseUp={(e) => {
+          checkAutocomplete();
+          if (onMouseUp) onMouseUp(e);
+          const textarea = textareaRef.current;
+          if (!textarea) return;
+          
+          setTimeout(() => {
+            const cursorPos = textarea.selectionStart ?? 0;
+            let match;
+            const regex = /\{\{([^{}]+)\}\}/g;
+            while ((match = regex.exec(strValue)) !== null) {
+              const start = match.index;
+              const end = start + match[0].length;
+              if (cursorPos >= start && cursorPos <= end) {
+                const varName = match[1].trim();
+                const isResolved = varName.startsWith("$response") || activeVariables.some((v) => v.key === varName);
+                if (isResolved && varName.startsWith("$response")) {
+                  setActiveTooltip(null);
+                  window.dispatchEvent(
+                    new CustomEvent("open-chain-modal", {
+                      detail: {
+                        initialValue: varName,
+                        onSave: (newKey: string) => {
+                          handleReplaceVariable(varName, newKey);
+                        },
+                      },
+                    })
+                  );
+                }
+                break;
+              }
+            }
+          }, 10);
+        }}
         onChange={(e) => {
           if (onChange) onChange(e);
           if (!isPinnedRef.current) closePopoverImmediately();
@@ -1019,7 +1210,6 @@ export function VariableTextarea({
           checkAutocomplete();
           if (onSelect) onSelect(e);
         }}
-        onMouseUp={checkAutocomplete}
         onDoubleClick={onDoubleClick}
         onMouseMove={hasVariables ? handleTextareaMouseMove : undefined}
         onMouseLeave={() => {
@@ -1053,6 +1243,7 @@ export function VariableTextarea({
           placement={activeTooltip.placement}
           activeEnvironmentName={activeEnvironmentName}
           onSaveVariable={onSaveVariable}
+          onReplaceVariable={handleReplaceVariable}
           onClose={closePopoverImmediately}
           onMouseEnter={() => {
             cancelCloseTimer();
@@ -1067,6 +1258,38 @@ export function VariableTextarea({
             isPinnedRef.current = true;
           }}
         />
+      )}
+
+      {/* Variable Autocomplete Dropdown */}
+      {autocomplete && autocomplete.options.length > 0 && isFocused && (
+        <DropdownPortal anchorRef={containerRef}>
+          <div
+            className="input-suggestions-dropdown"
+            style={{ position: "relative", top: 0, left: 0, width: "100%" }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {autocomplete.options.map((item, index) => {
+              const isSelected = index === autocomplete.selectedIndex;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`input-suggestion-item ${isSelected ? "selected" : ""}`}
+                  onClick={() => applyAutocomplete(item)}
+                  onMouseEnter={() => setAutocomplete((prev) => prev ? { ...prev, selectedIndex: index } : null)}
+                >
+                  <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-primary-dim)", color: "var(--color-primary)" }}>
+                    VAR
+                  </span>
+                  <span className="input-suggestion-text">{item.key}</span>
+                  <span className="input-suggestion-value" style={{ marginLeft: "auto", fontSize: "11px", color: "var(--color-text-dim)" }}>
+                    {item.secret ? "••••" : item.value}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </DropdownPortal>
       )}
     </div>
   );

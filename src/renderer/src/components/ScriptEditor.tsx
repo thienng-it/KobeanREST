@@ -24,7 +24,7 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
     // Define the autocomplete source for variables
     const variableCompletion = (context: any) => {
       // Only trigger if the user just typed '{{' or is inside a variable block
-      const word = context.matchBefore(/\{\{?[a-zA-Z0-9_]*/);
+      const word = context.matchBefore(/\{\{?[^{}]*/);
       if (!word) return null;
 
       return {
@@ -54,12 +54,48 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
       };
     };
 
+    const onClick = (e: MouseEvent, view: EditorView) => {
+      const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+      if (pos === null) return;
+      const line = view.state.doc.lineAt(pos);
+      const lineText = line.text;
+      const regex = /\{\{([^{}]+)\}\}/g;
+      let match;
+      while ((match = regex.exec(lineText)) !== null) {
+        const start = line.from + match.index;
+        const end = start + match[0].length;
+        if (pos >= start && pos <= end) {
+          const varName = match[1].trim();
+          if (varName.startsWith("$response")) {
+            window.dispatchEvent(
+              new CustomEvent("open-chain-modal", {
+                detail: {
+                  initialValue: varName,
+                  onSave: (newKey: string) => {
+                    view.dispatch({
+                      changes: { from: start + 2, to: end - 2, insert: newKey }
+                    });
+                  }
+                }
+              })
+            );
+          }
+          break;
+        }
+      }
+    };
+
+    const eventHandlers = EditorView.domEventHandlers({
+      click: onClick,
+    });
+
     const state = EditorState.create({
       doc: value,
       extensions: [
         basicSetup,
         javascript(),
         autocompletion({ override: [variableCompletion, kbCompletion] }),
+        eventHandlers,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChange(update.state.doc.toString());

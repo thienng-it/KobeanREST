@@ -1,4 +1,6 @@
 import type { EnvironmentVariable, WorkspaceSummary } from "../types";
+import jq from "jq-web";
+import { loadHistory, loadHistoryResponse } from "./local-store";
 
 const VARIABLE_PATTERN = /\{\{([^{}]+)\}\}/g;
 
@@ -132,7 +134,14 @@ export function activeScopedVariablesList(
 ): EnvironmentVariable[] {
   if (!workspace) return [];
   const map = buildScopedVariableMap(workspace, scope);
-  return Array.from(map.entries()).map(([key, value]) => ({ key, value }));
+  const vars = Array.from(map.entries()).map(([key, value]) => ({ key, value, secret: false }));
+
+  for (const key of Object.keys(DYNAMIC_VARIABLES)) {
+    vars.push({ key, value: "(Dynamic Generator)", secret: false });
+  }
+  vars.push({ key: '$response "Request Name" $.', value: "(Extract from response)", secret: false });
+
+  return vars;
 }
 
 /**
@@ -305,4 +314,64 @@ export function resolveRequestVariables(
   const variables = activeEnvironmentVariables(workspace);
   const variableMap = buildVariableMap(variables);
   return resolveRequestFields(variableMap, url, headers, body);
+}
+
+/**
+ * Scan texts for async variables (e.g., {{$response "req name" $.token}})
+ * and resolve them by fetching history data, placing the result in variableMap.
+ */
+export async function injectAsyncVariables(
+  variableMap: Map<string, string>,
+  texts: (string | undefined)[],
+  workspace: WorkspaceSummary
+): Promise<void> {
+  for (const text of texts) {
+    if (!text) continue;
+    const names = detectVariables(text);
+    for (const name of names) {
+      if (variableMap.has(name)) continue;
+
+      const match = name.match(/^\$response\s+(?:"([^"]+)"|'([^']+)'|([^\s]+))\s+(.+)$/);
+      if (match) {
+        const requestRef = match[1] || match[2] || match[3];
+        const jqPath = match[4];
+
+        const targetRequest = workspace.requests.find(r => r.id === requestRef || r.name === requestRef);
+        if (!targetRequest) continue;
+
+        try {
+          const history = await loadHistory();
+          const entries = history.filter(h => h.requestId === targetRequest.id).sort((a,b) => b.id - a.id);
+          
+          if (entries.length > 0) {
+            const payload = await loadHistoryResponse(entries[0].id);
+            if (payload && payload.responseBodyText) {
+              const data = JSON.parse(payload.responseBodyText);
+              const j = await jq;
+              
+              // support JSONPath-like prefix for ergonomics
+              let filter = jqPath;
+              if (filter.startsWith("$.")) {
+                filter = filter.substring(1);
+              }
+              
+              const result = j.json(data, filter);
+              let val = "";
+              if (typeof result === "string") val = result;
+              else if (result !== null && result !== undefined) val = JSON.stringify(result);
+              // For jq returning single elements or arrays
+              if (Array.isArray(result) && result.length === 1 && typeof result[0] === "string") {
+                  val = result[0];
+              } else if (Array.isArray(result) && result.length === 1 && typeof result[0] !== "object") {
+                  val = String(result[0]);
+              }
+              variableMap.set(name, val);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to evaluate $response variable:", name, e);
+        }
+      }
+    }
+  }
 }
