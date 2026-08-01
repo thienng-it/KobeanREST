@@ -1092,6 +1092,12 @@ export function RequestPanel({
                 </div>
               </div>
 
+              <div className="headers-grid-header">
+                <span></span>
+                <span>On</span>
+                <span>Key</span>
+                <span>Value</span>
+              </div>
               <div className="headers-grid-body">
 
                 <div className="headers-rows">

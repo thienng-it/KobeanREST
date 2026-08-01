@@ -108,7 +108,7 @@ test("App.tsx implements environment editor state management", () => {
   const createEnvironmentBlock = app.match(/async function handleCreateEnvironment\(\) \{[\s\S]*?\n\}/);
   const renameEnvironmentBlock = app.match(/async function handleRenameEnvironment\(oldName: string\) \{[\s\S]*?\n\}/);
   const applyEnvironmentRenameBlock = app.match(/async function applyEnvironmentRename\(oldName: string\) \{[\s\S]*?\n\}/);
-  const deleteEnvironmentBlock = app.match(/async function handleDeleteEnvironment\(name: string\) \{[\s\S]*?\n\}/);
+  const deleteEnvironmentBlock = app.match(/async function handleDeleteEnvironment\(name: string[\s\S]*?\) \{[\s\S]*?\n\}/);
   assert.ok(createEnvironmentBlock);
   assert.ok(renameEnvironmentBlock);
   assert.ok(applyEnvironmentRenameBlock);

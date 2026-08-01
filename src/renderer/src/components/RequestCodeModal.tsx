@@ -93,7 +93,7 @@ export function RequestCodeModal({
             </button>
           </div>
         </div>
-        <div style={{ flex: 1, minHeight: "200px", display: "flex", flexDirection: "column" }}>
+        <div className="script-code-modal-preview">
           <CodeSnippetViewer value={codeSnippet} language={codeTarget} />
         </div>
       </div>

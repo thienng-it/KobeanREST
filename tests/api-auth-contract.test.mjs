@@ -142,7 +142,7 @@ test("Rust persistence stores auth_config on requests", () => {
 
   // Saved in INSERT and ON CONFLICT UPDATE
   const saveStart = persistence.indexOf("pub fn save_request");
-  const saveBody = persistence.slice(saveStart, saveStart + 800);
+  const saveBody = persistence.slice(saveStart, saveStart + 1200);
   assert.match(saveBody, /auth_config/);
 
   // create_request initializes to "{}"

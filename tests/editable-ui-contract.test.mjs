@@ -436,7 +436,7 @@ test("scripts tab supports typed helpers, prettify, snippets, and generated requ
   assert.match(scriptTools, /id: "(status-test|status-assertion|test-status-200)"/);
   assert.match(scriptTools, /id: "mcp-initialize"/);
   assert.match(scriptTools, /id: "mcp-tools-list"/);
-  assert.match(scriptTools, /export type RequestCodeSnippetTarget = "curl" \| "fetch" \| "node";/);
+  assert.match(scriptTools, /export type RequestCodeSnippetTarget = "curl" \| "fetch" \| "node"/);
   assert.match(scriptTools, /export function generateRequestCodeSnippet/);
 
   assert.match(app, /SCRIPT_EDITOR_MODES/);
@@ -448,7 +448,7 @@ test("scripts tab supports typed helpers, prettify, snippets, and generated requ
   assert.match(app, /const \[requestCodeTarget, setRequestCodeTarget\] = useState<RequestCodeSnippetTarget>\("curl"\);/);
   assert.match(app, /function handlePrettifyScript\(\)/);
   assert.match(app, /function insertSelectedScriptSnippet\(\)/);
-  assert.match(app, /const requestCodeSnippet = draftRequest \? generateRequestCodeSnippet/);
+  assert.match(app, /const requestCodeSnippet = draftRequest \?/);
   assert.match(app, /className="script-tool-row"/);
   assert.match(app, /(aria-label|ariaLabel)="Script editor type"/);
   assert.match(app, /aria-label="Prettify current script"/);

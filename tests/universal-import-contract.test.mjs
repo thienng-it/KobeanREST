@@ -53,7 +53,7 @@ test("Universal Import Modal UI component supports file drag-drop, text paste an
   const modalCode = read("src/renderer/src/components/UniversalImportModal.tsx");
 
   assert.match(modalCode, /UniversalImportModal/);
-  assert.match(modalCode, /Upload File \/ Drag & Drop/);
+  assert.match(modalCode, /Upload File \/ Drag &amp; Drop/);
   assert.match(modalCode, /Paste Text \/ cURL \/ Code/);
   assert.match(modalCode, /Detected:/);
   assert.match(modalCode, /Import API Specification/);
