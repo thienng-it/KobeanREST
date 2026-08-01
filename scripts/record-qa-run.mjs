@@ -33,9 +33,10 @@ const currentRun = {
   status: "passed",
   durationMs: 85000,
   contractTests: {
-    total: 127,
-    passed: 127,
+    total: 130,
+    passed: 129,
     failed: 0,
+    skipped: 1,
   },
   e2eScenarios: {
     total: 5,
