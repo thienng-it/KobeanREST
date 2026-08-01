@@ -29,13 +29,18 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Run unit & contract tests
+        id: test
         run: npm test
 
       - name: Build web application
+        id: build
         run: npm run build
 
       - name: Record Daily Test Metrics to QA History
         if: always()
+        env:
+          TEST_STEP_OUTCOME: ${{ steps.test.outcome }}
+          BUILD_STEP_OUTCOME: ${{ steps.build.outcome }}
         run: |
           node scripts/record-qa-run.mjs
           git config user.name "github-actions[bot]"

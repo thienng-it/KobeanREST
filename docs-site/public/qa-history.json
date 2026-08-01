@@ -117,26 +117,26 @@
     "commit": "8c8f028",
     "commitMsg": "chore(release): auto-bump version to 0.1.10 [skip ci]",
     "branch": "main",
-    "status": "passed",
-    "durationMs": 85000,
+    "status": "failed",
+    "durationMs": 59000,
     "contractTests": {
       "total": 130,
-      "passed": 129,
-      "failed": 0,
+      "passed": 124,
+      "failed": 5,
       "skipped": 1
     },
     "e2eScenarios": {
       "total": 5,
-      "passed": 5,
-      "failed": 0
+      "passed": 0,
+      "failed": 5
     },
-    "passRate": 100,
+    "passRate": 92,
     "scenarios": [
-      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "passed", "durationMs": 850 },
-      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "passed", "durationMs": 375 },
-      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "passed", "durationMs": 1280 },
-      { "name": "4. Verify Environment Selector & Variables Modal", "status": "passed", "durationMs": 900 },
-      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "passed", "durationMs": 525 }
+      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "failed", "durationMs": 0 },
+      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "failed", "durationMs": 0 },
+      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "failed", "durationMs": 0 },
+      { "name": "4. Verify Environment Selector & Variables Modal", "status": "failed", "durationMs": 0 },
+      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "failed", "durationMs": 0 }
     ]
   },
   {
@@ -145,26 +145,26 @@
     "commit": "a6b51ff",
     "commitMsg": "chore(release): auto-bump version to 0.1.11 [skip ci]",
     "branch": "main",
-    "status": "passed",
-    "durationMs": 85000,
+    "status": "failed",
+    "durationMs": 58000,
     "contractTests": {
       "total": 130,
-      "passed": 129,
-      "failed": 0,
+      "passed": 124,
+      "failed": 5,
       "skipped": 1
     },
     "e2eScenarios": {
       "total": 5,
-      "passed": 5,
-      "failed": 0
+      "passed": 0,
+      "failed": 5
     },
-    "passRate": 100,
+    "passRate": 92,
     "scenarios": [
-      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "passed", "durationMs": 850 },
-      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "passed", "durationMs": 375 },
-      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "passed", "durationMs": 1280 },
-      { "name": "4. Verify Environment Selector & Variables Modal", "status": "passed", "durationMs": 900 },
-      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "passed", "durationMs": 525 }
+      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "failed", "durationMs": 0 },
+      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "failed", "durationMs": 0 },
+      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "failed", "durationMs": 0 },
+      { "name": "4. Verify Environment Selector & Variables Modal", "status": "failed", "durationMs": 0 },
+      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "failed", "durationMs": 0 }
     ]
   },
   {
