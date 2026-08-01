@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import {
   Activity,
-  AlertCircle,
+  AlertOctagon,
   BarChart3,
   CheckCircle2,
   Clock,
   Download,
   ExternalLink,
-  Filter,
   Layers,
-  RefreshCw,
   Search,
   ShieldCheck,
+  Terminal,
   XCircle,
 } from "lucide-react";
 
@@ -35,6 +34,8 @@ export interface QaRunRecord {
     failed: number;
   };
   passRate: number;
+  failedTests?: string[];
+  failureLog?: string | null;
   scenarios: Array<{
     name: string;
     status: "passed" | "failed";
@@ -111,6 +112,8 @@ export function QaDashboard() {
             contractTests: { total: 130, passed: 129, failed: 0, skipped: 1 },
             e2eScenarios: { total: 5, passed: 5, failed: 0 },
             passRate: 100,
+            failedTests: [],
+            failureLog: null,
             scenarios: [
               { name: "1. Verify Workspace Load & Sidebar Collections", status: "passed", durationMs: 840 },
               { name: "2. Verify URL and Query Params Bi-Directional Synchronization", status: "passed", durationMs: 365 },
@@ -130,6 +133,14 @@ export function QaDashboard() {
             contractTests: { total: 130, passed: 124, failed: 5, skipped: 1 },
             e2eScenarios: { total: 5, passed: 0, failed: 5 },
             passRate: 92,
+            failedTests: [
+              "tests/environment-editor-contract.test.mjs:115 - AssertionError: deleteEnvironmentBlock is falsy",
+              "tests/universal-import-contract.test.mjs:56 - AssertionError: regular expression mismatch (& vs &amp;)",
+              "tests/editable-ui-contract.test.mjs:291 - AssertionError: className='headers-grid-header' missing",
+              "tests/editable-ui-contract.test.mjs:439 - AssertionError: RequestCodeSnippetTarget expanded union mismatch",
+              "tests/api-auth-contract.test.mjs:145 - AssertionError: auth_config not found in 800-byte slice",
+            ],
+            failureLog: "[FAIL] 5 contract test assertions failed in Node.js test runner:\n  - environment-editor-contract.test.mjs:115 -> AssertionError: deleteEnvironmentBlock is falsy\n  - universal-import-contract.test.mjs:56 -> AssertionError: input did not match /Upload File \\/ Drag & Drop/\n  - editable-ui-contract.test.mjs:291 -> AssertionError: input did not match /className=\"headers-grid-header\"/\n  - editable-ui-contract.test.mjs:439 -> AssertionError: input did not match /export type RequestCodeSnippetTarget = \"curl\" | \"fetch\" | \"node\";/\n  - api-auth-contract.test.mjs:145 -> AssertionError: input did not match /auth_config/ in saveBody slice (offset 969)",
             scenarios: [
               { name: "1. Verify Workspace Load & Sidebar Collections", status: "failed", durationMs: 0 },
               { name: "2. Verify URL and Query Params Bi-Directional Synchronization", status: "failed", durationMs: 0 },
@@ -228,7 +239,6 @@ export function QaDashboard() {
               fontSize: "13px",
               fontWeight: 600,
               textDecoration: "none",
-              transition: "background 0.2s ease",
             }}
           >
             <ExternalLink size={14} /> GitHub Workflows ↗
@@ -419,7 +429,7 @@ export function QaDashboard() {
               padding: "24px",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700 }}>📈 Historical Pass Rate Trend (%)</h3>
                 <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#94a3b8" }}>
@@ -441,8 +451,8 @@ export function QaDashboard() {
             </div>
 
             {/* SVG Trend Line Chart */}
-            <div style={{ height: "180px", width: "100%", position: "relative" }}>
-              <svg width="100%" height="100%" viewBox="0 0 500 160" preserveAspectRatio="none" style={{ overflow: "visible" }}>
+            <div style={{ height: "220px", width: "100%", position: "relative" }}>
+              <svg width="100%" height="100%" viewBox="0 0 500 220" preserveAspectRatio="none" style={{ overflow: "visible" }}>
                 <defs>
                   <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.25" />
@@ -451,21 +461,26 @@ export function QaDashboard() {
                 </defs>
 
                 {/* Grid lines */}
-                <line x1="0" y1="20" x2="500" y2="20" stroke="rgba(255,255,255,0.05)" strokeDasharray="4" />
-                <line x1="0" y1="80" x2="500" y2="80" stroke="rgba(255,255,255,0.05)" strokeDasharray="4" />
-                <line x1="0" y1="140" x2="500" y2="140" stroke="rgba(255,255,255,0.05)" strokeDasharray="4" />
+                <line x1="0" y1="40" x2="500" y2="40" stroke="rgba(255,255,255,0.06)" strokeDasharray="4" />
+                <line x1="0" y1="105" x2="500" y2="105" stroke="rgba(255,255,255,0.06)" strokeDasharray="4" />
+                <line x1="0" y1="170" x2="500" y2="170" stroke="rgba(255,255,255,0.06)" strokeDasharray="4" />
+
+                {/* Grid line text labels */}
+                <text x="5" y="35" fill="#64748b" fontSize="10" fontFamily="sans-serif">100%</text>
+                <text x="5" y="100" fill="#64748b" fontSize="10" fontFamily="sans-serif">95%</text>
+                <text x="5" y="165" fill="#64748b" fontSize="10" fontFamily="sans-serif">90%</text>
 
                 {/* Polyline Path */}
                 {(() => {
                   if (trendRuns.length === 0) return null;
                   const points = trendRuns.map((r, i) => {
                     const x = (i / Math.max(1, trendRuns.length - 1)) * 500;
-                    // Y axis: 100% -> 20px, 90% -> 140px
-                    const y = 140 - ((r.passRate - 85) / 15) * 120;
-                    return `${x},${Math.max(15, Math.min(145, y))}`;
+                    // Y axis: 100% -> 40px, 85% -> 170px
+                    const y = 170 - ((r.passRate - 85) / 15) * 130;
+                    return `${x},${Math.max(35, Math.min(175, y))}`;
                   }).join(" ");
 
-                  const fillPoints = `0,150 ${points} 500,150`;
+                  const fillPoints = `0,180 ${points} 500,180`;
 
                   return (
                     <>
@@ -478,9 +493,13 @@ export function QaDashboard() {
                 {/* Data Points */}
                 {trendRuns.map((run, i) => {
                   const cx = (i / Math.max(1, trendRuns.length - 1)) * 500;
-                  const cy = Math.max(15, Math.min(145, 140 - ((run.passRate - 85) / 15) * 120));
+                  const cy = Math.max(35, Math.min(175, 170 - ((run.passRate - 85) / 15) * 130));
                   const isPassed = run.status === "passed";
                   const isHovered = hoveredIndex === i;
+
+                  // Tooltip positioning: below dot if cy <= 60, above if cy > 60
+                  const tooltipY = cy <= 60 ? cy + 12 : cy - 42;
+                  const tooltipRectX = Math.max(10, Math.min(330, cx - 80));
 
                   return (
                     <g key={i} onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
@@ -496,21 +515,23 @@ export function QaDashboard() {
                       {isHovered && (
                         <g>
                           <rect
-                            x={Math.max(10, Math.min(370, cx - 60))}
-                            y={Math.max(10, cy - 38)}
-                            width="130"
+                            x={tooltipRectX}
+                            y={tooltipY}
+                            width="160"
                             height="30"
                             rx="6"
                             fill="#0f172a"
                             stroke={isPassed ? "#4ade80" : "#f87171"}
-                            strokeWidth="1"
+                            strokeWidth="1.5"
                           />
                           <text
-                            x={Math.max(10, Math.min(370, cx - 60)) + 65}
-                            y={Math.max(10, cy - 38) + 19}
-                            fill="#f8fafc"
+                            x={tooltipRectX + 80}
+                            y={tooltipY + 19}
+                            fill="#ffffff"
                             fontSize="11"
                             fontWeight="600"
+                            fontFamily="system-ui, -apple-system, sans-serif"
+                            letterSpacing="0px"
                             textAnchor="middle"
                           >
                             {run.passRate}% — {run.commit} ({run.status.toUpperCase()})
@@ -522,7 +543,7 @@ export function QaDashboard() {
                 })}
               </svg>
 
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px", fontSize: "11px", color: "#64748b", fontFamily: "monospace" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "16px", fontSize: "11px", color: "#64748b", fontFamily: "monospace" }}>
                 {trendRuns.map((r, i) => (
                   <span key={i}>{new Date(r.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}</span>
                 ))}
@@ -810,20 +831,35 @@ export function QaDashboard() {
       {selectedRun && (
         <div
           style={{
-            marginTop: "24px",
+            marginTop: "28px",
             background: "rgba(15, 23, 42, 0.8)",
-            border: `1px solid ${selectedRun.status === "passed" ? "rgba(56, 189, 248, 0.4)" : "rgba(239, 68, 68, 0.4)"}`,
+            border: `1px solid ${selectedRun.status === "passed" ? "rgba(56, 189, 248, 0.35)" : "rgba(239, 68, 68, 0.35)"}`,
             borderRadius: "14px",
-            padding: "20px 24px",
+            padding: "24px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
             <div>
-              <h4 style={{ margin: 0, fontSize: "15px", color: selectedRun.status === "passed" ? "#38bdf8" : "#f87171" }}>
-                🔍 Execution Details — Commit {selectedRun.commit} ({new Date(selectedRun.timestamp).toLocaleDateString()})
-              </h4>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <h4 style={{ margin: 0, fontSize: "16px", color: selectedRun.status === "passed" ? "#38bdf8" : "#f87171" }}>
+                  🔍 Execution Details — Commit {selectedRun.commit} ({new Date(selectedRun.timestamp).toLocaleDateString()})
+                </h4>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: "4px",
+                    background: selectedRun.status === "passed" ? "rgba(34, 197, 94, 0.2)" : "rgba(239, 68, 68, 0.2)",
+                    color: selectedRun.status === "passed" ? "#4ade80" : "#f87171",
+                  }}
+                >
+                  {selectedRun.status.toUpperCase()}
+                </span>
+              </div>
               <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#94a3b8" }}>{selectedRun.commitMsg}</p>
             </div>
+
             <a
               href={`https://github.com/thienng-it/KobeanREST/actions/runs/${selectedRun.runId}`}
               target="_blank"
@@ -834,7 +870,7 @@ export function QaDashboard() {
                 textDecoration: "none",
                 fontWeight: 600,
                 border: "1px solid rgba(56, 189, 248, 0.4)",
-                padding: "5px 12px",
+                padding: "6px 14px",
                 borderRadius: "6px",
               }}
             >
@@ -842,8 +878,67 @@ export function QaDashboard() {
             </a>
           </div>
 
+          {/* Test Breakdown Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "20px" }}>
+            {/* Contract Tests Summary Box */}
+            <div style={{ background: "rgba(30, 41, 59, 0.5)", borderRadius: "10px", padding: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#e2e8f0" }}>⚡ Node.js Contract Invariants</span>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: selectedRun.contractTests.failed > 0 ? "#f87171" : "#4ade80" }}>
+                  {selectedRun.contractTests.passed} / {selectedRun.contractTests.total} Passed
+                </span>
+              </div>
+              <div style={{ fontSize: "12px", color: "#94a3b8", display: "flex", gap: "12px" }}>
+                <span>Passed: <strong style={{ color: "#4ade80" }}>{selectedRun.contractTests.passed}</strong></span>
+                <span>Failed: <strong style={{ color: selectedRun.contractTests.failed > 0 ? "#f87171" : "#94a3b8" }}>{selectedRun.contractTests.failed}</strong></span>
+                <span>Skipped: <strong style={{ color: "#94a3b8" }}>{selectedRun.contractTests.skipped ?? 1}</strong></span>
+              </div>
+            </div>
+
+            {/* E2E Scenarios Summary Box */}
+            <div style={{ background: "rgba(30, 41, 59, 0.5)", borderRadius: "10px", padding: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#e2e8f0" }}>🎭 Playwright GUI Scenarios</span>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: selectedRun.e2eScenarios.failed > 0 ? "#f87171" : "#4ade80" }}>
+                  {selectedRun.e2eScenarios.passed} / {selectedRun.e2eScenarios.total} Passed
+                </span>
+              </div>
+              <div style={{ fontSize: "12px", color: "#94a3b8", display: "flex", gap: "12px" }}>
+                <span>Passed: <strong style={{ color: "#4ade80" }}>{selectedRun.e2eScenarios.passed}</strong></span>
+                <span>Failed: <strong style={{ color: selectedRun.e2eScenarios.failed > 0 ? "#f87171" : "#94a3b8" }}>{selectedRun.e2eScenarios.failed}</strong></span>
+              </div>
+            </div>
+          </div>
+
+          {/* Failure Telemetry Log Box */}
+          {selectedRun.status === "failed" && selectedRun.failureLog && (
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px", color: "#f87171", fontSize: "13px", fontWeight: 700 }}>
+                <AlertOctagon size={16} />
+                <span>Diagnostic Error Telemetry & Assertion Failure Log</span>
+              </div>
+              <pre
+                style={{
+                  background: "#090d16",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "8px",
+                  padding: "14px",
+                  color: "#f87171",
+                  fontSize: "12px",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  lineHeight: 1.6,
+                  overflowX: "auto",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {selectedRun.failureLog}
+              </pre>
+            </div>
+          )}
+
+          {/* Scenario List */}
           <h5 style={{ margin: "16px 0 10px 0", fontSize: "13px", color: "#f8fafc", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Playwright GUI Scenarios Breakdown
+            Playwright GUI Scenarios Status
           </h5>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {selectedRun.scenarios.map((sc, idx) => {
