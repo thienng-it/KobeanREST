@@ -20,11 +20,31 @@
     },
     "passRate": 100,
     "scenarios": [
-      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "passed", "durationMs": 871 },
-      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "passed", "durationMs": 370 },
-      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "passed", "durationMs": 1270 },
-      { "name": "4. Verify Environment Selector & Variables Modal", "status": "passed", "durationMs": 904 },
-      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "passed", "durationMs": 522 }
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "passed",
+        "durationMs": 871
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "passed",
+        "durationMs": 370
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "passed",
+        "durationMs": 1270
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "passed",
+        "durationMs": 904
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "passed",
+        "durationMs": 522
+      }
     ]
   },
   {
@@ -48,11 +68,31 @@
     },
     "passRate": 100,
     "scenarios": [
-      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "passed", "durationMs": 817 },
-      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "passed", "durationMs": 382 },
-      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "passed", "durationMs": 1273 },
-      { "name": "4. Verify Environment Selector & Variables Modal", "status": "passed", "durationMs": 899 },
-      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "passed", "durationMs": 533 }
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "passed",
+        "durationMs": 817
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "passed",
+        "durationMs": 382
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "passed",
+        "durationMs": 1273
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "passed",
+        "durationMs": 899
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "passed",
+        "durationMs": 533
+      }
     ]
   },
   {
@@ -76,11 +116,31 @@
     },
     "passRate": 100,
     "scenarios": [
-      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "passed", "durationMs": 850 },
-      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "passed", "durationMs": 375 },
-      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "passed", "durationMs": 1280 },
-      { "name": "4. Verify Environment Selector & Variables Modal", "status": "passed", "durationMs": 900 },
-      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "passed", "durationMs": 525 }
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "passed",
+        "durationMs": 850
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "passed",
+        "durationMs": 375
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "passed",
+        "durationMs": 1280
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "passed",
+        "durationMs": 900
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "passed",
+        "durationMs": 525
+      }
     ]
   },
   {
@@ -104,11 +164,31 @@
     },
     "passRate": 100,
     "scenarios": [
-      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "passed", "durationMs": 850 },
-      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "passed", "durationMs": 375 },
-      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "passed", "durationMs": 1280 },
-      { "name": "4. Verify Environment Selector & Variables Modal", "status": "passed", "durationMs": 900 },
-      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "passed", "durationMs": 525 }
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "passed",
+        "durationMs": 850
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "passed",
+        "durationMs": 375
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "passed",
+        "durationMs": 1280
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "passed",
+        "durationMs": 900
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "passed",
+        "durationMs": 525
+      }
     ]
   },
   {
@@ -140,11 +220,31 @@
     ],
     "failureLog": "[FAIL] 5 contract test assertions failed in Node.js test runner:\n  - environment-editor-contract.test.mjs:115 -> AssertionError: deleteEnvironmentBlock is falsy\n  - universal-import-contract.test.mjs:56 -> AssertionError: input did not match /Upload File \\/ Drag & Drop/\n  - editable-ui-contract.test.mjs:291 -> AssertionError: input did not match /className=\"headers-grid-header\"/\n  - editable-ui-contract.test.mjs:439 -> AssertionError: input did not match /export type RequestCodeSnippetTarget = \"curl\" | \"fetch\" | \"node\";/\n  - api-auth-contract.test.mjs:145 -> AssertionError: input did not match /auth_config/ in saveBody slice (offset 969)",
     "scenarios": [
-      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "failed", "durationMs": 0 },
-      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "failed", "durationMs": 0 },
-      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "failed", "durationMs": 0 },
-      { "name": "4. Verify Environment Selector & Variables Modal", "status": "failed", "durationMs": 0 },
-      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "failed", "durationMs": 0 }
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "failed",
+        "durationMs": 0
+      }
     ]
   },
   {
@@ -176,11 +276,31 @@
     ],
     "failureLog": "[FAIL] 5 contract test assertions failed in Node.js test runner:\n  - environment-editor-contract.test.mjs:115 -> AssertionError: deleteEnvironmentBlock is falsy\n  - universal-import-contract.test.mjs:56 -> AssertionError: input did not match /Upload File \\/ Drag & Drop/\n  - editable-ui-contract.test.mjs:291 -> AssertionError: input did not match /className=\"headers-grid-header\"/\n  - editable-ui-contract.test.mjs:439 -> AssertionError: input did not match /export type RequestCodeSnippetTarget = \"curl\" | \"fetch\" | \"node\";/\n  - api-auth-contract.test.mjs:145 -> AssertionError: input did not match /auth_config/ in saveBody slice (offset 969)",
     "scenarios": [
-      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "failed", "durationMs": 0 },
-      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "failed", "durationMs": 0 },
-      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "failed", "durationMs": 0 },
-      { "name": "4. Verify Environment Selector & Variables Modal", "status": "failed", "durationMs": 0 },
-      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "failed", "durationMs": 0 }
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "failed",
+        "durationMs": 0
+      }
     ]
   },
   {
@@ -206,11 +326,81 @@
     "failedTests": [],
     "failureLog": null,
     "scenarios": [
-      { "name": "1. Verify Workspace Load & Sidebar Collections", "status": "passed", "durationMs": 840 },
-      { "name": "2. Verify URL and Query Params Bi-Directional Synchronization", "status": "passed", "durationMs": 365 },
-      { "name": "3. Verify HTTP Request Execution & Response Panel", "status": "passed", "durationMs": 1250 },
-      { "name": "4. Verify Environment Selector & Variables Modal", "status": "passed", "durationMs": 890 },
-      { "name": "5. Verify Pre & Post Request Scripts Execution Interface", "status": "passed", "durationMs": 510 }
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "passed",
+        "durationMs": 840
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "passed",
+        "durationMs": 365
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "passed",
+        "durationMs": 1250
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "passed",
+        "durationMs": 890
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "passed",
+        "durationMs": 510
+      }
+    ]
+  },
+  {
+    "runId": "30739622073",
+    "timestamp": "2026-08-02T08:22:39.383Z",
+    "commit": "cf9e322",
+    "commitMsg": "chore(release): auto-bump version to 0.1.13 [skip ci]",
+    "branch": "main",
+    "status": "passed",
+    "durationMs": 84000,
+    "contractTests": {
+      "total": 130,
+      "passed": 129,
+      "failed": 0,
+      "skipped": 1
+    },
+    "e2eScenarios": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "passRate": 99,
+    "failedTests": [],
+    "failureLog": null,
+    "scenarios": [
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "passed",
+        "durationMs": 840
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "passed",
+        "durationMs": 365
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "passed",
+        "durationMs": 1250
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "passed",
+        "durationMs": 890
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "passed",
+        "durationMs": 510
+      }
     ]
   }
 ]
