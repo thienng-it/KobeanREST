@@ -27,6 +27,7 @@ interface RequestResult {
   request: SavedRequest;
   status: "pending" | "running" | "passed" | "failed" | "skipped";
   response?: ExecuteHttpResponse;
+  executedRequest?: import("../types").ExecuteHttpRequest;
   error?: string;
   durationMs?: number;
 }
@@ -117,13 +118,10 @@ export function CollectionRunner({
     setResults(allRequests.current.map((r) => ({ request: r, status: "pending" })));
   }, []);
 
-  async function executeOne(req: SavedRequest): Promise<RequestResult> {
-    const scopeWorkspace = workspace 
-      ? (JSON.parse(JSON.stringify(workspace)) as WorkspaceSummary)
-      : workspace;
-    const folder = scopeWorkspace.folders.find((f) => f.id === req.folderId);
+  async function executeOne(req: SavedRequest, runWorkspace: WorkspaceSummary): Promise<RequestResult> {
+    const folder = runWorkspace.folders.find((f) => f.id === req.folderId);
     const collectionId = folder?.collectionId;
-    const variableMap = buildScopedVariableMap(scopeWorkspace, {
+    const variableMap = buildScopedVariableMap(runWorkspace, {
       collectionId,
       folderId: req.folderId,
       request: req,
@@ -141,9 +139,9 @@ export function CollectionRunner({
 
     const setEnvironmentVariable = (key: string, value: string) => {
       persistVariable(key, value);
-      const envName = scopeWorkspace?.activeEnvironment;
-      if (envName && scopeWorkspace) {
-        const env = scopeWorkspace.environments.find(e => e.name === envName);
+      const envName = runWorkspace?.activeEnvironment;
+      if (envName && runWorkspace) {
+        const env = runWorkspace.environments.find(e => e.name === envName);
         if (env) {
           const existing = env.variables.find(v => v.key === key);
           if (existing) {
@@ -157,9 +155,9 @@ export function CollectionRunner({
 
     const deleteEnvironmentVariable = (key: string) => {
       removeVariable(key);
-      const envName = scopeWorkspace?.activeEnvironment;
-      if (envName && scopeWorkspace) {
-        const env = scopeWorkspace.environments.find(e => e.name === envName);
+      const envName = runWorkspace?.activeEnvironment;
+      if (envName && runWorkspace) {
+        const env = runWorkspace.environments.find(e => e.name === envName);
         if (env) {
           env.variables = env.variables.filter(v => v.key !== key);
         }
@@ -187,7 +185,7 @@ export function CollectionRunner({
       let currentFolder = folder;
       while (currentFolder) {
         folderPath.push(currentFolder);
-        currentFolder = scopeWorkspace?.folders.find((f) => f.id === currentFolder?.parentId);
+        currentFolder = runWorkspace?.folders.find((f) => f.id === currentFolder?.parentId);
       }
       folderPath.reverse(); // root folder first
       
@@ -210,7 +208,7 @@ export function CollectionRunner({
 
     try {
       const textsToScan = [requestToSend.url, requestToSend.body, ...requestToSend.headers.map((h: any) => h.value)];
-      await injectAsyncVariables(variableMap, textsToScan, scopeWorkspace);
+      await injectAsyncVariables(variableMap, textsToScan, runWorkspace);
       
       const resolved = resolveRequestFields(variableMap, requestToSend.url, requestToSend.headers, requestToSend.body);
       resolvedUrl = resolved.url;
@@ -227,7 +225,7 @@ export function CollectionRunner({
         finalAuthMode = folder.authMode;
         finalAuthConfig = folder.authConfig || {};
       } else if (collectionId) {
-        const coll = workspace.collections?.find((c) => c.id === collectionId);
+        const coll = runWorkspace.collections?.find((c) => c.id === collectionId);
         if (coll?.authMode && coll.authMode !== "none") {
           finalAuthMode = coll.authMode;
           finalAuthConfig = coll.authConfig || {};
@@ -252,36 +250,33 @@ export function CollectionRunner({
 
     const { url: authUrl, headers: authHeaders } = applyAuth(finalAuthMode, resolvedAuth, resolvedUrl, resolvedHeaders);
 
+    const executedRequest = {
+      method: effectiveMethod,
+      url: authUrl,
+      headers: authHeaders,
+      body: resolvedBody,
+      bodyMimeType: requestToSend.bodyMimeType,
+      bodyForm: requestToSend.bodyForm,
+      timeoutMs: requestToSend.timeoutMs,
+      followRedirects: requestToSend.followRedirects,
+    };
+
     const start = performance.now();
     try {
-      const response = await executeHttpRequest({
-        method: effectiveMethod,
-        url: authUrl,
-        headers: authHeaders,
-        body: resolvedBody,
-        bodyMimeType: requestToSend.bodyMimeType,
-        bodyForm: requestToSend.bodyForm,
-        timeoutMs: requestToSend.timeoutMs,
-        followRedirects: requestToSend.followRedirects,
-      });
+      const response = await executeHttpRequest(executedRequest);
 
       // Post-scripts
-      const updatedVariableMap = buildScopedVariableMap(scopeWorkspace, {
-        collectionId,
-        folderId: requestToSend.folderId,
-        request: requestToSend,
-      });
       const postCtx: KbScriptContext = {
         request: requestToSend,
         response: Object.freeze(response),
-        variables: Object.fromEntries(updatedVariableMap),
+        variables: Object.fromEntries(variableMap),
         setLocalVariable: (key, value) => {
           postCtx.variables[key] = value;
-          updatedVariableMap.set(key, value);
+          variableMap.set(key, value);
         },
         deleteLocalVariable: (key) => {
           delete postCtx.variables[key];
-          updatedVariableMap.delete(key);
+          variableMap.delete(key);
         },
         setEnvironmentVariable,
         deleteEnvironmentVariable,
@@ -289,31 +284,49 @@ export function CollectionRunner({
       try {
         const reqScripts2 = await getScripts(requestToSend.id, "request");
         const postR = reqScripts2.find((s) => s.scriptType === "post")?.content;
-        if (postR) await runScript(resolveString(postR, updatedVariableMap).resolved, postCtx, "Request post");
+        if (postR) await runScript(resolveString(postR, variableMap).resolved, postCtx, "Request post");
         const folderPath2: import('../types').FolderSummary[] = [];
         let currentFolder2 = folder;
         while (currentFolder2) {
           folderPath2.push(currentFolder2);
-          currentFolder2 = scopeWorkspace?.folders.find((f) => f.id === currentFolder2?.parentId);
+          currentFolder2 = runWorkspace?.folders.find((f) => f.id === currentFolder2?.parentId);
         }
         for (const f of folderPath2) {
           const folderScripts2 = await getScripts(f.id, "folder");
           const postF = folderScripts2.find((s) => s.scriptType === "post")?.content;
-          if (postF) await runScript(resolveString(postF, updatedVariableMap).resolved, postCtx, `Folder (${f.name}) post`);
+          if (postF) await runScript(resolveString(postF, variableMap).resolved, postCtx, `Folder (${f.name}) post`);
         }
         if (collectionId) {
           const collScripts2 = await getScripts(collectionId, "collection");
           const postC = collScripts2.find((s) => s.scriptType === "post")?.content;
-          if (postC) await runScript(resolveString(postC, updatedVariableMap).resolved, postCtx, "Collection post");
+          if (postC) await runScript(resolveString(postC, variableMap).resolved, postCtx, "Collection post");
         }
       } catch { /* ignore post-script errors for runner */ }
 
       const durationMs = Math.round(performance.now() - start);
-      const passed = response.status < 400;
-      return { request: req, status: passed ? "passed" : "failed", response, durationMs };
+      
+      let passed = response.status < 400;
+      const expectedCodesVar = variableMap.get("expectedStatusCodes");
+      if (expectedCodesVar) {
+        try {
+          const parsed = JSON.parse(expectedCodesVar);
+          if (Array.isArray(parsed)) {
+            passed = parsed.includes(response.status);
+          } else if (typeof parsed === 'number') {
+            passed = response.status === parsed;
+          }
+        } catch {
+          const codes = expectedCodesVar.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+          if (codes.length > 0) {
+            passed = codes.includes(response.status);
+          }
+        }
+      }
+
+      return { request: req, status: passed ? "passed" : "failed", response, executedRequest, durationMs };
     } catch (err) {
       const durationMs = Math.round(performance.now() - start);
-      return { request: req, status: "failed", error: err instanceof Error ? err.message : String(err), durationMs };
+      return { request: req, status: "failed", error: err instanceof Error ? err.message : String(err), executedRequest, durationMs };
     }
   }
 
@@ -323,6 +336,10 @@ export function CollectionRunner({
     setIsRunning(true);
     setIsPaused(false);
     setFinished(false);
+
+    const runWorkspace = workspace 
+      ? (JSON.parse(JSON.stringify(workspace)) as WorkspaceSummary)
+      : workspace;
 
     const toRun = allRequests.current.filter((r) => selectedIds.has(r.id));
     const initial: RequestResult[] = allRequests.current.map((r) => ({
@@ -348,7 +365,7 @@ export function CollectionRunner({
       updatedResults[idx] = { ...updatedResults[idx], status: "running" };
       setResults([...updatedResults]);
 
-      const result = await executeOne(req);
+      const result = await executeOne(req, runWorkspace);
       updatedResults[idx] = result;
       setResults([...updatedResults]);
 
@@ -714,6 +731,30 @@ export function CollectionRunner({
                               {result.error}
                             </div>
                           )}
+                          
+                          {result.executedRequest && (
+                            <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+                              <div style={{ fontWeight: 600, marginBottom: "4px", color: "var(--color-text)" }}>Request</div>
+                              <div style={{ wordBreak: "break-all" }}><strong>{result.executedRequest.method}</strong> {result.executedRequest.url}</div>
+                              {result.executedRequest.headers.length > 0 && (
+                                <div style={{ marginTop: "6px" }}>
+                                  <div style={{ fontSize: "10px", textTransform: "uppercase", opacity: 0.7 }}>Headers</div>
+                                  {result.executedRequest.headers.map((h, i) => (
+                                    <div key={i}><strong>{h.key}</strong>: {h.value}</div>
+                                  ))}
+                                </div>
+                              )}
+                              {result.executedRequest.body && (
+                                <div style={{ marginTop: "6px" }}>
+                                  <div style={{ fontSize: "10px", textTransform: "uppercase", opacity: 0.7 }}>Body</div>
+                                  <pre style={{ margin: 0, marginTop: "2px", fontSize: "11px", fontFamily: 'ui-monospace, SFMono-Regular, monospace', whiteSpace: "pre-wrap", color: "var(--color-text)" }}>
+                                    {result.executedRequest.body}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
                           {result.response && (
                             <>
                               <div style={{
@@ -725,8 +766,21 @@ export function CollectionRunner({
                                 <span>Time: <strong style={{ color: "var(--color-text)" }}>{result.durationMs}ms</strong></span>
                                 <span>Size: <strong style={{ color: "var(--color-text)" }}>{(result.response.sizeBytes / 1024).toFixed(1)}kb</strong></span>
                               </div>
+                              {result.response.headers.length > 0 && (
+                                <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+                                  <div style={{ fontSize: "10px", textTransform: "uppercase", opacity: 0.7, marginBottom: "4px" }}>Response Headers</div>
+                                  <div style={{ maxHeight: "120px", overflowY: "auto" }}>
+                                    {result.response.headers.map((h, i) => (
+                                      <div key={i}><strong>{h.key}</strong>: {h.value}</div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              <div style={{ padding: "8px 14px 4px 14px", fontSize: "10px", textTransform: "uppercase", color: "var(--color-text-muted)", opacity: 0.7 }}>
+                                Response Body
+                              </div>
                               <pre style={{
-                                margin: 0, padding: "10px 14px",
+                                margin: 0, padding: "0 14px 10px 14px",
                                 maxHeight: "160px", overflowY: "auto",
                                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                                 fontSize: "11px", color: "var(--color-text)",

@@ -16,7 +16,8 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { CustomSelect } from "./CustomSelect";
-import type { AppSettings, SavedRequest, WorkspaceSummary } from "../types";
+import type { AppSettings, SavedRequest, WorkspaceSummary, Script } from "../types";
+import { getAllScripts } from "../services/local-store";
 
 interface ContextMenuTarget {
   id: string;
@@ -87,6 +88,8 @@ export interface SidebarProps {
   onSelectRequest: (requestId: string) => void;
   onDeleteRequest: (requestId: string) => void;
   onCreateRequest: (folderId: string) => Promise<void>;
+  onOpenFolder?: (folderId: string) => void;
+  onOpenCollection?: (collectionId: string) => void;
 
   // Rename callbacks
   onStartSidebarRename: (type: "folder" | "collection", id: string, name: string) => void;
@@ -138,6 +141,7 @@ function DraggableCollectionRow({
   onDeleteCollection,
   onCreateFolder,
   onCreateRequest,
+  onOpenCollection,
   onContextMenu,
   children,
 }: {
@@ -154,6 +158,7 @@ function DraggableCollectionRow({
   onDeleteCollection: (collectionId: string) => void;
   onCreateFolder: (collectionId: string) => Promise<void>;
   onCreateRequest: (folderId: string) => void;
+  onOpenCollection?: (collectionId: string) => void;
   onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
   children?: React.ReactNode;
 }) {
@@ -214,7 +219,14 @@ function DraggableCollectionRow({
             style={{ flex: 1, minWidth: 0, border: "1px solid var(--color-border-tint)", borderRadius: "6px", background: "var(--color-surface)", color: "var(--color-text)", padding: "4px 8px", fontWeight: 700 }}
           />
         ) : (
-          <strong className="sidebar-item-name" onDoubleClick={() => onStartSidebarRename("collection", collection.id, collection.name)}>{collection.name}</strong>
+          <strong 
+            className="sidebar-item-name" 
+            onDoubleClick={() => onStartSidebarRename("collection", collection.id, collection.name)}
+            onClick={() => onOpenCollection?.(collection.id)}
+            style={{ cursor: "pointer" }}
+          >
+            {collection.name}
+          </strong>
         )}
         <div className="sidebar-row-actions">
           <button
@@ -272,6 +284,7 @@ function DraggableFolderRow({
   onToggleFolder,
   onDeleteFolder,
   onCreateRequest,
+  onOpenFolder,
   onContextMenu,
   children,
 }: {
@@ -289,6 +302,7 @@ function DraggableFolderRow({
   onToggleFolder: (id: string) => void;
   onDeleteFolder: (id: string) => void;
   onCreateRequest: (folderId: string) => Promise<void>;
+  onOpenFolder?: (folderId: string) => void;
   onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
   children?: React.ReactNode;
 }) {
@@ -364,7 +378,7 @@ function DraggableFolderRow({
           ) : (
             <button
               type="button"
-              onClick={() => onToggleFolder(folder.id)}
+              onClick={() => onOpenFolder?.(folder.id)}
               onDoubleClick={(event) => {
                 event.stopPropagation();
                 onStartSidebarRename("folder", folder.id, folder.name);
@@ -583,6 +597,8 @@ export function Sidebar({
   onSelectRequest,
   onDeleteRequest,
   onCreateRequest,
+  onOpenFolder,
+  onOpenCollection,
   onStartSidebarRename,
   onCancelSidebarRename,
   onApplySidebarRename,
@@ -621,6 +637,12 @@ export function Sidebar({
   // Drag and drop state
   const [activeDragItem, setActiveDragItem] = useState<DragItemData | null>(null);
   const [dragOverItem, setDragOverItem] = useState<DragOverState | null>(null);
+
+  // Scripts cache for advanced search
+  const [allScripts, setAllScripts] = useState<Script[]>([]);
+  useEffect(() => {
+    getAllScripts().then(setAllScripts).catch(console.error);
+  }, [workspace?.id]);
 
   // dnd-kit sensors
   const sensors = useSensors(
@@ -705,11 +727,25 @@ export function Sidebar({
   };
 
   function requestMatchesCollectionSearch(request: SavedRequest) {
-    return (
-      matchesCollectionSearch(request.name) ||
-      matchesCollectionSearch(request.url) ||
-      matchesCollectionSearch(resolvedMethodLabel(request.method, request.customMethod))
+    if (matchesCollectionSearch(request.name)) return true;
+    if (matchesCollectionSearch(request.url)) return true;
+    if (matchesCollectionSearch(resolvedMethodLabel(request.method, request.customMethod))) return true;
+    
+    // Deep search in request data
+    if (request.body && matchesCollectionSearch(request.body)) return true;
+    
+    if (request.headers?.some(h => matchesCollectionSearch(h.key) || matchesCollectionSearch(h.value))) return true;
+    if (request.queryParams?.some(q => matchesCollectionSearch(q.key) || matchesCollectionSearch(q.value))) return true;
+    if (request.bodyForm?.some(f => matchesCollectionSearch(f.key) || matchesCollectionSearch(f.value))) return true;
+    if (request.variables?.some(v => matchesCollectionSearch(v.key) || matchesCollectionSearch(v.value))) return true;
+    
+    // Search within associated scripts
+    const hasMatchingScript = allScripts.some(
+      script => script.entityId === request.id && script.entityType === 'request' && matchesCollectionSearch(script.content)
     );
+    if (hasMatchingScript) return true;
+    
+    return false;
   }
 
   // --- dnd-kit handlers ---
@@ -812,6 +848,13 @@ export function Sidebar({
     const folder = workspace?.folders.find((item) => item.id === folderId);
     if (!folder) return false;
     if (matchesCollectionSearch(folder.name)) return true;
+    if (folder.variables?.some(v => matchesCollectionSearch(v.key) || matchesCollectionSearch(v.value))) return true;
+    
+    // Search within associated scripts
+    const hasMatchingScript = allScripts.some(
+      script => script.entityId === folder.id && script.entityType === 'folder' && matchesCollectionSearch(script.content)
+    );
+    if (hasMatchingScript) return true;
     
     const hasMatchingRequest = workspace?.requests.some((request) => request.folderId === folderId && requestMatchesCollectionSearch(request));
     if (hasMatchingRequest) return true;
@@ -822,6 +865,14 @@ export function Sidebar({
 
   const visibleCollections = (workspace?.collections ?? []).filter((collection) => {
     if (matchesCollectionSearch(collection.name)) return true;
+    if (collection.variables?.some(v => matchesCollectionSearch(v.key) || matchesCollectionSearch(v.value))) return true;
+    
+    // Search within associated scripts
+    const hasMatchingScript = allScripts.some(
+      script => script.entityId === collection.id && script.entityType === 'collection' && matchesCollectionSearch(script.content)
+    );
+    if (hasMatchingScript) return true;
+    
     const hasMatchingFolder = workspace?.folders.some((folder) => folder.collectionId === collection.id && folderMatchesCollectionSearch(folder.id));
     if (hasMatchingFolder) return true;
     const hasMatchingRootRequest = workspace?.requests.some((request) => request.folderId === collection.id && requestMatchesCollectionSearch(request));
@@ -954,6 +1005,7 @@ export function Sidebar({
               onToggleFolder={onToggleFolder}
               onDeleteFolder={onDeleteFolder}
               onCreateRequest={onCreateRequest}
+              onOpenFolder={onOpenFolder}
               onContextMenu={onContextMenu}
             >
               <div
@@ -1169,6 +1221,7 @@ export function Sidebar({
                 onDeleteCollection={onDeleteCollection}
                 onCreateFolder={onCreateFolder}
                 onCreateRequest={onCreateRequest}
+                onOpenCollection={onOpenCollection}
                 onContextMenu={onContextMenu}
               >
                 {renderCollectionRequests(collection.id, matchesCollectionSearch(collection.name) ?? false)}

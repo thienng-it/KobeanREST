@@ -314,6 +314,8 @@ export async function updateFolder(folderId: string, name: string): Promise<void
   return invoke<void>("update_folder", { folderId, name });
 }
 
+
+
 export async function moveFolder(folderId: string, parentId: string | undefined, collectionId: string | undefined): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("move_folder", { folderId, parentId, collectionId });
@@ -483,6 +485,11 @@ export async function checkForUpdates(): Promise<UpdateCheckPreview> {
 export async function getScripts(entityId: string, entityType: string): Promise<import("../types").Script[]> {
   if (!isTauriRuntime()) return [];
   return invoke<import("../types").Script[]>("get_scripts", { entityId, entityType });
+}
+
+export async function getAllScripts(): Promise<import("../types").Script[]> {
+  if (!isTauriRuntime()) return [];
+  return invoke<import("../types").Script[]>("get_all_scripts");
 }
 
 export async function saveScript(entityId: string, entityType: string, scriptType: string, content: string): Promise<void> {

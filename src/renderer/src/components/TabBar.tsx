@@ -1,4 +1,4 @@
-import { X, Folder, Globe } from "lucide-react";
+import { X, Folder, Globe, Package } from "lucide-react";
 import type { Tab } from "../types";
 import type { HttpMethod } from "../types";
 import { methodClass } from "./MethodSelector";
@@ -32,6 +32,7 @@ export function TabBar({ tabs, activeTabId, onTabClick, onTabClose, onTabContext
         borderBottom: "1px solid var(--color-border)",
         overflowX: "auto",
         scrollbarWidth: "thin",
+        flexShrink: 0,
       }}
     >
       {tabs.map((tab) => (
@@ -109,6 +110,8 @@ export function TabBar({ tabs, activeTabId, onTabClick, onTabClose, onTabContext
             <>
               {tab.type === "environment" ? (
                 <Globe size={12} style={{ flexShrink: 0 }} />
+              ) : tab.type === "collection" ? (
+                <Package size={12} style={{ flexShrink: 0 }} />
               ) : (
                 <Folder size={12} style={{ flexShrink: 0 }} />
               )}

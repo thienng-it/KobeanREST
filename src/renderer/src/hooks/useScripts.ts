@@ -203,6 +203,7 @@ export function useScripts(selectedRequestId: string | null) {
     } catch (err) {
       console.error("Failed to parse script:", diagnosticMessage(err));
       entries.push({ tone: "error", type: "log", message: diagnosticMessage(err) });
+      throw err;
     }
 
     return entries;

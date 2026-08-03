@@ -2470,6 +2470,32 @@ pub fn get_scripts(app: AppHandle, entity_id: String, entity_type: String) -> Re
 }
 
 #[tauri::command]
+pub fn get_all_scripts(app: AppHandle) -> Result<Vec<Script>, String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT id, entity_id, entity_type, script_type, content, position
+             FROM scripts
+             ORDER BY entity_id, position, id",
+        )
+        .map_err(|error| format!("failed to prepare all scripts query: {error}"))?;
+    let rows = statement
+        .query_map(params![], |row| {
+            Ok(Script {
+                id: row.get(0)?,
+                entity_id: row.get(1)?,
+                entity_type: row.get(2)?,
+                script_type: row.get(3)?,
+                content: row.get(4)?,
+                position: row.get(5)?,
+            })
+        })
+        .map_err(|error| format!("failed to query all scripts: {error}"))?;
+    collect_rows(rows, "script")
+}
+
+#[tauri::command]
 pub fn save_script(
     app: AppHandle,
     entity_id: String,

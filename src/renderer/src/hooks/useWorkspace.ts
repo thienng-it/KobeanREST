@@ -7,6 +7,7 @@ import {
   deleteRequest,
   createFolder,
   updateFolder,
+  saveFolderAuth,
   updateCollection,
   updateCollectionDefaultEnvironment,
   deleteCollection,
@@ -1340,6 +1341,31 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     toggleFolder,
     expandAllFolders,
     collapseAllFolders,
+    
+    handleUpdateFolder: async (folder: import('../types').FolderSummary) => {
+      if (!workspace) return;
+      await saveFolderAuth(folder.id, folder.authMode || "none", folder.authConfig || {});
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          folders: prev.folders.map(f => f.id === folder.id ? folder : f)
+        };
+      });
+    },
+
+    handleUpdateCollection: async (collection: import('../types').CollectionSummary) => {
+      if (!workspace) return;
+      await import('../services/local-store').then(m => m.saveCollectionAuth(collection.id, collection.authMode || "none", collection.authConfig || {}));
+      setWorkspace(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          collections: prev.collections?.map(c => c.id === collection.id ? collection : c) || []
+        };
+      });
+    },
+
     handleCreateRequest,
     handleCreateRequestWithDetails,
     importCurlRequest,

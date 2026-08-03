@@ -52,12 +52,8 @@ export interface ContextMenuProps {
   onCreateRequest: (folderId: string) => void;
   onCreateFolder: (collectionId: string) => Promise<void> | void;
   onCreateSubFolder: (folderId: string) => Promise<void> | void;
-  onEditFolderAuth: (folderId: string) => void;
-  onEditFolderScripts: (folderId: string) => void;
-  onEditFolderVariables: (folderId: string) => void;
-  onEditCollectionAuth: (collectionId: string) => void;
-  onEditCollectionScripts: (collectionId: string) => void;
-  onEditCollectionVariables: (collectionId: string) => void;
+  onEditFolder: (folderId: string) => void;
+  onEditCollection: (collectionId: string) => void;
   onDeleteFolder: (folderId: string) => void;
   onStartRequestRename: (request: SavedRequest) => void;
   onViewRequest: (reqId: string) => void;
@@ -83,12 +79,8 @@ export function ContextMenu({
   onCreateRequest,
   onCreateFolder,
   onCreateSubFolder,
-  onEditFolderAuth,
-  onEditFolderScripts,
-  onEditFolderVariables,
-  onEditCollectionAuth,
-  onEditCollectionScripts,
-  onEditCollectionVariables,
+  onEditFolder,
+  onEditCollection,
   onDeleteFolder,
   onStartRequestRename,
   onViewRequest,
@@ -184,37 +176,13 @@ export function ContextMenu({
             className="context-menu-item"
             onClick={(e) => {
               e.stopPropagation();
-              if (target.id) onEditFolderAuth(target.id);
+              if (target.id) onEditFolder(target.id);
               onClose();
             }}
             style={itemStyle}
             {...hoverHandlers()}
           >
-            <KeyRound size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Auth
-          </button>
-          <button
-            className="context-menu-item"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (target.id) onEditFolderScripts(target.id);
-              onClose();
-            }}
-            style={itemStyle}
-            {...hoverHandlers()}
-          >
-            <Edit2 size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Scripts
-          </button>
-          <button
-            className="context-menu-item"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (target.id) onEditFolderVariables(target.id);
-              onClose();
-            }}
-            style={itemStyle}
-            {...hoverHandlers()}
-          >
-            <Variable size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Variables
+            <Edit2 size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Folder
           </button>
           <div style={{ height: "1px", backgroundColor: "var(--color-border)", margin: "4px 0" }} />
           <button
@@ -276,37 +244,13 @@ export function ContextMenu({
             className="context-menu-item"
             onClick={(e) => {
               e.stopPropagation();
-              if (target.id) onEditCollectionAuth(target.id);
+              if (target.id) onEditCollection(target.id);
               onClose();
             }}
             style={itemStyle}
             {...hoverHandlers()}
           >
-            <KeyRound size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Auth
-          </button>
-          <button
-            className="context-menu-item"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (target.id) onEditCollectionScripts(target.id);
-              onClose();
-            }}
-            style={itemStyle}
-            {...hoverHandlers()}
-          >
-            <Edit2 size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Scripts
-          </button>
-          <button
-            className="context-menu-item"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (target.id) onEditCollectionVariables(target.id);
-              onClose();
-            }}
-            style={itemStyle}
-            {...hoverHandlers()}
-          >
-            <Settings size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Settings
+            <Edit2 size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Collection
           </button>
         </>
       )}

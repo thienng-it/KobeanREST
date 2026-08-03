@@ -1,4 +1,6 @@
-import type { EnvironmentVariable, ExecuteHttpResponse, SavedRequest } from "../types";
+import type { EnvironmentVariable, ExecuteHttpResponse, SavedRequest, ExecuteHttpRequest } from "../types";
+import { resolveStringSafe } from "./variables";
+import { executeHttpRequest } from "./http-client";
 
 export type ScriptConsole = {
   log: (...values: unknown[]) => void;
@@ -122,8 +124,72 @@ function buildPmObject(
     // Postman uses pm.request.method for getting/setting
     get method() { return kb.request.method; },
     set method(v: string) { kb.request.method = v as any; },
-    get url() { return kb.request.url; },
-    set url(v: string) { kb.request.url = v; },
+    get url() { 
+      const urlStr = kb.request.url || "";
+      const urlObj: any = {
+        toString: () => urlStr,
+        toJSON: () => urlStr,
+        update: (val: string) => { kb.request.url = val; },
+        addQueryParams: (params: string | Record<string, string>) => {
+          try {
+            const u = new URL(urlStr.startsWith('http') ? urlStr : `http://${urlStr}`);
+            if (typeof params === "string") {
+              const search = new URLSearchParams(params.startsWith('?') ? params : `?${params}`);
+              for (const [k, v] of search.entries()) u.searchParams.append(k, v);
+            } else if (typeof params === "object") {
+              for (const [k, v] of Object.entries(params)) u.searchParams.append(k, v);
+            }
+            kb.request.url = u.toString();
+          } catch {}
+        },
+        removeQueryParams: (params: string | string[]) => {
+          try {
+            const u = new URL(urlStr.startsWith('http') ? urlStr : `http://${urlStr}`);
+            const keys = Array.isArray(params) ? params : [params];
+            for (const k of keys) u.searchParams.delete(k);
+            kb.request.url = u.toString();
+          } catch {}
+        },
+      };
+
+      const resolvedUrlStr = resolveStringSafe(urlStr, new Map(Object.entries(ctx.variables)));
+      let searchParams: URLSearchParams;
+      try {
+        const u = new URL(resolvedUrlStr.startsWith('http') ? resolvedUrlStr : `http://${resolvedUrlStr}`);
+        searchParams = u.searchParams;
+      } catch {
+        searchParams = new URLSearchParams();
+      }
+
+      const queryList: any = Array.from(searchParams.entries()).map(([k, v]) => ({ key: k, value: v }));
+      queryList.get = (key: string) => searchParams.get(key) || undefined;
+      queryList.has = (key: string) => searchParams.has(key);
+      queryList.all = () => Array.from(queryList);
+      
+      urlObj.query = queryList;
+      
+      // Allow it to behave like a string in loose equality/concatenation
+      urlObj[Symbol.toPrimitive] = () => urlStr;
+      
+      // Also provide getter for host and path just in case
+      Object.defineProperty(urlObj, "host", {
+        get: () => {
+          try { return new URL(urlStr.startsWith('http') ? urlStr : `http://${urlStr}`).host.split('.'); }
+          catch { return []; }
+        }
+      });
+      Object.defineProperty(urlObj, "path", {
+        get: () => {
+          try { return new URL(urlStr.startsWith('http') ? urlStr : `http://${urlStr}`).pathname.split('/').filter(Boolean); }
+          catch { return []; }
+        }
+      });
+      
+      return urlObj;
+    },
+    set url(v: any) { 
+      kb.request.url = typeof v === 'object' && v.toString ? v.toString() : String(v); 
+    },
     get headers() {
       return {
         all: () => kb.request.headers,
@@ -185,6 +251,7 @@ function buildPmObject(
     has: (key: string) => kb.environment.get(key) !== undefined,
     unset: (key: string) => kb.environment.unset(key),
     toObject: () => ({ ...ctxVariables }),
+    replaceIn: (template: string) => resolveStringSafe(template, new Map(Object.entries(ctxVariables))),
   };
 
   // Postman collectionVariables API
@@ -200,6 +267,7 @@ function buildPmObject(
       if (ctx.deleteLocalVariable) ctx.deleteLocalVariable(key);
       else if (ctx.deleteVariable) ctx.deleteVariable(key);
     },
+    replaceIn: (template: string) => resolveStringSafe(template, new Map(Object.entries(ctxVariables))),
   };
 
   // Postman globals API (stub - maps to environment)
@@ -208,6 +276,7 @@ function buildPmObject(
     set: (key: string, value: string) => kb.environment.set(key, value),
     has: (key: string) => kb.environment.get(key) !== undefined,
     unset: (key: string) => kb.environment.unset(key),
+    replaceIn: (template: string) => resolveStringSafe(template, new Map(Object.entries(ctxVariables))),
   };
 
   // pm.info - metadata stub
@@ -231,6 +300,16 @@ function buildPmObject(
     all: () => {
       console.warn("⚠️ pm.cookies is not supported in KobeanREST. Returning empty array.");
       return [];
+    },
+    has: (name: string) => {
+      console.warn("⚠️ pm.cookies is not supported in KobeanREST.");
+      return false;
+    },
+    delete: (name: string) => {
+      console.warn("⚠️ pm.cookies is not supported in KobeanREST.");
+    },
+    clear: () => {
+      console.warn("⚠️ pm.cookies is not supported in KobeanREST.");
     },
   };
 
@@ -263,12 +342,24 @@ function buildPmObject(
     },
 
     // IterationData (stub)
-    iterationData: new Proxy({}, {
-      get: () => {
+    iterationData: {
+      get: (key: string) => {
         console.warn("⚠️ pm.iterationData is not supported in KobeanREST (no runner context).");
         return undefined;
       },
-    }),
+      has: (key: string) => {
+        console.warn("⚠️ pm.iterationData is not supported in KobeanREST.");
+        return false;
+      },
+      toObject: () => {
+        console.warn("⚠️ pm.iterationData is not supported in KobeanREST.");
+        return {};
+      },
+      toJSON: () => {
+        console.warn("⚠️ pm.iterationData is not supported in KobeanREST.");
+        return {};
+      },
+    },
   };
 
   return pm;
@@ -277,29 +368,61 @@ function buildPmObject(
 // Helper to build the kb object (extracted for clarity)
 // Used by both kb.sendRequest and pm.sendRequest
 async function kbSendRequest(
-  req: string | { url: string; method?: string; body?: any; headers?: any },
-  callback?: (err: any, response: any) => void
+  req: string | { url: string; method?: string; body?: any; headers?: any; header?: any },
+  callback?: (err: any, response: any) => void,
+  scriptConsole?: ScriptConsole
 ): Promise<any> {
   try {
     const url = typeof req === "string" ? req : req.url;
     const method = typeof req === "string" ? "GET" : (req.method || "GET");
 
-    const fetchOptions: RequestInit = {
+    let headersObj: Record<string, string> = {};
+    if (typeof req !== "string") {
+      const rawHeaders = req.header || req.headers;
+      if (rawHeaders) {
+        if (Array.isArray(rawHeaders)) {
+          rawHeaders.forEach(h => {
+            if (h && typeof h === 'object' && h.key) {
+              headersObj[h.key] = h.value || "";
+            }
+          });
+        } else if (typeof rawHeaders === 'object') {
+          for (const [k, v] of Object.entries(rawHeaders)) {
+            headersObj[k] = String(v);
+          }
+        } else if (typeof rawHeaders === 'string') {
+          rawHeaders.split('\n').forEach(line => {
+            const idx = line.indexOf(':');
+            if (idx > 0) {
+              headersObj[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
+            }
+          });
+        }
+      }
+    }
+
+    const executeReq: ExecuteHttpRequest = {
       method: method.toUpperCase(),
-      headers: typeof req === "string" ? {} : (req.headers || {}),
+      url: url,
+      headers: Object.entries(headersObj).map(([key, value]) => ({ key, value, enabled: true })),
+      timeoutMs: 30000,
+      followRedirects: true,
     };
 
     if (typeof req !== "string" && req.body) {
       if (typeof req.body === "string") {
-        fetchOptions.body = req.body;
+        executeReq.body = req.body;
+      } else if (req.body.mode === 'raw' && typeof req.body.raw === 'string') {
+        executeReq.body = req.body.raw;
       } else {
-        fetchOptions.body = JSON.stringify(req.body);
+        executeReq.body = JSON.stringify(req.body);
       }
     }
 
-    console.log(`📤 kb.sendRequest: ${method} ${url}`);
-    const response = await fetch(url, fetchOptions);
-    const text = await response.text();
+    if (scriptConsole?.log) scriptConsole.log(`📤 pm.sendRequest: ${method} ${url}`);
+    
+    const response = await executeHttpRequest(executeReq);
+    const text = response.bodyText || "";
 
     let json: any;
     try {
@@ -315,16 +438,10 @@ async function kbSendRequest(
       text: () => text,
       json: () => json,
       headers: {
-        all: () => {
-          const headers: Array<{ key: string; value: string }> = [];
-          response.headers.forEach((value, key) => {
-            headers.push({ key, value });
-          });
-          return headers;
-        },
-        get: (name: string) => response.headers.get(name),
+        all: () => response.headers.map(h => ({ key: h.key, value: h.value })),
+        get: (name: string) => response.headers.find(h => h.key.toLowerCase() === name.toLowerCase())?.value || null,
       },
-      responseTime: 0,
+      responseTime: response.durationMs,
       toJSON: () => ({
         code: response.status,
         body: text,
@@ -337,7 +454,7 @@ async function kbSendRequest(
 
     return compatibleResponse;
   } catch (err: any) {
-    console.error(`❌ kb.sendRequest failed: ${err.message}`);
+    if (scriptConsole?.error) scriptConsole.error(`❌ pm.sendRequest failed: ${err.message}`);
     if (callback) {
       callback(err, undefined);
     }
@@ -369,7 +486,11 @@ function buildKbObject(
         if (ctx.deleteEnvironmentVariable) ctx.deleteEnvironmentVariable(key);
       },
     },
-    sendRequest: kbSendRequest,
+    sendRequest: (req: any, callback?: any) => {
+      const p = kbSendRequest(req, callback, console);
+      asyncTests.push(p.then(() => {}).catch(() => {}));
+      return p;
+    },
     test: (name: string, fn: () => void | Promise<void>) => {
       try {
         const result = fn();

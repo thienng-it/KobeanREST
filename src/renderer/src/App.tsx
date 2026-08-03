@@ -31,6 +31,8 @@ import { WorkspaceSwitcherModal } from "./components/WorkspaceSwitcherModal";
 import { CreateRequestModal } from "./components/CreateRequestModal";
 import { TabBar } from "./components/TabBar";
 import { EnvironmentEditor } from "./components/EnvironmentEditor";
+import { FolderEditor } from "./components/FolderEditor";
+import { CollectionEditor } from "./components/CollectionEditor";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 import { CollectionRunner } from "./components/CollectionRunner";
@@ -180,6 +182,8 @@ export function App() {
     handleCreateCollection,
     handleCreateSubFolder,
     handleDeleteFolder,
+    handleUpdateFolder,
+    handleUpdateCollection,
     handleDeleteCollection,
     toggleFolder,
     expandAllFolders,
@@ -663,18 +667,13 @@ export function App() {
         return;
       }
       scriptOutputEntries.push({ tone: "error", message: `Pre-script execution failed: ${diagnosticMessage(err)}` });
+      setResponseState({ kind: "error", message: `Pre-script execution failed: ${diagnosticMessage(err)}` });
+      setScriptOutputLog(scriptOutputEntries);
+      return;
     }
 
     // Use the modified request from scripts
     const requestToSend = preScriptsContext.request;
-
-    // Rebuild scoped map using the (possibly script-modified) requestId for request-level vars.
-    const scopedFolder2 = scopeWorkspace.folders.find((f) => f.id === requestToSend.folderId);
-    const updatedVariableMap = buildScopedVariableMap(scopeWorkspace, {
-      collectionId: scopedFolder2?.collectionId,
-      folderId: requestToSend.folderId,
-      request: requestToSend,
-    });
 
     let resolvedUrl: string;
     let resolvedHeaders: Array<{ key: string; value: string; enabled: boolean }>;
@@ -683,11 +682,11 @@ export function App() {
     try {
       if (scopeWorkspace) {
         const textsToScan = [requestToSend.url, requestToSend.body, ...requestToSend.headers.map((h: any) => h.value)];
-        await injectAsyncVariables(updatedVariableMap, textsToScan, scopeWorkspace);
+        await injectAsyncVariables(variableMap, textsToScan, scopeWorkspace);
       }
       
       const resolved = resolveRequestFields(
-        updatedVariableMap,
+        variableMap,
         requestToSend.url,
         requestToSend.headers,
         requestToSend.body || undefined,
@@ -833,14 +832,14 @@ export function App() {
       const postScriptsContext: KbScriptContext = {
         request: requestToSend,
         response: Object.freeze(response),
-        variables: Object.fromEntries(updatedVariableMap),
+        variables: Object.fromEntries(variableMap),
         setLocalVariable: (key, value) => {
           postScriptsContext.variables[key] = value;
-          updatedVariableMap.set(key, value);
+          variableMap.set(key, value);
         },
         deleteLocalVariable: (key) => {
           delete postScriptsContext.variables[key];
-          updatedVariableMap.delete(key);
+          variableMap.delete(key);
         },
         setEnvironmentVariable,
         deleteEnvironmentVariable,
@@ -850,11 +849,11 @@ export function App() {
         const reqScripts = await getScripts(requestToSend.id, 'request');
         const postReq = reqScripts.find(s => s.scriptType === 'post')?.content;
         if (postReq) {
-          const resolved = resolveString(postReq, updatedVariableMap).resolved;
+          const resolved = resolveString(postReq, variableMap).resolved;
           scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Request post-response")));
         }
         const folderPath2: import('./types').FolderSummary[] = [];
-        let currentFolder2 = scopedFolder2;
+        let currentFolder2 = scopedFolder;
         while (currentFolder2) {
           folderPath2.push(currentFolder2);
           currentFolder2 = scopeWorkspace.folders.find((f) => f.id === currentFolder2?.parentId);
@@ -864,16 +863,16 @@ export function App() {
           const folderScripts = await getScripts(folder.id, 'folder');
           const postFolder = folderScripts.find(s => s.scriptType === 'post')?.content;
           if (postFolder) {
-            const resolved = resolveString(postFolder, updatedVariableMap).resolved;
+            const resolved = resolveString(postFolder, variableMap).resolved;
             scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, `Folder (${folder.name}) post-response`)));
           }
         }
 
-        if (scopedFolder2?.collectionId) {
-          const collectionScripts = await getScripts(scopedFolder2.collectionId, 'collection');
+        if (scopedFolder?.collectionId) {
+          const collectionScripts = await getScripts(scopedFolder.collectionId, 'collection');
           const postCollection = collectionScripts.find(s => s.scriptType === 'post')?.content;
           if (postCollection) {
-            const resolved = resolveString(postCollection, updatedVariableMap).resolved;
+            const resolved = resolveString(postCollection, variableMap).resolved;
             scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Collection post-response")));
           }
         }
@@ -971,8 +970,6 @@ export function App() {
     const existingTab = tabs.find((tab) => tab.type === "folder" && tab.entityId === folderId);
     if (existingTab) {
       setActiveTabId(existingTab.id);
-      setFolderScriptsTarget(folderId);
-      setFolderScriptsOpen(true);
       return;
     }
 
@@ -986,8 +983,30 @@ export function App() {
 
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
-    setFolderScriptsTarget(folderId);
-    setFolderScriptsOpen(true);
+  }
+
+  function openCollectionTab(collectionId: string) {
+    const collection = workspace?.collections?.find((c) => c.id === collectionId);
+    if (!collection) return;
+    setSelectedRequestId(null);
+    lastSelectedRequestIdRef.current = null;
+
+    const existingTab = tabs.find((tab) => tab.type === "collection" && tab.entityId === collectionId);
+    if (existingTab) {
+      setActiveTabId(existingTab.id);
+      return;
+    }
+
+    const newTab: Tab = {
+      id: `collection-${collectionId}-${Date.now()}`,
+      type: "collection",
+      entityId: collectionId,
+      name: collection.name,
+      isDirty: false,
+    };
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTab.id);
   }
 
   function openEnvironmentTab(envName: string) {
@@ -1025,8 +1044,6 @@ export function App() {
               } else if (nextTab.type === "folder") {
                 setSelectedRequestId(null);
                 lastSelectedRequestIdRef.current = null;
-                setFolderScriptsTarget(nextTab.entityId);
-                setFolderScriptsOpen(true);
               } else if (nextTab.type === "environment") {
                 setSelectedRequestId(null);
                 lastSelectedRequestIdRef.current = null;
@@ -1058,8 +1075,6 @@ export function App() {
           } else if (nextTab.type === "folder") {
             setSelectedRequestId(null);
             lastSelectedRequestIdRef.current = null;
-            setFolderScriptsTarget(nextTab.entityId);
-            setFolderScriptsOpen(true);
           } else if (nextTab.type === "environment") {
             setSelectedRequestId(null);
             lastSelectedRequestIdRef.current = null;
@@ -1146,8 +1161,6 @@ export function App() {
           } else if (nextTab.type === "folder") {
             setSelectedRequestId(null);
             lastSelectedRequestIdRef.current = null;
-            setFolderScriptsTarget(nextTab.entityId);
-            setFolderScriptsOpen(true);
           } else if (nextTab.type === "environment") {
             setSelectedRequestId(null);
             lastSelectedRequestIdRef.current = null;
@@ -1321,6 +1334,8 @@ export function App() {
           setCreateRequestModalOpen(true);
           return Promise.resolve();
         }}
+        onOpenFolder={openFolderTab}
+        onOpenCollection={openCollectionTab}
         onStartSidebarRename={startSidebarRename}
         onCancelSidebarRename={cancelSidebarRename}
         onApplySidebarRename={applySidebarRename}
@@ -1398,8 +1413,9 @@ export function App() {
               } else if (tab.type === "folder") {
                 setSelectedRequestId(null);
                 lastSelectedRequestIdRef.current = null;
-                setFolderScriptsTarget(tab.entityId);
-                setFolderScriptsOpen(true);
+              } else if (tab.type === "collection") {
+                setSelectedRequestId(null);
+                lastSelectedRequestIdRef.current = null;
               } else if (tab.type === "environment") {
                 setSelectedRequestId(null);
                 lastSelectedRequestIdRef.current = null;
@@ -1436,6 +1452,35 @@ export function App() {
               );
             }
             
+            if (currentTab?.type === "folder") {
+              const folder = workspace?.folders.find(f => f.id === currentTab.entityId);
+              if (!folder) return null;
+              return (
+                <FolderEditor
+                  folder={folder}
+                  activeVars={activeVars}
+                  onUpdateFolder={handleUpdateFolder}
+                  onSaveScopedVariable={handleSaveScopedVariable}
+                  onDeleteScopedVariable={handleDeleteScopedVariable}
+                />
+              );
+            }
+
+            if (currentTab?.type === "collection") {
+              const collection = workspace?.collections?.find(c => c.id === currentTab.entityId);
+              if (collection) {
+                return (
+                  <CollectionEditor
+                    collection={collection}
+                    activeVars={activeVars}
+                    onUpdateCollection={handleUpdateCollection}
+                    onSaveScopedVariable={handleSaveScopedVariable}
+                    onDeleteScopedVariable={handleDeleteScopedVariable}
+                  />
+                );
+              }
+            }
+
             if (currentTab?.type === "request" && !draftRequest) {
               return null; // prevent ghosting while useWorkspace fetches the draftRequest
             }
@@ -1523,33 +1568,35 @@ export function App() {
             );
           })()}
 
-          <BottomDock
-            activeBottomDock={activeBottomDock}
-            bottomDockHeight={bottomDockHeight}
-            bottomDockStripHeight={bottomDockStripHeight}
-            responseState={responseState}
-            currentResponse={currentResponse}
-            responseTitle={responseTitle}
-            responseTitleColor={responseTitleColor}
-            isResponseTabPending={isResponseTabPending}
-            responseTab={responseTab}
-            previewMode={previewMode}
-            scriptOutputLog={scriptOutputLog}
-            onActiveBottomDockChange={setActiveBottomDock}
-            onTabChange={handleResponseTabChange}
-            onPreviewModeChange={setPreviewMode}
-            onDownload={downloadCurrentResponse}
-            onCopy={() => void copyCurrentResponse()}
-            onOpenHistory={() => {
-              if (selectedRequestId) {
-                setHistorySearch(selectedRequestId);
-                handleOpenHistory();
-              }
-            }}
-            onOpenWindow={() => setResponseWindowOpen(true)}
-            onResizerMouseDown={handleResponsePanelResizerMouseDown}
-            onClearConsole={() => setScriptOutputLog([])}
-          />
+          {currentTab?.type !== "folder" && currentTab?.type !== "collection" && (
+            <BottomDock
+              activeBottomDock={activeBottomDock}
+              bottomDockHeight={bottomDockHeight}
+              bottomDockStripHeight={bottomDockStripHeight}
+              responseState={responseState}
+              currentResponse={currentResponse}
+              responseTitle={responseTitle}
+              responseTitleColor={responseTitleColor}
+              isResponseTabPending={isResponseTabPending}
+              responseTab={responseTab}
+              previewMode={previewMode}
+              scriptOutputLog={scriptOutputLog}
+              onActiveBottomDockChange={setActiveBottomDock}
+              onTabChange={handleResponseTabChange}
+              onPreviewModeChange={setPreviewMode}
+              onDownload={downloadCurrentResponse}
+              onCopy={() => void copyCurrentResponse()}
+              onOpenHistory={() => {
+                if (selectedRequestId) {
+                  setHistorySearch(selectedRequestId);
+                  handleOpenHistory();
+                }
+              }}
+              onOpenWindow={() => setResponseWindowOpen(true)}
+              onResizerMouseDown={handleResponsePanelResizerMouseDown}
+              onClearConsole={() => setScriptOutputLog([])}
+            />
+          )}
         </div>
       </section>
 
@@ -1625,22 +1672,6 @@ export function App() {
           onTargetChange: setRequestCodeTarget,
           onInsert: insertRequestCodeSnippet,
         }}
-        folderScripts={{
-          open: folderScriptsOpen,
-          folderId: folderScriptsTarget ?? "",
-          preScript: folderPreScript,
-          postScript: folderPostScript,
-          activeVars,
-          folderVariables: folderScriptsTarget
-            ? (workspace?.folders.find((f) => f.id === folderScriptsTarget)?.variables ?? [])
-            : [],
-          onClose: () => setFolderScriptsOpen(false),
-          onPreScriptChange: setFolderPreScript,
-          onPostScriptChange: setFolderPostScript,
-          onSave: handleSaveFolderScripts,
-          onSaveScopedVariable: handleSaveScopedVariable,
-          onDeleteScopedVariable: handleDeleteScopedVariable,
-        }}
         collectionScripts={{
           open: collectionScriptsOpen,
           collectionId: collectionScriptsTarget ?? "",
@@ -1714,21 +1745,8 @@ export function App() {
           }}
           onCreateFolder={handleCreateFolder}
           onCreateSubFolder={handleCreateSubFolder}
-          onEditFolderAuth={(folderId) => {
-            setAuthEditorTarget({ id: folderId, type: 'folder' });
-            setAuthEditorOpen(true);
-          }}
-          onEditFolderScripts={handleOpenFolderScripts}
-          onEditFolderVariables={(folderId) => handleOpenFolderScripts(folderId)}
-          onEditCollectionAuth={(collectionId) => {
-            setAuthEditorTarget({ id: collectionId, type: 'collection' });
-            setAuthEditorOpen(true);
-          }}
-          onEditCollectionScripts={handleOpenCollectionScripts}
-          onEditCollectionVariables={(collectionId) => {
-            setCollectionEditorTarget(collectionId);
-            setCollectionEditorOpen(true);
-          }}
+          onEditFolder={openFolderTab}
+          onEditCollection={openCollectionTab}
           onDeleteFolder={handleDeleteFolder}
           onStartRequestRename={startRequestRename}
           onViewRequest={handleSelectRequest}

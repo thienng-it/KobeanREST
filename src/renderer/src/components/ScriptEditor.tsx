@@ -17,6 +17,12 @@ interface ScriptEditorProps {
 export function ScriptEditor({ value, onChange, variables, placeholder, height = '120px', onReady }: ScriptEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const onChangeRef = useRef(onChange);
+  const valueRef = useRef(value);
+
+  // Keep refs up-to-date to avoid stale closures in CodeMirror extensions
+  onChangeRef.current = onChange;
+  valueRef.current = value;
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -98,7 +104,11 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
         eventHandlers,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
-            onChange(update.state.doc.toString());
+            const newDoc = update.state.doc.toString();
+            // Prevent feedback loops: only fire onChange if the new document differs from the prop value
+            if (newDoc !== valueRef.current) {
+              onChangeRef.current(newDoc);
+            }
           }
         }),
         EditorView.theme({
@@ -110,7 +120,6 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
             color: "var(--color-text)",
             border: "0",
             borderRadius: "6px",
-            overflow: "hidden",
           },
           "&.cm-focused": {
             outline: "none",
@@ -118,6 +127,7 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
           ".cm-scroller": {
             fontFamily: "inherit",
             lineHeight: "1.65",
+            overflow: "auto",
           },
           ".cm-content": {
             padding: "12px 0 20px",

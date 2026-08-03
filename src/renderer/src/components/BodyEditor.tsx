@@ -28,6 +28,12 @@ interface BodyEditorProps {
 export function BodyEditor({ value, onChange, variables, mimeType, placeholder, height = '100%' }: BodyEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const onChangeRef = useRef(onChange);
+  const valueRef = useRef(value);
+
+  // Keep refs up-to-date to avoid stale closures in CodeMirror extensions
+  onChangeRef.current = onChange;
+  valueRef.current = value;
 
   const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
   const isHoveringPopoverRef = useRef(false);
@@ -181,7 +187,11 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
-            onChange(update.state.doc.toString());
+            const newDoc = update.state.doc.toString();
+            // Prevent feedback loops: only fire onChange if the new document differs from the prop value
+            if (newDoc !== valueRef.current) {
+              onChangeRef.current(newDoc);
+            }
           }
         }),
         EditorView.theme({
