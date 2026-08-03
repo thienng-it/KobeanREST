@@ -224,6 +224,7 @@ export interface RequestPanelProps {
 
   // cross-cutting actions (remain in App)
   isDirty?: boolean;
+  isUnsaved?: boolean;
   onUpdateDraft: (fields: Partial<SavedRequest>) => void;
   onSaveRequest: () => void;
   onSendRequest: () => void;
@@ -277,6 +278,7 @@ export function RequestPanel({
   headersPresetMenuOpen,
   setHeadersPresetMenuOpen,
   isDirty,
+  isUnsaved,
   onUpdateDraft,
   onSaveRequest,
   onSendRequest,
@@ -614,11 +616,36 @@ export function RequestPanel({
       <div className="request-header">
         <div className="request-identity">
           <div className="request-single-line-header">
-            <span className="request-type-badge">REQUEST</span>
-            {folderPath && (
+            {isUnsaved ? (
               <>
-                <span className="request-path">{folderPath}</span>
-                <span className="request-path-sep">/</span>
+                <span
+                  className="request-type-badge draft-badge"
+                  style={{
+                    backgroundColor: "rgba(245, 158, 11, 0.15)",
+                    color: "#f59e0b",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    padding: "2px 8px",
+                    borderRadius: "4px",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  DRAFT
+                </span>
+                <span className="request-path" style={{ color: "var(--color-text-muted)" }}>
+                  Unsaved request • Press Cmd+S or click Save to store in a collection
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="request-type-badge">REQUEST</span>
+                {folderPath && (
+                  <>
+                    <span className="request-path">{folderPath}</span>
+                    <span className="request-path-sep">/</span>
+                  </>
+                )}
               </>
             )}
             {isEditingTitle ? (
@@ -644,10 +671,10 @@ export function RequestPanel({
                 title="Double-click to edit request name"
               >
                 {draftRequest.name}
-                {isDirty && (
+                {(isDirty || isUnsaved) && (
                   <span
                     className="request-dirty-dot"
-                    title="Unsaved changes"
+                    title={isUnsaved ? "Draft (Unsaved)" : "Unsaved changes"}
                     style={{
                       display: "inline-block",
                       width: "7px",
@@ -666,10 +693,10 @@ export function RequestPanel({
           </div>
         </div>
         <button
-          className={`request-save-button ${isDirty ? "is-dirty" : "ghost-button"}`}
+          className={`request-save-button ${isDirty || isUnsaved ? "is-dirty" : "ghost-button"}`}
           type="button"
           onClick={onSaveRequest}
-          title="Save (Cmd/Ctrl + S)"
+          title={isUnsaved ? "Save to Collection (Cmd/Ctrl + S)" : "Save (Cmd/Ctrl + S)"}
           style={{
             padding: "6px 14px",
             height: "32px",
@@ -680,7 +707,7 @@ export function RequestPanel({
             fontSize: "13px",
             fontWeight: 600,
             cursor: "pointer",
-            ...(isDirty
+            ...(isUnsaved || isDirty
               ? {
                   background: "var(--color-accent-surface, rgba(59, 130, 246, 0.15))",
                   color: "var(--color-accent, #3b82f6)",
@@ -694,8 +721,8 @@ export function RequestPanel({
           }}
         >
           <Save size={14} />
-          Save
-          {isDirty && (
+          {isUnsaved ? "Save to Collection..." : isDirty ? "Save Changes" : "Saved"}
+          {(isDirty || isUnsaved) && (
             <span
               className="save-dirty-dot"
               style={{
@@ -872,6 +899,12 @@ export function RequestPanel({
                   </div>
                 </div>
 
+                <div className="headers-grid-header">
+                  <span className="col-center">On</span>
+                  <span>Key</span>
+                  <span>Value</span>
+                  <span></span>
+                </div>
                 <div className="headers-grid-body">
                   <div className="headers-rows">
                     {(draftRequest.queryParams && draftRequest.queryParams.length > 0
@@ -1093,10 +1126,10 @@ export function RequestPanel({
               </div>
 
               <div className="headers-grid-header">
-                <span></span>
-                <span>On</span>
+                <span className="col-center">On</span>
                 <span>Key</span>
                 <span>Value</span>
+                <span></span>
               </div>
               <div className="headers-grid-body">
 

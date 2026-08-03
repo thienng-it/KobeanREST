@@ -13,6 +13,8 @@ export interface CreateRequestModalProps {
   workspace: WorkspaceSummary | null;
   workspaces?: WorkspaceListItem[];
   initialFolderId?: string;
+  initialName?: string;
+  initialMethod?: string;
   onClose: () => void;
   onCreate: (name: string, method: string, locationTarget: string, targetWorkspaceId?: string) => Promise<void>;
 }
@@ -27,6 +29,8 @@ export function CreateRequestModal({
   workspace,
   workspaces = [],
   initialFolderId,
+  initialName,
+  initialMethod,
   onClose,
   onCreate,
 }: CreateRequestModalProps) {
@@ -42,15 +46,15 @@ export function CreateRequestModal({
   // Synchronize initial selection and default values when opening
   useEffect(() => {
     if (open) {
-      setName("New Request");
-      setMethod("GET");
+      setName(initialName || "New Request");
+      setMethod(initialMethod || "GET");
       setNewCollectionName("New Collection");
       setIsCreatingNewCollection(false);
       const activeWsId = workspace?.id ?? workspaces?.[0]?.id ?? "";
       setSelectedWorkspaceId(activeWsId);
       setTargetWorkspaceSummary(workspace);
     }
-  }, [open, workspace, workspaces]);
+  }, [open, workspace, workspaces, initialName, initialMethod]);
 
   // Load target workspace collections & folders whenever selectedWorkspaceId changes
   useEffect(() => {

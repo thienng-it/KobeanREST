@@ -48,6 +48,8 @@ import {
   getScripts,
   loadHistoryResponse,
   importWorkspaceData,
+  saveRequest,
+  loadLocalWorkspace,
 } from "./services/local-store";
 import type {SavedRequest, Tab, WorkspaceSummary} from "./types";
 import type { ScriptOutputEntry } from "./hooks/useScripts";
@@ -99,6 +101,7 @@ export function App() {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [unsavedRequests, setUnsavedRequests] = useState<Record<string, SavedRequest>>({});
 
   const [headersPresetMenuOpen, setHeadersPresetMenuOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<import("./components/ConfirmDialog").ConfirmDialogState | null>(null);
@@ -478,9 +481,56 @@ export function App() {
     return generateRequestCodeSnippet(resolvedDraft, requestCodeTarget, resolvedAuth);
   })() : "";
 
+  const handleNewTab = useCallback(() => {
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const tempReq: SavedRequest = {
+      id: tempId,
+      folderId: "",
+      name: "New Request",
+      method: "GET",
+      url: "",
+      headers: [
+        { key: "Accept", value: "*/*", enabled: true },
+        { key: "User-Agent", value: "KobeanREST/0.1.14", enabled: true },
+      ],
+      body: "",
+      bodyMimeType: "text/plain",
+      bodyForm: [],
+      queryParams: [],
+      authMode: "none",
+      authConfig: {},
+      timeoutMs: 30000,
+      followRedirects: true,
+    };
+    setUnsavedRequests((prev) => ({ ...prev, [tempId]: tempReq }));
+    const newTab: Tab = {
+      id: `tab-${tempId}`,
+      type: "request",
+      entityId: tempId,
+      name: tempReq.name,
+      method: tempReq.method,
+      isDirty: true,
+    };
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+    setSelectedRequestId(tempId);
+    setDraftRequest(tempReq);
+  }, []);
+
   function updateDraft(fields: Partial<SavedRequest>) {
     if (draftRequest) {
-      setDraftRequest({ ...draftRequest, ...fields });
+      const updated = { ...draftRequest, ...fields };
+      setDraftRequest(updated);
+      if (unsavedRequests[draftRequest.id]) {
+        setUnsavedRequests((prev) => ({ ...prev, [draftRequest.id]: updated }));
+      }
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.entityId === draftRequest.id
+            ? { ...t, isDirty: true, method: updated.method, name: updated.name }
+            : t
+        )
+      );
     }
   }
 
@@ -957,7 +1007,12 @@ export function App() {
       method: request.method,
       isDirty: false,
     };
-    setTabs((prev) => [...prev, newTab]);
+    setTabs((prev) => {
+      if (prev.some((t) => t.type === "request" && t.entityId === request.id)) {
+        return prev;
+      }
+      return [...prev, newTab];
+    });
     setActiveTabId(newTab.id);
   }, [selectedRequestId, tabs, workspace]);
 
@@ -1150,6 +1205,14 @@ export function App() {
       const tabToClose = prev[index];
       const newTabs = prev.filter((tab) => tab.id !== tabId);
 
+      if (unsavedRequests[tabToClose.entityId]) {
+        setUnsavedRequests((prevUnsaved) => {
+          const next = { ...prevUnsaved };
+          delete next[tabToClose.entityId];
+          return next;
+        });
+      }
+
       if (activeTabId === tabId) {
         if (newTabs.length > 0) {
           const newIndex = Math.min(index, newTabs.length - 1);
@@ -1158,6 +1221,9 @@ export function App() {
           if (nextTab.type === "request") {
             setSelectedRequestId(nextTab.entityId);
             lastSelectedRequestIdRef.current = nextTab.entityId;
+            if (unsavedRequests[nextTab.entityId]) {
+              setDraftRequest(unsavedRequests[nextTab.entityId]);
+            }
           } else if (nextTab.type === "folder") {
             setSelectedRequestId(null);
             lastSelectedRequestIdRef.current = null;
@@ -1169,11 +1235,13 @@ export function App() {
           setActiveTabId(null);
           setSelectedRequestId(null);
           lastSelectedRequestIdRef.current = null;
+          setDraftRequest(null);
         }
       } else {
         if (tabToClose.type === "request" && tabToClose.entityId === selectedRequestId) {
           setSelectedRequestId(null);
           lastSelectedRequestIdRef.current = null;
+          setDraftRequest(null);
         }
       }
       return newTabs;
@@ -1182,19 +1250,16 @@ export function App() {
 
   function promptSaveRequest() {
     if (!draftRequest) return;
-    if (!isDraftDirty) {
-      void handleSaveRequest();
+    const isUnsaved = Boolean(unsavedRequests[draftRequest.id]);
+    if (isUnsaved) {
+      setCreateRequestInitialFolderId(undefined);
+      setCreateRequestModalOpen(true);
       return;
     }
-    setConfirmDialog({
-      title: "Save Request Changes",
-      message: `Do you want to save the changes made to "${draftRequest.name}"?`,
-      confirmLabel: "Save Changes",
-      confirmVariant: "primary",
-      onConfirm: () => {
-        void handleSaveRequest();
-      },
-    });
+    void handleSaveRequest();
+    setTabs((prev) =>
+      prev.map((t) => (t.id === activeTabId ? { ...t, isDirty: false } : t))
+    );
   }
 
   useEffect(() => {
@@ -1207,10 +1272,14 @@ export function App() {
         e.preventDefault();
         toggleSidebar();
       }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        handleNewTab();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [draftRequest, isDraftDirty, workspace]);
+  }, [draftRequest, isDraftDirty, workspace, unsavedRequests, handleNewTab]);
 
   const selectionReplaceFnRef = useRef<((varName: string) => void) | null>(null);
   const pendingSelectionRef = useRef<{ text: string; replaceFn: ((varName: string) => void) | null } | null>(null);
@@ -1272,11 +1341,54 @@ export function App() {
     };
   }, []);
 
+  // Auto-remove open tabs when items (requests, folders, collections, environments) are deleted from the workspace
+  useEffect(() => {
+    if (!workspace) return;
+    const validRequestIds = new Set(workspace.requests.map((r) => r.id));
+    const validFolderIds = new Set(workspace.folders.map((f) => f.id));
+    const validCollectionIds = new Set((workspace.collections ?? []).map((c) => c.id));
+    const validEnvironmentNames = new Set(workspace.environments.map((e) => e.name));
+
+    setTabs((prevTabs) => {
+      const filtered = prevTabs.filter((tab) => {
+        if (unsavedRequests[tab.entityId]) return true;
+        if (tab.type === "request") return validRequestIds.has(tab.entityId);
+        if (tab.type === "folder") return validFolderIds.has(tab.entityId);
+        if (tab.type === "collection") return validCollectionIds.has(tab.entityId);
+        if (tab.type === "environment") return validEnvironmentNames.has(tab.entityId);
+        return true;
+      });
+
+      if (filtered.length !== prevTabs.length) {
+        if (activeTabId && !filtered.some((t) => t.id === activeTabId)) {
+          if (filtered.length > 0) {
+            const nextTab = filtered[filtered.length - 1];
+            setActiveTabId(nextTab.id);
+            if (nextTab.type === "request") {
+              setSelectedRequestId(nextTab.entityId);
+              lastSelectedRequestIdRef.current = nextTab.entityId;
+            } else {
+              setSelectedRequestId(null);
+              lastSelectedRequestIdRef.current = null;
+            }
+          } else {
+            setActiveTabId(null);
+            setSelectedRequestId(null);
+            lastSelectedRequestIdRef.current = null;
+            setDraftRequest(null);
+          }
+        }
+      }
+      return filtered;
+    });
+  }, [workspace, unsavedRequests, activeTabId]);
+
   const handleGlobalContextMenu = (_e: React.MouseEvent<HTMLElement>) => {
     // Handled by the native listener in useEffect above
   };
   
   const currentTab = activeTabId ? tabs.find((t) => t.id === activeTabId) : null;
+  const unsavedEntityIds = useMemo(() => new Set(Object.keys(unsavedRequests)), [unsavedRequests]);
 
   return (
     <main
@@ -1405,10 +1517,17 @@ export function App() {
           <TabBar
             tabs={tabs}
             activeTabId={activeTabId}
+            unsavedEntityIds={unsavedEntityIds}
+            onNewTab={handleNewTab}
             onTabClick={(tab) => {
               setActiveTabId(tab.id);
               if (tab.type === "request") {
-                handleSelectRequest(tab.entityId);
+                if (unsavedRequests[tab.entityId]) {
+                  setSelectedRequestId(tab.entityId);
+                  setDraftRequest(unsavedRequests[tab.entityId]);
+                } else {
+                  handleSelectRequest(tab.entityId);
+                }
                 lastSelectedRequestIdRef.current = tab.entityId;
               } else if (tab.type === "folder") {
                 setSelectedRequestId(null);
@@ -1515,6 +1634,7 @@ export function App() {
               headersPresetMenuOpen={headersPresetMenuOpen}
               setHeadersPresetMenuOpen={setHeadersPresetMenuOpen}
               isDirty={isDraftDirty}
+              isUnsaved={Boolean(draftRequest && unsavedRequests[draftRequest.id])}
               onUpdateDraft={updateDraft}
               onSaveRequest={promptSaveRequest}
               onSendRequest={sendSelectedRequest}
@@ -1541,10 +1661,7 @@ export function App() {
                   <button
                     type="button"
                     className="primary-button"
-                    onClick={() => {
-                      setCreateRequestInitialFolderId(undefined);
-                      setCreateRequestModalOpen(true);
-                    }}
+                    onClick={handleNewTab}
                   >
                     + New Request
                   </button>
@@ -1568,7 +1685,7 @@ export function App() {
             );
           })()}
 
-          {currentTab?.type !== "folder" && currentTab?.type !== "collection" && (
+          {currentTab && currentTab.type !== "folder" && currentTab.type !== "collection" && (
             <BottomDock
               activeBottomDock={activeBottomDock}
               bottomDockHeight={bottomDockHeight}
@@ -1813,10 +1930,65 @@ export function App() {
         workspace={workspace}
         workspaces={workspaceList}
         initialFolderId={createRequestInitialFolderId}
+        initialName={draftRequest && unsavedRequests[draftRequest.id] ? draftRequest.name : "New Request"}
+        initialMethod={draftRequest && unsavedRequests[draftRequest.id] ? draftRequest.method : "GET"}
         onClose={() => setCreateRequestModalOpen(false)}
         onCreate={async (name, method, locationTarget, targetWorkspaceId) => {
           setCollectionSearch("");
-          await handleCreateRequestWithDetails(name, method, locationTarget, targetWorkspaceId);
+          const isUnsaved = Boolean(draftRequest && unsavedRequests[draftRequest.id]);
+          const oldTempId = isUnsaved ? draftRequest!.id : null;
+          const oldDraftData = isUnsaved ? { ...draftRequest! } : null;
+
+          const createdReq = await handleCreateRequestWithDetails(name, method, locationTarget, targetWorkspaceId);
+
+          if (oldTempId && oldDraftData && createdReq) {
+            lastSelectedRequestIdRef.current = createdReq.id;
+            const fullReq: SavedRequest = {
+              ...oldDraftData,
+              id: createdReq.id,
+              name: createdReq.name,
+              method: createdReq.method,
+              folderId: createdReq.folderId,
+            };
+            await saveRequest(fullReq);
+            try {
+              const freshWorkspace = await loadLocalWorkspace();
+              setWorkspace(freshWorkspace);
+            } catch (e) {
+              console.error(e);
+            }
+            setDraftRequest(fullReq);
+            setTabs((prev) => {
+              const mapped = prev.map((t) => {
+                if (t.entityId === oldTempId || t.id === `tab-${oldTempId}`) {
+                  return {
+                    ...t,
+                    id: `tab-${createdReq.id}`,
+                    entityId: createdReq.id,
+                    name: createdReq.name,
+                    method: createdReq.method,
+                    isDirty: false,
+                  };
+                }
+                return t;
+              });
+              const seen = new Set<string>();
+              return mapped.filter((t) => {
+                const key = `${t.type}:${t.entityId}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+            });
+            setActiveTabId(`tab-${createdReq.id}`);
+            setSelectedRequestId(createdReq.id);
+            setUnsavedRequests((prev) => {
+              const next = { ...prev };
+              delete next[oldTempId];
+              return next;
+            });
+          }
+          setCreateRequestModalOpen(false);
         }}
       />
 

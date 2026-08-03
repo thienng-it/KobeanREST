@@ -859,8 +859,10 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       }
 
       setSelectedRequestId(updatedReq.id);
+      return updatedReq;
     } catch (err) {
       console.error(diagnosticMessage(err));
+      return null;
     }
   }
 
