@@ -196,7 +196,9 @@ function buildPmObject(
     },
     has: (key: string) => key in ctxVariables,
     unset: (key: string) => {
-      delete (kb.variables as any)[key];
+      delete ctxVariables[key];
+      if (ctx.deleteLocalVariable) ctx.deleteLocalVariable(key);
+      else if (ctx.deleteVariable) ctx.deleteVariable(key);
     },
   };
 
