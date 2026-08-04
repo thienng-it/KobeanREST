@@ -21,6 +21,8 @@ export interface KbScriptContext {
   setEnvironmentVariable?: (key: string, value: string) => void;
   /** Remove a variable from the active environment. */
   deleteEnvironmentVariable?: (key: string) => void;
+  /** Skip the request execution */
+  skipRequest?: boolean;
   /** @deprecated use setEnvironmentVariable */
   setVariable?: (key: string, value: string) => void;
   /** @deprecated use deleteEnvironmentVariable */
@@ -194,8 +196,21 @@ function buildPmObject(
       return {
         all: () => kb.request.headers,
         get: (name: string) => kb.request.getHeader(name),
-        add: (header: { key: string; value: string }) => kb.request.setHeader(header.key, header.value),
+        add: (header: { key: string; value: string } | string) => {
+          if (typeof header === 'string') {
+            const [k, ...v] = header.split(':');
+            if (k && v.length > 0) kb.request.setHeader(k.trim(), v.join(':').trim());
+          } else if (header?.key) {
+            kb.request.setHeader(header.key, String(header.value));
+          }
+        },
+        upsert: (header: { key: string; value: string }) => {
+          if (header?.key) kb.request.setHeader(header.key, String(header.value));
+        },
         remove: (name: string) => kb.request.removeHeader(name),
+        has: (name: string) => kb.request.getHeader(name) !== null,
+        clear: () => { kb.request.headers = []; },
+        count: () => kb.request.headers.length,
       };
     },
     get body() { return kb.request.body; },
@@ -288,6 +303,13 @@ function buildPmObject(
     iterationCount: 1,
   };
 
+  const pmExecution = {
+    skipRequest: () => {
+      ctx.skipRequest = true;
+      throw new Error("PM_EXECUTION_SKIP_REQUEST");
+    }
+  };
+
   // pm.cookies - stub with warning
   const pmCookies = {
     get: (name: string) => {
@@ -324,6 +346,7 @@ function buildPmObject(
     variables: pmCollectionVariables, // pm.variables is alias for collectionVariables
     globals: pmGlobals,
     info: pmInfo,
+    execution: pmExecution,
     cookies: pmCookies,
 
     // pm.test and pm.expect (delegate to kb)

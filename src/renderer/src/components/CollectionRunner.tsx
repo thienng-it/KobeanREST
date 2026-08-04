@@ -223,7 +223,8 @@ export function CollectionRunner({
     inMemoryResponses?: Map<string, ExecuteHttpResponse>
   ): Promise<RequestResult> {
     const folder = runWorkspace.folders.find((f) => f.id === req.folderId);
-    const collectionId = folder?.collectionId;
+    const collection = runWorkspace.collections?.find((c) => c.id === req.folderId);
+    const collectionId = folder ? folder.collectionId : (collection ? collection.id : undefined);
     const variableMap = buildScopedVariableMap(runWorkspace, {
       collectionId,
       folderId: req.folderId,
@@ -284,24 +285,34 @@ export function CollectionRunner({
         if (pre) await runScript(resolveString(pre, variableMap).resolved, preScriptsCtx, "Collection pre");
       }
       
-      const folderPath: import('../types').FolderSummary[] = [];
-      let currentFolder = folder;
-      while (currentFolder) {
-        folderPath.push(currentFolder);
-        currentFolder = runWorkspace?.folders.find((f) => f.id === currentFolder?.parentId);
+      if (!preScriptsCtx.skipRequest) {
+        const folderPath: import('../types').FolderSummary[] = [];
+        let currentFolder = folder;
+        while (currentFolder) {
+          folderPath.push(currentFolder);
+          currentFolder = runWorkspace?.folders.find((f) => f.id === currentFolder?.parentId);
+        }
+        folderPath.reverse(); // root folder first
+        
+        for (const f of folderPath) {
+          if (preScriptsCtx.skipRequest) break;
+          const folderScripts = await getScripts(f.id, "folder");
+          const preF = folderScripts.find((s) => s.scriptType === "pre")?.content;
+          if (preF) await runScript(resolveString(preF, variableMap).resolved, preScriptsCtx, `Folder (${f.name}) pre`);
+        }
       }
-      folderPath.reverse(); // root folder first
-      
-      for (const f of folderPath) {
-        const folderScripts = await getScripts(f.id, "folder");
-        const preF = folderScripts.find((s) => s.scriptType === "pre")?.content;
-        if (preF) await runScript(resolveString(preF, variableMap).resolved, preScriptsCtx, `Folder (${f.name}) pre`);
+
+      if (!preScriptsCtx.skipRequest) {
+        const reqScripts = await getScripts(req.id, "request");
+        const preR = reqScripts.find((s) => s.scriptType === "pre")?.content;
+        if (preR) await runScript(resolveString(preR, variableMap).resolved, preScriptsCtx, "Request pre");
       }
-      const reqScripts = await getScripts(req.id, "request");
-      const preR = reqScripts.find((s) => s.scriptType === "pre")?.content;
-      if (preR) await runScript(resolveString(preR, variableMap).resolved, preScriptsCtx, "Request pre");
     } catch (err) {
       return { request: req, status: "failed", error: err instanceof Error ? err.message : String(err) };
+    }
+
+    if (preScriptsCtx.skipRequest) {
+      return { request: req, status: "skipped" };
     }
 
     const requestToSend = preScriptsCtx.request;
@@ -428,21 +439,24 @@ export function CollectionRunner({
         const reqScripts2 = await getScripts(requestToSend.id, "request");
         const postR = reqScripts2.find((s) => s.scriptType === "post")?.content;
         if (postR) await runScript(resolveString(postR, variableMap).resolved, postCtx, "Request post");
-        const folderPath2: import('../types').FolderSummary[] = [];
-        let currentFolder2 = folder;
-        while (currentFolder2) {
-          folderPath2.push(currentFolder2);
-          currentFolder2 = runWorkspace?.folders.find((f) => f.id === currentFolder2?.parentId);
-        }
-        for (const f of folderPath2) {
-          const folderScripts2 = await getScripts(f.id, "folder");
-          const postF = folderScripts2.find((s) => s.scriptType === "post")?.content;
-          if (postF) await runScript(resolveString(postF, variableMap).resolved, postCtx, `Folder (${f.name}) post`);
-        }
-        if (collectionId) {
-          const collScripts2 = await getScripts(collectionId, "collection");
-          const postC = collScripts2.find((s) => s.scriptType === "post")?.content;
-          if (postC) await runScript(resolveString(postC, variableMap).resolved, postCtx, "Collection post");
+        if (!postCtx.skipRequest) {
+          const folderPath2: import('../types').FolderSummary[] = [];
+          let currentFolder2 = folder;
+          while (currentFolder2) {
+            folderPath2.push(currentFolder2);
+            currentFolder2 = runWorkspace?.folders.find((f) => f.id === currentFolder2?.parentId);
+          }
+          for (const f of folderPath2) {
+            if (postCtx.skipRequest) break;
+            const folderScripts2 = await getScripts(f.id, "folder");
+            const postF = folderScripts2.find((s) => s.scriptType === "post")?.content;
+            if (postF) await runScript(resolveString(postF, variableMap).resolved, postCtx, `Folder (${f.name}) post`);
+          }
+          if (!postCtx.skipRequest && collectionId) {
+            const collScripts2 = await getScripts(collectionId, "collection");
+            const postC = collScripts2.find((s) => s.scriptType === "post")?.content;
+            if (postC) await runScript(resolveString(postC, variableMap).resolved, postCtx, "Collection post");
+          }
         }
       } catch { /* ignore post-script errors for runner */ }
 

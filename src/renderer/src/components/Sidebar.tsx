@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
@@ -60,6 +60,7 @@ export interface SidebarProps {
   onOpenHistory?: () => void;
   onCheckForUpdates?: () => void;
   onOpenSettings?: () => void;
+  onOpenJwtDecoder?: () => void;
 
   // Collection state
   collectionSearch: string;
@@ -143,6 +144,8 @@ function DraggableCollectionRow({
   onCreateRequest,
   onOpenCollection,
   onContextMenu,
+  isCollapsed,
+  onToggleCollapse,
   children,
 }: {
   collection: { id: string; name: string };
@@ -160,6 +163,8 @@ function DraggableCollectionRow({
   onCreateRequest: (folderId: string) => void;
   onOpenCollection?: (collectionId: string) => void;
   onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
   children?: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -199,6 +204,15 @@ function DraggableCollectionRow({
           style={{ pointerEvents: "none" }}
         >
           <GripVertical size={12} />
+        </span>
+        <span
+          className="sidebar-chevron"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleCollapse?.();
+          }}
+        >
+          {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
         </span>
         {isRenaming ? (
           <input
@@ -625,6 +639,7 @@ export function Sidebar({
   onOpenHistory,
   onCheckForUpdates,
   onOpenSettings,
+  onOpenJwtDecoder,
   onExport,
   onImport,
   onCurlImport,
@@ -1205,29 +1220,38 @@ export function Sidebar({
                 )}
               </div>
             </h2>
-            {visibleCollections.map((collection) => (
-              <DraggableCollectionRow
-                key={collection.id}
-                collection={collection}
-                dragId={encodeDragId("collection", collection.id)}
-                isDragOver={dragOverItem?.id === collection.id && dragOverItem.type === "collection"}
-                dragOverPosition={dragOverItem?.id === collection.id && dragOverItem.type === "collection" ? dragOverItem?.position : undefined}
-                isRenaming={renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id}
-                sidebarNameDraft={sidebarNameDraft}
-                onSidebarNameDraftChange={onSidebarNameDraftChange}
-                onApplySidebarRename={onApplySidebarRename}
-                onCancelSidebarRename={onCancelSidebarRename}
-                onStartSidebarRename={onStartSidebarRename}
-                onDeleteCollection={onDeleteCollection}
-                onCreateFolder={onCreateFolder}
-                onCreateRequest={onCreateRequest}
-                onOpenCollection={onOpenCollection}
-                onContextMenu={onContextMenu}
-              >
-                {renderCollectionRequests(collection.id, matchesCollectionSearch(collection.name) ?? false)}
-                {renderFolders(undefined, 0, matchesCollectionSearch(collection.name) ?? false, collection.id)}
-              </DraggableCollectionRow>
-            ))}
+            {visibleCollections.map((collection) => {
+              const isCollectionCollapsed = !isCollectionSearchActive && collapsedFolders[collection.id];
+              return (
+                <DraggableCollectionRow
+                  key={collection.id}
+                  collection={collection}
+                  dragId={encodeDragId("collection", collection.id)}
+                  isDragOver={dragOverItem?.id === collection.id && dragOverItem.type === "collection"}
+                  dragOverPosition={dragOverItem?.id === collection.id && dragOverItem.type === "collection" ? dragOverItem?.position : undefined}
+                  isRenaming={renamingSidebarItem?.type === "collection" && renamingSidebarItem.id === collection.id}
+                  sidebarNameDraft={sidebarNameDraft}
+                  onSidebarNameDraftChange={onSidebarNameDraftChange}
+                  onApplySidebarRename={onApplySidebarRename}
+                  onCancelSidebarRename={onCancelSidebarRename}
+                  onStartSidebarRename={onStartSidebarRename}
+                  onDeleteCollection={onDeleteCollection}
+                  onCreateFolder={onCreateFolder}
+                  onCreateRequest={onCreateRequest}
+                  onOpenCollection={onOpenCollection}
+                  onContextMenu={onContextMenu}
+                  isCollapsed={isCollectionCollapsed}
+                  onToggleCollapse={() => onToggleFolder(collection.id)}
+                >
+                  {!isCollectionCollapsed && (
+                    <>
+                      {renderCollectionRequests(collection.id, matchesCollectionSearch(collection.name) ?? false)}
+                      {renderFolders(undefined, 0, matchesCollectionSearch(collection.name) ?? false, collection.id)}
+                    </>
+                  )}
+                </DraggableCollectionRow>
+              );
+            })}
           </section>
 
           <DragOverlay>
@@ -1389,6 +1413,15 @@ export function Sidebar({
             onClick={onCheckForUpdates}
           >
             <RefreshCw size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="JWT Decoder"
+            aria-label="JWT Decoder"
+            onClick={onOpenJwtDecoder}
+          >
+            <Key size={15} />
           </button>
           <button
             type="button"

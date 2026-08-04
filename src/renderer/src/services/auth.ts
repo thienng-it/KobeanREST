@@ -172,12 +172,12 @@ export async function obtainOAuth2Token(
   authConfig: AuthConfig,
   variableMap: Map<string, string>,
 ): Promise<string> {
+  const grantType = authConfig.grantType ?? "client_credentials";
+  
   const url = tryResolve(authConfig.accessTokenUrl, variableMap);
-  if (!url) {
+  if (grantType !== "authorization_code" && !url) {
     throw new Error("Access Token URL is required");
   }
-
-  const grantType = authConfig.grantType ?? "client_credentials";
   const clientId = tryResolve(authConfig.clientId, variableMap);
   const clientSecret = tryResolve(authConfig.clientSecret, variableMap);
   const scope = tryResolve(authConfig.scope, variableMap);
@@ -217,8 +217,6 @@ export async function obtainOAuth2Token(
             if (token) {
               resolve(token);
             } else if (code) {
-              // Note: If they only provided a Target URL, we cannot easily exchange the code here because we lack client_id, redirect_uri, etc.
-              // So we just return the code. Hopefully it's already a token.
               resolve(code);
             } else if (err) {
               reject(new Error(`OAuth Error: ${err}`));
@@ -230,8 +228,15 @@ export async function obtainOAuth2Token(
           }
         });
 
+        // Extract redirect_uri from the loginUrl to use in the exchange
+        let redirectUri: string | undefined;
+        try {
+          const loginUrlObj = new URL(loginUrl);
+          redirectUri = loginUrlObj.searchParams.get("redirect_uri") || undefined;
+        } catch (e) {}
+
         // Open the browser window with the provided URL as-is
-        await invoke("start_oauth_login", { loginUrl });
+        await invoke("start_oauth_login", { loginUrl, redirectUri });
       } catch (err) {
         reject(err);
       }
@@ -240,9 +245,64 @@ export async function obtainOAuth2Token(
     if (unlistenCallback) unlistenCallback();
     if (unlistenToken) unlistenToken();
     
-    // In this simplified flow, the popup already captured the actual token
-    // (either via AJAX sniffing or implicit flow hash), so we can just return it.
-    return authCode;
+    // If the returned string is an access_token (because it was captured via implicit flow or monkey-patching),
+    // or if no accessTokenUrl is configured to perform the exchange, return it directly.
+    if (!url || authCode.length > 200) {
+      return authCode; // likely already a JWT or token
+    }
+    
+    // Otherwise, assume it's a code and we need to exchange it
+    const exchangeParams = new URLSearchParams();
+    exchangeParams.append("grant_type", "authorization_code");
+    exchangeParams.append("code", authCode);
+    
+    // Extract redirect_uri from the loginUrl to use in the exchange
+    try {
+      const loginUrlObj = new URL(loginUrl);
+      const redirectUri = loginUrlObj.searchParams.get("redirect_uri");
+      if (redirectUri) {
+        exchangeParams.append("redirect_uri", redirectUri);
+      }
+    } catch (e) {}
+
+    const exchangeHeaders: Array<{ key: string; value: string; enabled: boolean }> = [
+      { key: "Content-Type", value: "application/x-www-form-urlencoded", enabled: true }
+    ];
+
+    if (clientId && clientSecret) {
+      try {
+        const encoded = btoa(`${clientId}:${clientSecret}`);
+        exchangeHeaders.push({ key: "Authorization", value: `Basic ${encoded}`, enabled: true });
+      } catch (e) {
+        exchangeParams.append("client_id", clientId);
+        exchangeParams.append("client_secret", clientSecret);
+      }
+    } else if (clientId) {
+      exchangeParams.append("client_id", clientId);
+    }
+    
+    const exchangeResponse = await executeHttpRequest({
+      method: "POST",
+      url,
+      headers: exchangeHeaders,
+      body: exchangeParams.toString(),
+      bodyMimeType: "application/x-www-form-urlencoded",
+      timeoutMs: 30000,
+      followRedirects: true,
+    });
+    
+    if (exchangeResponse.status < 200 || exchangeResponse.status >= 300) {
+      throw new Error(`Failed to exchange code for token (HTTP ${exchangeResponse.status}): ${exchangeResponse.bodyText || exchangeResponse.statusText}`);
+    }
+    
+    const exchangeData = JSON.parse(exchangeResponse.bodyText || "{}");
+    if (exchangeData.access_token) {
+      return exchangeData.access_token;
+    } else if (exchangeData.token) {
+      return exchangeData.token;
+    } else {
+      throw new Error("Exchange response did not contain an access_token");
+    }
   }
 
   if (scope) {

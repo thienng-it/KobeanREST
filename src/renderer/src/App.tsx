@@ -34,6 +34,7 @@ import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { FolderEditor } from "./components/FolderEditor";
 import { CollectionEditor } from "./components/CollectionEditor";
 import { UniversalImportModal } from "./components/UniversalImportModal";
+import { JwtDecoderModal } from "./components/JwtDecoderModal";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
 import { CollectionRunner } from "./components/CollectionRunner";
 
@@ -114,6 +115,7 @@ export function App() {
   const [collectionEditorTarget, setCollectionEditorTarget] = useState<string>("");
   const [curlImportOpen, setCurlImportOpen] = useState(false);
   const [createRequestModalOpen, setCreateRequestModalOpen] = useState(false);
+  const [jwtDecoderOpen, setJwtDecoderOpen] = useState(false);
   const [createRequestInitialFolderId, setCreateRequestInitialFolderId] = useState<string | undefined>(undefined);
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
   const [moveToModal, setMoveToModal] = useState<{ type: "request" | "folder"; id: string } | null>(null);
@@ -627,8 +629,11 @@ export function App() {
       ? (JSON.parse(JSON.stringify(workspace)) as WorkspaceSummary)
       : { id: "tmp", name: "Temporary", activeEnvironment: "", environments: [], folders: [], requests: [] };
     const scopedFolder = scopeWorkspace.folders.find((f) => f.id === draftRequest.folderId);
+    const scopedCollection = scopeWorkspace.collections?.find((c) => c.id === draftRequest.folderId);
+    const resolvedCollectionId = scopedFolder ? scopedFolder.collectionId : (scopedCollection ? scopedCollection.id : undefined);
+    
     const variableMap = buildScopedVariableMap(scopeWorkspace, {
-      collectionId: scopedFolder?.collectionId,
+      collectionId: resolvedCollectionId,
       folderId: draftRequest.folderId,
       request: draftRequest,
     });
@@ -677,8 +682,8 @@ export function App() {
     };
     
     try {
-      if (scopedFolder?.collectionId) {
-        const collectionScripts = await getScripts(scopedFolder.collectionId, 'collection');
+      if (resolvedCollectionId) {
+        const collectionScripts = await getScripts(resolvedCollectionId, 'collection');
         const preCollection = collectionScripts.find(s => s.scriptType === 'pre')?.content;
         if (preCollection) {
           const resolved = resolveString(preCollection, variableMap).resolved;
@@ -718,6 +723,12 @@ export function App() {
       }
       scriptOutputEntries.push({ tone: "error", message: `Pre-script execution failed: ${diagnosticMessage(err)}` });
       setResponseState({ kind: "error", message: `Pre-script execution failed: ${diagnosticMessage(err)}` });
+      setScriptOutputLog(scriptOutputEntries);
+      return;
+    }
+
+    if (preScriptsContext.skipRequest) {
+      setResponseState({ kind: "error", message: "Request skipped by script." });
       setScriptOutputLog(scriptOutputEntries);
       return;
     }
@@ -925,28 +936,32 @@ export function App() {
           const resolved = resolveString(postReq, variableMap).resolved;
           scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Request post-response")));
         }
-        const folderPath2: import('./types').FolderSummary[] = [];
-        let currentFolder2 = scopedFolder;
-        while (currentFolder2) {
-          folderPath2.push(currentFolder2);
-          currentFolder2 = scopeWorkspace.folders.find((f) => f.id === currentFolder2?.parentId);
-        }
-        // No reverse here, because post-scripts run from immediate folder up to root folder
-        for (const folder of folderPath2) {
-          const folderScripts = await getScripts(folder.id, 'folder');
-          const postFolder = folderScripts.find(s => s.scriptType === 'post')?.content;
-          if (postFolder) {
-            const resolved = resolveString(postFolder, variableMap).resolved;
-            scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, `Folder (${folder.name}) post-response`)));
-          }
-        }
 
-        if (scopedFolder?.collectionId) {
-          const collectionScripts = await getScripts(scopedFolder.collectionId, 'collection');
-          const postCollection = collectionScripts.find(s => s.scriptType === 'post')?.content;
-          if (postCollection) {
-            const resolved = resolveString(postCollection, variableMap).resolved;
-            scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Collection post-response")));
+        if (!postScriptsContext.skipRequest) {
+          const folderPath2: import('./types').FolderSummary[] = [];
+          let currentFolder2 = scopedFolder;
+          while (currentFolder2) {
+            folderPath2.push(currentFolder2);
+            currentFolder2 = scopeWorkspace.folders.find((f) => f.id === currentFolder2?.parentId);
+          }
+          // No reverse here, because post-scripts run from immediate folder up to root folder
+          for (const folder of folderPath2) {
+            if (postScriptsContext.skipRequest) break;
+            const folderScripts = await getScripts(folder.id, 'folder');
+            const postFolder = folderScripts.find(s => s.scriptType === 'post')?.content;
+            if (postFolder) {
+              const resolved = resolveString(postFolder, variableMap).resolved;
+              scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, `Folder (${folder.name}) post-response`)));
+            }
+          }
+
+          if (!postScriptsContext.skipRequest && resolvedCollectionId) {
+            const collectionScripts = await getScripts(resolvedCollectionId, 'collection');
+            const postCollection = collectionScripts.find(s => s.scriptType === 'post')?.content;
+            if (postCollection) {
+              const resolved = resolveString(postCollection, variableMap).resolved;
+              scriptOutputEntries.push(...(await runScript(resolved, postScriptsContext, "Collection post-response")));
+            }
           }
         }
       } catch (err) {
@@ -1494,7 +1509,8 @@ export function App() {
         onOpenHistory={() => void handleOpenHistory()}
         onCheckForUpdates={() => void handleCheckForUpdates("manual")}
         onOpenSettings={() => setSettingsOpen(true)}
-        onExport={() => void handleExport()}
+        onOpenJwtDecoder={() => setJwtDecoderOpen(true)}
+        onExport={() => {void handleExport()}}
         onImport={() => {
           setUniversalImportInitialContent("");
           setUniversalImportModalOpen(true);
@@ -1579,6 +1595,30 @@ export function App() {
                   }
                   onUpdateVariables={(newVars) => {
                     if (!workspace) return;
+                    
+                    const env = workspace.environments.find((e) => e.name === currentTab.entityId);
+                    if (env) {
+                      const oldVars = env.variables;
+                      const newKeys = new Set(newVars.map(v => v.key));
+                      
+                      // Delete variables that are no longer in newVars
+                      const deletedVars = oldVars.filter(v => !newKeys.has(v.key));
+                      for (const dv of deletedVars) {
+                        if (dv.key.trim()) {
+                          void handleDeleteVariable(currentTab.entityId, dv.key);
+                        }
+                      }
+                      
+                      // Save new or updated variables
+                      for (const nv of newVars) {
+                        if (!nv.key.trim()) continue;
+                        const ov = oldVars.find(v => v.key === nv.key);
+                        if (!ov || ov.value !== nv.value || ov.secret !== nv.secret) {
+                          void handleSaveVariable(currentTab.entityId, nv.key, nv.value);
+                        }
+                      }
+                    }
+
                     const updatedEnvs = workspace.environments.map((e) =>
                       e.name === currentTab.entityId ? { ...e, variables: newVars } : e
                     );
@@ -2048,6 +2088,11 @@ export function App() {
         onRename={(id, name) => void handleRenameWorkspace(id, name)}
         onDelete={(id) => void handleDeleteWorkspace(id)}
         onClose={() => setWorkspaceSwitcherOpen(false)}
+      />
+
+      <JwtDecoderModal
+        open={jwtDecoderOpen}
+        onClose={() => setJwtDecoderOpen(false)}
       />
 
       <UniversalImportModal

@@ -1,4 +1,4 @@
-import { KeyRound } from "lucide-react";
+import { KeyRound, Copy } from "lucide-react";
 import { CustomSelect } from "./CustomSelect";
 import { VariableInput } from "./VariableInput";
 import { obtainOAuth2Token } from "../services/auth";
@@ -61,7 +61,12 @@ export function AuthEditorForm({
           <div className="auth-config-fields" aria-label="Token credential">
             <label>
               <span>Token</span>
-              <VariableInput type="password" activeVariables={activeVars} value={draft.config.token ?? ""} onChange={(v) => updateConfig({ token: v.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
+              <div style={{ display: "flex", gap: "8px" }}>
+                <VariableInput type="password" activeVariables={activeVars} value={draft.config.token ?? ""} onChange={(v) => updateConfig({ token: v.target.value })} placeholder="token or {{variable}}" autoComplete="off" style={{ flex: 1 }} />
+                <button type="button" className="icon-button" onClick={() => navigator.clipboard.writeText(draft.config.token ?? "")} title="Copy Token" aria-label="Copy Token">
+                  <Copy size={16} />
+                </button>
+              </div>
             </label>
           </div>
         )}
@@ -80,8 +85,11 @@ export function AuthEditorForm({
                   } catch (err) {
                     alert("Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)));
                   }
-                }} style={{ padding: "4px 12px", cursor: "pointer", backgroundColor: "var(--color-primary, #0066cc)", color: "#fff", border: "none", borderRadius: "4px" }}>
+                }} style={{ padding: "4px 12px", cursor: "pointer", backgroundColor: "var(--color-primary, #0066cc)", color: "#fff", border: "none", borderRadius: "4px", flexShrink: 0 }}>
                   Get Token
+                </button>
+                <button type="button" className="icon-button" style={{ flexShrink: 0 }} onClick={() => navigator.clipboard.writeText(draft.config.token ?? "")} title="Copy Token" aria-label="Copy Token">
+                  <Copy size={16} />
                 </button>
               </div>
             </label>

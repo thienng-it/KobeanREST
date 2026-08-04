@@ -201,6 +201,10 @@ export function useScripts(selectedRequestId: string | null) {
     try {
       await runKbScript(content, context, scriptConsole);
     } catch (err) {
+      if (err instanceof Error && err.message === "PM_EXECUTION_SKIP_REQUEST") {
+        entries.push({ tone: "info", type: "log", message: "Request skipped by script." });
+        return entries;
+      }
       console.error("Failed to parse script:", diagnosticMessage(err));
       entries.push({ tone: "error", type: "log", message: diagnosticMessage(err) });
       throw err;

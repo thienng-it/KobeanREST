@@ -1227,7 +1227,12 @@ export function RequestPanel({
             <div className="auth-config-fields" aria-label="Bearer token credential">
               <label>
                 <span>Token</span>
-                <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="token or {{variable}}" autoComplete="off" />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="token or {{variable}}" autoComplete="off" style={{ flex: 1 } as CSSProperties} />
+                  <button type="button" className="icon-button" onClick={() => navigator.clipboard.writeText(draftRequest.authConfig?.token ?? "")} title="Copy Token" aria-label="Copy Token">
+                    <Copy size={16} />
+                  </button>
+                </div>
               </label>
             </div>
           )}
@@ -1247,6 +1252,9 @@ export function RequestPanel({
                     }
                   }}>
                     Get Token
+                  </button>
+                  <button type="button" className="icon-button" onClick={() => navigator.clipboard.writeText(draftRequest.authConfig?.token ?? "")} title="Copy Token" aria-label="Copy Token">
+                    <Copy size={16} />
                   </button>
                 </div>
               </label>
