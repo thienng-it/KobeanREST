@@ -110,3 +110,20 @@ test("roadmap confirms Phase 1L complete with real updater key and signed releas
   assert.match(roadmap, /Phase 1L[\s\S]{0,50}Status: complete/);
   assert.match(roadmap, /latest\.json.*published|Signed.*latest\.json/);
 });
+
+test("formatTimestamp handles ISO strings and guards against Invalid Date", () => {
+  const appUtils = read("src/renderer/src/app-utils.ts");
+  const modal = read("src/renderer/src/components/UpdateDialogModal.tsx");
+
+  assert.match(appUtils, /const directDate = new Date\(createdAt\)/);
+  assert.match(appUtils, /if \(!isNaN\(directDate\.getTime\(\)\)\)/);
+  assert.match(modal, /publishedDateLabel !== "Invalid Date"/);
+});
+
+test("build-updater-manifest.mjs prioritizes universal macOS artifacts", () => {
+  const script = read("scripts/build-updater-manifest.mjs");
+  assert.match(script, /name\.includes\("universal"\) && name\.endsWith\("\.app\.tar\.gz"\)/);
+});
+
+
+

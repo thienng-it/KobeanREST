@@ -47,7 +47,10 @@ export async function downloadAndInstallUpdate(
   availableUpdate: AvailableUpdate,
   onProgress?: (label: string) => void,
 ): Promise<void> {
-  const update = availableUpdate.update;
+  const update = availableUpdate?.update;
+  if (!update || typeof update.downloadAndInstall !== "function") {
+    throw new Error("Update instance is unavailable or invalid.");
+  }
   let contentLength = 0;
   let downloadedBytes = 0;
 

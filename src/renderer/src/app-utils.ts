@@ -8,11 +8,18 @@ export function isSensitiveKey(key: string): boolean {
 }
 
 export function formatTimestamp(createdAt: string): string {
-  try {
-    return new Date(createdAt.replace(' ', 'T') + 'Z').toLocaleString();
-  } catch {
-    return createdAt;
+  if (!createdAt) return "";
+  const directDate = new Date(createdAt);
+  if (!isNaN(directDate.getTime())) {
+    return directDate.toLocaleString();
   }
+  const normalized = createdAt.replace(" ", "T");
+  const withZ = normalized.endsWith("Z") || normalized.includes("+") ? normalized : `${normalized}Z`;
+  const fallbackDate = new Date(withZ);
+  if (!isNaN(fallbackDate.getTime())) {
+    return fallbackDate.toLocaleString();
+  }
+  return createdAt;
 }
 
 export function openProductDocs() {

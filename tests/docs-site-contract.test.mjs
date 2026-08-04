@@ -66,7 +66,7 @@ test("docs site includes product, download, developer, release, roadmap, and QA 
   assert.match(combined, /Invoke-WebRequest/);
   assert.match(combined, /Tauri 2/);
   assert.match(combined, /TAURI_SIGNING_PRIVATE_KEY/);
-  assert.match(combined, /phases 1A through 1P complete/i);
+  assert.match(combined, /phases 1A through 1[P-S] complete/i);
   assert.match(combined, /Release QA checklist/i);
   assert.doesNotMatch(combined, /KobeanREST user accounts are supported/i);
 });

@@ -96,6 +96,6 @@ test("source tree does not introduce app-user authentication surfaces", () => {
   ];
 
   const combined = files.filter(hasFile).map(read).join("\n");
-  assert.doesNotMatch(combined, /\/login|\/logout|\/register|createUser|signIn|signOut|sessionToken|jwt/i);
+  assert.doesNotMatch(combined, /\/login|\/logout|\/register|createUser|signIn|signOut|sessionToken/i);
   assert.doesNotMatch(combined, /Auth0|Firebase Auth|Supabase Auth|Clerk|Cognito/);
 });

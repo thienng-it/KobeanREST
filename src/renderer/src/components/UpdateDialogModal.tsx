@@ -52,7 +52,7 @@ export function UpdateDialogModal({
         <div style={{ display: "grid", gap: "6px", fontSize: "13px", color: "var(--color-text)" }}>
           <div>Current version: <strong>{availableUpdate.currentVersion}</strong></div>
           <div>New version: <strong>{availableUpdate.version}</strong></div>
-          {publishedDateLabel ? <div>Published: <strong>{publishedDateLabel}</strong></div> : null}
+          {publishedDateLabel && publishedDateLabel !== "Invalid Date" ? <div>Published: <strong>{publishedDateLabel}</strong></div> : null}
         </div>
 
         <div style={{ padding: "10px 12px", borderRadius: "6px", background: "var(--color-surface-muted)", border: "1px solid var(--color-border)", color: "var(--color-text)", fontSize: "12px", lineHeight: 1.5 }}>

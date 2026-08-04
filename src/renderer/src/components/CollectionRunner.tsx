@@ -11,6 +11,8 @@ import { applyAuth, resolveAuthConfig, obtainOAuth2Token } from "../services/aut
 import { getScripts, recordRequestHistory, loadCollectionRuns, loadCollectionRunDetails } from "../services/local-store";
 import type { KbScriptContext } from "../services/script-runtime";
 import { formatResponseBody } from "../response-utils";
+import { RunnerHeader } from "./runner/RunnerHeader";
+import { RunnerHistoryView } from "./runner/RunnerHistoryView";
 
 export interface CollectionRunnerProps {
   workspace: WorkspaceSummary;

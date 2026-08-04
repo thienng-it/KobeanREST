@@ -14,5 +14,7 @@ yarn-error.log*
 !.env.example
 
 .claude/
+dist-webview/
+*.vsix
 # Added by code-review-graph
 .code-review-graph/

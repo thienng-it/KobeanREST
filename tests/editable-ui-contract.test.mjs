@@ -124,9 +124,9 @@ test("sidebar search filters collections, folders, and requests", () => {
   assert.match(app, /function folderMatchesCollectionSearch\(folderId: string\): boolean/);
   assert.match(app, /const visibleCollections = \(workspace(\?\.)?collections \?\? \[\]\)\.filter/);
   assert.match(app, /value=\{collectionSearch\}/);
-  assert.match(app, /onChange=\{\(event\) => (setCollectionSearch|onCollectionSearchChange)\(event\.target\.value\)\}/);
+  assert.match(app, /onChange=\{\(\(?(event|e)\)?\) => (setCollectionSearch|onCollectionSearchChange)\(\(?(event|e)\)?\.target\.value\)\}/);
   assert.match(app, /onClick=\{\(\) => (setCollectionSearch|onCollectionSearchChange)\(""\)\}/);
-  assert.match(app, /\{visibleCollections\.map\(\(?collection\)? => \(/);
+  assert.match(app, /\{visibleCollections\.map\(\(?collection\)? => [({]/);
   assert.match(app, /const isFolderCollapsed = !isCollectionSearchActive && /);
   assert.match(styles, /\.search-field:focus-within\s*\{[^}]*transform:\s*translateY\(-1px\);/);
   assert.match(styles, /\.search-clear-button\s*\{/);
@@ -601,7 +601,7 @@ test("response panel behaves like a bottom dock manager with a persistent dock t
   const styles = read("src/renderer/src/styles.css");
   const bottomDockBlock = styles.match(/\.bottom-dock\s*\{([^}]*)\}/);
 
-  assert.match(app, /const \[activeBottomDock, setActiveBottomDock\] = useState<.*>\('response'\);/);
+  assert.match(app, /const \[activeBottomDock, setActiveBottomDock\] = useState<.*>\(('response'|null)\);/);
   assert.match(app, /const \[bottomDockHeight, setBottomDockHeight\] = useState\(320\);/);
   assert.match(app, /const bottomDockStripHeight = 36;/);
   assert.match(app, /function handleResponsePanelResizerMouseDown\(\)/);

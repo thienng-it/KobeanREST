@@ -103,6 +103,8 @@ function addPlatformEntries(entryNames, assetFileName) {
 
 // macOS Updater Artifacts (.app.tar.gz, .tar.gz, or .dmg)
 const macOSArtifact = findSignedArtifact([
+  (name) => name.includes("universal") && name.endsWith(".app.tar.gz"),
+  (name) => name.includes("universal") && name.endsWith(".tar.gz"),
   (name) => name.endsWith(".app.tar.gz"),
   (name) => name.endsWith(".tar.gz"),
   (name) => name.endsWith(".dmg"),

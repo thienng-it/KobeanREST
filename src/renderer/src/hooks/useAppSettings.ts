@@ -130,10 +130,14 @@ export function useAppSettings() {
         lastCheckedLabel: "Restart to finish update install.",
       }));
     } catch (error) {
-      setUpdateProgressLabel("Update install failed. The app remains usable offline.");
+      const detail = diagnosticMessage(error);
+      const msg = detail
+        ? `Update install failed: ${detail}. The app remains usable offline.`
+        : "Update install failed. The app remains usable offline.";
+      setUpdateProgressLabel(msg);
       setUpdateStatus((current) => ({
         ...current,
-        lastCheckedLabel: "Update install failed. The app remains usable offline.",
+        lastCheckedLabel: msg,
       }));
       console.error("Failed to install update", diagnosticMessage(error));
     } finally {
