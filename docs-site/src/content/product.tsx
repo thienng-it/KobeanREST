@@ -22,6 +22,31 @@ export const productContent: DocsPageContent = {
       ],
     },
     {
+      id: "gallery",
+      title: "Feature Gallery",
+      intro: "Explore the core capabilities of KobeanREST.",
+      body: (
+        <div style={{ display: "flex", flexDirection: "column", gap: "2rem", marginTop: "1.5rem" }}>
+          <div>
+            <img src="images/environment-editor.png" alt="Environment Editor" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>Local Environment & Variables Editor: Keep secrets safe in your native OS keychain.</p>
+          </div>
+          <div>
+            <img src="images/scripts-tab.png" alt="Pre & Post Request Scripts" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>Pre & Post Request Scripts: Dynamic execution environment with tests, assertions, and live logs.</p>
+          </div>
+          <div>
+            <img src="images/params-tab.png" alt="Interactive Query Params" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>Interactive Query Params: Real-time bi-directional synchronization with the URL bar.</p>
+          </div>
+          <div>
+            <img src="images/history-viewer.png" alt="Request History" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>History Viewer: Detailed logging of past requests and replay functionality.</p>
+          </div>
+        </div>
+      )
+    },
+    {
       id: "local-first",
       title: "Local-first contract",
       intro:

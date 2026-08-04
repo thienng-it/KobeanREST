@@ -27,22 +27,8 @@ export function HomePage() {
             </a>
           </div>
         </div>
-        <div className="hero-glass" aria-label="KobeanREST product snapshot">
-          <div className="mini-window">
-            <div className="window-dots">
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="request-line">
-              <b>GET</b>
-              <span>{"{{baseUrl}}/status"}</span>
-            </div>
-            <div className="response-card">
-              <strong>200 OK</strong>
-              <span>Local history saved. Secrets redacted.</span>
-            </div>
-          </div>
+        <div className="hero-glass" aria-label="KobeanREST product snapshot" style={{ padding: 0, overflow: "hidden" }}>
+          <img src="images/main-ui.png" alt="KobeanREST Main UI" style={{ width: "100%", height: "auto", display: "block" }} />
         </div>
       </section>
 
