@@ -731,7 +731,21 @@ export function App() {
 
     try {
       if (scopeWorkspace) {
-        const textsToScan = [requestToSend.url, requestToSend.body, ...requestToSend.headers.map((h: any) => h.value)];
+        const textsToScan = [
+          requestToSend.url, 
+          requestToSend.body, 
+          ...requestToSend.headers.map((h: any) => h.value),
+          // Also scan auth config fields for $response variables
+          requestToSend.authConfig?.token,
+          requestToSend.authConfig?.username,
+          requestToSend.authConfig?.password,
+          requestToSend.authConfig?.keyValue,
+          requestToSend.authConfig?.clientId,
+          requestToSend.authConfig?.clientSecret,
+          requestToSend.authConfig?.accessTokenUrl,
+          requestToSend.authConfig?.scope,
+          requestToSend.authConfig?.audience,
+        ];
         await injectAsyncVariables(variableMap, textsToScan, scopeWorkspace);
       }
       
@@ -755,17 +769,26 @@ export function App() {
 
     let finalAuthMode = requestToSend.authMode;
     let finalAuthConfig = requestToSend.authConfig;
+    
+    // Check if request has a manually-set Authorization header
+    const hasManualAuthHeader = resolvedHeaders.some(h => 
+      h.key.toLowerCase() === 'authorization' && h.enabled
+    );
 
     if (finalAuthMode === "none") {
-      const folder = workspace?.folders.find(f => f.id === requestToSend.folderId);
-      if (folder && folder.authMode && folder.authMode !== "none") {
-        finalAuthMode = folder.authMode;
-        finalAuthConfig = folder.authConfig || {};
-      } else {
-        const collection = workspace?.collections?.find(c => folder?.collectionId === c.id);
-        if (collection && collection.authMode && collection.authMode !== "none") {
-          finalAuthMode = collection.authMode;
-          finalAuthConfig = collection.authConfig || {};
+      // Don't inherit auth if the request already has a manual Authorization header
+      // This allows users to use $response variables for auth without conflict
+      if (!hasManualAuthHeader) {
+        const folder = workspace?.folders.find(f => f.id === requestToSend.folderId);
+        if (folder && folder.authMode && folder.authMode !== "none") {
+          finalAuthMode = folder.authMode;
+          finalAuthConfig = folder.authConfig || {};
+        } else {
+          const collection = workspace?.collections?.find(c => folder?.collectionId === c.id);
+          if (collection && collection.authMode && collection.authMode !== "none") {
+            finalAuthMode = collection.authMode;
+            finalAuthConfig = collection.authConfig || {};
+          }
         }
       }
     }

@@ -22,6 +22,10 @@ export interface RequestHistoryEntry {
   responseHeaders?: string;
   responseBodyText?: string;
   responseBodyBase64?: string;
+  runId?: string;
+  scopeId?: string;
+  scopeName?: string;
+  testPassed?: boolean;
 }
 
 export const defaultAppSettings: AppSettings = {
@@ -452,6 +456,16 @@ export async function loadHistoryResponse(id: number): Promise<import("../types"
 export async function clearHistory(): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("clear_request_history");
+}
+
+export async function loadCollectionRuns(scopeId: string): Promise<import("../types").CollectionRunSummary[]> {
+  if (!isTauriRuntime()) return [];
+  return invoke<import("../types").CollectionRunSummary[]>("load_collection_runs", { scopeId });
+}
+
+export async function loadCollectionRunDetails(runId: string): Promise<import("../types").HistoryEntry[]> {
+  if (!isTauriRuntime()) return [];
+  return invoke<import("../types").HistoryEntry[]>("load_collection_run_details", { runId });
 }
 
 export async function loadAppSettings(): Promise<AppSettings> {

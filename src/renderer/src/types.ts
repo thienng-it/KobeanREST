@@ -120,12 +120,30 @@ export interface HistoryEntry {
   durationMs: number;
   sizeBytes: number;
   createdAt: string;
+  runId?: string;
+  scopeId?: string;
+  scopeName?: string;
+  testPassed?: boolean;
+  responseHeaders?: string | null;
+  responseBodyText?: string | null;
+  responseBodyBase64?: string | null;
 }
 
 export interface HistoryResponsePayload {
   responseHeaders: string | null;
   responseBodyText: string | null;
   responseBodyBase64: string | null;
+}
+
+export interface CollectionRunSummary {
+  runId: string;
+  scopeId: string;
+  scopeName: string;
+  createdAt: string;
+  totalRequests: number;
+  passedRequests: number;
+  failedRequests: number;
+  totalDurationMs: number;
 }
 
 export interface AppSettings {
