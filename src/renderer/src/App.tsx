@@ -95,7 +95,7 @@ export function App() {
   const [responseTab, setResponseTab] = useState<ResponseTab>('preview');
   const [isResponseTabPending, startResponseTabTransition] = useTransition();
   const [responseWindowOpen, setResponseWindowOpen] = useState(false);
-  const [activeBottomDock, setActiveBottomDock] = useState<'response' | 'console' | null>('response');
+  const [activeBottomDock, setActiveBottomDock] = useState<'response' | 'console' | null>(null);
   const [bottomDockHeight, setBottomDockHeight] = useState(320);
   const [isResponsePanelResizing, setIsResponsePanelResizing] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);

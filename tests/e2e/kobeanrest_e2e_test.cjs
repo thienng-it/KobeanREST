@@ -6,6 +6,7 @@ Scenario('1. Verify Workspace Load & Sidebar Collections', ({ I }) => {
   I.see('JSONPlaceholder REST API');
   I.click('GET Users List');
   I.seeInField('input[aria-label="Request URL"]', '{{baseUrl}}/users');
+  I.saveScreenshot('main-ui.png');
 });
 
 Scenario('2. Verify URL and Query Params Bi-Directional Synchronization', ({ I }) => {

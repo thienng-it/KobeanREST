@@ -17,6 +17,10 @@
 
 [📖 Documentation](https://thienng-it.github.io/KobeanREST/) • [🚀 Try Web Preview](https://thienng-it.github.io/KobeanREST/app/) • [📦 Download Desktop App](https://github.com/thienng-it/KobeanREST/releases/latest) • [🗺️ Roadmap](docs/implementation-roadmap.md)
 
+<br />
+
+![KobeanREST Main UI](docs/images/main-ui.png)
+
 </div>
 
 <br />
@@ -45,6 +49,41 @@
 | 📊 **QA Dashboard** | Real-time test analytics, flakiness governance, and daily telemetry drilldown for automated tests. |
 | 🌐 **Live Web Preview** | Try KobeanREST instantly in any modern web browser without installing local desktop binaries. |
 | 🤖 **Automated Nightly Releases** | GitHub Actions bot continuously verifies builds and publishes signed release installers & updater manifests. |
+
+<br/>
+<div align="center">
+  <img src="docs/images/qa-dashboard.png" alt="KobeanREST QA Dashboard" width="800"/>
+  <br/>
+  <i>The brand new QA Dashboard with real-time test analytics and telemetry drilldown.</i>
+</div>
+<br/>
+
+## 📸 Feature Gallery
+
+<div align="center">
+  <img src="docs/images/environment-editor.png" alt="Environment Editor" width="800"/>
+  <br/>
+  <i>Local Environment & Variables Editor: Keep secrets safe in your native OS keychain.</i>
+</div>
+<br/>
+<div align="center">
+  <img src="docs/images/scripts-tab.png" alt="Pre & Post Request Scripts" width="800"/>
+  <br/>
+  <i>Pre & Post Request Scripts: Dynamic execution environment with tests, assertions, and live logs.</i>
+</div>
+<br/>
+<div align="center">
+  <img src="docs/images/params-tab.png" alt="Interactive Query Params" width="800"/>
+  <br/>
+  <i>Interactive Query Params: Real-time bi-directional synchronization with the URL bar.</i>
+</div>
+<br/>
+<div align="center">
+  <img src="docs/images/history-viewer.png" alt="Request History" width="800"/>
+  <br/>
+  <i>History Viewer: Detailed logging of past requests and replay functionality.</i>
+</div>
+<br/>
 
 ---
 
