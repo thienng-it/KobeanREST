@@ -422,6 +422,44 @@ Tests:
 - Secrets remain outside SQLite.
 - All platform artifacts install or launch.
 
+### Phase 1Q: Tabbed Workspace and UI Enhancements
+
+Status: complete.
+
+Goal:
+Improve the desktop UI with multiple tab workflows for requests, collections, and folders.
+
+Built:
+- Unsaved draft tab workflow with visual indicators.
+- Tab auto-removal logic.
+- UI alignment fixes across the app.
+- Tab view implementation for collections and folders.
+
+### Phase 1R: Collection Runner
+
+Status: complete.
+
+Goal:
+Allow sequential execution of entire collections.
+
+Built:
+- Sequentially execute requests within a collection.
+- Comprehensive collection run history tracking.
+- Result tracking and detailed reporting per run.
+
+### Phase 1S: QA Dashboard and Telemetry
+
+Status: complete.
+
+Goal:
+Provide real-time quality assurance metrics and flakiness governance.
+
+Built:
+- QA dashboard UI/UX enhancements with tooltip rendering.
+- Daily automated test metrics recording to history database.
+- Telemetry drilldown for failure logs.
+- Real outcome tracking and daily trend metrics.
+
 ## Current Known Issues
 
 - Sample URLs point at placeholder domains. After variable resolution, a native request may fail due to DNS or network unless the user changes the environment to a reachable API.

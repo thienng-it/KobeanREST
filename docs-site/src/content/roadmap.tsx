@@ -9,7 +9,7 @@ export const roadmapContent: DocsPageContent = {
     {
       id: "completed",
       title: "Completed scope",
-      intro: "The current roadmap marks phases 1A through 1P complete.",
+      intro: "The current roadmap marks phases 1A through 1S complete.",
       items: [
         "Native desktop readiness",
         "Native REST execution",
@@ -27,6 +27,9 @@ export const roadmapContent: DocsPageContent = {
         "Download docs finalization",
         "Security and privacy hardening",
         "End-to-end QA",
+        "Tabbed workspace and UI enhancements",
+        "Collection runner and history",
+        "QA dashboard and telemetry drilldown",
       ],
     },
     {

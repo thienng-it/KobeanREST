@@ -36,10 +36,13 @@
 | :--- | :--- |
 | 🚀 **Native Tauri 2 Core** | Blazing-fast desktop performance powered by Rust with lightweight memory usage. |
 | 🎨 **High-Density Desktop UI** | Modern, compact aesthetic with refined focus states, single-ring inputs, and crisp typography. |
+| 🗂️ **Tabbed Workspace** | Advanced unsaved draft tab workflow with visual indicators, auto-removal, and tab views for collections and folders. |
 | 🔄 **Bi-Directional Query Params** | Interactive `Params` tab with real-time bi-directional synchronization with the URL bar (`?key=value`). |
 | 🔐 **Keychain Secret Protection** | Sensitive values (API keys, tokens) stay outside SQLite in OS keychain / encrypted vault storage. |
 | 📦 **Local Persistence** | SQLite-backed storage for workspaces, collections, folders, requests, environment variables, and history. |
+| 🏃 **Collection Runner** | Execute entire collections sequentially with comprehensive run history and results tracking. |
 | 📜 **Pre & Post Request Scripts** | Dynamic JavaScript execution environment with live logs, assertions, and variable injection. |
+| 📊 **QA Dashboard** | Real-time test analytics, flakiness governance, and daily telemetry drilldown for automated tests. |
 | 🌐 **Live Web Preview** | Try KobeanREST instantly in any modern web browser without installing local desktop binaries. |
 | 🤖 **Automated Nightly Releases** | GitHub Actions bot continuously verifies builds and publishes signed release installers & updater manifests. |
 

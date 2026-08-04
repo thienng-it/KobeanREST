@@ -12,10 +12,12 @@ export const productContent: DocsPageContent = {
       intro:
         "KobeanREST is a desktop API client for REST and HTTP workflows. Users download the app, launch it locally, and use it without creating an account.",
       items: [
-        "Build, save, and replay HTTP requests from a local workspace.",
+        "Build, save, and replay HTTP requests from a local workspace with advanced tabbed UI and visual indicators.",
+        "Execute entire collections sequentially with comprehensive run history and results tracking.",
         "Manage URL query parameters (`Params`) with real-time bi-directional synchronization to the URL bar.",
         "Use target API authentication such as Basic Auth, Bearer tokens, OAuth 2.0-style bearer tokens, API keys, cookies, and client certificates where supported by request configuration.",
         "Refined high-density desktop UI with clean focus rings, sleek table inputs, and variable autocompletion.",
+        "Monitor automated test results using the built-in QA Dashboard with real-time analytics and telemetry drilldown.",
         "Keep workspace data local by default instead of requiring cloud sync.",
       ],
     },
