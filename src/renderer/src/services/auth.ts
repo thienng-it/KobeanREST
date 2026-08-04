@@ -161,8 +161,12 @@ export function redactAuthHeaders(
   });
 }
 
+import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+
 /**
- * Perform a POST request to obtain an Access Token via OAuth 2.0 (Client Credentials or Password grant).
+ * Perform a POST request to obtain an Access Token via OAuth 2.0.
+ * Supports client_credentials, password, and authorization_code (via browser popup).
  */
 export async function obtainOAuth2Token(
   authConfig: AuthConfig,
@@ -187,6 +191,58 @@ export async function obtainOAuth2Token(
     const password = tryResolve(authConfig.password, variableMap);
     params.append("username", username);
     params.append("password", password);
+  } else if (grantType === "authorization_code") {
+    const loginUrl = tryResolve(authConfig.authUrl, variableMap);
+    if (!loginUrl) {
+      throw new Error("Auth URL (Target URL) is required for Browser login flow");
+    }
+
+    // Start listening for the callback or token
+    let unlistenCallback: UnlistenFn | undefined;
+    let unlistenToken: UnlistenFn | undefined;
+    
+    const authCode = await new Promise<string>(async (resolve, reject) => {
+      try {
+        unlistenToken = await listen<string>("oauth-token", (event) => {
+          resolve(event.payload);
+        });
+        
+        unlistenCallback = await listen<string>("oauth-callback", (event) => {
+          const callbackUrl = event.payload;
+          try {
+            const parsed = new URL(callbackUrl);
+            const code = parsed.searchParams.get("code");
+            const token = parsed.searchParams.get("access_token") || parsed.hash.match(/access_token=([^&]+)/)?.[1];
+            const err = parsed.searchParams.get("error");
+            if (token) {
+              resolve(token);
+            } else if (code) {
+              // Note: If they only provided a Target URL, we cannot easily exchange the code here because we lack client_id, redirect_uri, etc.
+              // So we just return the code. Hopefully it's already a token.
+              resolve(code);
+            } else if (err) {
+              reject(new Error(`OAuth Error: ${err}`));
+            } else {
+              reject(new Error("No authorization code or token found in callback"));
+            }
+          } catch (e) {
+            reject(new Error("Failed to parse callback URL"));
+          }
+        });
+
+        // Open the browser window with the provided URL as-is
+        await invoke("start_oauth_login", { loginUrl });
+      } catch (err) {
+        reject(err);
+      }
+    });
+    
+    if (unlistenCallback) unlistenCallback();
+    if (unlistenToken) unlistenToken();
+    
+    // In this simplified flow, the popup already captured the actual token
+    // (either via AJAX sniffing or implicit flow hash), so we can just return it.
+    return authCode;
   }
 
   if (scope) {

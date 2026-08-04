@@ -1,9 +1,11 @@
 mod http_client;
 mod local_only;
+mod oauth;
 mod persistence;
 mod secrets;
 
 use http_client::execute_http_request;
+use oauth::start_oauth_login;
 use local_only::{app_contract, check_for_update, local_storage_status, request_auth_modes};
 use persistence::{
     clear_request_history, create_environment, create_folder, create_request, delete_environment,
@@ -40,6 +42,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_contract,
             execute_http_request,
+            start_oauth_login,
             initialize_persistence,
             load_workspace,
             record_request_history,

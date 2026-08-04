@@ -19,7 +19,8 @@ export interface AuthConfig {
   keyValue?: string;
   placement?: "header" | "query";
   // OAuth 2.0 fields
-  grantType?: "client_credentials" | "password";
+  grantType?: "client_credentials" | "password" | "authorization_code";
+  authUrl?: string;
   accessTokenUrl?: string;
   clientId?: string;
   clientSecret?: string;

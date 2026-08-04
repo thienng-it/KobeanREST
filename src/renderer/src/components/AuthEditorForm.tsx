@@ -89,45 +89,55 @@ export function AuthEditorForm({
               <span>Grant Type</span>
               <CustomSelect
                 value={draft.config.grantType ?? "client_credentials"}
-                onChange={(val) => updateConfig({ grantType: val as "client_credentials" | "password" })}
+                onChange={(val) => updateConfig({ grantType: val as "client_credentials" | "password" | "authorization_code" })}
                 options={[
                   { value: "client_credentials", label: "Client Credentials" },
-                  { value: "password", label: "Password" }
+                  { value: "password", label: "Password" },
+                  { value: "authorization_code", label: "Authorization Code (Browser)" }
                 ]}
               />
             </label>
-            <label>
-              <span>Access Token URL</span>
-              <VariableInput activeVariables={activeVars} value={draft.config.accessTokenUrl ?? ""} onChange={(v) => updateConfig({ accessTokenUrl: v.target.value })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
-            </label>
-            <label>
-              <span>Client ID</span>
-              <VariableInput activeVariables={activeVars} value={draft.config.clientId ?? ""} onChange={(v) => updateConfig({ clientId: v.target.value })} placeholder="client_id or {{variable}}" autoComplete="off" />
-            </label>
-            <label>
-              <span>Client Secret</span>
-              <VariableInput type="password" activeVariables={activeVars} value={draft.config.clientSecret ?? ""} onChange={(v) => updateConfig({ clientSecret: v.target.value })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
-            </label>
-            {draft.config.grantType === "password" && (
+            {draft.config.grantType === "authorization_code" ? (
+              <label>
+                <span>Target URL (Login URL)</span>
+                <VariableInput activeVariables={activeVars} value={draft.config.authUrl ?? ""} onChange={(v) => updateConfig({ authUrl: v.target.value })} placeholder="https://example.com/auth or {{variable}}" autoComplete="off" />
+              </label>
+            ) : (
               <>
                 <label>
-                  <span>Username</span>
-                  <VariableInput activeVariables={activeVars} value={draft.config.username ?? ""} onChange={(v) => updateConfig({ username: v.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
+                  <span>Access Token URL</span>
+                  <VariableInput activeVariables={activeVars} value={draft.config.accessTokenUrl ?? ""} onChange={(v) => updateConfig({ accessTokenUrl: v.target.value })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
                 </label>
                 <label>
-                  <span>Password</span>
-                  <VariableInput type="password" activeVariables={activeVars} value={draft.config.password ?? ""} onChange={(v) => updateConfig({ password: v.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
+                  <span>Client ID</span>
+                  <VariableInput activeVariables={activeVars} value={draft.config.clientId ?? ""} onChange={(v) => updateConfig({ clientId: v.target.value })} placeholder="client_id or {{variable}}" autoComplete="off" />
+                </label>
+                <label>
+                  <span>Client Secret</span>
+                  <VariableInput type="password" activeVariables={activeVars} value={draft.config.clientSecret ?? ""} onChange={(v) => updateConfig({ clientSecret: v.target.value })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
+                </label>
+                {draft.config.grantType === "password" && (
+                  <>
+                    <label>
+                      <span>Username</span>
+                      <VariableInput activeVariables={activeVars} value={draft.config.username ?? ""} onChange={(v) => updateConfig({ username: v.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
+                    </label>
+                    <label>
+                      <span>Password</span>
+                      <VariableInput type="password" activeVariables={activeVars} value={draft.config.password ?? ""} onChange={(v) => updateConfig({ password: v.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
+                    </label>
+                  </>
+                )}
+                <label>
+                  <span>Scope</span>
+                  <VariableInput activeVariables={activeVars} value={draft.config.scope ?? ""} onChange={(v) => updateConfig({ scope: v.target.value })} placeholder="read write or {{variable}}" autoComplete="off" />
+                </label>
+                <label>
+                  <span>Audience</span>
+                  <VariableInput activeVariables={activeVars} value={draft.config.audience ?? ""} onChange={(v) => updateConfig({ audience: v.target.value })} placeholder="audience or {{variable}}" autoComplete="off" />
                 </label>
               </>
             )}
-            <label>
-              <span>Scope</span>
-              <VariableInput activeVariables={activeVars} value={draft.config.scope ?? ""} onChange={(v) => updateConfig({ scope: v.target.value })} placeholder="read write or {{variable}}" autoComplete="off" />
-            </label>
-            <label>
-              <span>Audience</span>
-              <VariableInput activeVariables={activeVars} value={draft.config.audience ?? ""} onChange={(v) => updateConfig({ audience: v.target.value })} placeholder="audience or {{variable}}" autoComplete="off" />
-            </label>
           </div>
         )}
 

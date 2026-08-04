@@ -1254,45 +1254,55 @@ export function RequestPanel({
                 <span>Grant Type</span>
                 <CustomSelect
                   value={draftRequest.authConfig?.grantType ?? "client_credentials"}
-                  onChange={(val) => updateAuthConfig({ grantType: val as "client_credentials" | "password" })}
+                  onChange={(val) => updateAuthConfig({ grantType: val as "client_credentials" | "password" | "authorization_code" })}
                   options={[
                     { value: "client_credentials", label: "Client Credentials" },
-                    { value: "password", label: "Password" }
+                    { value: "password", label: "Password" },
+                    { value: "authorization_code", label: "Authorization Code (Browser)" }
                   ]}
                 />
               </label>
-              <label>
-                <span>Access Token URL</span>
-                <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.accessTokenUrl ?? ""} onChange={e => updateAuthConfig({ accessTokenUrl: e.target.value })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
-              </label>
-              <label>
-                <span>Client ID</span>
-                <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.clientId ?? ""} onChange={e => updateAuthConfig({ clientId: e.target.value })} placeholder="client_id or {{variable}}" autoComplete="off" />
-              </label>
-              <label>
-                <span>Client Secret</span>
-                <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.clientSecret ?? ""} onChange={e => updateAuthConfig({ clientSecret: e.target.value })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
-              </label>
-              {(draftRequest.authConfig?.grantType === "password") && (
+              {draftRequest.authConfig?.grantType === "authorization_code" ? (
+                <label>
+                  <span>Target URL (Login URL)</span>
+                  <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.authUrl ?? ""} onChange={e => updateAuthConfig({ authUrl: e.target.value })} placeholder="https://example.com/auth or {{variable}}" autoComplete="off" />
+                </label>
+              ) : (
                 <>
                   <label>
-                    <span>Username</span>
-                    <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
+                    <span>Access Token URL</span>
+                    <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.accessTokenUrl ?? ""} onChange={e => updateAuthConfig({ accessTokenUrl: e.target.value })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
                   </label>
                   <label>
-                    <span>Password</span>
-                    <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
+                    <span>Client ID</span>
+                    <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.clientId ?? ""} onChange={e => updateAuthConfig({ clientId: e.target.value })} placeholder="client_id or {{variable}}" autoComplete="off" />
+                  </label>
+                  <label>
+                    <span>Client Secret</span>
+                    <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.clientSecret ?? ""} onChange={e => updateAuthConfig({ clientSecret: e.target.value })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
+                  </label>
+                  {(draftRequest.authConfig?.grantType === "password") && (
+                    <>
+                      <label>
+                        <span>Username</span>
+                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
+                      </label>
+                      <label>
+                        <span>Password</span>
+                        <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
+                      </label>
+                    </>
+                  )}
+                  <label>
+                    <span>Scope</span>
+                    <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.scope ?? ""} onChange={e => updateAuthConfig({ scope: e.target.value })} placeholder="read write or {{variable}}" autoComplete="off" />
+                  </label>
+                  <label>
+                    <span>Audience</span>
+                    <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.audience ?? ""} onChange={e => updateAuthConfig({ audience: e.target.value })} placeholder="audience or {{variable}}" autoComplete="off" />
                   </label>
                 </>
               )}
-              <label>
-                <span>Scope</span>
-                <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.scope ?? ""} onChange={e => updateAuthConfig({ scope: e.target.value })} placeholder="read write or {{variable}}" autoComplete="off" />
-              </label>
-              <label>
-                <span>Audience</span>
-                <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.audience ?? ""} onChange={e => updateAuthConfig({ audience: e.target.value })} placeholder="audience or {{variable}}" autoComplete="off" />
-              </label>
             </div>
           )}
           {draftRequest.authMode === "apiKey" && (
