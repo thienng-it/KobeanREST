@@ -1,0 +1,61 @@
+{
+  "name": "kobeanrest-vscode",
+  "displayName": "KobeanREST - API Client",
+  "description": "Local-first REST and HTTP API client inside VS Code and Antigravity IDE",
+  "version": "0.1.12",
+  "publisher": "kobeanrest",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thienng-it/KobeanREST"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other",
+    "Network"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "*",
+    "onCommand:kobeanrest.open",
+    "onCommand:kobeanrest.openSidebar"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "kobeanrest.open",
+        "title": "KobeanREST: Open API Client (Editor Tab)",
+        "category": "KobeanREST"
+      },
+      {
+        "command": "kobeanrest.openSidebar",
+        "title": "KobeanREST: Open API Client (Sidebar)",
+        "category": "KobeanREST"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kobeanrest-sidebar-view-container",
+          "title": "KobeanREST",
+          "icon": "$(globe)"
+        }
+      ]
+    },
+    "views": {
+      "kobeanrest-sidebar-view-container": [
+        {
+          "type": "webview",
+          "id": "kobeanrest.sidebarView",
+          "name": "KobeanREST API Client"
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.18",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.6.3"
+  }
+}

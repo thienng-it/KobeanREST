@@ -1,0 +1,364 @@
+/* ==========================================================================
+   KobeanREST VS Code / Antigravity IDE Webview Overrides
+   Adapts the desktop-first UI to run responsively inside IDE webview panels.
+   ========================================================================== */
+
+/* ── Container Reset ──────────────────────────────────────────────────────── */
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  /* Use IDE background by default, fall back to app theme */
+  background: var(--vscode-editor-background, var(--color-bg-base));
+  color: var(--vscode-foreground, var(--color-text));
+  font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── App Shell — fill webview container with Flexbox layout ────────────────── */
+.app-shell {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  display: flex !important;
+  flex-direction: row !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* ── Collapsed Sidebar State ──────────────────────────────────────────────── */
+.app-shell.sidebar-collapsed .sidebar {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  opacity: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  overflow: hidden !important;
+}
+
+.app-shell.sidebar-collapsed .sidebar-resizer {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  overflow: hidden !important;
+}
+
+/* ── Expanded Sidebar State ───────────────────────────────────────────────── */
+.sidebar {
+  flex-shrink: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+}
+
+.sidebar-resizer {
+  flex-shrink: 0 !important;
+}
+
+.workspace {
+  flex: 1 1 0% !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 6px 10px 10px !important;
+  gap: 6px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* ── MODE 2: IDE SIDEBAR MODE (Activity Bar Webview View Container) ────────
+   Renders Collection Explorer tree inside the IDE left sidebar panel.
+   Workspace request builder is hidden in this view.
+   ─────────────────────────────────────────────────────────────────────────── */
+html[data-view-mode="sidebar"] .app-shell {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+}
+
+html[data-view-mode="sidebar"] .workspace,
+html[data-view-mode="sidebar"] .sidebar-resizer,
+html[data-view-mode="sidebar"] .workspace-collapsed-bar {
+  display: none !important;
+}
+
+html[data-view-mode="sidebar"] .sidebar {
+  display: flex !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  opacity: 1 !important;
+  padding: 8px 4px 8px 8px !important;
+  border-right: none !important;
+  visibility: visible !important;
+}
+  grid-column: 3 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 6px 10px 10px !important;
+  gap: 6px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+.workspace-main {
+  gap: 8px !important;
+  min-height: 0 !important;
+}
+
+/* ── Workspace Header Bar — compact for webview ──────────────────────────── */
+.workspace-header-bar {
+  padding: 0 0 6px !important;
+  gap: 8px !important;
+}
+
+.workspace-header-breadcrumb {
+  font-size: 12px !important;
+}
+
+/* ── Request Title Row — tighter ─────────────────────────────────────────── */
+.request-title-row h1 {
+  font-size: 16px !important;
+}
+
+.request-title-row {
+  gap: 8px !important;
+}
+
+/* ── Request Command Bar — fluid grid ────────────────────────────────────── */
+.request-command-bar {
+  gap: 4px !important;
+  padding: 4px !important;
+  border-radius: 10px !important;
+}
+
+.request-command-bar .method-selector {
+  width: auto !important;
+  min-width: 80px !important;
+}
+
+.request-command-bar .method-selector-btn,
+.request-command-input,
+.request-command-input-field,
+.request-send-button {
+  min-height: 36px !important;
+}
+
+.request-command-input-field {
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+}
+
+.request-send-button {
+  font-size: 13px !important;
+  padding: 0 14px !important;
+}
+
+/* ── Request Workspace Panel — fill available space ──────────────────────── */
+.request-workspace {
+  padding: 8px !important;
+  gap: 8px !important;
+  border-radius: 12px !important;
+  min-height: 0 !important;
+  flex: 1 !important;
+  overflow: hidden !important;
+}
+
+/* ── Tab Row — horizontal scroll for narrow panels ───────────────────────── */
+.tab-row {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  flex-wrap: nowrap !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+  gap: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+.tab-row::-webkit-scrollbar {
+  display: none !important;
+}
+
+.tab-row button,
+.tab-row .tab-button {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+  font-size: 12px !important;
+  padding: 6px 10px !important;
+  min-height: 32px !important;
+}
+
+/* ── Response Layout — flex vertically ───────────────────────────────────── */
+.response-layout {
+  min-height: 0 !important;
+  flex: 1 !important;
+}
+
+.response-viewer {
+  padding: 6px 8px 8px !important;
+  min-height: 0 !important;
+}
+
+.response-stats {
+  font-size: 12px !important;
+  gap: 8px !important;
+}
+
+/* ── Panel Resizer — slimmer in webview ──────────────────────────────────── */
+.response-panel-resizer {
+  height: 8px !important;
+}
+
+/* ── Code Editor — fill container ────────────────────────────────────────── */
+.cm-editor {
+  height: 100% !important;
+  max-height: 100% !important;
+}
+
+/* ── Console Panel — compact ─────────────────────────────────────────────── */
+.console-panel {
+  font-size: 12px !important;
+}
+
+/* ── Modal Overlays — constrain to webview bounds ────────────────────────── */
+.modal-overlay,
+.confirm-modal-overlay {
+  position: absolute !important;
+}
+
+.modal-window {
+  max-width: calc(100vw - 32px) !important;
+  max-height: calc(100vh - 32px) !important;
+}
+
+/* ── Ambient glass blobs — disable in webview for performance ────────────── */
+.app-shell::before {
+  display: none !important;
+}
+
+/* ── Scrollbar styling — thin and unobtrusive in webview ─────────────────── */
+* {
+  scrollbar-width: thin;
+}
+
+/* ── Small Webview Breakpoint (sidebar panel or narrow split) ────────────── */
+@container (max-width: 480px) {
+  .request-command-bar {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+  }
+
+  .request-command-bar .method-selector {
+    width: 100% !important;
+  }
+
+  .request-send-button {
+    width: 100% !important;
+  }
+
+  .tab-row button,
+  .tab-row .tab-button {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+  }
+}
+
+/* ── Fallback: use viewport-width media query for sidebar panel ──────────── */
+@media (max-width: 480px) {
+  .request-command-bar {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+  }
+
+  .request-command-bar .method-selector {
+    width: 100% !important;
+  }
+
+  .request-send-button {
+    width: 100% !important;
+  }
+
+  .workspace {
+    padding: 4px 6px 6px !important;
+  }
+
+  .request-title-row h1 {
+    font-size: 14px !important;
+  }
+
+  .tab-row button,
+  .tab-row .tab-button {
+    font-size: 11px !important;
+    padding: 4px 6px !important;
+    min-height: 28px !important;
+  }
+
+  .workspace-header-breadcrumb {
+    font-size: 11px !important;
+  }
+}
+
+/* ── Medium Webview (standard editor tab) ────────────────────────────────── */
+@media (max-width: 760px) {
+  .response-layout,
+  .auth-grid,
+  .auth-panel-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .env-modal-body {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Reduced height — compact vertical spacing ──────────────────────────── */
+@media (max-height: 500px) {
+  .workspace {
+    padding: 2px 6px 4px !important;
+    gap: 4px !important;
+  }
+
+  .workspace-main {
+    gap: 4px !important;
+  }
+
+  .request-command-bar .method-selector-btn,
+  .request-command-input,
+  .request-command-input-field,
+  .request-send-button {
+    min-height: 32px !important;
+  }
+
+  .request-title-row h1 {
+    font-size: 14px !important;
+  }
+
+  .tab-row button,
+  .tab-row .tab-button {
+    min-height: 28px !important;
+    font-size: 11px !important;
+  }
+}
