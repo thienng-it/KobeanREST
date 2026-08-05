@@ -979,6 +979,7 @@ export function RequestPanel({
                   { value: "text/plain", label: "📄 Text (plain)" },
                   { value: "application/octet-stream", label: "📦 Binary (Octet Stream)" }
                 ]}
+                variant="ghost"
               />
               {draftRequest.bodyMimeType === "application/json" && (
                 <button

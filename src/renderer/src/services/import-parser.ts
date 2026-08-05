@@ -84,7 +84,7 @@ export interface ExportDataPayload {
   collections: CollectionRowExport[];
   folders: FolderRowExport[];
   requests: RequestRowExport[];
-  request_headers: RequestHeaderRowExport[];
+  requestHeaders: RequestHeaderRowExport[];
   environments: EnvironmentRowExport[];
   variables: VariableRowExport[];
 }
@@ -204,7 +204,7 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
     collections: [],
     folders: [],
     requests: [],
-    request_headers: [],
+    requestHeaders: [],
     environments: [],
     variables: [],
   };
@@ -358,7 +358,7 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
               let hPos = 0;
               for (const h of req.header) {
                 if (!h || !h.key) continue;
-                payload.request_headers.push({
+                payload.requestHeaders.push({
                   request_id: reqId,
                   header_key: h.key,
                   header_value: h.value || "",
@@ -639,7 +639,7 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
 
       let hPos = 0;
       for (const h of curlResult.headers) {
-        payload.request_headers.push({
+        payload.requestHeaders.push({
           request_id: reqId,
           header_key: h.key,
           header_value: h.value,
@@ -702,6 +702,34 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
         position: 0,
       });
       break;
+    }
+  }
+
+  // Ensure all requests have a valid folder_id since the backend requires it
+  let fallbackCollectionId = payload.collections.length > 0 ? payload.collections[0].id : null;
+  let defaultFolderId: string | null = null;
+
+  for (const req of payload.requests) {
+    if (!req.folder_id) {
+      if (!fallbackCollectionId) {
+        fallbackCollectionId = generateId("collection");
+        payload.collections.push({
+          id: fallbackCollectionId,
+          workspace_id: workspaceId,
+          name: "Imported Collection",
+          position: 0,
+        });
+      }
+      if (!defaultFolderId) {
+        defaultFolderId = generateId("folder");
+        payload.folders.push({
+          id: defaultFolderId,
+          collection_id: fallbackCollectionId,
+          name: "Default Folder", // Could also be named "Imported Requests"
+          position: 0,
+        });
+      }
+      req.folder_id = defaultFolderId;
     }
   }
 

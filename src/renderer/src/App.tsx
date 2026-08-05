@@ -519,6 +519,40 @@ export function App() {
     setDraftRequest(tempReq);
   }, []);
 
+  const handleImportCurlAsDraft = useCallback((fields: Partial<SavedRequest>) => {
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const tempReq: SavedRequest = {
+      id: tempId,
+      folderId: "",
+      name: fields.name || "Imported cURL",
+      method: fields.method || "GET",
+      url: fields.url || "",
+      headers: fields.headers || [],
+      body: fields.body || "",
+      bodyMimeType: fields.bodyMimeType || "text/plain",
+      bodyForm: fields.bodyForm || [],
+      queryParams: fields.queryParams || [],
+      authMode: fields.authMode || "none",
+      authConfig: fields.authConfig || {},
+      timeoutMs: fields.timeoutMs || 30000,
+      followRedirects: fields.followRedirects ?? true,
+      position: 0
+    };
+    setUnsavedRequests((prev) => ({ ...prev, [tempId]: tempReq }));
+    const newTab: Tab = {
+      id: `tab-${tempId}`,
+      type: "request",
+      entityId: tempId,
+      name: tempReq.name,
+      method: tempReq.method,
+      isDirty: true,
+    };
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+    setSelectedRequestId(tempId);
+    setDraftRequest(tempReq);
+  }, []);
+
   function updateDraft(fields: Partial<SavedRequest>) {
     if (draftRequest) {
       const updated = { ...draftRequest, ...fields };
@@ -537,11 +571,11 @@ export function App() {
   }
 
   function handleCurlImport(result: CurlImportResult) {
-    importCurlRequest({
+    handleImportCurlAsDraft({
       method: result.method,
       customMethod: result.customMethod,
       url: result.url,
-      queryParams: [], // We can just rely on the url being parsed later, wait, no! We need deriveQueryParamsFromUrl here if we want to be perfect, but `createRequest` returns an empty array which is fine. Wait, `url` is what matters, but when the UI renders, it might depend on `queryParams` array being correctly set. I will leave this as empty array for now, or maybe just omit it so it uses `newReq.queryParams`. Actually I'll use `[]` as fallback.
+      queryParams: [],
       headers: result.headers,
       body: result.body,
       bodyMimeType: result.bodyMimeType,
@@ -549,7 +583,6 @@ export function App() {
       authMode: result.authMode,
       authConfig: result.authConfig,
     });
-
     setCurlImportOpen(false);
   }
 
@@ -2101,6 +2134,7 @@ export function App() {
         initialContent={universalImportInitialContent}
         onImportCollection={handleImportPostmanCollection}
         onImportEnvironment={handleImportPostmanEnvironment}
+        onImportCurl={handleImportCurlAsDraft}
         onImportSuccess={async (jsonPayload) => {
           await importWorkspaceData(jsonPayload);
           await loadWorkspace();

@@ -12,6 +12,7 @@ import {
   type PostmanCollectionImportResult,
   type PostmanEnvironmentImportResult,
 } from "../services/postman-import";
+import { parseCurlCommand, type CurlImportResult } from "../services/script-tools";
 
 interface UniversalImportModalProps {
   isOpen: boolean;
@@ -22,6 +23,8 @@ interface UniversalImportModalProps {
   onImportCollection?: (result: PostmanCollectionImportResult, options: { stripScripts: boolean }) => void;
   /** For Postman environments — uses the dedicated handler */
   onImportEnvironment?: (result: PostmanEnvironmentImportResult) => void;
+  /** For cURL commands — imports directly into active workspace */
+  onImportCurl?: (result: CurlImportResult) => void;
   initialContent?: string;
 }
 
@@ -56,6 +59,7 @@ export const UniversalImportModal: React.FC<UniversalImportModalProps> = ({
   onClose,
   onImportSuccess,
   onImportCollection,
+  onImportCurl,
   onImportEnvironment,
   initialContent = "",
 }) => {
@@ -158,6 +162,10 @@ export const UniversalImportModal: React.FC<UniversalImportModalProps> = ({
         } else if (postmanPreview.kind === "environment" && onImportEnvironment) {
           onImportEnvironment(postmanPreview.data);
         }
+        handleClose();
+      } else if (parsedResult && parsedResult.format === "curl" && onImportCurl) {
+        const curlResult = parseCurlCommand(textContent);
+        onImportCurl(curlResult);
         handleClose();
       } else if (parsedResult && parsedResult.format !== "unknown") {
         await onImportSuccess(JSON.stringify(parsedResult.exportData));

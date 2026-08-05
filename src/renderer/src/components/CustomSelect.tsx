@@ -16,6 +16,7 @@ interface CustomSelectProps {
   className?: string;
   ariaLabel?: string;
   disabled?: boolean;
+  variant?: "default" | "ghost";
 }
 
 export function CustomSelect({
@@ -25,7 +26,8 @@ export function CustomSelect({
   placeholder = "Select...",
   className = "",
   ariaLabel,
-  disabled = false
+  disabled = false,
+  variant = "default"
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -104,7 +106,7 @@ export function CustomSelect({
       <button
         ref={triggerRef}
         type="button"
-        className="custom-select-trigger"
+        className={variant === "ghost" ? "ghost-button custom-select-trigger-ghost" : "custom-select-trigger"}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
         disabled={disabled}

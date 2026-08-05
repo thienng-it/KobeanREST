@@ -6555,3 +6555,5 @@ select:focus-visible,
 
 
 
+
+.custom-select-trigger-ghost { padding: 0 10px; min-width: 130px; justify-content: space-between; }
