@@ -55,6 +55,7 @@ export interface SavedRequest {
   timeoutMs: number;
   followRedirects: boolean;
   variables?: ScopedVariable[];
+  position?: number;
 }
 
 export interface EnvironmentVariable {
