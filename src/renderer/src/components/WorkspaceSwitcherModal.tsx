@@ -11,7 +11,7 @@ export interface WorkspaceSwitcherModalProps {
   onCreate: (name: string) => void;
   onSwitch: (workspaceId: string) => void;
   onRename: (workspaceId: string, name: string) => void;
-  onDelete: (workspaceId: string) => void;
+  onDelete: (id: string, name: string) => void;
   onClose: () => void;
 }
 
@@ -143,14 +143,9 @@ export function WorkspaceSwitcherModal({
                       aria-label={`Delete ${ws.name}`}
                       title="Delete"
                       className="workspace-switcher-action-btn delete"
-                      onClick={() => {
-                        if (
-                          confirm(
-                            `Delete workspace "${ws.name}"? All its data will be permanently removed.`
-                          )
-                        ) {
-                          onDelete(ws.id);
-                        }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(ws.id, ws.name);
                       }}
                     >
                       <Trash2 size={13} />

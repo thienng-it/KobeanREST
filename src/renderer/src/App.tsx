@@ -2119,7 +2119,15 @@ export function App() {
         onCreate={(name) => void handleCreateWorkspace(name)}
         onSwitch={(id) => { void handleSwitchWorkspace(id); setWorkspaceSwitcherOpen(false); }}
         onRename={(id, name) => void handleRenameWorkspace(id, name)}
-        onDelete={(id) => void handleDeleteWorkspace(id)}
+          onDelete={(id, name) => {
+            setConfirmDialog({
+              title: "Delete Workspace",
+              message: `Delete workspace "${name}"? All its data will be permanently removed.`,
+              confirmVariant: "danger",
+              confirmLabel: "Delete",
+              onConfirm: () => void handleDeleteWorkspace(id),
+            });
+          }}
         onClose={() => setWorkspaceSwitcherOpen(false)}
       />
 
