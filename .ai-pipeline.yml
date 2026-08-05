@@ -14,9 +14,9 @@ pipeline:
     allow_new_deps: false
 
   agents:
-    planner_model: "gemini-3.6-pro"
-    coder_model: "gemini-3.6-flash"
-    reviewer_model: "gemini-3.6-pro"
+    planner_model: "ollama/llama3"
+    coder_model: "ollama/llama3"
+    reviewer_model: "ollama/llama3"
 
   github:
     auto_pr: true
