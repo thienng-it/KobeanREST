@@ -952,7 +952,7 @@ export function Sidebar({
     if (rootRequests.length === 0) return null;
 
     return (
-      <div style={{ paddingLeft: '0px' }}>
+      <div style={{ paddingLeft: '12px' }}>
         {rootRequests.map((request) => (
           <DraggableRequestRow
             key={request.id}
@@ -990,7 +990,7 @@ export function Sidebar({
     if (folders.length === 0) return null;
 
     return (
-      <div style={{ paddingLeft: `${depth * 12}px` }}>
+      <div style={{ paddingLeft: `${(depth + 1) * 12}px` }}>
         {folders.map((folder) => {
           const folderNameMatches = matchesCollectionSearch(folder.name);
           const showFolderContents = forceShowAll || (folderNameMatches ?? false);

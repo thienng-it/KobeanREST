@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   initializeLocalStore,
   loadLocalWorkspace,
@@ -9,6 +9,7 @@ import {
   updateFolder,
   saveFolderAuth,
   updateCollection,
+  saveCollectionAuth,
   updateCollectionDefaultEnvironment,
   deleteCollection,
   deleteFolder,
@@ -44,6 +45,8 @@ export interface ConfirmDialogState {
   confirmLabel?: string;
   confirmVariant?: "primary" | "danger";
   onConfirm: () => void;
+  altLabel?: string;
+  onAlt?: () => void;
 }
 
 export interface UseWorkspaceDeps {
@@ -129,8 +132,28 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     void loadWorkspace();
   }, []);
 
+  const draftRequestRef = useRef<SavedRequest | null>(null);
+  draftRequestRef.current = draftRequest;
+
   useEffect(() => {
     if (!workspace) return;
+    // If switching away from a different request with unsaved edits, flush them immediately
+    // so the auto-save timer cancellation (caused by draftRequest changing) doesn't lose the changes.
+    const prevDraft = draftRequestRef.current;
+    if (prevDraft && prevDraft.id !== selectedRequestId && autoSaveEnabled) {
+      const originalReq = workspace.requests.find((r) => r.id === prevDraft.id);
+      if (originalReq && JSON.stringify(originalReq) !== JSON.stringify(prevDraft)) {
+        void saveRequest(prevDraft).then(() => {
+          setWorkspace((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              requests: prev.requests.map((r) => r.id === prevDraft.id ? prevDraft : r),
+            };
+          });
+        });
+      }
+    }
     setDraftRequest((prevDraft) => {
       // If we already have a draft for the selected request, keep it
       // so we don't overwrite unsaved edits when workspace saves in the background
@@ -407,7 +430,38 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     workspace.folders.forEach((f) => {
       allCollapsed[f.id] = true;
     });
+    workspace.collections?.forEach((c) => {
+      allCollapsed[c.id] = true;
+    });
     setCollapsedFolders(allCollapsed);
+  }
+
+  function expandCollectionFolders(collectionId: string) {
+    if (!workspace) return;
+    setCollapsedFolders(prev => {
+      const next = { ...prev };
+      delete next[collectionId];
+      workspace.folders.forEach((f) => {
+        if (f.collectionId === collectionId) {
+          delete next[f.id];
+        }
+      });
+      return next;
+    });
+  }
+
+  function collapseCollectionFolders(collectionId: string) {
+    if (!workspace) return;
+    setCollapsedFolders(prev => {
+      const next = { ...prev };
+      next[collectionId] = true;
+      workspace.folders.forEach((f) => {
+        if (f.collectionId === collectionId) {
+          next[f.id] = true;
+        }
+      });
+      return next;
+    });
   }
 
   async function confirmDeleteFolder(folderId: string) {
@@ -973,107 +1027,143 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     try {
       const { stripScripts } = options;
 
-      // Deduplicate collection name
-      const existingNames = new Set((workspace?.collections ?? []).map(c => c.name));
-      let collectionName = result.collectionName;
-      if (existingNames.has(collectionName)) {
-        let suffix = 2;
-        while (existingNames.has(`${result.collectionName} (${suffix})`)) suffix++;
-        collectionName = `${result.collectionName} (${suffix})`;
-      }
+      const doImport = async (finalCollectionName: string, overrideCollectionId?: string) => {
+        try {
+          if (overrideCollectionId) {
+            await deleteCollection(overrideCollectionId);
+          }
 
-      const totalRequests = result.requests.length;
-      const totalFolders = result.folders.length;
-      showImportToast(`Importing "${collectionName}"…`, "info");
+          const totalRequests = result.requests.length;
+          const totalFolders = result.folders.length;
+          showImportToast(`Importing "${finalCollectionName}"…`, "info");
 
-      // Create collection
-      const collectionId = await createCollection(collectionName);
+          // Create collection
+          const collectionId = await createCollection(finalCollectionName);
+          if (result.collectionAuthMode) {
+            await saveCollectionAuth(collectionId, result.collectionAuthMode, result.collectionAuthConfig || {});
+          }
 
-      // Set up a folder mapping for nested folders
-      const folderIdMap: Record<string, string> = {};
+          // Set up a folder mapping for nested folders
+          const folderIdMap: Record<string, string> = {};
 
-      // Helper to create folders with proper parent hierarchy
-      async function createFoldersRecursively(
-        folders: PostmanCollectionImportResult["folders"],
-        parentId?: string
-      ) {
-        const immediateChildren = folders.filter(f => f.parentId === parentId);
-        for (const folder of immediateChildren) {
-          const newFolder = await createFolder(folder.name, collectionId, folderIdMap[folder.parentId!] ?? undefined);
-          folderIdMap[folder.id] = newFolder.id;
-          if (folder.variables.length > 0) {
-            for (const v of folder.variables) {
-              await saveScopedVariable(newFolder.id, "folder", v.key, v.value);
+          // Helper to create folders with proper parent hierarchy
+          async function createFoldersRecursively(
+            folders: PostmanCollectionImportResult["folders"],
+            parentId?: string
+          ) {
+            const immediateChildren = folders.filter(f => f.parentId === parentId);
+            for (const folder of immediateChildren) {
+              const newFolder = await createFolder(folder.name, collectionId, folderIdMap[folder.parentId!] ?? undefined);
+              folderIdMap[folder.id] = newFolder.id;
+              if (folder.authMode) {
+                await saveFolderAuth(newFolder.id, folder.authMode, folder.authConfig || {});
+              }
+              if (folder.variables.length > 0) {
+                for (const v of folder.variables) {
+                  await saveScopedVariable(newFolder.id, "folder", v.key, v.value);
+                }
+              }
+              if (!stripScripts) {
+                if (folder.preScript) await saveScript(newFolder.id, "folder", "pre", folder.preScript);
+                if (folder.postScript) await saveScript(newFolder.id, "folder", "post", folder.postScript);
+              }
+              await createFoldersRecursively(folders, folder.id);
             }
           }
-          if (!stripScripts) {
-            if (folder.preScript) await saveScript(newFolder.id, "folder", "pre", folder.preScript);
-            if (folder.postScript) await saveScript(newFolder.id, "folder", "post", folder.postScript);
+
+          await createFoldersRecursively(result.folders);
+
+          let defaultFolderId: string | undefined;
+          const hasRootRequests = result.requests.some(r => !r.folderId);
+          if (hasRootRequests) {
+            const defaultFolder = await createFolder("Requests", collectionId, undefined);
+            defaultFolderId = defaultFolder.id;
           }
-          await createFoldersRecursively(folders, folder.id);
+
+          if (result.collectionVariables.length > 0) {
+            for (const v of result.collectionVariables) {
+              await saveScopedVariable(collectionId, "collection", v.key, v.value);
+            }
+          }
+
+          if (!stripScripts) {
+            if (result.collectionPreScript) await saveScript(collectionId, "collection", "pre", result.collectionPreScript);
+            if (result.collectionPostScript) await saveScript(collectionId, "collection", "post", result.collectionPostScript);
+          }
+
+          let imported = 0;
+          for (const req of result.requests) {
+            const targetFolderId = req.folderId ? folderIdMap[req.folderId] : defaultFolderId;
+            if (!targetFolderId) continue;
+            const newReq = await createRequest(targetFolderId);
+            const updatedReq: SavedRequest = {
+              ...newReq,
+              name: req.name,
+              method: req.method as SavedRequest["method"],
+              url: req.url,
+              headers: req.headers,
+              queryParams: req.queryParams,
+              body: req.body,
+              bodyMimeType: req.bodyMimeType,
+              bodyForm: req.bodyForm,
+              authMode: req.authMode,
+              authConfig: req.authConfig,
+              variables: req.variables,
+            };
+            await saveRequest(updatedReq);
+            if (!stripScripts) {
+              if (req.preScript) await saveScript(newReq.id, "request", "pre", req.preScript);
+              if (req.postScript) await saveScript(newReq.id, "request", "post", req.postScript);
+            }
+            imported++;
+            if (totalRequests > 5 && imported % Math.ceil(totalRequests / 4) === 0) {
+              showImportToast(`Importing "${finalCollectionName}"… ${imported}/${totalRequests} requests`, "info");
+            }
+          }
+
+          await loadWorkspace();
+
+          const scriptNote = stripScripts ? " (scripts stripped)" : "";
+          const renamedNote = finalCollectionName !== result.collectionName ? ` → renamed to "${finalCollectionName}"` : "";
+          showImportToast(
+            `✓ Imported "${finalCollectionName}"${renamedNote}: ${totalRequests} requests, ${totalFolders} folders${scriptNote}`,
+            "success",
+            5000
+          );
+        } catch (err) {
+          console.error("Failed to import Postman collection inside doImport", diagnosticMessage(err));
+          showImportToast("Import failed: " + diagnosticMessage(err), "error", 6000);
         }
+      };
+
+      const existingCollection = workspace?.collections?.find(c => c.name === result.collectionName);
+
+      if (existingCollection) {
+        setConfirmDialog({
+          title: "Collection Already Exists",
+          message: `A collection named "${result.collectionName}" already exists. Do you want to override it or add this as a new collection?`,
+          confirmLabel: "Override Collection",
+          confirmVariant: "danger",
+          onConfirm: () => {
+            doImport(result.collectionName, existingCollection.id);
+          },
+          altLabel: "Add as New Collection",
+          onAlt: () => {
+            let suffix = 2;
+            const existingNames = new Set((workspace?.collections ?? []).map(c => c.name));
+            let newName = `${result.collectionName} (${suffix})`;
+            while (existingNames.has(newName)) {
+              suffix++;
+              newName = `${result.collectionName} (${suffix})`;
+            }
+            doImport(newName);
+          }
+        });
+      } else {
+        doImport(result.collectionName);
       }
-
-      await createFoldersRecursively(result.folders);
-
-      let defaultFolderId: string | undefined;
-      const hasRootRequests = result.requests.some(r => !r.folderId);
-      if (hasRootRequests) {
-        const defaultFolder = await createFolder("Requests", collectionId, undefined);
-        defaultFolderId = defaultFolder.id;
-      }
-
-      if (result.collectionVariables.length > 0) {
-        for (const v of result.collectionVariables) {
-          await saveScopedVariable(collectionId, "collection", v.key, v.value);
-        }
-      }
-
-      if (!stripScripts) {
-        if (result.collectionPreScript) await saveScript(collectionId, "collection", "pre", result.collectionPreScript);
-        if (result.collectionPostScript) await saveScript(collectionId, "collection", "post", result.collectionPostScript);
-      }
-
-      let imported = 0;
-      for (const req of result.requests) {
-        const targetFolderId = req.folderId ? folderIdMap[req.folderId] : defaultFolderId;
-        if (!targetFolderId) continue;
-        const newReq = await createRequest(targetFolderId);
-        const updatedReq: SavedRequest = {
-          ...newReq,
-          name: req.name,
-          method: req.method as SavedRequest["method"],
-          url: req.url,
-          headers: req.headers,
-          queryParams: req.queryParams,
-          body: req.body,
-          bodyMimeType: req.bodyMimeType,
-          bodyForm: req.bodyForm,
-          authMode: req.authMode,
-          authConfig: req.authConfig,
-          variables: req.variables,
-        };
-        await saveRequest(updatedReq);
-        if (!stripScripts) {
-          if (req.preScript) await saveScript(newReq.id, "request", "pre", req.preScript);
-          if (req.postScript) await saveScript(newReq.id, "request", "post", req.postScript);
-        }
-        imported++;
-        if (totalRequests > 5 && imported % Math.ceil(totalRequests / 4) === 0) {
-          showImportToast(`Importing "${collectionName}"… ${imported}/${totalRequests} requests`, "info");
-        }
-      }
-
-      await loadWorkspace();
-
-      const scriptNote = stripScripts ? " (scripts stripped)" : "";
-      const renamedNote = collectionName !== result.collectionName ? ` → renamed to "${collectionName}"` : "";
-      showImportToast(
-        `✓ Imported "${collectionName}"${renamedNote}: ${totalRequests} requests, ${totalFolders} folders${scriptNote}`,
-        "success",
-        5000
-      );
     } catch (err) {
+
       console.error("Failed to import Postman collection", diagnosticMessage(err));
       showImportToast("Import failed: " + diagnosticMessage(err), "error", 6000);
     }
@@ -1343,6 +1433,8 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     toggleFolder,
     expandAllFolders,
     collapseAllFolders,
+    expandCollectionFolders,
+    collapseCollectionFolders,
     
     handleUpdateFolder: async (folder: import('../types').FolderSummary) => {
       if (!workspace) return;

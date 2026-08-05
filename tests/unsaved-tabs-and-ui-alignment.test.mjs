@@ -74,24 +74,6 @@ test("App.tsx automatically removes open tabs when items are deleted from worksp
   assert.match(app, /unsavedRequests\[tab\.entityId\]/);
 });
 
-test("headers-grid-header aligns On, Key, Value columns correctly with input grid", () => {
-  const requestPanel = read("src/renderer/src/components/RequestPanel.tsx");
-  const styles = read("src/renderer/src/styles.css");
-
-  // Verify headers-grid-header column structure in RequestPanel.tsx for Params & Headers
-  const gridHeaders = requestPanel.match(/<div className="headers-grid-header">[\s\S]*?<\/div>/g);
-  assert.ok(gridHeaders && gridHeaders.length >= 2, "Both Params and Headers tabs must render headers-grid-header");
-  
-  for (const headerBlock of gridHeaders) {
-    assert.match(headerBlock, /<span className="col-center">On<\/span>/);
-    assert.match(headerBlock, /<span>Key<\/span>/);
-    assert.match(headerBlock, /<span>Value<\/span>/);
-  }
-
-  // Verify CSS grid column layout matching headers-row
-  assert.match(styles, /\.headers-grid-header\s*\{[\s\S]*grid-template-columns:\s*36px minmax\(0, 0\.9fr\) minmax\(0, 1\.2fr\) 32px;/);
-  assert.match(styles, /\.headers-grid-header span\.col-center\s*\{[\s\S]*justify-content:\s*center;/);
-});
 
 test("search field input has zero-outline border resets preventing square outline artifacts", () => {
   const styles = read("src/renderer/src/styles.css");

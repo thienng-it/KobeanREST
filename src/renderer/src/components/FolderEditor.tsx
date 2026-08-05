@@ -64,6 +64,19 @@ export function FolderEditor({
     setIsDirty(true);
   };
 
+  const handleTokenObtained = async (token: string) => {
+    const newConfig = { ...draftAuthConfig, token };
+    await saveScript(folder.id, "folder", "pre", preScript);
+    await saveScript(folder.id, "folder", "post", postScript);
+    onUpdateFolder({
+      ...folder,
+      authMode: draftAuthMode,
+      authConfig: newConfig,
+    });
+    setDraftAuthConfig(newConfig);
+    setIsDirty(false);
+  };
+
   if (!scriptsLoaded) return null;
 
   const tabs = [
@@ -146,6 +159,7 @@ export function FolderEditor({
                 draft={{ mode: draftAuthMode, config: draftAuthConfig }}
                 activeVars={activeVars}
                 onDraftChange={handleAuthChange}
+                onTokenObtained={handleTokenObtained}
               />
             </div>
           </div>

@@ -10,7 +10,59 @@ import { BodyEditor } from "./BodyEditor";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
 import { AdvancedSendModal } from "./AdvancedSendModal";
 import { redactDiagnosticError } from "../services/redaction";
-import { obtainOAuth2Token } from "../services/auth";
+
+function safeDecode(val: string): string {
+  try {
+    return decodeURIComponent(val.replace(/\+/g, ' '));
+  } catch {
+    return val;
+  }
+}
+
+/**
+ * Returns true if the literal string segment appears to already be
+ * percent-encoded (i.e., decoding it and re-encoding produces the same string,
+ * AND the original contains at least one percent-sequence or a '+' space).
+ */
+function isAlreadyEncoded(segment: string): boolean {
+  // Fast-path: no %XX means definitely not encoded.
+  // A bare '+' is NOT treated as encoding evidence — it may be a literal +.
+  if (!/%[0-9A-Fa-f]{2}/.test(segment)) {
+    return false;
+  }
+  try {
+    const decoded = decodeURIComponent(segment);
+    return encodeURIComponent(decoded) === segment;
+  } catch {
+    // Malformed sequence (e.g. "100%") → not encoded.
+    return false;
+  }
+}
+
+function encodeIfNeeded(segment: string): string {
+  if (isAlreadyEncoded(segment)) {
+    return segment;
+  }
+  return encodeURIComponent(segment);
+}
+
+function encodePreservingVariables(val: string): string {
+  return val
+    .split(/(\{\{.*?\}\})/g)
+    .map((part) => {
+      if (part.startsWith("{{") && part.endsWith("}}")) {
+        return part;
+      }
+      return encodeIfNeeded(part);
+    })
+    .join("");
+}
+import {
+  resolveAuthConfig,
+  getEffectiveAuth,
+  applyAuth,
+  obtainOAuth2Token,
+} from "../services/auth";
 import { buildVariableMap } from "../services/variables";
 import { isSensitiveKey } from "../app-utils";
 import {
@@ -146,27 +198,6 @@ function parsePastedHeaders(text: string): RequestHeader[] {
   return parsed;
 }
 
-function getEffectiveAuth(request: SavedRequest, workspace: WorkspaceSummary | null) {
-  if (!workspace) {
-    return { mode: "none" as const, config: {}, source: "No workspace loaded" };
-  }
-
-  if (request.authMode !== "none") {
-    return { mode: request.authMode, config: request.authConfig, source: "Request level" };
-  }
-
-  const folder = workspace?.folders.find((item) => item.id === request.folderId);
-  if (folder?.authMode && folder.authMode !== "none") {
-    return { mode: folder.authMode, config: folder.authConfig ?? {}, source: `Inherited from folder: ${folder.name}` };
-  }
-
-  const collection = workspace?.collections?.find((item) => folder?.collectionId === item.id);
-  if (collection?.authMode && collection.authMode !== "none") {
-    return { mode: collection.authMode, config: collection.authConfig ?? {}, source: `Inherited from collection: ${collection.name}` };
-  }
-
-  return { mode: "none" as const, config: {}, source: "No inherited auth" };
-}
 
 function describeAuthTarget(mode: ApiAuthMode, config: AuthConfig): string {
   switch (mode) {
@@ -194,8 +225,7 @@ export interface RequestPanelProps {
   activeVars: EnvironmentVariable[];
   isSending: boolean;
   folderPath?: string;
-  effectiveAuth: ReturnType<typeof getEffectiveAuth> | null;
-
+  effectiveAuth: any;
   // request-panel local UI state (owned by App)
   activeTab: "params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code";
   setActiveTab: (tab: "params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code") => void;
@@ -225,7 +255,7 @@ export interface RequestPanelProps {
   // cross-cutting actions (remain in App)
   isDirty?: boolean;
   isUnsaved?: boolean;
-  onUpdateDraft: (fields: Partial<SavedRequest>) => void;
+  onUpdateDraft: (fields: Partial<SavedRequest> | ((prev: SavedRequest) => Partial<SavedRequest>)) => void;
   onSaveRequest: () => void;
   onSendRequest: () => void;
   onSaveScripts: () => void;
@@ -375,7 +405,7 @@ export function RequestPanel({
   };
 
   // --- local editing helpers ---
-  function updateDraft(fields: Partial<SavedRequest>) {
+  function updateDraft(fields: Partial<SavedRequest> | ((prev: SavedRequest) => Partial<SavedRequest>)) {
     onUpdateDraft(fields);
   }
 
@@ -394,9 +424,9 @@ export function RequestPanel({
       if (!pair) continue;
       const eqIdx = pair.indexOf("=");
       if (eqIdx >= 0) {
-        result.push({ key: pair.slice(0, eqIdx), value: pair.slice(eqIdx + 1), enabled: true });
+        result.push({ key: safeDecode(pair.slice(0, eqIdx)), value: safeDecode(pair.slice(eqIdx + 1)), enabled: true });
       } else {
-        result.push({ key: pair, value: "", enabled: true });
+        result.push({ key: safeDecode(pair), value: "", enabled: true });
       }
     }
 
@@ -413,7 +443,7 @@ export function RequestPanel({
     }
 
     const queryString = enabledParams
-      .map((p) => `${p.key}=${p.value}`)
+      .map((p) => `${encodePreservingVariables(p.key)}=${encodePreservingVariables(p.value)}`)
       .join("&");
 
     return `${baseUrlPart}?${queryString}`;
@@ -452,49 +482,61 @@ export function RequestPanel({
   }
 
   function updateQueryParamField(index: number, field: "key" | "value", value: string) {
-    const queryParams = [...(draftRequest.queryParams ?? [])];
-    queryParams[index] = { ...queryParams[index], [field]: value };
-    const newUrl = syncParamsToUrl(draftRequest.url, queryParams);
-    updateDraft({ queryParams, url: newUrl });
+    updateDraft((prev: SavedRequest) => {
+      const queryParams = [...(prev.queryParams ?? [])];
+      queryParams[index] = { ...queryParams[index], [field]: value };
+      const newUrl = syncParamsToUrl(prev.url, queryParams);
+      return { queryParams, url: newUrl };
+    });
   }
 
   function toggleQueryParamEnabled(index: number, enabled: boolean) {
-    const queryParams = [...(draftRequest.queryParams ?? [])];
-    queryParams[index] = { ...queryParams[index], enabled };
-    const newUrl = syncParamsToUrl(draftRequest.url, queryParams);
-    updateDraft({ queryParams, url: newUrl });
+    updateDraft((prev: SavedRequest) => {
+      const queryParams = [...(prev.queryParams ?? [])];
+      queryParams[index] = { ...queryParams[index], enabled };
+      const newUrl = syncParamsToUrl(prev.url, queryParams);
+      return { queryParams, url: newUrl };
+    });
   }
 
   function removeQueryParam(index: number) {
-    const queryParams = (draftRequest.queryParams ?? []).filter((_, i) => i !== index);
-    const newUrl = syncParamsToUrl(draftRequest.url, queryParams);
-    updateDraft({ queryParams, url: newUrl });
+    updateDraft((prev: SavedRequest) => {
+      const queryParams = (prev.queryParams ?? []).filter((_, i) => i !== index);
+      const newUrl = syncParamsToUrl(prev.url, queryParams);
+      return { queryParams, url: newUrl };
+    });
   }
 
   function addQueryParam(nextParam = { key: "", value: "", enabled: true }) {
-    const queryParams = [...(draftRequest.queryParams ?? []), nextParam];
-    const newUrl = syncParamsToUrl(draftRequest.url, queryParams);
-    updateDraft({ queryParams, url: newUrl });
+    updateDraft((prev: SavedRequest) => {
+      const queryParams = [...(prev.queryParams ?? []), nextParam];
+      const newUrl = syncParamsToUrl(prev.url, queryParams);
+      return { queryParams, url: newUrl };
+    });
   }
 
   function updateHeaderField(index: number, field: "key" | "value", value: string) {
-    const headers = [...draftRequest.headers];
-    headers[index] = { ...headers[index], [field]: value };
-    updateDraft({ headers });
+    updateDraft((prev: SavedRequest) => {
+      const headers = [...prev.headers];
+      headers[index] = { ...headers[index], [field]: value };
+      return { headers };
+    });
   }
 
   function toggleHeaderEnabled(index: number, enabled: boolean) {
-    const headers = [...draftRequest.headers];
-    headers[index] = { ...headers[index], enabled };
-    updateDraft({ headers });
+    updateDraft((prev: SavedRequest) => {
+      const headers = [...prev.headers];
+      headers[index] = { ...headers[index], enabled };
+      return { headers };
+    });
   }
 
   function removeHeader(index: number) {
-    updateDraft({ headers: draftRequest.headers.filter((_, headerIndex) => headerIndex !== index) });
+    updateDraft((prev: SavedRequest) => ({ headers: prev.headers.filter((_, headerIndex) => headerIndex !== index) }));
   }
 
   function addHeader(nextHeader: RequestHeader = createBlankHeader()) {
-    updateDraft({ headers: [...draftRequest.headers, nextHeader] });
+    updateDraft((prev: SavedRequest) => ({ headers: [...prev.headers, nextHeader] }));
   }
 
   function insertCommonHeader(key: string, value: string) {
@@ -523,12 +565,14 @@ export function RequestPanel({
 
     event.preventDefault();
 
-    const headers = [...draftRequest.headers];
-    headers[index] = parsedHeaders[0];
-    if (parsedHeaders.length > 1) {
-      headers.splice(index + 1, 0, ...parsedHeaders.slice(1));
-    }
-    updateDraft({ headers });
+    updateDraft((prev: SavedRequest) => {
+      const headers = [...prev.headers];
+      headers[index] = parsedHeaders[0];
+      if (parsedHeaders.length > 1) {
+        headers.splice(index + 1, 0, ...parsedHeaders.slice(1));
+      }
+      return { headers };
+    });
   }
 
   const headersPresetMenuRef = useRef<HTMLDivElement | null>(null);
@@ -899,12 +943,6 @@ export function RequestPanel({
                   </div>
                 </div>
 
-                <div className="headers-grid-header">
-                  <span className="col-center">On</span>
-                  <span>Key</span>
-                  <span>Value</span>
-                  <span></span>
-                </div>
                 <div className="headers-grid-body">
                   <div className="headers-rows">
                     {(draftRequest.queryParams && draftRequest.queryParams.length > 0
@@ -1005,12 +1043,6 @@ export function RequestPanel({
 
             {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
               <div className="headers-table-inner" aria-label="Body form data">
-                <div className="headers-grid-header">
-                  <span className="col-center">On</span>
-                  <span>Key</span>
-                  <span>Value</span>
-                  <span></span>
-                </div>
                 <div className="headers-grid-body">
                   <div className="headers-rows">
                     {(draftRequest.bodyForm ?? []).map((item, idx) => (
@@ -1020,9 +1052,11 @@ export function RequestPanel({
                             type="checkbox"
                             checked={item.enabled}
                             onChange={(e) => {
-                              const form = [...(draftRequest.bodyForm ?? [])];
-                              form[idx].enabled = e.target.checked;
-                              updateDraft({ bodyForm: form });
+                              updateDraft((prev: SavedRequest) => {
+                                const form = [...(prev.bodyForm ?? [])];
+                                form[idx] = { ...form[idx], enabled: e.target.checked };
+                                return { bodyForm: form };
+                              });
                             }}
                           />
                         </label>
@@ -1031,9 +1065,11 @@ export function RequestPanel({
                           value={item.key}
                           placeholder="Key"
                           onChange={(e) => {
-                            const form = [...(draftRequest.bodyForm ?? [])];
-                            form[idx].key = e.target.value;
-                            updateDraft({ bodyForm: form });
+                            updateDraft((prev: SavedRequest) => {
+                              const form = [...(prev.bodyForm ?? [])];
+                              form[idx] = { ...form[idx], key: e.target.value };
+                              return { bodyForm: form };
+                            });
                           }}
                         />
                         <VariableInput
@@ -1042,9 +1078,11 @@ export function RequestPanel({
                           value={item.value}
                           placeholder="Value"
                           onChange={(e) => {
-                            const form = [...(draftRequest.bodyForm ?? [])];
-                            form[idx].value = e.target.value;
-                            updateDraft({ bodyForm: form });
+                            updateDraft((prev: SavedRequest) => {
+                              const form = [...(prev.bodyForm ?? [])];
+                              form[idx] = { ...form[idx], value: e.target.value };
+                              return { bodyForm: form };
+                            });
                           }}
                         />
                         <button
@@ -1063,10 +1101,11 @@ export function RequestPanel({
                     ))}
                   </div>
                   <div className="headers-add-row">
-                    <button type="button" className="ghost-button" onClick={() => {
-                      updateDraft({ bodyForm: [...(draftRequest.bodyForm ?? []), { key: '', value: '', enabled: true }] });
-                    }}>
-                      <Plus size={14}/> Add Field
+                    <button type="button" className="ghost-button" onClick={() =>
+                          updateDraft((prev: SavedRequest) => ({
+                            bodyForm: [...(prev.bodyForm ?? []), { key: '', value: '', enabled: true }],
+                          }))
+                        }><Plus size={14}/> Add Field
                     </button>
                   </div>
                 </div>
@@ -1144,12 +1183,6 @@ export function RequestPanel({
                 </div>
               </div>
 
-              <div className="headers-grid-header">
-                <span className="col-center">On</span>
-                <span>Key</span>
-                <span>Value</span>
-                <span></span>
-              </div>
               <div className="headers-grid-body">
 
                 <div className="headers-rows">

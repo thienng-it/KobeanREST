@@ -1,4 +1,4 @@
-import type { ApiAuthMode, AuthConfig } from "../types";
+import type { ApiAuthMode, AuthConfig, SavedRequest, WorkspaceSummary } from "../types";
 import { containsVariables, resolveStringSafe } from "./variables";
 import { executeHttpRequest } from "./http-client";
 
@@ -36,6 +36,47 @@ export function resolveAuthConfig(
     scope: tryResolve(authConfig.scope, variableMap) || undefined,
     audience: tryResolve(authConfig.audience, variableMap) || undefined,
   };
+}
+
+export function getEffectiveAuth(request: SavedRequest, workspace: WorkspaceSummary | null): { mode: ApiAuthMode; config: AuthConfig; source: string } {
+  if (!workspace) {
+    return { mode: "none", config: {}, source: "No workspace loaded" };
+  }
+
+  if (request.authMode !== "none") {
+    return { mode: request.authMode, config: request.authConfig, source: "Request level" };
+  }
+
+  let currentFolderId: string | undefined = request.folderId;
+  let resolvedCollectionId: string | undefined;
+
+  while (currentFolderId) {
+    const folder = workspace.folders.find((f) => f.id === currentFolderId);
+    if (!folder) {
+      if (!resolvedCollectionId && workspace.collections?.some(c => c.id === currentFolderId)) {
+        resolvedCollectionId = currentFolderId;
+      }
+      break;
+    }
+    
+    if (folder.authMode && folder.authMode !== "none") {
+      return { mode: folder.authMode, config: folder.authConfig ?? {}, source: `Inherited from folder: ${folder.name}` };
+    }
+    
+    if (!resolvedCollectionId && folder.collectionId) {
+      resolvedCollectionId = folder.collectionId;
+    }
+    currentFolderId = folder.parentId;
+  }
+
+  if (resolvedCollectionId) {
+    const collection = workspace.collections?.find((c) => c.id === resolvedCollectionId);
+    if (collection?.authMode && collection.authMode !== "none") {
+      return { mode: collection.authMode, config: collection.authConfig ?? {}, source: `Inherited from collection: ${collection.name}` };
+    }
+  }
+
+  return { mode: "none", config: {}, source: "No inherited auth" };
 }
 
 /**

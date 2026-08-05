@@ -70,6 +70,8 @@ export interface ContextMenuProps {
   onCloseTab?: (tabId: string) => void;
   onCloseOtherTabs?: (tabId: string) => void;
   onCloseAllTabs?: () => void;
+  onExpandCollectionFolders?: (collectionId: string) => void;
+  onCollapseCollectionFolders?: (collectionId: string) => void;
 }
 
 export function ContextMenu({
@@ -97,6 +99,8 @@ export function ContextMenu({
   onCloseTab,
   onCloseOtherTabs,
   onCloseAllTabs,
+  onExpandCollectionFolders,
+  onCollapseCollectionFolders,
 }: ContextMenuProps) {
   if (!menu) return null;
   const target = menu.target;
@@ -239,6 +243,38 @@ export function ContextMenu({
           >
             <Play size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Run Collection
           </button>
+          
+          <div style={{ height: "1px", backgroundColor: "var(--color-border)", margin: "4px 0" }} />
+          
+          {onExpandCollectionFolders && (
+            <button
+              className="context-menu-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (target.id) onExpandCollectionFolders(target.id);
+                onClose();
+              }}
+              style={itemStyle}
+              {...hoverHandlers()}
+            >
+              <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Expand All
+            </button>
+          )}
+          {onCollapseCollectionFolders && (
+            <button
+              className="context-menu-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (target.id) onCollapseCollectionFolders(target.id);
+                onClose();
+              }}
+              style={itemStyle}
+              {...hoverHandlers()}
+            >
+              <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle", transform: "rotate(180deg)" }} /> Collapse All
+            </button>
+          )}
+
           <div style={{ height: "1px", backgroundColor: "var(--color-border)", margin: "4px 0" }} />
           <button
             className="context-menu-item"

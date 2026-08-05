@@ -288,10 +288,7 @@ test("headers tab stays minimal and postman-like instead of introducing heavy se
   assert.match(app, /className="headers-grid-body"/);
   assert.match(app, /Common/);
   assert.match(app, /Add Header/);
-  assert.match(app, /className="headers-grid-header"/);
-  assert.match(app, />On<\/span>/);
-  assert.match(app, />Key<\/span>/);
-  assert.match(app, />Value<\/span>/);
+
   assert.match(app, /className=\{header\.enabled \? "headers-row" : "headers-row headers-row-disabled"\}/);
   assert.match(app, /className="headers-common-menu"/);
   assert.doesNotMatch(app, /className="headers-summary"/);

@@ -57,12 +57,19 @@ export function TabBar({
           : tab.name;
 
         return (
-          <button
+          <div
             key={tab.id}
             role="tab"
+            tabIndex={0}
             aria-selected={activeTabId === tab.id}
             title={tooltip}
             onClick={() => onTabClick(tab)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onTabClick(tab);
+              }
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               onTabContextMenu?.(tab.id, e.clientX, e.clientY);
@@ -88,6 +95,17 @@ export function TabBar({
               maxWidth: "200px",
               transition: "background-color 0.15s ease, color 0.15s ease",
               position: "relative",
+              outline: "none",
+            }}
+            onFocus={(e) => {
+              if (activeTabId !== tab.id) {
+                e.currentTarget.style.backgroundColor = "var(--color-surface-hover)";
+              }
+            }}
+            onBlur={(e) => {
+              if (activeTabId !== tab.id) {
+                e.currentTarget.style.backgroundColor = "var(--color-surface)";
+              }
             }}
             onMouseEnter={(e) => {
               if (activeTabId !== tab.id) {
@@ -152,7 +170,10 @@ export function TabBar({
           )}
           <button
             type="button"
-            onClick={(e) => onTabClose(tab.id, e)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onTabClose(tab.id, e);
+            }}
             style={{
               display: "flex",
               alignItems: "center",
@@ -177,7 +198,7 @@ export function TabBar({
           >
             <X size={12} />
           </button>
-        </button>
+        </div>
         );
       })}
       {handleNewTab && (

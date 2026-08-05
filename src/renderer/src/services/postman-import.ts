@@ -75,6 +75,7 @@ interface PostmanItem {
   event?: PostmanEvent[];
   variable?: PostmanVariable[];
   item?: PostmanItem[];
+  auth?: PostmanAuth;
 }
 
 interface PostmanRequest {
@@ -119,11 +120,15 @@ export interface PostmanCollectionImportResult {
   collectionVariables: ScopedVariable[];
   collectionPreScript?: string;
   collectionPostScript?: string;
+  collectionAuthMode?: ApiAuthMode;
+  collectionAuthConfig?: AuthConfig;
   folders: Array<{
     id: string;
     name: string;
     parentId?: string;
     variables: ScopedVariable[];
+    authMode?: ApiAuthMode;
+    authConfig?: AuthConfig;
     preScript?: string;
     postScript?: string;
   }>;
@@ -216,10 +221,11 @@ function buildUrlFromObject(url: PostmanUrl): string {
   return result;
 }
 
-function convertPostmanAuth(auth?: PostmanAuth): { mode: ApiAuthMode; config: AuthConfig } {
-  if (!auth) return { mode: "none", config: {} };
+function convertPostmanAuth(auth?: PostmanAuth, fallbackMode: ApiAuthMode = "none"): { mode: ApiAuthMode; config: AuthConfig } {
+  if (!auth) return { mode: fallbackMode, config: {} };
 
   const type = auth.type;
+  if (type === "noauth") return { mode: "none", config: {} };
 
   switch (type) {
     case "basic": {
@@ -312,21 +318,22 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
   const requests: PostmanCollectionImportResult["requests"] = [];
 
   // Process collection-level auth
-  const collectionAuth = convertPostmanAuth(collection.auth);
+  const collectionAuth = convertPostmanAuth(collection.auth, "none");
 
   // Process collection-level events
   const collectionScripts = extractEvents(collection.event);
 
   // Process items recursively
-  function processItems(
-    items: PostmanItem[],
-    parentFolderId?: string,
-    inheritedAuth?: { mode: ApiAuthMode; config: AuthConfig }
-  ) {
+  function processItems(items: PostmanItem[], parentFolderId?: string) {
     for (const item of items) {
-      const itemAuth = item.request && typeof item.request === "object" && item.request.auth
-        ? convertPostmanAuth(item.request.auth)
-        : inheritedAuth;
+      let itemAuth: { mode: ApiAuthMode; config: AuthConfig };
+      if (item.request && typeof item.request === "object" && item.request.auth) {
+        itemAuth = convertPostmanAuth(item.request.auth);
+      } else if (item.auth) {
+        itemAuth = convertPostmanAuth(item.auth);
+      } else {
+        itemAuth = { mode: "none", config: {} };
+      }
 
       if (isRequestItem(item)) {
         // This is a request
@@ -438,8 +445,8 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
           body,
           bodyMimeType,
           bodyForm,
-          authMode: itemAuth?.mode || "none",
-          authConfig: itemAuth?.config || {},
+          authMode: itemAuth.mode,
+          authConfig: itemAuth.config,
           variables,
           preScript: scripts.pre,
           postScript: scripts.post,
@@ -455,25 +462,29 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
           name: item.name || "Unnamed Folder",
           parentId: parentFolderId,
           variables: folderVariables,
+          authMode: itemAuth.mode,
+          authConfig: itemAuth.config,
           preScript: folderScripts.pre,
           postScript: folderScripts.post,
         });
 
         // Process nested items
         if (item.item) {
-          processItems(item.item, folderId, itemAuth);
+          processItems(item.item, folderId);
         }
       }
     }
   }
 
-  processItems(collection.item, undefined, collectionAuth);
+  processItems(collection.item, undefined);
 
   return {
     collectionName: collection.info.name || "Imported Collection",
     collectionVariables: convertVariables(collection.variable),
     collectionPreScript: collectionScripts.pre,
     collectionPostScript: collectionScripts.post,
+    collectionAuthMode: collectionAuth.mode,
+    collectionAuthConfig: collectionAuth.config,
     folders,
     requests,
   };

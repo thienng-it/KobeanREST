@@ -16,12 +16,14 @@ export interface AuthEditorFormProps {
   draft: AuthDraft;
   activeVars: EnvironmentVariable[];
   onDraftChange: (draft: AuthDraft) => void;
+  onTokenObtained?: (token: string) => void;
 }
 
 export function AuthEditorForm({
   draft,
   activeVars,
   onDraftChange,
+  onTokenObtained,
 }: AuthEditorFormProps) {
   const updateConfig = (fields: Partial<AuthConfig>) => {
     onDraftChange({ ...draft, config: { ...draft.config, ...fields } });
@@ -81,6 +83,7 @@ export function AuthEditorForm({
                   try {
                     const token = await obtainOAuth2Token(draft.config, buildVariableMap(activeVars));
                     updateConfig({ token });
+                    if (onTokenObtained) onTokenObtained(token);
                     alert("Access token obtained successfully!");
                   } catch (err) {
                     alert("Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)));

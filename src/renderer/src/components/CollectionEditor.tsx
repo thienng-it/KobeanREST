@@ -64,6 +64,22 @@ export function CollectionEditor({
     setIsDirty(true);
   };
 
+  const handleTokenObtained = async (token: string) => {
+    const newConfig = { ...draftAuthConfig, token };
+    await saveScript(collection.id, "collection", "pre", preScript);
+    await saveScript(collection.id, "collection", "post", postScript);
+    await saveCollectionAuth(collection.id, draftAuthMode, newConfig);
+    onUpdateCollection({
+      ...collection,
+      authMode: draftAuthMode,
+      authConfig: newConfig,
+    });
+    setDraftAuthConfig(newConfig);
+    setIsDirty(false);
+  };
+
+
+
   if (!scriptsLoaded) return null;
 
   const tabs = [
@@ -146,6 +162,7 @@ export function CollectionEditor({
                 draft={{ mode: draftAuthMode, config: draftAuthConfig }}
                 activeVars={activeVars}
                 onDraftChange={handleAuthChange}
+                onTokenObtained={handleTokenObtained}
               />
             </div>
           </div>

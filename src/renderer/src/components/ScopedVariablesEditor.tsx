@@ -222,12 +222,6 @@ export function ScopedVariablesEditor({
       {/* Grid mode */}
       {mode === "grid" && (
         <div className="env-variable-card" style={{ display: "flex", flexDirection: "column" }}>
-          {variables.length === 0 && (
-            <p style={{ fontSize: "12px", color: "var(--color-text-muted)", fontStyle: "italic", padding: "10px 12px", margin: 0, borderBottom: "1px solid var(--color-border)" }}>
-              No variables. Override environment variables for this {entityType}.
-            </p>
-          )}
-
           {variables.map((v) => {
             const isEditing = editingKey === v.key;
             return (

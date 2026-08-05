@@ -4,6 +4,8 @@ export interface ConfirmDialogState {
   confirmLabel?: string;
   confirmVariant?: "primary" | "danger";
   onConfirm: () => void;
+  altLabel?: string;
+  onAlt?: () => void;
 }
 
 export interface ConfirmDialogProps {
@@ -37,6 +39,19 @@ export function ConfirmDialog({ dialog, onCancel }: ConfirmDialogProps) {
           <button className="modal-cancel ghost-button" type="button" onClick={onCancel}>
             Cancel
           </button>
+          {dialog.altLabel && (
+            <button
+              className="primary-button"
+              style={{ backgroundColor: "var(--color-bg-tertiary)", color: "var(--color-text)", border: "1px solid var(--color-border)" }}
+              type="button"
+              onClick={() => {
+                dialog.onAlt?.();
+                onCancel();
+              }}
+            >
+              {dialog.altLabel}
+            </button>
+          )}
           <button
             className={isDanger ? "modal-confirm danger-button" : "primary-button"}
             type="button"

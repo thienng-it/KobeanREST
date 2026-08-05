@@ -16,7 +16,6 @@ import {
   formatTimestamp,
   openProductDocs,
   createScriptVariablesObject,
-  getEffectiveAuth,
   diagnosticMessage,
 } from "./app-utils";
 import type { KbScriptContext } from "./services/script-runtime";
@@ -35,7 +34,7 @@ import { FolderEditor } from "./components/FolderEditor";
 import { CollectionEditor } from "./components/CollectionEditor";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { JwtDecoderModal } from "./components/JwtDecoderModal";
-import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./services/auth";
+import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token, getEffectiveAuth } from "./services/auth";
 import { CollectionRunner } from "./components/CollectionRunner";
 
 import {
@@ -193,6 +192,8 @@ export function App() {
     toggleFolder,
     expandAllFolders,
     collapseAllFolders,
+    expandCollectionFolders,
+    collapseCollectionFolders,
     handleCreateRequest,
     handleCreateRequestWithDetails,
     importCurlRequest,
@@ -553,21 +554,29 @@ export function App() {
     setDraftRequest(tempReq);
   }, []);
 
-  function updateDraft(fields: Partial<SavedRequest>) {
-    if (draftRequest) {
-      const updated = { ...draftRequest, ...fields };
-      setDraftRequest(updated);
-      if (unsavedRequests[draftRequest.id]) {
-        setUnsavedRequests((prev) => ({ ...prev, [draftRequest.id]: updated }));
-      }
+  function updateDraft(fields: Partial<SavedRequest> | ((prev: SavedRequest) => Partial<SavedRequest>)) {
+    setDraftRequest((current) => {
+      if (!current) return current;
+      const newFields = typeof fields === 'function' ? fields(current) : fields;
+      const updated = { ...current, ...newFields };
+      
+      setUnsavedRequests((prev) => {
+        if (prev[current.id]) {
+          return { ...prev, [current.id]: updated };
+        }
+        return prev;
+      });
+      
       setTabs((prev) =>
         prev.map((t) =>
-          t.entityId === draftRequest.id
+          t.entityId === current.id
             ? { ...t, isDirty: true, method: updated.method, name: updated.name }
             : t
         )
       );
-    }
+      
+      return updated;
+    });
   }
 
   function handleCurlImport(result: CurlImportResult) {
@@ -775,20 +784,28 @@ export function App() {
 
     try {
       if (scopeWorkspace) {
+        let authToScan = requestToSend.authConfig;
+        if (requestToSend.authMode === "none") {
+          const inherited = getEffectiveAuth(requestToSend, scopeWorkspace);
+          if (inherited.mode !== "none") {
+            authToScan = inherited.config;
+          }
+        }
+
         const textsToScan = [
           requestToSend.url, 
           requestToSend.body, 
           ...requestToSend.headers.map((h: any) => h.value),
           // Also scan auth config fields for $response variables
-          requestToSend.authConfig?.token,
-          requestToSend.authConfig?.username,
-          requestToSend.authConfig?.password,
-          requestToSend.authConfig?.keyValue,
-          requestToSend.authConfig?.clientId,
-          requestToSend.authConfig?.clientSecret,
-          requestToSend.authConfig?.accessTokenUrl,
-          requestToSend.authConfig?.scope,
-          requestToSend.authConfig?.audience,
+          authToScan?.token,
+          authToScan?.username,
+          authToScan?.password,
+          authToScan?.keyValue,
+          authToScan?.clientId,
+          authToScan?.clientSecret,
+          authToScan?.accessTokenUrl,
+          authToScan?.scope,
+          authToScan?.audience,
         ];
         await injectAsyncVariables(variableMap, textsToScan, scopeWorkspace);
       }
@@ -819,21 +836,11 @@ export function App() {
       h.key.toLowerCase() === 'authorization' && h.enabled
     );
 
-    if (finalAuthMode === "none") {
-      // Don't inherit auth if the request already has a manual Authorization header
-      // This allows users to use $response variables for auth without conflict
-      if (!hasManualAuthHeader) {
-        const folder = workspace?.folders.find(f => f.id === requestToSend.folderId);
-        if (folder && folder.authMode && folder.authMode !== "none") {
-          finalAuthMode = folder.authMode;
-          finalAuthConfig = folder.authConfig || {};
-        } else {
-          const collection = workspace?.collections?.find(c => folder?.collectionId === c.id);
-          if (collection && collection.authMode && collection.authMode !== "none") {
-            finalAuthMode = collection.authMode;
-            finalAuthConfig = collection.authConfig || {};
-          }
-        }
+    if (finalAuthMode === "none" && !hasManualAuthHeader) {
+      const inherited = getEffectiveAuth(requestToSend, scopeWorkspace);
+      if (inherited.mode !== "none") {
+        finalAuthMode = inherited.mode;
+        finalAuthConfig = inherited.config;
       }
     }
 
@@ -1038,7 +1045,7 @@ export function App() {
   const isDraftDirty = useMemo(() => {
     if (!draftRequest || !workspace) return false;
     const original = workspace.requests.find((r) => r.id === draftRequest.id);
-    if (!original) return false;
+    if (!original) return true;
     return JSON.stringify(original) !== JSON.stringify(draftRequest);
   }, [draftRequest, workspace]);
 
@@ -1618,6 +1625,26 @@ export function App() {
             }}
           />
           {(() => {
+            let scopedVarsArray = activeVars;
+            if (workspace) {
+              const scopeParams: any = {};
+              if (currentTab?.type === "request" && draftRequest) {
+                scopeParams.request = draftRequest;
+              } else if (currentTab?.type === "folder") {
+                scopeParams.folderId = currentTab.entityId;
+              } else if (currentTab?.type === "collection") {
+                scopeParams.collectionId = currentTab.entityId;
+              }
+              
+              if (Object.keys(scopeParams).length > 0) {
+                const scopedVarMap = buildScopedVariableMap(workspace, scopeParams);
+                scopedVarsArray = Array.from(scopedVarMap.entries()).map(([k, v]) => {
+                  const envMatch = activeVars.find(ev => ev.key === k);
+                  return envMatch ? { ...envMatch, value: v } : { key: k, value: v };
+                });
+              }
+            }
+
             if (currentTab?.type === "environment") {
               return (
                 <EnvironmentEditor
@@ -1673,7 +1700,7 @@ export function App() {
               return (
                 <FolderEditor
                   folder={folder}
-                  activeVars={activeVars}
+                  activeVars={scopedVarsArray}
                   onUpdateFolder={handleUpdateFolder}
                   onSaveScopedVariable={handleSaveScopedVariable}
                   onDeleteScopedVariable={handleDeleteScopedVariable}
@@ -1687,7 +1714,7 @@ export function App() {
                 return (
                   <CollectionEditor
                     collection={collection}
-                    activeVars={activeVars}
+                    activeVars={scopedVarsArray}
                     onUpdateCollection={handleUpdateCollection}
                     onSaveScopedVariable={handleSaveScopedVariable}
                     onDeleteScopedVariable={handleDeleteScopedVariable}
@@ -1703,7 +1730,7 @@ export function App() {
             return draftRequest ? (
             <RequestPanel
               draftRequest={draftRequest}
-              activeVars={activeVars}
+              activeVars={scopedVarsArray}
               activeEnvironmentName={workspace?.activeEnvironment}
               onSaveVariable={handleSaveVariable}
               isSending={isSending}
@@ -1988,6 +2015,8 @@ export function App() {
           onCloseTab={closeTab}
           onCloseOtherTabs={handleCloseOtherTabs}
           onCloseAllTabs={handleCloseAllTabs}
+          onExpandCollectionFolders={expandCollectionFolders}
+          onCollapseCollectionFolders={collapseCollectionFolders}
         />
       )}
 
@@ -2117,7 +2146,24 @@ export function App() {
         activeWorkspaceId={workspace?.id ?? ""}
         workspaceList={workspaceList}
         onCreate={(name) => void handleCreateWorkspace(name)}
-        onSwitch={(id) => { void handleSwitchWorkspace(id); setWorkspaceSwitcherOpen(false); }}
+        onSwitch={(id) => {
+          const dirtyCount = tabs.filter((t) => t.isDirty).length;
+          if (dirtyCount > 0) {
+            setConfirmDialog({
+              title: "Unsaved Changes",
+              message: `You have unsaved changes in ${dirtyCount} tab(s). Are you sure you want to discard them and switch workspaces?`,
+              confirmVariant: "danger",
+              confirmLabel: "Discard & Switch",
+              onConfirm: () => {
+                void handleSwitchWorkspace(id);
+                setWorkspaceSwitcherOpen(false);
+              },
+            });
+          } else {
+            void handleSwitchWorkspace(id);
+            setWorkspaceSwitcherOpen(false);
+          }
+        }}
         onRename={(id, name) => void handleRenameWorkspace(id, name)}
           onDelete={(id, name) => {
             setConfirmDialog({

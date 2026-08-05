@@ -128,29 +128,43 @@ function buildPmObject(
     set method(v: string) { kb.request.method = v as any; },
     get url() { 
       const urlStr = kb.request.url || "";
+      const _modifyUrl = (uStr: string, modifyFn: (u: URL) => void): string => {
+        const wasPrefixed = !uStr.startsWith('http');
+        const parseUrl = wasPrefixed ? `http://${uStr}` : uStr;
+        try {
+          const u = new URL(parseUrl);
+          modifyFn(u);
+          let result = u.toString();
+          // Restore url-encoded variables
+          result = result.replace(/%7B/g, '{').replace(/%7D/g, '}');
+          if (wasPrefixed && result.startsWith('http://')) {
+            result = result.substring(7);
+          }
+          return result;
+        } catch {
+          return uStr;
+        }
+      };
+
       const urlObj: any = {
         toString: () => urlStr,
         toJSON: () => urlStr,
         update: (val: string) => { kb.request.url = val; },
         addQueryParams: (params: string | Record<string, string>) => {
-          try {
-            const u = new URL(urlStr.startsWith('http') ? urlStr : `http://${urlStr}`);
+          kb.request.url = _modifyUrl(urlStr, (u) => {
             if (typeof params === "string") {
               const search = new URLSearchParams(params.startsWith('?') ? params : `?${params}`);
               for (const [k, v] of search.entries()) u.searchParams.append(k, v);
             } else if (typeof params === "object") {
               for (const [k, v] of Object.entries(params)) u.searchParams.append(k, v);
             }
-            kb.request.url = u.toString();
-          } catch {}
+          });
         },
         removeQueryParams: (params: string | string[]) => {
-          try {
-            const u = new URL(urlStr.startsWith('http') ? urlStr : `http://${urlStr}`);
+          kb.request.url = _modifyUrl(urlStr, (u) => {
             const keys = Array.isArray(params) ? params : [params];
             for (const k of keys) u.searchParams.delete(k);
-            kb.request.url = u.toString();
-          } catch {}
+          });
         },
       };
 
@@ -167,6 +181,42 @@ function buildPmObject(
       queryList.get = (key: string) => searchParams.get(key) || undefined;
       queryList.has = (key: string) => searchParams.has(key);
       queryList.all = () => Array.from(queryList);
+      queryList.count = () => queryList.length;
+      queryList.clear = () => {
+        kb.request.url = _modifyUrl(urlStr, (u) => { u.search = ''; });
+      };
+      queryList.remove = (params: string | string[] | ((item: any) => boolean)) => {
+        if (typeof params === 'function') {
+          const keysToRemove = queryList.filter(params).map((q: any) => q.key);
+          urlObj.removeQueryParams(keysToRemove);
+        } else {
+          urlObj.removeQueryParams(params);
+        }
+      };
+      queryList.add = (params: any) => {
+        kb.request.url = _modifyUrl(urlStr, (u) => {
+          const items = Array.isArray(params) ? params : [params];
+          for (const item of items) {
+            if (typeof item === 'string') {
+               const search = new URLSearchParams(item.startsWith('?') ? item : `?${item}`);
+               for (const [k, v] of search.entries()) u.searchParams.append(k, v);
+            } else if (item && item.key !== undefined) {
+               u.searchParams.append(item.key, item.value || "");
+            }
+          }
+        });
+      };
+      queryList.insert = (params: any) => queryList.add(params);
+      queryList.upsert = (params: any) => {
+        const items = Array.isArray(params) ? params : [params];
+        for (const item of items) {
+          if (item && item.key) {
+            queryList.remove(item.key);
+            queryList.add(item);
+          }
+        }
+      };
+      queryList.each = queryList.forEach;
       
       urlObj.query = queryList;
       
@@ -193,25 +243,35 @@ function buildPmObject(
       kb.request.url = typeof v === 'object' && v.toString ? v.toString() : String(v); 
     },
     get headers() {
-      return {
-        all: () => kb.request.headers,
-        get: (name: string) => kb.request.getHeader(name),
-        add: (header: { key: string; value: string } | string) => {
-          if (typeof header === 'string') {
-            const [k, ...v] = header.split(':');
-            if (k && v.length > 0) kb.request.setHeader(k.trim(), v.join(':').trim());
-          } else if (header?.key) {
-            kb.request.setHeader(header.key, String(header.value));
-          }
-        },
-        upsert: (header: { key: string; value: string }) => {
-          if (header?.key) kb.request.setHeader(header.key, String(header.value));
-        },
-        remove: (name: string) => kb.request.removeHeader(name),
-        has: (name: string) => kb.request.getHeader(name) !== null,
-        clear: () => { kb.request.headers = []; },
-        count: () => kb.request.headers.length,
+      const headersList: any = [...kb.request.headers];
+      headersList.all = () => kb.request.headers;
+      headersList.get = (name: string) => kb.request.getHeader(name);
+      headersList.add = (header: { key: string; value: string } | string) => {
+        if (typeof header === 'string') {
+          const [k, ...v] = header.split(':');
+          if (k && v.length > 0) kb.request.setHeader(k.trim(), v.join(':').trim());
+        } else if (header?.key) {
+          kb.request.setHeader(header.key, String(header.value));
+        }
       };
+      headersList.insert = (header: any) => headersList.add(header);
+      headersList.upsert = (header: { key: string; value: string }) => {
+        if (header?.key) kb.request.setHeader(header.key, String(header.value));
+      };
+      headersList.remove = (match: string | ((item: any) => boolean)) => {
+        if (typeof match === 'function') {
+          const toRemove = kb.request.headers.filter(match).map(h => h.key);
+          for (const key of toRemove) kb.request.removeHeader(key);
+        } else {
+          kb.request.removeHeader(match);
+        }
+      };
+      headersList.has = (name: string) => kb.request.getHeader(name) !== null;
+      headersList.clear = () => { kb.request.headers = []; };
+      headersList.count = () => kb.request.headers.length;
+      headersList.each = headersList.forEach;
+      
+      return headersList;
     },
     get body() { return kb.request.body; },
     set body(v: string) { kb.request.body = v; },

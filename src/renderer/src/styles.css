@@ -6557,3 +6557,124 @@ select:focus-visible,
 
 
 .custom-select-trigger-ghost { padding: 0 10px; min-width: 130px; justify-content: space-between; }
+
+
+/* --- Shared Input Styles --- */
+.input,
+.create-request-input,
+.workspace-switcher-rename-input,
+.workspace-switcher-input,
+.env-rename-input,
+.env-inline-input,
+.console-search-input,
+.method-selector-custom-input input,
+.request-title-inline-input,
+.request-command-input-field,
+.auth-config-fields input {
+  border: 1px solid var(--color-border, rgba(148, 163, 184, 0.18));
+  border-radius: 6px;
+  background: rgba(248, 250, 252, 0.88);
+  color: var(--color-text);
+  box-shadow: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+  font-family: inherit;
+  outline: none;
+}
+
+.input:hover,
+.create-request-input:hover,
+.workspace-switcher-rename-input:hover,
+.workspace-switcher-input:hover,
+.env-rename-input:hover,
+.env-inline-input:hover,
+.console-search-input:hover,
+.method-selector-custom-input input:hover,
+.request-title-inline-input:hover,
+.request-command-input-field:hover,
+.auth-config-fields input:hover {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: var(--color-border-strong, rgba(148, 163, 184, 0.32));
+}
+
+.input:focus,
+.input:focus-visible,
+.create-request-input:focus,
+.create-request-input:focus-visible,
+.workspace-switcher-rename-input:focus,
+.workspace-switcher-rename-input:focus-visible,
+.workspace-switcher-input:focus,
+.workspace-switcher-input:focus-visible,
+.env-rename-input:focus,
+.env-rename-input:focus-visible,
+.env-inline-input:focus,
+.env-inline-input:focus-visible,
+.console-search-input:focus,
+.console-search-input:focus-visible,
+.method-selector-custom-input input:focus,
+.method-selector-custom-input input:focus-visible,
+.request-title-inline-input:focus,
+.request-title-inline-input:focus-visible,
+.request-command-input-field:focus,
+.request-command-input-field:focus-visible,
+.auth-config-fields input:focus,
+.auth-config-fields input:focus-visible {
+  border-color: var(--color-accent, #3b82f6) !important;
+  background: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent, #3b82f6) 20%, transparent) !important;
+}
+
+:root:not([data-theme="light"]):not([data-theme="warm"]) .input,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .create-request-input,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .workspace-switcher-rename-input,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .workspace-switcher-input,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .env-rename-input,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .env-inline-input,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .console-search-input,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-custom-input input,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .request-title-inline-input,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .request-command-input-field,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .auth-config-fields input {
+  background: rgba(15, 23, 42, 0.4);
+  border-color: rgba(51, 65, 85, 0.8);
+}
+
+:root:not([data-theme="light"]):not([data-theme="warm"]) .input:hover,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .create-request-input:hover,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .workspace-switcher-rename-input:hover,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .workspace-switcher-input:hover,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .env-rename-input:hover,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .env-inline-input:hover,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .console-search-input:hover,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-custom-input input:hover,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .request-title-inline-input:hover,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .request-command-input-field:hover,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .auth-config-fields input:hover {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(71, 85, 105, 0.9);
+}
+
+:root:not([data-theme="light"]):not([data-theme="warm"]) .input:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .input:focus-visible,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .create-request-input:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .create-request-input:focus-visible,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .workspace-switcher-rename-input:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .workspace-switcher-rename-input:focus-visible,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .workspace-switcher-input:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .workspace-switcher-input:focus-visible,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .env-rename-input:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .env-rename-input:focus-visible,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .env-inline-input:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .env-inline-input:focus-visible,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .console-search-input:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .console-search-input:focus-visible,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-custom-input input:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-custom-input input:focus-visible,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .request-title-inline-input:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .request-title-inline-input:focus-visible,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .request-command-input-field:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .request-command-input-field:focus-visible,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .auth-config-fields input:focus,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .auth-config-fields input:focus-visible {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: var(--color-accent) !important;
+}

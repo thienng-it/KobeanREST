@@ -95,27 +95,45 @@ export function buildScopedVariableMap(
   // Active environment first (lowest precedence).
   ingest(activeEnvironmentVariables(workspace));
 
-  if (scope.collectionId) {
-    const collection = workspace.collections?.find((c) => c.id === scope.collectionId);
-    ingest(collection?.variables);
+  let resolvedFolderId = scope.folderId;
+  if (!resolvedFolderId) {
+    if (scope.request) resolvedFolderId = scope.request.folderId;
+    else if (scope.requestId) {
+      const r = workspace.requests.find(req => req.id === scope.requestId);
+      if (r) resolvedFolderId = r.folderId;
+    }
   }
 
-  if (scope.folderId) {
-    const folders: import("../types").FolderSummary[] = [];
-    let currentFolderId: string | undefined = scope.folderId;
+  let resolvedCollectionId = scope.collectionId;
+  const folders: import("../types").FolderSummary[] = [];
+
+  if (resolvedFolderId) {
+    let currentFolderId: string | undefined = resolvedFolderId;
     while (currentFolderId) {
       const folder = workspace.folders.find((f) => f.id === currentFolderId);
       if (folder) {
         folders.push(folder);
+        if (!resolvedCollectionId && folder.collectionId) {
+          resolvedCollectionId = folder.collectionId;
+        }
         currentFolderId = folder.parentId;
       } else {
+        if (!resolvedCollectionId && workspace.collections?.some(c => c.id === currentFolderId)) {
+          resolvedCollectionId = currentFolderId;
+        }
         break;
       }
     }
-    // Ingest from top-level down to the immediate folder.
-    for (let i = folders.length - 1; i >= 0; i--) {
-      ingest(folders[i].variables);
-    }
+  }
+
+  if (resolvedCollectionId) {
+    const collection = workspace.collections?.find((c) => c.id === resolvedCollectionId);
+    ingest(collection?.variables);
+  }
+
+  // Ingest from top-level down to the immediate folder.
+  for (let i = folders.length - 1; i >= 0; i--) {
+    ingest(folders[i].variables);
   }
 
   if (scope.request) {
@@ -181,6 +199,14 @@ export function resolveString(
       }
       return variableMap.get(name)!;
     }
+    for (const [key, val] of variableMap.entries()) {
+      if (key.toLowerCase() === name.toLowerCase()) {
+        if (!usedVariables.includes(key)) {
+          usedVariables.push(key);
+        }
+        return val;
+      }
+    }
     // Built-in dynamic helpers ({{$guid}}, {{$timestamp}}, ...) resolve on demand
     // so users don't have to define them in the environment.
     const generator = DYNAMIC_VARIABLES[name];
@@ -217,6 +243,11 @@ export function resolveStringSafe(
     if (variableMap.has(name)) {
       return variableMap.get(name)!;
     }
+    for (const [key, val] of variableMap.entries()) {
+      if (key.toLowerCase() === name.toLowerCase()) {
+        return val;
+      }
+    }
     const generator = DYNAMIC_VARIABLES[name];
     if (generator) {
       return generator();
@@ -239,6 +270,59 @@ export interface ResolvedRequestFields {
 }
 
 /**
+ * Returns true if a string segment is already percent-encoded.
+ * Only %XX sequences (not bare '+') are treated as encoding evidence.
+ * Round-trip: decode → re-encode must reproduce the original string exactly.
+ */
+function isAlreadyEncoded(segment: string): boolean {
+  // Fast-path: no %XX means definitely not encoded.
+  if (!/%[0-9A-Fa-f]{2}/.test(segment)) {
+    return false;
+  }
+  try {
+    const decoded = decodeURIComponent(segment);
+    return encodeURIComponent(decoded) === segment;
+  } catch {
+    // decodeURIComponent throws on malformed sequences (e.g. "100%") → not encoded.
+    return false;
+  }
+}
+
+function encodeIfNeeded(segment: string): string {
+  return isAlreadyEncoded(segment) ? segment : encodeURIComponent(segment);
+}
+
+/**
+ * After variable substitution, query param values injected from environment
+ * variables (e.g. "hello+123@hello.com") may contain characters that must be
+ * percent-encoded in a URL. This function parses the query string of a fully-
+ * resolved URL and re-encodes each key/value pair that is not already encoded,
+ * preventing double-encoding of values that were already percent-encoded.
+ */
+export function encodeQueryParamsInResolvedUrl(url: string): string {
+  const qIndex = url.indexOf('?');
+  if (qIndex === -1) return url;
+
+  const base = url.slice(0, qIndex);
+  const queryString = url.slice(qIndex + 1);
+  if (!queryString) return url;
+
+  const encoded = queryString
+    .split('&')
+    .map((pair) => {
+      if (!pair) return pair;
+      const eqIdx = pair.indexOf('=');
+      if (eqIdx < 0) return encodeIfNeeded(pair);
+      const k = pair.slice(0, eqIdx);
+      const v = pair.slice(eqIdx + 1);
+      return `${encodeIfNeeded(k)}=${encodeIfNeeded(v)}`;
+    })
+    .join('&');
+
+  return `${base}?${encoded}`;
+}
+
+/**
  * Resolve all variables in the URL, headers, and body of a request
  * using a pre-built variable map (typically from `buildScopedVariableMap` +
  * `injectResolvedSecrets`). Throws `UnresolvedVariableError` if any variable
@@ -250,7 +334,9 @@ export function resolveRequestFields(
   headers: Array<{ key: string; value: string; enabled: boolean }>,
   body: string | undefined,
 ): ResolvedRequestFields {
-  const resolvedUrl = resolveString(url, variableMap).resolved;
+  let resolvedUrl = resolveString(url, variableMap).resolved;
+  resolvedUrl = resolvedUrl.replace(/^https?:\/\/(https?:\/\/)/i, '$1');
+  resolvedUrl = encodeQueryParamsInResolvedUrl(resolvedUrl);
 
   const resolvedHeaders = headers.map((header) => ({
     key: header.key,
@@ -280,7 +366,9 @@ export function resolveRequestFieldsSafe(
   headers: Array<{ key: string; value: string; enabled: boolean }>,
   body: string | undefined,
 ): ResolvedRequestFields {
-  const resolvedUrl = resolveStringSafe(url, variableMap);
+  let resolvedUrl = resolveStringSafe(url, variableMap);
+  resolvedUrl = resolvedUrl.replace(/^https?:\/\/(https?:\/\/)/i, '$1');
+  resolvedUrl = encodeQueryParamsInResolvedUrl(resolvedUrl);
 
   const resolvedHeaders = headers.map((header) => ({
     key: header.key,
