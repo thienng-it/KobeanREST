@@ -1,0 +1,24 @@
+# .ai-pipeline.yml configuration for KobeanREST
+version: "1.0"
+pipeline:
+  repository: "thienng-it/KobeanREST"
+  base_branch: "main"
+
+  sandbox:
+    isolation: "docker"
+    timeout_seconds: 300
+
+  guardrails:
+    ponytail_strict: true
+    max_diff_lines: 500
+    allow_new_deps: false
+
+  agents:
+    planner_model: "gemini-3.6-pro"
+    coder_model: "gemini-3.6-flash"
+    reviewer_model: "gemini-3.6-pro"
+
+  github:
+    auto_pr: true
+    trigger_label: "ai-build"
+    comment_trigger: "@ai-pipeline fix"
