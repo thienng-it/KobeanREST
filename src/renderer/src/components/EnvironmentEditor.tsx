@@ -446,54 +446,42 @@ export function EnvironmentEditor({
             {editingVars.map((v) => (
               <tr key={v._id}>
                 <td style={{ padding: "4px 12px", borderBottom: "1px solid var(--color-border)" }}>
-                  <input
-                    type="text"
-                    value={v.key}
-                    onChange={(e) => updateVariable(v._id, "key", e.target.value)}
-                    placeholder="Variable name"
-                    style={{
-                      width: "100%",
-                      padding: "6px 8px",
-                      border: "1px solid transparent",
-                      borderRadius: "4px",
-                      background: "transparent",
-                      fontSize: "13px",
-                      outline: "none",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "var(--color-border-strong)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "transparent";
-                    }}
-                  />
+                  <div className="headers-row-input" style={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      className="headers-row-input-field"
+                      value={v.key}
+                      onChange={(e) => updateVariable(v._id, "key", e.target.value)}
+                      placeholder="Variable name"
+                      style={{
+                        width: "100%",
+                        background: "transparent",
+                        border: "none",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
                 </td>
                 <td style={{ padding: "4px 12px", borderBottom: "1px solid var(--color-border)" }}>
-                  <input
-                    type={v.secret && !visibleSecrets.has(v._id) ? "password" : "text"}
-                    value={v.value}
-                    onChange={(e) => updateVariable(v._id, "value", e.target.value)}
-                    placeholder="Value"
-                    style={{
-                      width: "100%",
-                      padding: "6px 8px",
-                      border: "1px solid transparent",
-                      borderRadius: "4px",
-                      background: "transparent",
-                      fontSize: "13px",
-                      outline: "none",
-                      fontFamily:
-                        v.secret && !visibleSecrets.has(v._id)
-                          ? "monospace"
-                          : "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "var(--color-border-strong)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "transparent";
-                    }}
-                  />
+                  <div className="headers-row-input" style={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={v.secret && !visibleSecrets.has(v._id) ? "password" : "text"}
+                      className="headers-row-input-field"
+                      value={v.value}
+                      onChange={(e) => updateVariable(v._id, "value", e.target.value)}
+                      placeholder="Value"
+                      style={{
+                        width: "100%",
+                        background: "transparent",
+                        border: "none",
+                        outline: "none",
+                        fontFamily:
+                          v.secret && !visibleSecrets.has(v._id)
+                            ? "monospace"
+                            : "inherit",
+                      }}
+                    />
+                  </div>
                 </td>
                 <td
                   style={{

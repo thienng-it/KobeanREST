@@ -1004,54 +1004,72 @@ export function RequestPanel({
             </div>
 
             {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
-              <div className="table-like" aria-label="Body form data">
-                {(draftRequest.bodyForm ?? []).map((item, idx) => (
-                  <div className="table-row" key={idx} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }}>
-                    <input
-                      type="checkbox"
-                      checked={item.enabled}
-                      onChange={(e) => {
-                        const form = [...(draftRequest.bodyForm ?? [])];
-                        form[idx].enabled = e.target.checked;
-                        updateDraft({ bodyForm: form });
-                      }}
-                    />
-                    <VariableInput
-                      activeVariables={activeVars}
-                      value={item.key}
-                      placeholder="Key"
-                      onChange={(e) => {
-                        const form = [...(draftRequest.bodyForm ?? [])];
-                        form[idx].key = e.target.value;
-                        updateDraft({ bodyForm: form });
-                      }}
-                      style={{ backgroundColor: 'transparent', border: 'none' }}
-                      containerStyle={{ flex: 1 } as CSSProperties}
-                    />
-                    <VariableInput
-                      type={isSensitiveKey(item.key) ? "password" : "text"}
-                      activeVariables={activeVars}
-                      value={item.value}
-                      placeholder="Value"
-                      onChange={(e) => {
-                        const form = [...(draftRequest.bodyForm ?? [])];
-                        form[idx].value = e.target.value;
-                        updateDraft({ bodyForm: form });
-                      }}
-                      style={{ backgroundColor: 'transparent', border: 'none' }}
-                      containerStyle={{ flex: 2 } as CSSProperties}
-                    />
-                    <button type="button" onClick={() => {
-                      const form = (draftRequest.bodyForm ?? []).filter((_, i) => i !== idx);
-                      updateDraft({ bodyForm: form });
-                    }} style={{ all: 'unset', cursor: 'pointer', padding: '4px', opacity: 0.7 }}><Trash2 size={14}/></button>
+              <div className="headers-table-inner" aria-label="Body form data">
+                <div className="headers-grid-header">
+                  <span className="col-center">On</span>
+                  <span>Key</span>
+                  <span>Value</span>
+                  <span></span>
+                </div>
+                <div className="headers-grid-body">
+                  <div className="headers-rows">
+                    {(draftRequest.bodyForm ?? []).map((item, idx) => (
+                      <div className={item.enabled ? "headers-row" : "headers-row headers-row-disabled"} key={idx}>
+                        <label className="headers-toggle">
+                          <input
+                            type="checkbox"
+                            checked={item.enabled}
+                            onChange={(e) => {
+                              const form = [...(draftRequest.bodyForm ?? [])];
+                              form[idx].enabled = e.target.checked;
+                              updateDraft({ bodyForm: form });
+                            }}
+                          />
+                        </label>
+                        <VariableInput
+                          activeVariables={activeVars}
+                          value={item.key}
+                          placeholder="Key"
+                          onChange={(e) => {
+                            const form = [...(draftRequest.bodyForm ?? [])];
+                            form[idx].key = e.target.value;
+                            updateDraft({ bodyForm: form });
+                          }}
+                        />
+                        <VariableInput
+                          type={isSensitiveKey(item.key) ? "password" : "text"}
+                          activeVariables={activeVars}
+                          value={item.value}
+                          placeholder="Value"
+                          onChange={(e) => {
+                            const form = [...(draftRequest.bodyForm ?? [])];
+                            form[idx].value = e.target.value;
+                            updateDraft({ bodyForm: form });
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="icon-button-danger"
+                          onClick={() => {
+                            const form = (draftRequest.bodyForm ?? []).filter((_, i) => i !== idx);
+                            updateDraft({ bodyForm: form });
+                          }}
+                          aria-label="Remove field"
+                          title="Remove field"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                <button type="button" className="ghost-button" onClick={() => {
-                  updateDraft({ bodyForm: [...(draftRequest.bodyForm ?? []), { key: '', value: '', enabled: true }] });
-                }} style={{ marginTop: '8px' }}>
-                  <Plus size={14}/> Add Field
-                </button>
+                  <div className="headers-add-row">
+                    <button type="button" className="ghost-button" onClick={() => {
+                      updateDraft({ bodyForm: [...(draftRequest.bodyForm ?? []), { key: '', value: '', enabled: true }] });
+                    }}>
+                      <Plus size={14}/> Add Field
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="request-body-editor-shell" style={{ flex: 1, minHeight: 0 }}>

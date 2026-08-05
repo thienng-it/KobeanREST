@@ -608,7 +608,7 @@ export function VariableInput({
   return (
     <div
       ref={containerRef}
-      className={`variable-input-container ${isFocused ? "focused" : ""} ${containerClassName || ""}`}
+      className={`variable-input-container ${isFocused ? "focused" : ""} ${containerClassName !== undefined ? containerClassName : "headers-row-input"}`}
       style={{
         position: "relative",
         display: "inline-flex",
@@ -729,7 +729,7 @@ export function VariableInput({
           paddingRight: isPasswordProp ? "28px" : undefined,
           ...style,
         }}
-        className={className}
+        className={className !== undefined ? className : "headers-row-input-field"}
         {...rest}
         type={actualType}
       />
