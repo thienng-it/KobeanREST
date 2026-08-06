@@ -1,6 +1,6 @@
 # 🔌 API & Inter-Process Communication (IPC) Reference
 
-This specification documents the low-level Tauri Inter-Process Communication (IPC) boundary bridging the React frontend renderer with the native Rust desktop core.
+This specification documents the low-level Tauri Inter-Process Communication (IPC) boundary bridging the React frontend renderer with the native Rust desktop core, as well as local AI and scripting shims.
 
 ---
 
@@ -58,6 +58,35 @@ invoke<void>("delete_secret", { key: string });
 invoke<Record<string, string>>("resolve_secrets", { keys: string[] });
 ```
 
+### 6. Auto-Updater & Application Shell
+
+```typescript
+invoke<UpdateMetadata>("check_for_updates");
+invoke<void>("install_update");
+```
+
+---
+
+## 🤖 Local AI Service Endpoint (Ollama Integration)
+
+KobeanREST communicates directly with host Ollama instances via standard REST HTTP endpoints on loopback (`http://localhost:11434`):
+
+```typescript
+// List available local Ollama models
+GET http://localhost:11434/api/tags
+
+// Generate AI chat response (streaming / non-streaming)
+POST http://localhost:11434/api/chat
+{
+  "model": "llama3.2",
+  "messages": [
+    { "role": "system", "content": "You are KobeanREST AI Copilot." },
+    { "role": "user", "content": "Write a test assertion checking status code 200 and json field 'token'" }
+  ],
+  "stream": false
+}
+```
+
 ---
 
 ## 📜 Postman Scripting Shim API (`pm.*`)
@@ -75,6 +104,10 @@ pm.test("Status code is 200 OK", function () {
     pm.response.to.have.status(200);
 });
 
+pm.test("Response time is under 250ms", function () {
+    pm.expect(pm.response.responseTime).to.be.below(250);
+});
+
 pm.test("Response contains valid data array", function () {
     const json = pm.response.json();
     pm.expect(json.data).to.be.an("array");
@@ -82,4 +115,5 @@ pm.test("Response contains valid data array", function () {
 
 // Response metadata inspection
 console.log("Response Latency:", pm.response.responseTime + " ms");
+console.log("Response Status:", pm.response.code);
 ```

@@ -1,6 +1,6 @@
 # 🛠️ Developer Setup & Engineering Guide
 
-This guide provides setup instructions for contributing to KobeanREST, running local development servers, executing verification test suites, and building native desktop installers.
+This guide provides setup instructions for contributing to KobeanREST, running local development servers, configuring local AI models (Ollama), executing verification test suites, and building native desktop installers.
 
 ---
 
@@ -10,6 +10,7 @@ This guide provides setup instructions for contributing to KobeanREST, running l
 - **Node.js:** `v22.0.0+`
 - **npm:** `v10.0.0+`
 - **Rust Toolchain:** Stable channel (pinned in `rust-toolchain.toml`)
+- **Ollama (Optional for AI Copilot):** `v0.3.0+` ([ollama.com](https://ollama.com))
 
 ### 2. Operating System Build Dependencies
 - **macOS:** Xcode Command Line Tools (`xcode-select --install`).
@@ -27,6 +28,24 @@ This guide provides setup instructions for contributing to KobeanREST, running l
     libayatana-appindicator3-dev \
     librsvg2-dev
   ```
+
+---
+
+## 🤖 Local AI Model Setup (Ollama)
+
+To enable the built-in AI Copilot sidebar locally:
+
+1. Install and start Ollama on your system:
+   ```bash
+   ollama serve
+   ```
+2. Pull your preferred model:
+   ```bash
+   ollama pull llama3.2
+   # or
+   ollama pull mistral
+   ```
+3. Open KobeanREST AI Chat sidebar. It automatically detects running Ollama models at `http://localhost:11434`.
 
 ---
 
@@ -62,7 +81,7 @@ npm run tauri build
 ```
 
 Compiled installers are placed in `src-tauri/target/release/bundle/`:
-- **macOS:** `.dmg` installer & standalone `.app` bundle (Universal Architecture).
+- **macOS:** `.dmg` installer & standalone `.app` bundle (Universal Architecture: `aarch64` + `x86_64`).
 - **Windows:** `.msi` installer & `.exe` executable.
 - **Linux:** `.AppImage` & `.deb` distribution packages.
 
@@ -73,20 +92,20 @@ Compiled installers are placed in `src-tauri/target/release/bundle/`:
 ```
 KobeanREST/
 ├── .github/
-│   ├── workflows/             # GitHub Actions CI/CD workflows
+│   ├── workflows/             # GitHub Actions CI/CD workflows (release, docs, e2e, secrets)
 │   └── WIKI/                  # GitHub Wiki Documentation source
 ├── docs/                      # Architectural specs & documentation
-├── docs-site/                 # GitHub Pages documentation website
+├── docs-site/                 # GitHub Pages documentation website & web preview app
 ├── public/                    # Static assets (jq.wasm WebAssembly module)
 ├── scripts/                   # Preflight, release & secret scanner scripts
 ├── src/
 │   └── renderer/
 │       └── src/
-│           ├── components/    # React UI components (RequestPanel, ResponsePanel, etc.)
-│           ├── hooks/         # Custom React hooks (useWorkspace, useAuth, etc.)
-│           ├── services/      # Core frontend services (local-store, http-client, variables)
+│           ├── components/    # React UI components (RequestPanel, ResponsePanel, AiChatSidebar, ThemeSelector)
+│           ├── hooks/         # Custom React hooks (useWorkspace, useAuth, useTheme, etc.)
+│           ├── services/      # Core frontend services (local-store, http-client, variables, ai-service)
 │           ├── App.tsx        # Main application state & UI shell
-│           └── styles.css     # Global CSS styling & design design tokens
+│           └── styles.css     # Global CSS styling & design tokens
 ├── src-tauri/                 # Tauri 2 Native Rust Application
 │   ├── capabilities/          # Tauri IPC permission grants
 │   ├── migrations/            # SQLite migration scripts (001_initial.sql)

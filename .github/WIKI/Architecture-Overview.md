@@ -1,6 +1,6 @@
 # 📐 Architecture & Systems Engineering Specification
 
-KobeanREST is engineered as a high-performance desktop hybrid application. It leverages **Tauri 2** to bridge a modern **React 18 / TypeScript** frontend renderer with a lightweight, multi-threaded **Rust** backend core.
+KobeanREST is engineered as a high-performance desktop hybrid application. It leverages **Tauri 2** to bridge a modern **React 18 / TypeScript** frontend renderer with a lightweight, multi-threaded **Rust** backend core and connects to local AI models via loopback HTTP.
 
 ---
 
@@ -9,33 +9,37 @@ KobeanREST is engineered as a high-performance desktop hybrid application. It le
 The architecture explicitly isolates network request processing, local data storage, and secret vault security within native OS space, avoiding browser CORS restrictions and Electron resource bloat.
 
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   React 18 Renderer                                    │
-│                                                                                        │
-│  ┌───────────────────────────┐  ┌───────────────────────────┐  ┌────────────────────┐ │
-│  │   Request Builder (UI)    │  │   Response Panel (WASM)   │  │ Env / Auth Modals  │ │
-│  │  - Bi-directional Params  │  │  - JQ Engine (jq.wasm)    │  │ - Scope Resolver   │ │
-│  │  - CodeMirror Editor      │  │  - CodeMirror Viewer      │  │ - Variable Engine  │ │
-│  └─────────────┬─────────────┘  └─────────────┬─────────────┘  └─────────┬──────────┘ │
-└────────────────│──────────────────────────────│──────────────────────────│─────────────┘
-                 │                              │                          │
-                 └──────────────────────────────┼──────────────────────────┘
-                                                │
-                                                ▼ Tauri IPC Protocol (JSON-RPC Commands)
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                                    Rust Desktop Core                                   │
-│                                                                                        │
-│  ┌───────────────────────────┐  ┌───────────────────────────┐  ┌────────────────────┐ │
-│  │    IPC Command Router     │  │   Async Reqwest Client    │  │ SQLite Database    │ │
-│  │     (src-tauri/src/lib.rs)│  │ (http_client.rs / Tokio)  │  │ (persistence.rs)   │ │
-│  └─────────────┬─────────────┘  └─────────────┬─────────────┘  └─────────┬──────────┘ │
-│                │                              │                          │            │
-│                ▼                              ▼                          ▼            │
-│    ┌───────────────────────┐      ┌───────────────────────┐  ┌──────────────────────┐ │
-│    │ OS Keychain Vault     │      │ Remote Target Server  │  │ 001_initial.sql DB  │ │
-│    │ (secrets.rs / Keyring)│      │ (Direct TCP/TLS HTTP) │  │ (Local Data Store)   │ │
-│    └───────────────────────┘      └───────────────────────┘  └──────────────────────┘ │
-└────────────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                       React 18 Renderer                                         │
+│                                                                                                 │
+│  ┌───────────────────────────┐  ┌───────────────────────────┐  ┌─────────────────────────────┐  │
+│  │   Request Builder (UI)    │  │   Response Panel (WASM)   │  │ Env / Auth / Color Badges   │  │
+│  │  - Bi-directional Params  │  │  - JQ Engine (jq.wasm)    │  │ - Scope Resolver            │  │
+│  │  - CodeMirror Editor      │  │  - CodeMirror Viewer      │  │ - OAuth 2.0 PKCE Listener   │  │
+│  └─────────────┬─────────────┘  └─────────────┬─────────────┘  └──────────────┬──────────────┘  │
+│                │                              │                               │                 │
+│                └──────────────────────────────┼───────────────────────────────┘                 │
+│                                               │                                                 │
+│                                               ├──────────────────────────────┐                  │
+│                                               │                              │                  │
+│                                               ▼                              ▼                  │
+│                                      Tauri IPC (JSON-RPC)            Local Loopback HTTP        │
+└───────────────────────────────────────────────┬──────────────────────────────┬──────────────────┘
+                                                │                              │
+┌───────────────────────────────────────────────▼─────────────┐ ┌──────────────▼───────────────────┐
+│                     Rust Desktop Core                       │ │      Local AI Engine            │
+│                                                             │ │  (Ollama @ localhost:11434)    │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐ │ │  - Llama 3 / Mistral Models   │
+│  │    IPC Command Router    │  │   Async Reqwest Client   │ │ │  - Zero Cloud Transmission    │
+│  │  (src-tauri/src/lib.rs)  │  │ (http_client.rs / Tokio) │ │ └─────────────────────────────────┘
+│  └─────────────┬────────────┘  └─────────────┬────────────┘ │
+│                │                             │              │
+│                ▼                             ▼              │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐ │
+│  │    OS Keychain Vault     │  │   SQLite Persistence DB  │ │
+│  │  (secrets.rs / Keyring)  │  │  (persistence.rs / DDL)  │ │
+│  └──────────────────────────┘  └──────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -58,6 +62,7 @@ The architecture explicitly isolates network request processing, local data stor
 
 ### 3. Frontend Web Renderer (`src/renderer/src/`)
 - **Application Shell (`App.tsx`):** Coordinates 30+ reactive states, tab switching, workspace navigation, modal management, and theme engines.
+- **AI Copilot Service (`services/ai-service.ts` & `components/AiChatSidebar.tsx`):** Communicates with local Ollama daemon for offline AI prompt processing, payload generation, and test writing.
 - **CodeMirror Integration:** Embedded CodeMirror 6 components for interactive request body editing and JSON syntax highlighting.
 - **WASM Query Engine (`jq.wasm`):** Client-side JQ filter execution compiled to WebAssembly. Enables real-time JSON filtering without network latency or external dependencies.
 - **Sandbox Scripting Engine (`services/script-runtime.ts`):** Isolated JavaScript sandbox providing `pm.*` API compatibility for pre-request dynamic payload manipulation and post-request test assertions.
@@ -112,11 +117,12 @@ CREATE TABLE IF NOT EXISTS workspaces (
     created_at TEXT NOT NULL
 );
 
--- Environments Table
+-- Environments Table (supports environment coloration)
 CREATE TABLE IF NOT EXISTS environments (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
     name TEXT NOT NULL,
+    color TEXT DEFAULT '#3b82f6',
     is_active INTEGER DEFAULT 0,
     FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 );

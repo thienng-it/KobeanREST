@@ -31,11 +31,11 @@ Executed natively via Node.js test runner (`npm test`):
 
 | Test Suite Module | Target Component | Core Verified Invariants |
 | :--- | :--- | :--- |
-| `api-auth-contract.test.mjs` | `services/auth.ts` | Bearer, Basic, API Key, and OAuth token injection formats. |
-| `auto-update-contract.test.mjs` | `services/updater.ts` | Ed25519 signature validation & updater manifest parsing. |
+| `api-auth-contract.test.mjs` | `services/auth.ts` | Bearer, Basic, API Key, and OAuth PKCE browser injection formats. |
+| `auto-update-contract.test.mjs` | `services/updater.ts` | Ed25519 signature validation & universal macOS manifest parsing. |
 | `docs-site-contract.test.mjs` | `docs-site/` | Documentation site build, routing integrity, and static assets. |
 | `editable-ui-contract.test.mjs` | UI Components | Keyboard shortcuts, tab focus states, bi-directional query param sync. |
-| `environment-editor-contract.test.mjs` | Env Manager | Active environment state persistence & variable scope mutations. |
+| `environment-editor-contract.test.mjs` | Env Manager | Active environment state persistence, color badge tags & scope mutations. |
 | `history-viewer-contract.test.mjs` | History Panel | Automatic masking of sensitive query params & auth tokens in logs. |
 | `import-export-contract.test.mjs` | Interop Engine | Postman Collection v2.1 import/export structure & cURL parsing. |
 | `local-only-contract.test.mjs` | Local Core | Assures zero telemetry and zero unprompted outbound network connections. |
@@ -48,7 +48,7 @@ Executed natively via Node.js test runner (`npm test`):
 | `rest-client-contract.test.mjs` | HTTP Engine | HTTP method execution (GET/POST/PUT/DELETE) & state mapping. |
 | `secret-storage-contract.test.mjs` | Keychain Vault | OS Keychain isolation & placeholder redaction filters (`[SECRET:id]`). |
 | `security-privacy-contract.test.mjs` | Security Audit | Source code scanning via `Betterleak` (`npm run check:secrets`). |
-| `settings-contract.test.mjs` | App Settings | Theme loading, auto-update toggle, font size, layout preferences. |
+| `settings-contract.test.mjs` | App Settings | Theme loading across 10+ themes, auto-update toggle, font size. |
 | `variable-resolution-contract.test.mjs` | Variable Engine | Scoped resolution (`{{VAR}}`) & `UnresolvedVariableError` handling. |
 
 ---
@@ -63,8 +63,9 @@ Driven by **CodeceptJS** and **Playwright** (`npm run test:e2e`):
   2. Workspace creation, collection addition, folder nested navigation.
   3. URL entry, parameter synchronization, and header manipulation.
   4. Request dispatch and response pane rendering (headers, status, time, WASM JQ transformation).
-  5. Environment variable declaration and live scope resolution.
-  6. Theme switching across all 6 high-contrast desktop themes.
+  5. Environment variable declaration, color badge assignments, and live scope resolution.
+  6. AI Copilot sidebar toggling and response simulation.
+  7. Theme switching across all 10+ high-contrast desktop themes.
 
 ---
 
@@ -79,7 +80,7 @@ Driven by **CodeceptJS** and **Playwright** (`npm run test:e2e`):
 | `nightly-release.yml` | Cron (00:00 UTC) / Manual | Builds nightly release binaries and publishes artifacts to GitHub Releases. |
 | `daily-e2e-tests.yml` | Cron / PR / Push | Runs headless Playwright E2E automation against pull requests. |
 | `sensitive-data.yml` | PR / Push | Scans commit diffs for exposed credentials using `Betterleak` (`npm run check:secrets`). |
-| `docs-site.yml` | Push to `main` | Builds and deploys documentation portal to GitHub Pages. |
+| `docs-site.yml` | Push to `main` | Builds and deploys documentation portal to GitHub Pages (`pages` concurrency group). |
 
 ---
 
