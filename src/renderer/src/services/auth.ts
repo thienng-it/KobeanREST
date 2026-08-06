@@ -225,9 +225,10 @@ export async function obtainOAuth2Token(
   const audience = tryResolve(authConfig.audience, variableMap);
 
   const params = new URLSearchParams();
-  params.append("grant_type", grantType);
+  const protocolGrantType = grantType === "password_credentials" ? "password" : grantType;
+  params.append("grant_type", protocolGrantType);
 
-  if (grantType === "password") {
+  if (grantType === "password_credentials") {
     const username = tryResolve(authConfig.username, variableMap);
     const password = tryResolve(authConfig.password, variableMap);
     params.append("username", username);

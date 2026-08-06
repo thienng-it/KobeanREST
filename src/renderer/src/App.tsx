@@ -120,6 +120,16 @@ export function App() {
   const [moveToModal, setMoveToModal] = useState<{ type: "request" | "folder"; id: string } | null>(null);
   const [collectionRunner, setCollectionRunner] = useState<{ scopeId: string; scopeType: "folder" | "collection" } | null>(null);
   const [chainRequestModal, setChainRequestModal] = useState<{ open: boolean, initialValue: string, onSave: (val: string) => void } | null>(null);
+  const [appToast, setAppToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
+
+  useEffect(() => {
+    const handleAppToast = (e: any) => {
+      setAppToast({ message: e.detail.message, tone: e.detail.tone });
+      setTimeout(() => setAppToast(null), e.detail.durationMs || 4000);
+    };
+    window.addEventListener("app-toast", handleAppToast);
+    return () => window.removeEventListener("app-toast", handleAppToast);
+  }, []);
 
   useEffect(() => {
     const handleOpenChainModal = (e: any) => {
@@ -850,7 +860,9 @@ export function App() {
     // Automatically obtain OAuth 2.0 token if missing
     if (finalAuthMode === "oauth2" && !resolvedAuth.token) {
       try {
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Obtaining OAuth 2.0 token...", tone: "info" } }));
         const token = await obtainOAuth2Token(resolvedAuth, variableMap);
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token obtained successfully!", tone: "success" } }));
         
         // Update the source of truth to persist the token
         if (requestToSend.authMode === "oauth2") {
@@ -860,6 +872,7 @@ export function App() {
           // to avoid unexpected side effects, but we use it for this request.
         }
       } catch (err) {
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
         setResponseState({ kind: "error", message: "OAuth 2.0 token retrieval failed: " + (err instanceof Error ? err.message : String(err)) });
         return;
       }
@@ -1474,6 +1487,15 @@ export function App() {
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
       onContextMenu={handleGlobalContextMenu}
     >
+      {appToast && (
+        <div 
+          className={`update-toast import-toast import-toast-${appToast.tone}`} 
+          role="status" 
+          aria-live="polite"
+        >
+          {appToast.message}
+        </div>
+      )}
       {updateToast && (
         <div
           className={`update-toast update-toast-${updateToast.tone}`}

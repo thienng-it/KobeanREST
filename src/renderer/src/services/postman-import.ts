@@ -248,9 +248,21 @@ function convertPostmanAuth(auth?: PostmanAuth, fallbackMode: ApiAuthMode = "non
       const clientSecret = auth.oauth2?.find((a) => a.key === "clientSecret")?.value || "";
       const scope = auth.oauth2?.find((a) => a.key === "scope")?.value || "";
       const audience = auth.oauth2?.find((a) => a.key === "audience")?.value || "";
+      const authUrl = auth.oauth2?.find((a) => a.key === "authUrl")?.value || "";
+      const username = auth.oauth2?.find((a) => a.key === "username")?.value || "";
+      const password = auth.oauth2?.find((a) => a.key === "password")?.value || "";
+
+      let grantType: "client_credentials" | "password_credentials" | "authorization_code" = "client_credentials";
+      const postmanGrantType = auth.oauth2?.find((a) => a.key === "grant_type")?.value;
+      if (postmanGrantType === "password_credentials" || postmanGrantType === "password") {
+        grantType = "password_credentials";
+      } else if (postmanGrantType === "authorization_code") {
+        grantType = "authorization_code";
+      }
+
       return {
         mode: "oauth2",
-        config: { grantType: "client_credentials", accessTokenUrl, clientId, clientSecret, scope, audience },
+        config: { grantType, accessTokenUrl, authUrl, clientId, clientSecret, scope, audience, username, password },
       };
     }
     default:

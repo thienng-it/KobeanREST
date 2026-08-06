@@ -392,9 +392,12 @@ export function CollectionRunner({
     const resolvedAuth = resolveAuthConfig(finalAuthConfig ?? {}, variableMap);
     if (finalAuthMode === "oauth2" && !resolvedAuth.token) {
       try {
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Obtaining OAuth 2.0 token...", tone: "info" } }));
         const token = await obtainOAuth2Token(resolvedAuth, variableMap);
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token obtained successfully!", tone: "success" } }));
         resolvedAuth.token = token;
-      } catch {
+      } catch (err) {
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
         // proceed without token
       }
     }

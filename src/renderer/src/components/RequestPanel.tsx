@@ -1296,11 +1296,12 @@ export function RequestPanel({
                   <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 } as CSSProperties} />
                   <button className="primary-action" type="button" onClick={async () => {
                     try {
+                      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Obtaining OAuth 2.0 token...", tone: "info" } }));
                       const token = await obtainOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
                       updateAuthConfig({ token });
-                      alert("Access token obtained successfully!");
+                      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token obtained successfully!", tone: "success" } }));
                     } catch (err) {
-                      alert("Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)));
+                      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
                     }
                   }}>
                     Get Token
@@ -1314,10 +1315,10 @@ export function RequestPanel({
                 <span>Grant Type</span>
                 <CustomSelect
                   value={draftRequest.authConfig?.grantType ?? "client_credentials"}
-                  onChange={(val) => updateAuthConfig({ grantType: val as "client_credentials" | "password" | "authorization_code" })}
+                  onChange={(val) => updateAuthConfig({ grantType: val as "client_credentials" | "password_credentials" | "authorization_code" })}
                   options={[
                     { value: "client_credentials", label: "Client Credentials" },
-                    { value: "password", label: "Password" },
+                    { value: "password_credentials", label: "Password Credentials" },
                     { value: "authorization_code", label: "Authorization Code (Browser)" }
                   ]}
                 />
@@ -1341,7 +1342,7 @@ export function RequestPanel({
                     <span>Client Secret</span>
                     <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.clientSecret ?? ""} onChange={e => updateAuthConfig({ clientSecret: e.target.value })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
                   </label>
-                  {(draftRequest.authConfig?.grantType === "password") && (
+                  {(draftRequest.authConfig?.grantType === "password_credentials") && (
                     <>
                       <label>
                         <span>Username</span>

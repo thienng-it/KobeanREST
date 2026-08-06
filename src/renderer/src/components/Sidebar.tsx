@@ -146,6 +146,7 @@ function DraggableCollectionRow({
   onContextMenu,
   isCollapsed,
   onToggleCollapse,
+  requestCount,
   children,
 }: {
   collection: { id: string; name: string };
@@ -165,6 +166,7 @@ function DraggableCollectionRow({
   onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  requestCount?: number;
   children?: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -237,9 +239,12 @@ function DraggableCollectionRow({
             className="sidebar-item-name" 
             onDoubleClick={() => onStartSidebarRename("collection", collection.id, collection.name)}
             onClick={() => onOpenCollection?.(collection.id)}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
           >
-            {collection.name}
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{collection.name}</span>
+            {requestCount !== undefined && (
+              <span style={{ fontSize: "11px", color: "var(--color-text-muted)", fontWeight: "normal", flexShrink: 0 }}>({requestCount})</span>
+            )}
           </strong>
         )}
         <div className="sidebar-row-actions">
@@ -300,6 +305,7 @@ function DraggableFolderRow({
   onCreateRequest,
   onOpenFolder,
   onContextMenu,
+  requestCount,
   children,
 }: {
   folder: { id: string; name: string; parentId?: string; collectionId?: string };
@@ -318,6 +324,7 @@ function DraggableFolderRow({
   onCreateRequest: (folderId: string) => Promise<void>;
   onOpenFolder?: (folderId: string) => void;
   onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
+  requestCount?: number;
   children?: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -401,6 +408,9 @@ function DraggableFolderRow({
               style={{ all: "unset", display: "flex", alignItems: "center", gap: "2px", cursor: "pointer", flex: 1, minWidth: 0 }}
             >
               <span className="sidebar-item-name">{folder.name}</span>
+              {requestCount !== undefined && (
+                <span style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>({requestCount})</span>
+              )}
             </button>
           )}
         </div>
@@ -858,6 +868,25 @@ export function Sidebar({
     setDragOverItem(null);
   }
 
+  function countRequestsInFolder(folderId: string): number {
+    if (!workspace) return 0;
+    let count = workspace.requests.filter((r) => r.folderId === folderId).length;
+    const childFolders = workspace.folders.filter((f) => f.parentId === folderId);
+    for (const cf of childFolders) {
+      count += countRequestsInFolder(cf.id);
+    }
+    return count;
+  }
+
+  function countRequestsInCollection(collectionId: string): number {
+    if (!workspace) return 0;
+    let count = workspace.requests.filter((r) => r.folderId === collectionId).length;
+    const childFolders = workspace.folders.filter((f) => f.collectionId === collectionId && !f.parentId);
+    for (const cf of childFolders) {
+      count += countRequestsInFolder(cf.id);
+    }
+    return count;
+  }
 
   function folderMatchesCollectionSearch(folderId: string): boolean {
     const folder = workspace?.folders.find((item) => item.id === folderId);
@@ -1022,6 +1051,7 @@ export function Sidebar({
               onCreateRequest={onCreateRequest}
               onOpenFolder={onOpenFolder}
               onContextMenu={onContextMenu}
+              requestCount={countRequestsInFolder(folder.id)}
             >
               <div
                 className={isFolderCollapsed ? "folder-children collapsed" : "folder-children"}
@@ -1242,6 +1272,7 @@ export function Sidebar({
                   onContextMenu={onContextMenu}
                   isCollapsed={isCollectionCollapsed}
                   onToggleCollapse={() => onToggleFolder(collection.id)}
+                  requestCount={countRequestsInCollection(collection.id)}
                 >
                   {!isCollectionCollapsed && (
                     <>

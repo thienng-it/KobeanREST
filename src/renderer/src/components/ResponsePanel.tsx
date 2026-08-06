@@ -276,7 +276,9 @@ export function ResponsePanel({
               type="button"
               role="tab"
             >
-              {tab === "tests" && totalTests > 0 ? `Tests (${passedTests}/${totalTests})` : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === "tests" && totalTests > 0 ? `Tests (${passedTests}/${totalTests})` : 
+               tab === "headers" && currentResponse?.headers ? `Headers (${currentResponse.headers.length})` : 
+               tab.charAt(0).toUpperCase() + tab.slice(1)}
               {tab === "tests" && totalTests > 0 && (
                 <span 
                   className="tab-script-indicator" 

@@ -154,7 +154,7 @@ export function CollectionEditor({
         
         {activeTab === "auth" && (
           <div className="request-tab-panel auth-panel">
-            <div style={{ padding: "16px", maxWidth: "800px" }}>
+            <div style={{ padding: "16px", maxWidth: "1200px" }}>
               <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "16px" }}>
                 Configure authentication that will be inherited by all requests within this collection.
               </p>
@@ -209,7 +209,7 @@ export function CollectionEditor({
         )}
 
         {activeTab === "variables" && (
-          <div className="request-tab-panel" style={{ padding: "16px", maxWidth: "800px" }}>
+          <div className="request-tab-panel" style={{ padding: "16px", maxWidth: "1200px" }}>
             <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "16px" }}>
               Override environment variables for all requests in this collection.
             </p>
