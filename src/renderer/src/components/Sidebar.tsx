@@ -1149,7 +1149,8 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-content">
-        <div className="environment-switcher">
+        <div className="sidebar-header-group">
+          <div className="environment-switcher">
           <Globe size={15} className="environment-switcher-icon" />
           <CustomSelect
             className="environment-select"
@@ -1212,7 +1213,9 @@ export function Sidebar({
             {visibleCollections.length === 0 ? "No matches" : `${visibleCollections.length} collection${visibleCollections.length === 1 ? "" : "s"} found`}
           </div>
         )}
+        </div>
 
+        <div className="sidebar-tree-container">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -1415,6 +1418,7 @@ export function Sidebar({
             </button>
           </section>
         )}
+        </div>
       </div>
 
       <div className="sidebar-footer">

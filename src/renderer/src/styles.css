@@ -793,9 +793,22 @@ button:disabled {
   width: 100%;
   min-width: 0;
   flex: 1;
+  min-height: 0;
+}
+
+.sidebar-header-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-right: 12px;
+}
+
+.sidebar-tree-container {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  min-height: 0;
   padding-right: 12px;
 }
 
