@@ -1475,6 +1475,25 @@ button:disabled {
   min-height: 0;
   overflow: hidden;
   padding-top: 2px;
+  position: relative;
+}
+
+.collection-children {
+  position: relative;
+}
+
+.folder-group:hover > .folder-children > .folder-children-inner::before,
+.collection-group:hover > .collection-children::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 29px;
+  width: 1px;
+  background-color: var(--color-border-tint);
+  opacity: 0.8;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .collection-title {
@@ -1509,6 +1528,8 @@ button:disabled {
   pointer-events: none;
   transition: opacity 120ms ease, color 120ms ease;
 }
+
+
 
 .sidebar-drag-handle:hover,
 .sidebar-tree-row:hover .sidebar-drag-handle {

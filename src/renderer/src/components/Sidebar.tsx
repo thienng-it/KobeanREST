@@ -205,7 +205,6 @@ function DraggableCollectionRow({
           title="Drag to reorder"
           style={{ pointerEvents: "none" }}
         >
-          <GripVertical size={12} />
         </span>
         <span
           className="sidebar-chevron"
@@ -365,7 +364,7 @@ function DraggableFolderRow({
             title="Drag to reorder"
             style={{ pointerEvents: "none" }}
           >
-            <GripVertical size={12} />
+
           </span>
           <button
             type="button"
@@ -526,7 +525,7 @@ function DraggableRequestRow({
             title="Drag to reorder"
             style={{ pointerEvents: "none" }}
           >
-            <GripVertical size={12} />
+
           </span>
           <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
           <input
@@ -563,7 +562,7 @@ function DraggableRequestRow({
             title="Drag to reorder"
             style={{ pointerEvents: "none" }}
           >
-            <GripVertical size={12} />
+
           </span>
           <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
           <span className="sidebar-item-name" onDoubleClick={() => onStartRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
@@ -934,7 +933,7 @@ export function Sidebar({
       if (collection) {
         return (
           <div className="folder-title sidebar-tree-row collection-title" style={{ opacity: 0.8, background: 'var(--color-surface)', padding: '8px 12px', borderRadius: '6px' }}>
-            <GripVertical size={12} />
+
             <strong>{collection.name}</strong>
           </div>
         );
@@ -946,7 +945,7 @@ export function Sidebar({
       if (folder) {
         return (
           <div className="folder-title sidebar-tree-row" style={{ opacity: 0.8, background: 'var(--color-surface)', padding: '8px 12px', borderRadius: '6px' }}>
-            <GripVertical size={12} />
+
             <ChevronDown size={14} />
             <span>{folder.name}</span>
           </div>
@@ -959,7 +958,7 @@ export function Sidebar({
       if (request) {
         return (
           <div className="request-row sidebar-tree-row" style={{ opacity: 0.8, background: 'var(--color-surface)', padding: '8px 12px', borderRadius: '6px' }}>
-            <GripVertical size={12} />
+
             <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>
               {resolvedMethodLabel(request.method, request.customMethod)}
             </span>
@@ -981,7 +980,7 @@ export function Sidebar({
     if (rootRequests.length === 0) return null;
 
     return (
-      <div style={{ paddingLeft: '12px' }}>
+      <div style={{ paddingLeft: '16px' }}>
         {rootRequests.map((request) => (
           <DraggableRequestRow
             key={request.id}
@@ -1019,7 +1018,7 @@ export function Sidebar({
     if (folders.length === 0) return null;
 
     return (
-      <div style={{ paddingLeft: `${(depth + 1) * 12}px` }}>
+      <div style={{ paddingLeft: "16px" }}>
         {folders.map((folder) => {
           const folderNameMatches = matchesCollectionSearch(folder.name);
           const showFolderContents = forceShowAll || (folderNameMatches ?? false);
@@ -1064,34 +1063,36 @@ export function Sidebar({
                       className={`empty-folder sidebar-tree-row ${
                         isFolderDragOver && dragOverItem?.position === "inside" ? "drag-over-inside" : ""
                       }`}
-                      style={{ paddingLeft: "12px", opacity: 0.5, fontStyle: "italic", fontSize: "11px" }}
+                      style={{ paddingLeft: "16px", opacity: 0.5, fontStyle: "italic", fontSize: "11px" }}
                     >
                     </div>
                   )}
-                  {folderRequests.map((request) => (
-                    <DraggableRequestRow
-                      key={request.id}
-                      request={request}
-                      dragId={encodeDragId("request", request.id)}
-                      isSelected={request.id === selectedRequestId}
-                      isDragOver={dragOverItem?.id === request.id && dragOverItem.type === "request"}
-                      dragOverPosition={dragOverItem?.id === request.id && dragOverItem.type === "request" ? dragOverItem?.position : undefined}
-                      isRenaming={renamingRequestId === request.id}
-                      renameDraft={renameDraft}
-                      onRenameDraftChange={onRenameDraftChange}
-                      onApplyRequestRename={onApplyRequestRename}
-                      onStopRequestRename={onStopRequestRename}
-                      onStartRequestRename={onStartRequestRename}
-                      onSelectRequest={onSelectRequest}
-                      onDeleteRequest={onDeleteRequest}
-                      methodClass={methodClass}
-                      resolvedMethodLabel={resolvedMethodLabel}
-                      draftRequest={draftRequest}
-                      isDraftDirty={isDraftDirty}
-                      scriptStatus={scriptStatus}
-                      onContextMenu={onContextMenu}
-                    />
-                  ))}
+                  <div style={{ paddingLeft: "16px" }}>
+                    {folderRequests.map((request) => (
+                      <DraggableRequestRow
+                        key={request.id}
+                        request={request}
+                        dragId={encodeDragId("request", request.id)}
+                        isSelected={request.id === selectedRequestId}
+                        isDragOver={dragOverItem?.id === request.id && dragOverItem.type === "request"}
+                        dragOverPosition={dragOverItem?.id === request.id && dragOverItem.type === "request" ? dragOverItem?.position : undefined}
+                        isRenaming={renamingRequestId === request.id}
+                        renameDraft={renameDraft}
+                        onRenameDraftChange={onRenameDraftChange}
+                        onApplyRequestRename={onApplyRequestRename}
+                        onStopRequestRename={onStopRequestRename}
+                        onStartRequestRename={onStartRequestRename}
+                        onSelectRequest={onSelectRequest}
+                        onDeleteRequest={onDeleteRequest}
+                        methodClass={methodClass}
+                        resolvedMethodLabel={resolvedMethodLabel}
+                        draftRequest={draftRequest}
+                        isDraftDirty={isDraftDirty}
+                        scriptStatus={scriptStatus}
+                        onContextMenu={onContextMenu}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </DraggableFolderRow>
