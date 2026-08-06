@@ -63,6 +63,8 @@ export interface EnvironmentVariable {
   value: string;
   secret?: boolean;
   secretRef?: string;
+  masked?: boolean;
+  color?: string;
 }
 
 /** A variable scoped to a collection, folder, or request entity. */
@@ -107,6 +109,7 @@ export interface WorkspaceSummary {
   environments: Array<{
     name: string;
     variables: EnvironmentVariable[];
+    color?: string;
   }>;
   folders: FolderSummary[];
   requests: SavedRequest[];

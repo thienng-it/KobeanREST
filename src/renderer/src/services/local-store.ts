@@ -395,14 +395,34 @@ export async function deleteEnvironment(name: string): Promise<void> {
   return invoke<void>("delete_environment", { name });
 }
 
+const ENV_COLORS_KEY = "kr_env_colors";
+
+export function loadEnvironmentColors(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(ENV_COLORS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+export function saveEnvironmentColor(envName: string, color: string | null): void {
+  const colors = loadEnvironmentColors();
+  if (color) {
+    colors[envName] = color;
+  } else {
+    delete colors[envName];
+  }
+  localStorage.setItem(ENV_COLORS_KEY, JSON.stringify(colors));
+}
+
 export async function setActiveEnvironment(name: string): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("set_active_environment", { name });
 }
 
-export async function saveVariable(environmentName: string, key: string, value: string): Promise<void> {
+export async function saveVariable(environmentName: string, key: string, value: string, masked?: boolean): Promise<void> {
   if (!isTauriRuntime()) return;
-  return invoke<void>("save_variable", { environmentName, key, value });
+  return invoke<void>("save_variable", { environmentName, key, value, masked: masked ?? false });
 }
 
 export async function deleteVariable(environmentName: string, key: string): Promise<void> {

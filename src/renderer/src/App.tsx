@@ -210,6 +210,7 @@ export function App() {
     handleSetActiveEnvironment,
     handleCreateEnvironment,
     handleDeleteEnvironment,
+    handleSetEnvironmentColor,
     handleSaveVariable,
     handleDeleteVariable,
     handleSaveScopedVariable,
@@ -1695,8 +1696,8 @@ export function App() {
                       for (const nv of newVars) {
                         if (!nv.key.trim()) continue;
                         const ov = oldVars.find(v => v.key === nv.key);
-                        if (!ov || ov.value !== nv.value || ov.secret !== nv.secret) {
-                          void handleSaveVariable(currentTab.entityId, nv.key, nv.value);
+                        if (!ov || ov.value !== nv.value || ov.secret !== nv.secret || ov.masked !== nv.masked) {
+                          void handleSaveVariable(currentTab.entityId, nv.key, nv.value, nv.masked);
                         }
                       }
                     }
@@ -1921,6 +1922,7 @@ export function App() {
           onCreateEnvironment: handleCreateEnvironment,
           onDeleteEnvironment: handleDeleteEnvironment,
           onSetActiveEnvironment: handleSetActiveEnvironment,
+          onSetEnvironmentColor: handleSetEnvironmentColor,
           onDeleteVariable: handleDeleteVariable,
           onNewVarKeyChange: () => {},
           onNewVarValueChange: () => {},

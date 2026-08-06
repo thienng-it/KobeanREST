@@ -60,6 +60,7 @@ pub struct EnvironmentVariable {
     pub value: String,
     pub secret: bool,
     pub secret_ref: Option<String>,
+    pub masked: bool,
 }
 
 /// A variable scoped to a collection, folder, or request entity.
@@ -192,6 +193,7 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
         .map_err(|error| format!("failed to run local database migration: {error}"))?;
 
     ensure_secret_ref_column(&connection)?;
+    ensure_masked_column(&connection)?;
     ensure_auth_config_column(&connection)?;
     ensure_folder_parent_id_column(&connection)?;
     ensure_scripts_table(&connection)?;
@@ -1050,6 +1052,25 @@ fn ensure_secret_ref_column(connection: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+fn ensure_masked_column(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(variables)")
+        .map_err(|error| format!("failed to inspect variables table: {error}"))?;
+    let columns: Vec<String> = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("failed to query variables table info: {error}"))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    if !columns.contains(&"masked".to_string()) {
+        connection
+            .execute("ALTER TABLE variables ADD COLUMN masked INTEGER NOT NULL DEFAULT 0", [])
+            .map_err(|error| format!("failed to add variables.masked column: {error}"))?;
+    }
+
+    Ok(())
+}
+
 fn seed_default_workspace(connection: &mut Connection) -> Result<(), String> {
     let workspace_count: i64 = connection
         .query_row("SELECT COUNT(*) FROM workspaces", [], |row| row.get(0))
@@ -1219,13 +1240,15 @@ fn seed_default_workspace(connection: &mut Connection) -> Result<(), String> {
                         variable_value,
                         secret_ref,
                         secret,
+                        masked,
                         position
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                     params![
                         environment_id,
                         variable.0,
                         variable.1,
                         variable.2,
+                        if variable.2.is_some() { 1_i64 } else { 0_i64 },
                         if variable.2.is_some() { 1_i64 } else { 0_i64 },
                         variable_position as i64
                     ],
@@ -1306,7 +1329,7 @@ fn load_variables(
 ) -> Result<Vec<EnvironmentVariable>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT variable_key, variable_value, secret, secret_ref
+            "SELECT variable_key, variable_value, secret, secret_ref, masked
              FROM variables
              WHERE environment_id = ?1
              ORDER BY position, variable_key",
@@ -1319,6 +1342,7 @@ fn load_variables(
                 value: row.get(1)?,
                 secret: row.get::<_, i64>(2)? != 0,
                 secret_ref: row.get(3)?,
+                masked: row.get::<_, i64>(4).unwrap_or(0) != 0,
             })
         })
         .map_err(|error| format!("failed to query variables: {error}"))?;
@@ -1711,6 +1735,7 @@ pub struct VariableRow {
     pub variable_value: String,
     pub secret_ref: Option<String>,
     pub secret: i64,
+    pub masked: i64,
     pub position: i64,
 }
 
@@ -1825,13 +1850,16 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
     )?;
 
     let variables = collect_rows(
-        connection.prepare("SELECT environment_id, variable_key, variable_value, secret_ref, secret, position FROM variables")
+        connection.prepare("SELECT environment_id, variable_key, variable_value, secret_ref, secret, masked, position FROM variables")
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
                 let secret: i64 = row.get(4)?;
+                let masked: i64 = row.get::<_, i64>(5).unwrap_or(0);
                 let mut variable_value: String = row.get(2)?;
                 if secret != 0 {
                     variable_value = REDACTED_SECRET_VALUE.to_string();
+                } else if masked != 0 {
+                    variable_value = String::new();
                 }
                 Ok(VariableRow {
                     environment_id: row.get(0)?,
@@ -1839,7 +1867,8 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
                     variable_value,
                     secret_ref: row.get(3)?,
                     secret,
-                    position: row.get(5)?,
+                    masked,
+                    position: row.get(6)?,
                 })
             })
             .map_err(|e| e.to_string())?,
@@ -1967,8 +1996,8 @@ pub fn import_workspace_data(app: AppHandle, json: String) -> Result<(), String>
             .get(&variable.environment_id)
             .ok_or("invalid environment reference in variable")?;
         transaction.execute(
-            "INSERT INTO variables (environment_id, variable_key, variable_value, secret_ref, secret, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![environment_id, variable.variable_key, variable.variable_value, variable.secret_ref, variable.secret, variable.position],
+            "INSERT INTO variables (environment_id, variable_key, variable_value, secret_ref, secret, masked, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![environment_id, variable.variable_key, variable.variable_value, variable.secret_ref, variable.secret, variable.masked, variable.position],
         ).map_err(|e| format!("failed to import variable: {e}"))?;
     }
 
@@ -2458,23 +2487,25 @@ pub fn save_variable(
     environment_name: String,
     key: String,
     value: String,
+    masked: Option<bool>,
 ) -> Result<(), String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
     let workspace_id = active_workspace_id(&connection)?;
     let env_id = find_environment_id(&connection, &workspace_id, &environment_name)?;
+    let masked_val: i64 = if masked.unwrap_or(false) { 1 } else { 0 };
     let updated = connection
         .execute(
-            "UPDATE variables SET variable_value = ?3, secret = 0, secret_ref = NULL WHERE environment_id = ?1 AND variable_key = ?2",
-            params![env_id, key, value],
+            "UPDATE variables SET variable_value = ?3, secret = 0, secret_ref = NULL, masked = ?4 WHERE environment_id = ?1 AND variable_key = ?2",
+            params![env_id, key, value, masked_val],
         )
         .map_err(|error| format!("failed to update variable: {error}"))?;
     if updated == 0 {
         connection
             .execute(
-                "INSERT INTO variables (environment_id, variable_key, variable_value, secret, position)
-                 VALUES (?1, ?2, ?3, 0, (SELECT COALESCE(MAX(position), -1) + 1 FROM variables WHERE environment_id = ?1))",
-                params![env_id, key, value],
+                "INSERT INTO variables (environment_id, variable_key, variable_value, secret, masked, position)
+                 VALUES (?1, ?2, ?3, 0, ?4, (SELECT COALESCE(MAX(position), -1) + 1 FROM variables WHERE environment_id = ?1))",
+                params![env_id, key, value, masked_val],
             )
             .map_err(|error| format!("failed to insert variable: {error}"))?;
     }
@@ -2513,15 +2544,15 @@ pub fn save_secret_variable(
     let env_id = find_environment_id(&connection, &workspace_id, &environment_name)?;
     let updated = connection
         .execute(
-            "UPDATE variables SET variable_value = ?3, secret_ref = ?4, secret = 1 WHERE environment_id = ?1 AND variable_key = ?2",
+            "UPDATE variables SET variable_value = ?3, secret_ref = ?4, secret = 1, masked = 1 WHERE environment_id = ?1 AND variable_key = ?2",
             params![env_id, key, REDACTED_SECRET_VALUE, secret_ref],
         )
         .map_err(|error| format!("failed to update secret variable: {error}"))?;
     if updated == 0 {
         connection
             .execute(
-                "INSERT INTO variables (environment_id, variable_key, variable_value, secret_ref, secret, position)
-                 VALUES (?1, ?2, ?3, ?4, 1, (SELECT COALESCE(MAX(position), -1) + 1 FROM variables WHERE environment_id = ?1))",
+                "INSERT INTO variables (environment_id, variable_key, variable_value, secret_ref, secret, masked, position)
+                 VALUES (?1, ?2, ?3, ?4, 1, 1, (SELECT COALESCE(MAX(position), -1) + 1 FROM variables WHERE environment_id = ?1))",
                 params![env_id, key, REDACTED_SECRET_VALUE, secret_ref],
             )
             .map_err(|error| format!("failed to insert secret variable: {error}"))?;

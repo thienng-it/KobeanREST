@@ -22,6 +22,7 @@ export interface EnvironmentEditorModalProps {
   onCreateEnvironment: () => void;
   onDeleteEnvironment: (name: string) => void;
   onSetActiveEnvironment: (name: string) => void;
+  onSetEnvironmentColor: (name: string, color: string | null) => void;
 
   // Variable CRUD (kept for compat; bulk/inline handled inside EnvVariablesEditor)
   onDeleteVariable: (envName: string, key: string) => void;
@@ -45,6 +46,7 @@ export function EnvironmentEditorModal({
   onCreateEnvironment,
   onDeleteEnvironment,
   onSetActiveEnvironment,
+  onSetEnvironmentColor,
   onDeleteVariable,
   onSaveVariable,
 }: EnvironmentEditorModalProps) {
@@ -107,6 +109,19 @@ export function EnvironmentEditorModal({
                     onClick={() => onEnvEditorTargetChange(env.name)}
                     className="env-list-button"
                   >
+                    <div className="env-color-swatch-wrapper" style={{ marginRight: '4px' }} title="Change environment color" onClick={(e) => e.stopPropagation()}>
+                      <div
+                        className="env-color-swatch"
+                        style={{ width: '12px', height: '12px', background: env.color || "transparent", border: env.color ? `2px solid ${env.color}` : "2px dashed var(--color-border)" }}
+                      />
+                      <input
+                        type="color"
+                        className="env-color-picker-input"
+                        value={env.color || "#6366f1"}
+                        onChange={(e) => onSetEnvironmentColor(env.name, e.target.value)}
+                        title="Pick environment color"
+                      />
+                    </div>
                     <span
                       style={{
                         overflow: "hidden",

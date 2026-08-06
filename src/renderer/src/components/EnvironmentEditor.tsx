@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { Trash2, Plus, Eye, EyeOff, Edit3, X, Check, AlignLeft, CheckCircle2 } from "lucide-react";
 import { EnvironmentVariable } from "../types";
+import { isSensitiveKey } from "../services/variables";
 
 export interface EnvironmentEditorProps {
   environmentName: string;
@@ -83,9 +84,15 @@ export function EnvironmentEditor({
   const updateVariable = useCallback(
     (id: string, field: keyof EnvironmentVariable, value: string | boolean) => {
       setEditingVars((prev) => {
-        const updated = prev.map((v) =>
-          v._id === id ? { ...v, [field]: value } : v
-        );
+        const updated = prev.map((v) => {
+          if (v._id !== id) return v;
+          const patch: Partial<EditableVariable> = { [field]: value };
+          // Auto-mask when a key is renamed to something sensitive
+          if (field === "key" && typeof value === "string" && isSensitiveKey(value)) {
+            patch.masked = true;
+          }
+          return { ...v, ...patch };
+        });
         persistChanges(updated);
         return updated;
       });
@@ -290,6 +297,7 @@ export function EnvironmentEditor({
                   value: p.value,
                   enabled: true,
                   secret: false,
+                  masked: isSensitiveKey(p.key),
                 }));
                 onUpdateVariables(newVars);
                 setIsBulkEditing(false);
@@ -400,11 +408,23 @@ export function EnvironmentEditor({
             <tr style={{ position: "sticky", top: 0, background: "var(--color-surface-solid)" }}>
               <th
                 style={{
+                  textAlign: "center",
+                  padding: "8px 8px",
+                  fontWeight: 600,
+                  borderBottom: "1px solid var(--color-border)",
+                  width: "32px",
+                }}
+                title="Variable color"
+              >
+                COLOR
+              </th>
+              <th
+                style={{
                   textAlign: "left",
                   padding: "8px 12px",
                   fontWeight: 600,
                   borderBottom: "1px solid var(--color-border)",
-                  width: "35%",
+                  width: "32%",
                 }}
               >
                 KEY
@@ -415,7 +435,7 @@ export function EnvironmentEditor({
                   padding: "8px 12px",
                   fontWeight: 600,
                   borderBottom: "1px solid var(--color-border)",
-                  width: "45%",
+                  width: "38%",
                 }}
               >
                 VALUE
@@ -432,6 +452,18 @@ export function EnvironmentEditor({
                 SECRET
               </th>
               <th
+                title="When enabled, the value is exported as empty string"
+                style={{
+                  textAlign: "center",
+                  padding: "8px 12px",
+                  fontWeight: 600,
+                  borderBottom: "1px solid var(--color-border)",
+                  width: "10%",
+                }}
+              >
+                MASKED
+              </th>
+              <th
                 style={{
                   textAlign: "center",
                   padding: "8px 12px",
@@ -444,7 +476,22 @@ export function EnvironmentEditor({
           </thead>
           <tbody>
             {editingVars.map((v) => (
-              <tr key={v._id}>
+              <tr key={v._id} style={{ borderLeft: v.color ? `3px solid ${v.color}` : undefined }}>
+                <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--color-border)", textAlign: "center" }}>
+                  <div className="env-color-swatch-wrapper" title="Click to change variable color">
+                    <div
+                      className="env-color-swatch"
+                      style={{ background: v.color || "transparent", border: v.color ? `2px solid ${v.color}` : "2px dashed var(--color-border)" }}
+                    />
+                    <input
+                      type="color"
+                      className="env-color-picker-input"
+                      value={v.color || "#6366f1"}
+                      onChange={(e) => updateVariable(v._id, "color", e.target.value)}
+                      title="Pick variable color"
+                    />
+                  </div>
+                </td>
                 <td style={{ padding: "4px 12px", borderBottom: "1px solid var(--color-border)" }}>
                   <div className="headers-row-input" style={{ display: 'flex', alignItems: 'center' }}>
                     <input
@@ -516,7 +563,13 @@ export function EnvironmentEditor({
                   </button>
                   <button
                     type="button"
-                    onClick={() => updateVariable(v._id, "secret", !v.secret)}
+                    onClick={() => {
+                      const newSecret = !v.secret;
+                      updateVariable(v._id, "secret", newSecret);
+                      if (newSecret) {
+                        updateVariable(v._id, "masked", true);
+                      }
+                    }}
                     style={{
                       marginLeft: "4px",
                       width: "14px",
@@ -534,6 +587,53 @@ export function EnvironmentEditor({
                     title={v.secret ? "Unmark as secret" : "Mark as secret"}
                   >
                     {v.secret && (
+                      <Check size={10} style={{ color: "white" }} />
+                    )}
+                  </button>
+                </td>
+                <td
+                   style={{
+                    padding: "4px 12px",
+                    borderBottom: "1px solid var(--color-border)",
+                    textAlign: "center",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => updateVariable(v._id, "masked", !v.masked)}
+                    style={{
+                      padding: "4px",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      color: v.masked
+                        ? "var(--color-accent)"
+                        : "var(--color-muted)",
+                    }}
+                    title={v.masked ? "Unmask: value will be included in exports" : "Mask: value will export as empty string"}
+                  >
+                    <EyeOff size={14} style={{ opacity: v.masked ? 1 : 0.3 }} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateVariable(v._id, "masked", !v.masked)}
+                    style={{
+                      marginLeft: "4px",
+                      width: "14px",
+                      height: "14px",
+                      borderRadius: "3px",
+                      border: v.masked
+                        ? "2px solid var(--color-accent)"
+                        : "2px solid var(--color-border)",
+                      background: v.masked ? "var(--color-accent)" : "transparent",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    title={v.masked ? "Unmask variable" : "Mask variable on export"}
+                  >
+                    {v.masked && (
                       <Check size={10} style={{ color: "white" }} />
                     )}
                   </button>

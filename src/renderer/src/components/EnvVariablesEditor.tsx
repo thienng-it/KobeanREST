@@ -310,7 +310,9 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                       className="env-variable-key"
                       onClick={(e) => { e.stopPropagation(); startInlineEdit(v, "key"); }}
                       title="Click to edit"
+                      style={{ display: "flex", alignItems: "center", gap: "6px" }}
                     >
+                      <span className="env-color-dot" style={{ background: v.color || "var(--color-border)", opacity: v.color ? 1 : 0.4 }} title={v.color ? `Color: ${v.color}` : "No color set"} />
                       {v.key}
                     </span>
                     <span

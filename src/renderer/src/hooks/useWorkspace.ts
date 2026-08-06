@@ -32,12 +32,15 @@ import {
   renameWorkspace,
   deleteWorkspace,
   switchWorkspace,
+  loadEnvironmentColors,
+  saveEnvironmentColor,
 } from "../services/local-store";
 
 import { diagnosticMessage } from "../app-utils";
 import type { ContextMenuState } from "../components/ContextMenu";
 import type { WorkspaceSummary, WorkspaceListItem, SavedRequest, ScopedVariable, ScopedVariableEntityType, HttpMethod, FolderSummary } from "../types";
 import type { PostmanCollectionImportResult, PostmanEnvironmentImportResult } from "../services/postman-import";
+import { isSensitiveKey } from "../services/variables";
 
 export interface ConfirmDialogState {
   title?: string;
@@ -111,6 +114,14 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       const persistence = await initializeLocalStore();
       const localWorkspace = await loadLocalWorkspace();
       const loadedSettings = await loadAppSettings();
+      const envColors = loadEnvironmentColors();
+      
+      // Hydrate environment colors
+      localWorkspace.environments = localWorkspace.environments.map(env => ({
+        ...env,
+        color: envColors[env.name]
+      }));
+
       setDatabasePath(persistence.databasePath);
       setWorkspace(localWorkspace);
       const list = await listWorkspaces();
@@ -646,9 +657,22 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     });
   }
 
-  async function handleSaveVariable(envName: string, key: string, value: string) {
+  function handleSetEnvironmentColor(name: string, color: string | null) {
+    saveEnvironmentColor(name, color);
+    setWorkspace(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        environments: prev.environments.map(e => 
+          e.name === name ? { ...e, color: color || undefined } : e
+        )
+      };
+    });
+  }
+
+  async function handleSaveVariable(envName: string, key: string, value: string, masked?: boolean) {
     try {
-      await saveVariable(envName, key, value);
+      await saveVariable(envName, key, value, masked);
       setWorkspace(prev => {
         if (!prev) return null;
         return {
@@ -659,8 +683,8 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
             return {
               ...e,
               variables: exists
-                ? e.variables.map(v => v.key === key ? { ...v, value } : v)
-                : [...e.variables, { key, value }],
+                ? e.variables.map(v => v.key === key ? { ...v, value, masked } : v)
+                : [...e.variables, { key, value, masked }],
             };
           }),
         };
@@ -1188,7 +1212,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       await createEnvironment(envName);
 
       for (const v of result.variables) {
-        await saveVariable(envName, v.key, v.value);
+        await saveVariable(envName, v.key, v.value, isSensitiveKey(v.key));
       }
 
       await loadWorkspace();
@@ -1466,6 +1490,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     handleSetActiveEnvironment,
     handleCreateEnvironment,
     handleDeleteEnvironment,
+    handleSetEnvironmentColor,
     handleSaveVariable,
     handleDeleteVariable,
     handleSaveScopedVariable,

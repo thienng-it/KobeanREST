@@ -1,4 +1,5 @@
 import { WorkspaceSummary, CollectionSummary, FolderSummary, SavedRequest, ScopedVariable } from "../types";
+import { isSensitiveKey } from "../services/variables";
 import {
   createCollection,
   createFolder,
@@ -178,17 +179,15 @@ export async function importPostmanCollection(
  */
 export async function importPostmanEnvironment(
   result: PostmanEnvironmentImportResult,
-  saveVariableFn: (envName: string, key: string, value: string) => Promise<void>,
+  saveVariableFn: (envName: string, key: string, value: string, masked?: boolean) => Promise<void>,
   createEnvironmentFn: (name: string) => Promise<any>
 ): Promise<{ name: string; variablesCount: number }> {
   // Create the environment
   await createEnvironmentFn(result.name);
 
-  // Save each variable
+  // Save each variable, auto-masking sensitive keys
   for (const v of result.variables) {
-    // For secrets, we just save as regular variables for now
-    // In the future, could use saveSecretVariable if available
-    await saveVariableFn(result.name, v.key, v.value);
+    await saveVariableFn(result.name, v.key, v.value, isSensitiveKey(v.key));
   }
 
   return {

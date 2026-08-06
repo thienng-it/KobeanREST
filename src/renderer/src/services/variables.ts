@@ -4,6 +4,16 @@ import { loadHistory, loadHistoryResponse } from "./local-store";
 
 const VARIABLE_PATTERN = /\{\{([^{}]+)\}\}/g;
 
+const SENSITIVE_KEY_PATTERN = /password|passwd|secret|token|api[_\-.]?key|auth|credential|private[_\-.]?key|access[_\-.]?key|client[_\-.]?secret|bearer|jwt|passphrase|cert|ssl|tls/i;
+
+/**
+ * Returns true if the variable key looks like it holds sensitive data
+ * (passwords, tokens, secrets, API keys, etc.).
+ */
+export function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEY_PATTERN.test(key);
+}
+
 export interface VariableResolutionResult {
   resolved: string;
   usedVariables: string[];

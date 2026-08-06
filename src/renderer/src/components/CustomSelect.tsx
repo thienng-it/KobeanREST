@@ -6,6 +6,7 @@ export interface CustomSelectOption {
   value: string;
   label: string;
   icon?: ReactNode;
+  color?: string;
 }
 
 interface CustomSelectProps {
@@ -113,8 +114,17 @@ export function CustomSelect({
         onClick={handleToggle}
       >
         <span className="custom-select-label">
-          {selectedOption?.icon && <span className="custom-select-icon">{selectedOption.icon}</span>}
-          <span>{selectedOption ? selectedOption.label : placeholder}</span>
+          {selectedOption ? (
+            <>
+              {selectedOption.color && (
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedOption.color, marginRight: '6px', flexShrink: 0 }} />
+              )}
+              {selectedOption.icon && <span className="custom-select-icon">{selectedOption.icon}</span>}
+              <span>{selectedOption.label}</span>
+            </>
+          ) : (
+            <span className="custom-select-placeholder">{placeholder}</span>
+          )}
         </span>
         <ChevronDown size={14} className="custom-select-caret" />
       </button>
@@ -135,6 +145,9 @@ export function CustomSelect({
                   }}
                 >
                   <span className="custom-select-option-label">
+                    {opt.color && (
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: opt.color, marginRight: '6px', flexShrink: 0 }} />
+                    )}
                     {opt.icon && <span className="custom-select-icon">{opt.icon}</span>}
                     <span>{opt.label}</span>
                   </span>

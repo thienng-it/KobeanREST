@@ -1157,7 +1157,7 @@ export function Sidebar({
             ariaLabel="Active environment"
             value={activeEnvironment}
             onChange={(val) => void onSetActiveEnvironment(val)}
-            options={(workspace?.environments ?? []).map((env) => ({ value: env.name, label: env.name }))}
+            options={(workspace?.environments ?? []).map((env) => ({ value: env.name, label: env.name, color: env.color }))}
           />
           <button
             type="button"
@@ -1325,7 +1325,7 @@ export function Sidebar({
                   }}
                 >
                   <div style={{ width: "16px", marginRight: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {isActive && (
+                    {isActive ? (
                       <div
                         style={{
                           width: "6px",
@@ -1334,7 +1334,17 @@ export function Sidebar({
                           background: "var(--color-accent)",
                         }}
                       />
-                    )}
+                    ) : env.color ? (
+                      <div
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          background: env.color,
+                          opacity: 0.8
+                        }}
+                      />
+                    ) : null}
                   </div>
                   <span
                     style={{

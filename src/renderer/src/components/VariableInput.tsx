@@ -597,7 +597,12 @@ export function VariableInput({
         if (varName.startsWith("$response ")) {
           displayPart = "{{$response}}";
         }
-        return `<span class="${cls}" data-varname="${safeVarName}">${displayPart}</span>`;
+        const variable = activeVariables.find((v) => v.key === varName);
+        const varColor = variable?.color;
+        const colorStyle = varColor
+          ? ` style="background-color:${varColor}22;color:${varColor};box-shadow:inset 0 0 0 1px ${varColor}44;"`
+          : "";
+        return `<span class="${cls}" data-varname="${safeVarName}"${colorStyle}>${displayPart}</span>`;
       }
       // Plain text — no wrapping span so no inter-span kerning gaps
       return part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -836,9 +841,13 @@ export function VariableInput({
                   onClick={() => applyAutocomplete(item)}
                   onMouseEnter={() => setAutocomplete((prev) => prev ? { ...prev, selectedIndex: index } : null)}
                 >
-                  <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-primary-dim)", color: "var(--color-primary)" }}>
-                    VAR
-                  </span>
+                  {item.color ? (
+                    <span className="env-color-dot" style={{ background: item.color, flexShrink: 0 }} />
+                  ) : (
+                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-primary-dim)", color: "var(--color-primary)" }}>
+                      VAR
+                    </span>
+                  )}
                   <span className="input-suggestion-text">{item.key}</span>
                   <span className="input-suggestion-value" style={{ marginLeft: "auto", fontSize: "11px", color: "var(--color-text-dim)" }}>
                     {item.secret ? "••••" : item.value}
