@@ -42,3 +42,10 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes_tool` for code review.
 3. Use `get_affected_flows_tool` to understand impact.
 4. Use `query_graph_tool` pattern="tests_for" to check coverage.
+
+## CI Workflow & Contract Test Synchronization
+- Whenever updating `.github/workflows/*.yml` (such as concurrency groups, step names, or action versions), search `tests/*-contract.test.mjs` for corresponding assertions and update them synchronously to prevent CI failure false positives.
+
+## Component Boundaries & Git Safety Directives
+- Keep layout controls (`LayoutControls`) decoupled from core tab bars (`TabBar`). Prefer composing toolbars in the parent app container rather than threading layout nodes through tab bar props.
+- NEVER execute `git push` unless explicitly requested by the user.
