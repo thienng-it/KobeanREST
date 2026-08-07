@@ -4,6 +4,12 @@ import { Eye, EyeOff, Check, Copy, X, Plus } from "lucide-react";
 import { EnvironmentVariable } from "../types";
 import { saveVariable } from "../services/local-store";
 import { redactDiagnosticError } from "../services/redaction";
+import { DYNAMIC_VARIABLES } from "../services/variables";
+
+const DYNAMIC_VARIABLE_OPTIONS: EnvironmentVariable[] = Object.keys(DYNAMIC_VARIABLES).map(key => ({
+  key,
+  value: "Dynamic generator",
+}));
 
 const VARIABLE_PATTERN = /(\{\{[^{}]+\}\})/g;
 
@@ -37,7 +43,7 @@ function DropdownPortal({ anchorRef, children }: { anchorRef: React.RefObject<HT
   if (!rect) return null;
 
   return createPortal(
-    <div style={{ position: "fixed", top: rect.bottom + 4, left: rect.left, width: rect.width, zIndex: 100000 }}>
+    <div style={{ position: "fixed", top: rect.bottom + 4, left: rect.left, minWidth: rect.width, zIndex: 100000 }}>
       {children}
     </div>,
     document.body
@@ -384,7 +390,8 @@ export function VariableInput({
     const match = beforeCursor.match(/\{\{([^{}]*)$/);
     if (match) {
       const prefix = match[1].toLowerCase();
-      const options = activeVariablesRef.current.filter((v) => v.key.toLowerCase().includes(prefix));
+      const allOptions = [...activeVariablesRef.current, ...DYNAMIC_VARIABLE_OPTIONS];
+      const options = allOptions.filter((v) => v.key.toLowerCase().includes(prefix));
       if (options.length > 0) {
         setAutocomplete((prev) => ({
           prefix,
@@ -647,7 +654,7 @@ export function VariableInput({
   return (
     <div
       ref={containerRef}
-      className={`variable-input-container ${isFocused ? "focused" : ""} ${containerClassName !== undefined ? containerClassName : "headers-row-input"}`}
+      className={`variable-input-container ${isFocused ? "focused" : ""} ${containerClassName || ""}`}
       style={{
         position: "relative",
         display: "inline-flex",
@@ -768,7 +775,7 @@ export function VariableInput({
           paddingRight: isPasswordProp ? "28px" : undefined,
           ...style,
         }}
-        className={className !== undefined ? className : "headers-row-input-field"}
+        className={className || ""}
         {...rest}
         type={actualType}
       />
@@ -876,13 +883,17 @@ export function VariableInput({
                   onMouseEnter={() => setAutocomplete((prev) => prev ? { ...prev, selectedIndex: index } : null)}
                 >
                   {item.key.startsWith("$response") ? (
-                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-accent-dim, #1e3a5f)", color: "var(--color-accent, #60a5fa)", letterSpacing: "0.3px" }}>
+                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-accent, #3b82f6)", color: "#ffffff", border: "none" }}>
                       CHAIN
+                    </span>
+                  ) : item.key in DYNAMIC_VARIABLES ? (
+                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--blob-color-2, #8b5cf6)", color: "#ffffff", border: "none" }}>
+                      GEN
                     </span>
                   ) : item.color ? (
                     <span className="env-color-dot" style={{ background: item.color, flexShrink: 0 }} />
                   ) : (
-                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-primary-dim)", color: "var(--color-primary)" }}>
+                    <span className="input-suggestion-badge">
                       VAR
                     </span>
                   )}
@@ -1000,7 +1011,8 @@ export function VariableTextarea({
     const match = beforeCursor.match(/\{\{([^{}]*)$/);
     if (match) {
       const prefix = match[1].toLowerCase();
-      const options = activeVariablesRef.current.filter((v) => v.key.toLowerCase().includes(prefix));
+      const allOptions = [...activeVariablesRef.current, ...DYNAMIC_VARIABLE_OPTIONS];
+      const options = allOptions.filter((v) => v.key.toLowerCase().includes(prefix));
       if (options.length > 0) {
         setAutocomplete((prev) => ({
           prefix,
@@ -1360,11 +1372,15 @@ export function VariableTextarea({
                   onMouseEnter={() => setAutocomplete((prev) => prev ? { ...prev, selectedIndex: index } : null)}
                 >
                   {item.key.startsWith("$response") ? (
-                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-accent-dim, #1e3a5f)", color: "var(--color-accent, #60a5fa)", letterSpacing: "0.3px" }}>
+                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-accent, #3b82f6)", color: "#ffffff", border: "none" }}>
                       CHAIN
                     </span>
+                  ) : item.key in DYNAMIC_VARIABLES ? (
+                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--blob-color-2, #8b5cf6)", color: "#ffffff", border: "none" }}>
+                      GEN
+                    </span>
                   ) : (
-                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-primary-dim)", color: "var(--color-primary)" }}>
+                    <span className="input-suggestion-badge">
                       VAR
                     </span>
                   )}

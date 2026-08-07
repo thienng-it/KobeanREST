@@ -431,6 +431,7 @@ select option {
   position: relative;
   display: inline-flex;
   align-items: center;
+  width: 100%;
 }
 
 .custom-select-trigger {
@@ -4661,7 +4662,7 @@ button:disabled {
   padding: 4px 8px;
   align-items: center;
   flex: 0 0 auto;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
   border: 0;
   border-bottom: 1px solid var(--color-border);
@@ -4713,7 +4714,6 @@ button:disabled {
 .script-tool-group-fill {
   display: inline-flex;
   flex: 0 1 auto;
-  min-width: 0;
   align-items: center;
   gap: 8px;
   border: none !important;
@@ -6377,9 +6377,9 @@ select:focus-visible,
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  right: 0;
   z-index: 10000;
-  min-width: 180px;
+  min-width: max(100%, 260px);
+  max-width: 400px;
   max-height: 220px;
   overflow-y: auto;
   padding: 6px;
@@ -6457,6 +6457,118 @@ select:focus-visible,
   color: var(--color-accent, #3b82f6);
   flex-shrink: 0;
 }
+
+/* CodeMirror Autocomplete Styles */
+.cm-tooltip-autocomplete {
+  background: var(--color-surface, #1e293b) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 8px !important;
+  padding: 4px !important;
+  box-shadow: 0 4px 12px var(--color-shadow) !important;
+}
+
+.cm-tooltip-autocomplete > ul {
+  font-family: inherit !important;
+}
+
+.cm-tooltip-autocomplete > ul > li {
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 13px !important;
+  color: var(--color-text) !important;
+  transition: all 0.15s ease !important;
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--color-text-active, #ffffff) !important;
+  transform: translateX(3px) !important;
+}
+
+:root[data-theme="light"] .cm-tooltip-autocomplete > ul > li[aria-selected],
+:root[data-theme="warm"] .cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: #0f172a !important;
+}
+
+.cm-completionIcon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  padding: 2px 5px !important;
+  border-radius: 4px !important;
+  flex-shrink: 0 !important;
+  text-transform: uppercase !important;
+  width: auto !important;
+  height: auto !important;
+  padding-right: 5px !important;
+  opacity: 1 !important;
+}
+
+.cm-completionIcon:after {
+  content: "VAR" !important;
+}
+
+.cm-completionIcon-variable {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #60a5fa !important;
+  border: 1px solid rgba(59, 130, 246, 0.25) !important;
+}
+
+.cm-completionIcon-dynamic {
+  background: var(--blob-color-2, #8b5cf6) !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+.cm-completionIcon-dynamic:after {
+  content: "GEN" !important;
+}
+
+.cm-completionIcon-chain {
+  background: var(--color-accent, #3b82f6) !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+.cm-completionIcon-chain:after {
+  content: "CHAIN" !important;
+}
+
+.cm-completionIcon-property {
+  background: var(--color-status-2xx, #4ade80) !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+.cm-completionIcon-property:after {
+  content: "PROP" !important;
+}
+
+.cm-completionIcon-function {
+  background: var(--color-status-4xx, #fbbf24) !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+.cm-completionIcon-function:after {
+  content: "FUNC" !important;
+}
+
+.cm-completionLabel {
+  flex: 1 !important;
+  font-weight: 500 !important;
+}
+
+.cm-completionDetail {
+  font-style: normal !important;
+  font-size: 11px !important;
+  color: var(--color-text-dim) !important;
+  margin-left: auto !important;
+}
+
 
 /* Universal Import Modal */
 .universal-import-modal-overlay {

@@ -247,7 +247,6 @@ export function ChainRequestModal({
               <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
                 <span>Source Request</span>
                 <CustomSelect
-                  className="settings-control"
                   value={requestRef}
                   onChange={(val) => setRequestRef(val)}
                   options={requestOptions}

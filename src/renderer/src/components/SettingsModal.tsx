@@ -76,7 +76,6 @@ export function SettingsModal({
             <label className="settings-field" style={{ alignItems: "center" }}>
               <span>Theme</span>
               <CustomSelect
-                className="settings-control"
                 value={appSettings.theme}
                 onChange={(val) => onSettingsChange({ theme: val as AppSettings["theme"] })}
                 options={[
@@ -132,7 +131,6 @@ export function SettingsModal({
             <label className="settings-field" style={{ alignItems: "center" }}>
               <span>Offline behavior</span>
               <CustomSelect
-                className="settings-control"
                 value={appSettings.offlineBehavior}
                 onChange={(val) => onSettingsChange({ offlineBehavior: val as AppSettings["offlineBehavior"] })}
                 options={[

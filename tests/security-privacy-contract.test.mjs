@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, lstatSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
@@ -7,7 +7,7 @@ const readSource = (dir) => {
   let result = "";
   for (const entry of readdirSync(new URL(dir, root))) {
     const entryUrl = new URL(`${dir}/${entry}`, root);
-    const stats = statSync(entryUrl);
+    const stats = lstatSync(entryUrl);
     if (stats.isDirectory()) {
       result += readSource(`${dir}/${entry}`);
     } else if (entry.endsWith(".ts") || entry.endsWith(".tsx") || entry.endsWith(".css")) {

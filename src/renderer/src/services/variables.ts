@@ -35,7 +35,7 @@ export class UnresolvedVariableError extends Error {
  * so `{{$guid}}` / `{{$timestamp}}` resolve without being predefined.
  * An env variable of the same name always takes precedence.
  */
-const DYNAMIC_VARIABLES: Record<string, () => string> = {
+export const DYNAMIC_VARIABLES: Record<string, () => string> = {
   $guid: () => randomUuid(),
   $randomUUID: () => randomUuid(),
   $timestamp: () => String(Math.floor(Date.now() / 1000)),

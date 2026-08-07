@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
@@ -1440,7 +1440,7 @@ export function Sidebar({
             aria-label="Product Documentation"
             onClick={onOpenDocs}
           >
-            <Download size={15} />
+            <HelpCircle size={15} />
           </button>
           <button
             type="button"

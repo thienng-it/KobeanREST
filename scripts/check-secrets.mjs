@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, lstatSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
@@ -21,7 +21,7 @@ function shouldSkip(relativePath) {
 function collectFiles(relativePath, files) {
   if (shouldSkip(relativePath)) return;
   const absolutePath = path.join(root, relativePath);
-  const stats = statSync(absolutePath);
+  const stats = lstatSync(absolutePath);
   if (stats.isDirectory()) {
     for (const entry of readdirSync(absolutePath)) {
       collectFiles(path.join(relativePath, entry), files);

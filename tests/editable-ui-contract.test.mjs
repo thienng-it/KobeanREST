@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, lstatSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
@@ -7,7 +7,7 @@ const readSource = (dir) => {
   let result = "";
   for (const entry of readdirSync(new URL(dir, root))) {
     const entryUrl = new URL(`${dir}/${entry}`, root);
-    const stats = statSync(entryUrl);
+    const stats = lstatSync(entryUrl);
     if (stats.isDirectory()) {
       result += readSource(`${dir}/${entry}`);
     } else if (entry.endsWith(".ts") || entry.endsWith(".tsx") || entry.endsWith(".css")) {
@@ -500,7 +500,7 @@ test("scripts workspace fits the request pane without a panel scrollbar", () => 
   assert.match(refinement, /\.request-scripts-panel\s*\{[^}]*overflow:\s*hidden;/);
   assert.match(refinement, /\.script-workspace\s*\{[^}]*flex:\s*1 1 auto;/);
   assert.match(refinement, /\.script-workspace\s*\{[^}]*min-height:\s*0;/);
-  assert.match(refinement, /\.script-tool-row\s*\{[^}]*flex-wrap:\s*nowrap;/);
+  assert.match(refinement, /\.script-tool-row\s*\{[^}]*flex-wrap:\s*wrap;/);
   assert.match(refinement, /\.script-editor-frame\s*\{[^}]*min-height:\s*0;/);
   assert.match(refinement, /\.script-editor-shell\s*\{[^}]*min-height:\s*0;/);
   assert.match(refinement, /\.script-editor-shell > div\s*\{[^}]*height:\s*100% !important;/);

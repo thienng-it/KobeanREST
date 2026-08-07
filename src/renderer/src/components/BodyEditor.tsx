@@ -6,6 +6,7 @@ import { autocompletion } from '@codemirror/autocomplete';
 import { EditorView } from '@codemirror/view';
 import { VariablePopoverCard } from './VariableInput';
 import type { EnvironmentVariable } from '../types';
+import { DYNAMIC_VARIABLES } from '../services/variables';
 
 interface TooltipState {
   key: string;
@@ -65,16 +66,54 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
     // Define the autocomplete source for variables
     const variableCompletion = (context: any) => {
       // Only trigger if the user just typed '{{' or is inside a variable block
-      const word = context.matchBefore(/\{\{?[a-zA-Z0-9_]*/);
+      const word = context.matchBefore(/\{\{?[a-zA-Z0-9_$]*/);
       if (!word) return null;
+
+      const dynamicKeys = Object.keys(DYNAMIC_VARIABLES);
+      
+      const allVars = [
+        "$response",
+        ...variablesRef.current.map(v => v.key),
+        ...dynamicKeys
+      ];
 
       return {
         from: word.from,
-        options: variablesRef.current.map(v => ({
-          label: `{{${v.key}}}`,
-          type: 'variable',
-          detail: 'Environment Variable'
-        }))
+        options: allVars.map(v => {
+          if (v.startsWith("$response")) {
+            return {
+              label: `{{${v}}}`,
+              type: 'chain',
+              detail: 'Extract from response',
+              apply: (view: EditorView, completion: any, from: number, to: number) => {
+                window.dispatchEvent(
+                  new CustomEvent("open-chain-modal", {
+                    detail: {
+                      initialValue: "",
+                      onSave: (newKey: string) => {
+                        view.dispatch({
+                          changes: { from, to, insert: `{{${newKey}}}` }
+                        });
+                      }
+                    }
+                  })
+                );
+              }
+            };
+          }
+          if (dynamicKeys.includes(v)) {
+            return {
+              label: `{{${v}}}`,
+              type: 'dynamic',
+              detail: 'Dynamic generator'
+            };
+          }
+          return {
+            label: `{{${v}}}`,
+            type: 'variable',
+            detail: 'Environment Variable'
+          };
+        })
       };
     };
 

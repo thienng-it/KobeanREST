@@ -1,5 +1,6 @@
 import { PRODUCT_DOCS_URL } from "./product-contract";
 import { redactDiagnosticError } from "./services/redaction";
+import { open as openUrl } from "@tauri-apps/plugin-shell";
 import type { EnvironmentVariable, SavedRequest, WorkspaceSummary } from "./types";
 
 export function isSensitiveKey(key: string): boolean {
@@ -23,9 +24,16 @@ export function formatTimestamp(createdAt: string): string {
 }
 
 export function openProductDocs() {
-  const popup = window.open(PRODUCT_DOCS_URL, "_blank", "noopener,noreferrer");
-  if (!popup) {
-    window.location.assign(PRODUCT_DOCS_URL);
+  if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+    openUrl(PRODUCT_DOCS_URL).catch((err) => {
+      console.error("Failed to open docs using Tauri shell:", err);
+      window.open(PRODUCT_DOCS_URL, "_blank", "noopener,noreferrer");
+    });
+  } else {
+    const popup = window.open(PRODUCT_DOCS_URL, "_blank", "noopener,noreferrer");
+    if (!popup) {
+      window.location.assign(PRODUCT_DOCS_URL);
+    }
   }
 }
 

@@ -4,6 +4,7 @@ import { EditorState } from '@codemirror/state';
 import { javascript } from '@codemirror/lang-javascript';
 import { autocompletion } from '@codemirror/autocomplete';
 import { EditorView } from '@codemirror/view';
+import { DYNAMIC_VARIABLES } from '../services/variables';
 
 interface ScriptEditorProps {
   value: string;
@@ -33,14 +34,17 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
       const word = context.matchBefore(/\{\{?[^{}]*/);
       if (!word) return null;
 
+      const dynamicKeys = Object.keys(DYNAMIC_VARIABLES);
+      const allVars = [...variables, ...dynamicKeys];
+
       return {
         from: word.from,
-        options: variables.map(v => {
+        options: allVars.map(v => {
           if (v.startsWith("$response")) {
             return {
               label: `{{${v}}}`,
               type: 'chain',
-              detail: 'Chain Request',
+              detail: 'Extract from response',
               apply: (view: EditorView, completion: any, from: number, to: number) => {
                 window.dispatchEvent(
                   new CustomEvent("open-chain-modal", {
@@ -55,6 +59,13 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
                   })
                 );
               }
+            };
+          }
+          if (dynamicKeys.includes(v)) {
+            return {
+              label: `{{${v}}}`,
+              type: 'dynamic',
+              detail: 'Dynamic generator'
             };
           }
           return {
