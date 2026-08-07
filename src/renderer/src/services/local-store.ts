@@ -553,3 +553,47 @@ export async function saveCollectionAuth(collectionId: string, authMode: import(
   if (!isTauriRuntime()) return;
   return invoke<void>("save_collection_auth", { collectionId, authMode, authConfig });
 }
+
+export interface MockServerStatus {
+  running: boolean;
+  port: number;
+  request_count: number;
+  active_collection_id: string | null;
+}
+
+export async function startLocalMockServer(port = 3010, collectionId?: string): Promise<number> {
+  if (!isTauriRuntime()) return port;
+  return invoke<number>("start_local_mock_server", { port, collectionId: collectionId || null });
+}
+
+export async function stopLocalMockServer(): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("stop_local_mock_server");
+}
+
+export async function getMockServerStatus(): Promise<MockServerStatus> {
+  if (!isTauriRuntime()) return { running: false, port: 3010, request_count: 0, active_collection_id: null };
+  return invoke<MockServerStatus>("get_mock_server_status");
+}
+
+export async function exportOpenApiSpec(collectionId?: string, collectionName?: string): Promise<{ spec_json: string; format: string; title: string }> {
+  if (!isTauriRuntime()) {
+    return {
+      spec_json: JSON.stringify({ openapi: "3.0.3", info: { title: collectionName || "KobeanREST Spec", version: "1.0.0" } }, null, 2),
+      format: "json",
+      title: collectionName || "KobeanREST Spec"
+    };
+  }
+  return invoke("export_openapi_30_spec", { collectionId: collectionId || null, collectionName: collectionName || null });
+}
+
+export async function exportMcpManifest(): Promise<{ manifest_json: string; server_name: string; version: string }> {
+  if (!isTauriRuntime()) {
+    return {
+      manifest_json: JSON.stringify({ name: "KobeanREST MCP Server", version: "1.0.0" }, null, 2),
+      server_name: "KobeanREST MCP Server",
+      version: "1.0.0"
+    };
+  }
+  return invoke("export_mcp_manifest");
+}

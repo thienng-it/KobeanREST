@@ -164,7 +164,7 @@ export function CustomSelect({
                 />
               </div>
             )}
-            <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+            <div className="custom-select-options-list">
             {options.filter(opt => !searchQuery || opt.label.toLowerCase().includes(searchQuery.toLowerCase())).map((opt) => {
               const isSelected = opt.value === value;
               return (

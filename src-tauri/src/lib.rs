@@ -1,30 +1,38 @@
 mod http_client;
 mod local_only;
+mod mcp_server;
+mod mock_server;
 mod oauth;
 mod persistence;
 mod secrets;
+mod spec_generator;
 
 use http_client::execute_http_request;
-use oauth::start_oauth_login;
 use local_only::{app_contract, check_for_update, local_storage_status, request_auth_modes};
+use mcp_server::{execute_mcp_tool_call, export_mcp_manifest};
+use mock_server::{get_mock_server_status, start_local_mock_server, stop_local_mock_server, MockServerState};
+use oauth::start_oauth_login;
 use persistence::{
-    clear_request_history, create_environment, create_folder, create_request, delete_environment,
-    delete_collection, delete_folder, delete_request, delete_scoped_variable, delete_variable,
-    export_workspace_data, get_scoped_variables, import_workspace_data, initialize_persistence,
-    load_app_settings, load_request_history, load_workspace, record_request_history,
-    rename_environment, save_app_settings, save_request, save_scoped_secret_variable,
-    save_scoped_variable, save_secret_variable, save_variable, set_active_environment,
-    update_collection, update_collection_default_environment, update_folder, move_folder, get_scripts, get_all_scripts, save_script, delete_script, save_folder_auth,
-    save_collection_auth, create_workspace, create_collection, list_workspaces, rename_workspace,
-    delete_workspace, switch_workspace, load_workspace_by_id, load_history_response,
-    load_collection_runs, load_collection_run_details
+    clear_request_history, create_collection, create_environment, create_folder, create_request,
+    create_workspace, delete_collection, delete_environment, delete_folder, delete_request,
+    delete_scoped_variable, delete_script, delete_variable, delete_workspace,
+    export_workspace_data, get_all_scripts, get_scoped_variables, get_scripts,
+    import_workspace_data, initialize_persistence, load_app_settings, load_collection_run_details,
+    load_collection_runs, load_history_response, load_request_history, load_workspace,
+    load_workspace_by_id, move_folder, record_request_history, rename_environment,
+    rename_workspace, save_app_settings, save_collection_auth, save_folder_auth, save_request,
+    save_scoped_secret_variable, save_scoped_variable, save_script, save_secret_variable,
+    save_variable, set_active_environment, switch_workspace, update_collection,
+    update_collection_default_environment, update_folder, list_workspaces,
 };
 use secrets::{delete_secret, resolve_secrets, store_secret};
+use spec_generator::{export_openapi_30_spec, import_openapi_30_spec};
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(MockServerState::default())
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -96,7 +104,14 @@ pub fn run() {
             switch_workspace,
             load_workspace_by_id,
             load_collection_runs,
-            load_collection_run_details
+            load_collection_run_details,
+            start_local_mock_server,
+            stop_local_mock_server,
+            get_mock_server_status,
+            export_openapi_30_spec,
+            import_openapi_30_spec,
+            export_mcp_manifest,
+            execute_mcp_tool_call
         ])
         .run(tauri::generate_context!())
         .expect("failed to run KobeanREST");
