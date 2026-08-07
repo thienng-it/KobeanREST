@@ -9,6 +9,7 @@ import { VariableInput, VariableTextarea } from "./VariableInput";
 import { BodyEditor } from "./BodyEditor";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
 import { AdvancedSendModal } from "./AdvancedSendModal";
+import { LoadTestModal } from "./LoadTestModal";
 import { redactDiagnosticError } from "../services/redaction";
 
 function safeDecode(val: string): string {
@@ -221,6 +222,7 @@ function describeAuthTarget(mode: ApiAuthMode, config: AuthConfig): string {
 }
 
 export interface RequestPanelProps {
+  workspace: import("../types").WorkspaceSummary | null;
   draftRequest: SavedRequest;
   activeVars: EnvironmentVariable[];
   isSending: boolean;
@@ -280,6 +282,7 @@ export interface RequestPanelProps {
 }
 
 export function RequestPanel({
+  workspace,
   draftRequest,
   activeVars,
   activeEnvironmentName,
@@ -350,6 +353,7 @@ export function RequestPanel({
 
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const [advancedSendMode, setAdvancedSendMode] = useState<"delay" | "interval" | null>(null);
+  const [loadTestOpen, setLoadTestOpen] = useState(false);
   const sendMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -865,6 +869,23 @@ export function RequestPanel({
                     style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%" }}
                   >
                     Repeat on interval...
+                  </button>
+                  <button
+                    type="button"
+                    className="context-menu-item"
+                    onClick={() => {
+                      setSendMenuOpen(false);
+                      setLoadTestOpen(true);
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--color-surface-hover)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                    style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%" }}
+                  >
+                    Load Test...
                   </button>
                 </div>
               )}
@@ -1554,6 +1575,12 @@ export function RequestPanel({
           }
           setAdvancedSendMode(null);
         }}
+      />
+      <LoadTestModal
+        isOpen={loadTestOpen}
+        request={draftRequest}
+        workspace={workspace}
+        onClose={() => setLoadTestOpen(false)}
       />
 
       {activeTab === "settings" && (

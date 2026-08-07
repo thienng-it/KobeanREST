@@ -1693,6 +1693,7 @@ export function App() {
 
             return draftRequest ? (
             <RequestPanel
+              workspace={workspace}
               draftRequest={draftRequest}
               activeVars={scopedVarsArray}
               activeEnvironmentName={workspace?.activeEnvironment}
