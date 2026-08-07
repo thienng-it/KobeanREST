@@ -57,7 +57,8 @@ test("secret variable command stores only a ref, never a raw secret value", () =
 
   // The function must NOT write arbitrary raw values — confirm it uses the constant
   const fnStart = persistence.indexOf("pub fn save_secret_variable");
-  const fnBody = persistence.slice(fnStart, fnStart + 600);
+  const fnEnd = persistence.indexOf("#[tauri::command]", fnStart);
+  const fnBody = persistence.slice(fnStart, fnEnd > fnStart ? fnEnd : fnStart + 1500);
   assert.match(fnBody, /REDACTED_SECRET_VALUE/);
   assert.doesNotMatch(fnBody, /value: String/);
 });

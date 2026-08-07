@@ -79,11 +79,8 @@ test("App.tsx send flow applies auth after variable resolution", () => {
 
   // Auth is applied before executeHttpRequest
   const sendFn = app.slice(app.indexOf("async function sendSelectedRequest"), app.indexOf("useEffect", app.indexOf("async function sendSelectedRequest")));
-  assert.match(sendFn, /applyAuth/);
-  assert.match(sendFn, /authUrl/);
-  assert.match(sendFn, /authHeaders/);
-  assert.match(sendFn, /redactAuthFromUrl.*historyUrl/s);
-  assert.match(sendFn, /url: historyUrl/);
+  assert.match(sendFn, /prepareRequestForExecution/);
+  assert.match(sendFn, /url: historyUrlToSave/);
 });
 
 test("SavedRequest type includes authConfig and auth service has AuthConfig type", () => {

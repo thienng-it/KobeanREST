@@ -5,9 +5,8 @@ import { CustomSelect } from "./CustomSelect";
 import { loadHistory, loadHistoryResponse, recordRequestHistory } from "../services/local-store";
 import jq from "jq-web";
 import { executeHttpRequest } from "../services/http-client";
-import { buildScopedVariableMap, resolveRequestFields, injectAsyncVariables } from "../services/variables";
-import { getEffectiveAuth, applyAuth, resolveAuthConfig } from "../services/auth";
-import { obtainOAuth2Token } from "../services/auth";
+import { prepareRequestForExecution } from "../services/request-executor";
+import {buildScopedVariableMap} from "../services/variables";
 
 interface ChainRequestModalProps {
   isOpen: boolean;
@@ -169,62 +168,13 @@ export function ChainRequestModal({
         request: req,
       });
 
-      let authToScan = req.authConfig;
-      if (req.authMode === "none") {
-        const inherited = getEffectiveAuth(req, scopeWorkspace);
-        if (inherited.mode !== "none") {
-          authToScan = inherited.config;
-        }
-      }
-
-      const textsToScan = [
-        req.url, 
-        req.body || "", 
-        ...req.headers.map((h: any) => h.value),
-        authToScan?.token, authToScan?.username, authToScan?.password,
-        authToScan?.keyValue, authToScan?.clientId, authToScan?.clientSecret,
-        authToScan?.accessTokenUrl, authToScan?.scope, authToScan?.audience,
-      ];
-      await injectAsyncVariables(variableMap, textsToScan, scopeWorkspace);
-
-      const resolved = resolveRequestFields(variableMap, req.url, req.headers, req.body || undefined);
-      
-      let finalAuthMode = req.authMode;
-      let finalAuthConfig = req.authConfig;
-      const hasManualAuthHeader = resolved.headers.some(h => h.key.toLowerCase() === 'authorization' && h.enabled);
-
-      if (finalAuthMode === "none" && !hasManualAuthHeader) {
-        const inherited = getEffectiveAuth(req, scopeWorkspace);
-        if (inherited.mode !== "none") {
-          finalAuthMode = inherited.mode;
-          finalAuthConfig = inherited.config;
-        }
-      }
-
-      const resolvedAuth = resolveAuthConfig(finalAuthConfig ?? {}, variableMap);
-      if (finalAuthMode === "oauth2" && !resolvedAuth.token) {
-        resolvedAuth.token = await obtainOAuth2Token(resolvedAuth, variableMap);
-      }
-
-      const { url: authUrl, headers: authHeaders } = applyAuth(finalAuthMode, resolvedAuth, resolved.url, resolved.headers);
-      
-      const effectiveMethod = req.method === "CUSTOM" ? (req.customMethod?.trim().toUpperCase() || "CUSTOM") : req.method;
-
-      const response = await executeHttpRequest({
-        method: effectiveMethod,
-        url: authUrl,
-        headers: authHeaders,
-        body: resolved.body,
-        bodyMimeType: req.bodyMimeType,
-        bodyForm: req.bodyForm,
-        timeoutMs: req.timeoutMs,
-        followRedirects: req.followRedirects,
-      });
+      const { request: executedRequest } = await prepareRequestForExecution(req, scopeWorkspace, variableMap);
+      const response = await executeHttpRequest(executedRequest);
 
       await recordRequestHistory({
         requestId: req.id,
-        method: effectiveMethod,
-        url: authUrl, // simplified
+        method: executedRequest.method,
+        url: executedRequest.url,
         status: response.status,
         durationMs: response.durationMs,
         sizeBytes: response.sizeBytes,

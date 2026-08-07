@@ -1,21 +1,19 @@
-import { useEffect, useState, useTransition, useRef, useMemo, useCallback, type ClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { ChevronDown, ChevronUp, Download, History, RefreshCw, Settings, PanelLeftOpen } from "lucide-react";
+import { useEffect, useState, useTransition, useRef, useMemo, useCallback, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { PanelLeftOpen } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
-import { resolveRequestVariables, resolveRequestFields, resolveRequestFieldsSafe, UnresolvedVariableError, activeEnvironmentVariables, buildVariableMap, buildScopedVariableMap, activeScopedVariablesList, resolveString, injectAsyncVariables } from "./services/variables";
+import { resolveRequestFieldsSafe, UnresolvedVariableError, buildScopedVariableMap, activeScopedVariablesList, resolveString } from "./services/variables";
 import { type ResponseTab } from "./components/ResponsePanel";
 import { ModalManager } from "./components/ModalManager";
 import { ContextMenu } from "./components/ContextMenu";
 import { SetEnvVarModal } from "./components/SetEnvVarModal";
 import { MoveToModal } from "./components/MoveToModal";
 import { ChainRequestModal } from "./components/ChainRequestModal";
-import { Topbar } from "./components/Topbar";
 import { BottomDock } from "./components/BottomDock";
 import { statusColor, type ResponseState, type PreviewMode } from "./response-utils";
 import {
   formatTimestamp,
   openProductDocs,
-  createScriptVariablesObject,
   diagnosticMessage,
 } from "./app-utils";
 import type { KbScriptContext } from "./services/script-runtime";
@@ -34,13 +32,13 @@ import { FolderEditor } from "./components/FolderEditor";
 import { CollectionEditor } from "./components/CollectionEditor";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { ApiToolsModal } from "./components/ApiToolsModal";
-import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token, getEffectiveAuth } from "./services/auth";
+import { resolveAuthConfig, getEffectiveAuth } from "./services/auth";
+import { prepareRequestForExecution } from "./services/request-executor";
 import { CollectionRunner } from "./components/CollectionRunner";
 
 import {
   SCRIPT_SNIPPETS,
   generateRequestCodeSnippet,
-  parseCurlCommand,
 } from "./services/script-tools";
 import type { CurlImportResult } from "./services/script-tools";
 import {
@@ -105,9 +103,6 @@ export function App() {
 
   const [headersPresetMenuOpen, setHeadersPresetMenuOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<import("./components/ConfirmDialog").ConfirmDialogState | null>(null);
-  const [newVarKey, setNewVarKey] = useState("");
-  const [newVarValue, setNewVarValue] = useState("");
-  const [newVarSecret, setNewVarSecret] = useState(false);
   const [envEditorOpen, setEnvEditorOpen] = useState(false);
   const [setEnvVarModal, setSetEnvVarModal] = useState<{ open: boolean; text: string }>({ open: false, text: "" });
   const [collectionEditorOpen, setCollectionEditorOpen] = useState(false);
@@ -788,103 +783,25 @@ export function App() {
 
     // Use the modified request from scripts
     const requestToSend = preScriptsContext.request;
-
-    let resolvedUrl: string;
-    let resolvedHeaders: Array<{ key: string; value: string; enabled: boolean }>;
-    let resolvedBody: string | undefined;
-
+    let executedRequest;
+    let historyUrlToSave = "";
     try {
-      if (scopeWorkspace) {
-        let authToScan = requestToSend.authConfig;
-        if (requestToSend.authMode === "none") {
-          const inherited = getEffectiveAuth(requestToSend, scopeWorkspace);
-          if (inherited.mode !== "none") {
-            authToScan = inherited.config;
-          }
-        }
-
-        const textsToScan = [
-          requestToSend.url, 
-          requestToSend.body, 
-          ...requestToSend.headers.map((h: any) => h.value),
-          // Also scan auth config fields for $response variables
-          authToScan?.token,
-          authToScan?.username,
-          authToScan?.password,
-          authToScan?.keyValue,
-          authToScan?.clientId,
-          authToScan?.clientSecret,
-          authToScan?.accessTokenUrl,
-          authToScan?.scope,
-          authToScan?.audience,
-        ];
-        await injectAsyncVariables(variableMap, textsToScan, scopeWorkspace);
-      }
+      const { request, obtainedToken, historyUrl } = await prepareRequestForExecution(requestToSend, scopeWorkspace!, variableMap);
+      executedRequest = request;
+      historyUrlToSave = historyUrl;
       
-      const resolved = resolveRequestFields(
-        variableMap,
-        requestToSend.url,
-        requestToSend.headers,
-        requestToSend.body || undefined,
-      );
-      resolvedUrl = resolved.url;
-      resolvedHeaders = resolved.headers;
-      resolvedBody = resolved.body;
+      // Update the source of truth to persist the token
+      if (obtainedToken && requestToSend.authMode === "oauth2") {
+        updateDraft({ authConfig: { ...requestToSend.authConfig, token: obtainedToken } });
+      }
     } catch (error) {
       if (error instanceof UnresolvedVariableError) {
         setResponseState({ kind: "error", message: error.message });
-        return;
+      } else {
+        setResponseState({ kind: "error", message: error instanceof Error ? error.message : String(error) });
       }
-      setResponseState({ kind: "error", message: error instanceof Error ? error.message : String(error) });
       return;
     }
-
-    let finalAuthMode = requestToSend.authMode;
-    let finalAuthConfig = requestToSend.authConfig;
-    
-    // Check if request has a manually-set Authorization header
-    const hasManualAuthHeader = resolvedHeaders.some(h => 
-      h.key.toLowerCase() === 'authorization' && h.enabled
-    );
-
-    if (finalAuthMode === "none" && !hasManualAuthHeader) {
-      const inherited = getEffectiveAuth(requestToSend, scopeWorkspace);
-      if (inherited.mode !== "none") {
-        finalAuthMode = inherited.mode;
-        finalAuthConfig = inherited.config;
-      }
-    }
-
-    // variableMap already holds the scoped + secret-resolved values built above.
-    const resolvedAuth = resolveAuthConfig(finalAuthConfig ?? {}, variableMap);
-
-    // Automatically obtain OAuth 2.0 token if missing
-    if (finalAuthMode === "oauth2" && !resolvedAuth.token) {
-      try {
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Obtaining OAuth 2.0 token...", tone: "info" } }));
-        const token = await obtainOAuth2Token(resolvedAuth, variableMap);
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token obtained successfully!", tone: "success" } }));
-        
-        // Update the source of truth to persist the token
-        if (requestToSend.authMode === "oauth2") {
-          updateDraft({ authConfig: { ...requestToSend.authConfig, token } });
-        } else {
-          // If inherited, we don't automatically update folder/collection auth 
-          // to avoid unexpected side effects, but we use it for this request.
-        }
-      } catch (err) {
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
-        setResponseState({ kind: "error", message: "OAuth 2.0 token retrieval failed: " + (err instanceof Error ? err.message : String(err)) });
-        return;
-      }
-    }
-
-    const { url: authUrl, headers: authHeaders } = applyAuth(
-      finalAuthMode,
-      resolvedAuth,
-      resolvedUrl,
-      resolvedHeaders,
-    );
 
     setResponseState((current) => ({
       kind: "loading",
@@ -903,31 +820,22 @@ export function App() {
     scriptOutputEntries.push({
       type: "request",
       tone: "info",
-      message: `${effectiveMethod} ${authUrl}`,
+      message: `${executedRequest.method} ${executedRequest.url}`,
       request: {
-        method: effectiveMethod,
-        url: authUrl,
-        headers: authHeaders,
+        method: executedRequest.method,
+        url: executedRequest.url,
+        headers: executedRequest.headers,
         queryParams: requestToSend.queryParams || [],
-        body: resolvedBody,
-        authMode: finalAuthMode,
-        timeoutMs: requestToSend.timeoutMs,
-        followRedirects: requestToSend.followRedirects,
+        body: executedRequest.body,
+        authMode: requestToSend.authMode,
+        timeoutMs: executedRequest.timeoutMs,
+        followRedirects: executedRequest.followRedirects,
         timestamp: new Date().toISOString(),
       },
     });
 
     try {
-      const response = await executeHttpRequest({
-        method: effectiveMethod,
-        url: authUrl,
-        headers: authHeaders,
-        body: resolvedBody,
-        bodyMimeType: requestToSend.bodyMimeType,
-        bodyForm: requestToSend.bodyForm,
-        timeoutMs: requestToSend.timeoutMs,
-        followRedirects: requestToSend.followRedirects,
-      });
+      const response = await executeHttpRequest(executedRequest);
       // Auto-detect preview mode from content type
       if (response.contentType && typeof response.contentType === 'string') {
         const ct = response.contentType.toLowerCase();
@@ -1061,11 +969,10 @@ export function App() {
           error: (s as any).errMessage,
         }));
 
-      const historyUrl = redactAuthFromUrl(authUrl, finalAuthMode, resolvedAuth);
       void recordRequestHistory({
         requestId: requestToSend.id,
-        method: effectiveMethod,
-        url: historyUrl,
+        method: executedRequest.method,
+        url: historyUrlToSave,
         status: response.status,
         durationMs: response.durationMs,
         sizeBytes: response.sizeBytes,

@@ -60,16 +60,14 @@ test("send flow resolves variables before calling native HTTP", () => {
   const app = read("src/renderer/src/App.tsx");
 
   // Variables are resolved before the native send
-  assert.match(app, /resolveRequestVariables/);
+  assert.match(app, /prepareRequestForExecution/);
   assert.match(app, /UnresolvedVariableError/);
-  assert.match(app, /resolvedUrl/);
-  assert.match(app, /resolvedHeaders/);
-  assert.match(app, /resolvedBody/);
+  assert.match(app, /executedRequest/);
 
   // Native send receives resolved values, not raw template strings
-  assert.match(app, /url: auth(?:Url|ed)/);
-  assert.match(app, /headers: authHeaders/);
-  assert.match(app, /body: resolvedBody/);
+  assert.match(app, /url: executedRequest\.url/);
+  assert.match(app, /headers: executedRequest\.headers/);
+  assert.match(app, /body: executedRequest\.body/);
 });
 
 test("unresolved variables stop request execution and show error without calling native send", () => {
@@ -77,10 +75,10 @@ test("unresolved variables stop request execution and show error without calling
 
   // When resolution fails, an error is shown and the function returns
   // before reaching the executeHttpRequest call
-  const variableResolutionBlock = app.indexOf("resolveRequestVariables");
+  const variableResolutionBlock = app.indexOf("prepareRequestForExecution");
   const nativeSendBlock = app.indexOf("executeHttpRequest(", variableResolutionBlock);
 
-  assert.ok(variableResolutionBlock > -1, "resolveRequestVariables must appear in App.tsx");
+  assert.ok(variableResolutionBlock > -1, "prepareRequestForExecution must appear in App.tsx");
   assert.ok(nativeSendBlock > variableResolutionBlock, "native send must come after variable resolution");
 
   // The catch block for variable resolution sets error state and returns early
@@ -109,7 +107,7 @@ test("resolved URL is recorded in request history instead of template URL", () =
 
   // recordRequestHistory should use the resolved/redacted URL (never the raw template)
   const historyBlock = app.slice(app.indexOf("recordRequestHistory"));
-  assert.match(historyBlock, /url: (?:resolvedUrl|historyUrl)/);
+  assert.match(historyBlock, /url: (?:historyUrlToSave)/);
 });
 
 test("header variables resolve only for enabled headers", () => {

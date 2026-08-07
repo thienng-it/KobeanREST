@@ -6,13 +6,14 @@ import {
 } from "lucide-react";
 import type { SavedRequest, WorkspaceSummary, ExecuteHttpResponse } from "../types";
 import { executeHttpRequest } from "../services/http-client";
-import { buildScopedVariableMap, resolveRequestFields, resolveString, UnresolvedVariableError, injectAsyncVariables } from "../services/variables";
-import { applyAuth, resolveAuthConfig, obtainOAuth2Token } from "../services/auth";
+import { prepareRequestForExecution } from "../services/request-executor";
+import { resolveString, buildScopedVariableMap } from "../services/variables";
 import { getScripts, recordRequestHistory, loadCollectionRuns, loadCollectionRunDetails } from "../services/local-store";
 import type { KbScriptContext } from "../services/script-runtime";
 import { formatResponseBody } from "../response-utils";
 import { RunnerHeader } from "./runner/RunnerHeader";
 import { RunnerHistoryView } from "./runner/RunnerHistoryView";
+import { CustomSelect } from "./CustomSelect";
 
 export interface CollectionRunnerProps {
   workspace: WorkspaceSummary;
@@ -56,6 +57,7 @@ export function CollectionRunner({
   const [finished, setFinished] = useState(false);
   const [delay, setDelay] = useState(0);
   const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
+  const [runEnvId, setRunEnvId] = useState<string | null>(workspace.activeEnvironment);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"new-run" | "history">("new-run");
   const [pastRuns, setPastRuns] = useState<import("../types").CollectionRunSummary[]>([]);
@@ -322,107 +324,16 @@ export function CollectionRunner({
     }
 
     const requestToSend = preScriptsCtx.request;
-    let resolvedUrl: string;
-    let resolvedHeaders: Array<{ key: string; value: string; enabled: boolean }>;
-    let resolvedBody: string | undefined;
+    let executedRequest;
+    let historyUrlToSave = "";
 
     try {
-      const textsToScan = [
-        requestToSend.url, 
-        requestToSend.body, 
-        ...requestToSend.headers.map((h: any) => h.value),
-        // Also scan auth config fields for $response variables
-        requestToSend.authConfig?.token,
-        requestToSend.authConfig?.username,
-        requestToSend.authConfig?.password,
-        requestToSend.authConfig?.keyValue,
-        requestToSend.authConfig?.clientId,
-        requestToSend.authConfig?.clientSecret,
-        requestToSend.authConfig?.accessTokenUrl,
-        requestToSend.authConfig?.scope,
-        requestToSend.authConfig?.audience,
-      ];
-      await injectAsyncVariables(variableMap, textsToScan, runWorkspace, inMemoryResponses);
-
-      // Log what's in the map
-      const $responseVars = Array.from(variableMap.keys()).filter(k => k.startsWith('$response'));
-
-      const resolved = resolveRequestFields(variableMap, requestToSend.url, requestToSend.headers, requestToSend.body);
-      resolvedUrl = resolved.url;
-      resolvedHeaders = resolved.headers;
-      resolvedBody = resolved.body;
-      
-      // Log the resolved headers
-      const authHeader = resolvedHeaders.find(h => h.key.toLowerCase() === 'authorization');
-
+      const { request, historyUrl } = await prepareRequestForExecution(requestToSend, runWorkspace, variableMap, inMemoryResponses);
+      executedRequest = request;
+      historyUrlToSave = historyUrl;
     } catch (err) {
       return { request: req, status: "failed", error: err instanceof Error ? err.message : String(err) };
     }
-
-    let finalAuthMode = requestToSend.authMode;
-    let finalAuthConfig = requestToSend.authConfig;
-
-    // Check if request has a manually-set Authorization header that might contain variables
-    const hasManualAuthHeader = resolvedHeaders.some(h => 
-      h.key.toLowerCase() === 'authorization' && h.enabled
-    );
-    
-    // Check if request has auth config with values set (e.g., bearer token with $response variable)
-    const hasAuthConfigWithValues = finalAuthConfig && (
-      finalAuthConfig.token || 
-      finalAuthConfig.username || 
-      finalAuthConfig.password || 
-      finalAuthConfig.keyValue
-    );
-    
-    if (finalAuthMode === "none") {
-      // Don't inherit auth if:
-      // 1. Request has a manual Authorization header in Headers tab, OR
-      // 2. Request has auth config values set (even though mode is "none")
-      if (!hasManualAuthHeader && !hasAuthConfigWithValues) {
-        if (folder && folder.authMode && folder.authMode !== "none") {
-          finalAuthMode = folder.authMode;
-          finalAuthConfig = folder.authConfig || {};
-        } else if (collectionId) {
-          const coll = runWorkspace.collections?.find((c) => c.id === collectionId);
-          if (coll?.authMode && coll.authMode !== "none") {
-            finalAuthMode = coll.authMode;
-            finalAuthConfig = coll.authConfig || {};
-          }
-        }
-      }
-    }
-
-    const resolvedAuth = resolveAuthConfig(finalAuthConfig ?? {}, variableMap);
-    if (finalAuthMode === "oauth2" && !resolvedAuth.token) {
-      try {
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Obtaining OAuth 2.0 token...", tone: "info" } }));
-        const token = await obtainOAuth2Token(resolvedAuth, variableMap);
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token obtained successfully!", tone: "success" } }));
-        resolvedAuth.token = token;
-      } catch (err) {
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
-        // proceed without token
-      }
-    }
-
-    const effectiveMethod =
-      requestToSend.method === "CUSTOM"
-        ? (requestToSend.customMethod?.trim().toUpperCase() || "CUSTOM")
-        : requestToSend.method;
-
-    const { url: authUrl, headers: authHeaders } = applyAuth(finalAuthMode, resolvedAuth, resolvedUrl, resolvedHeaders);
-
-    const executedRequest = {
-      method: effectiveMethod,
-      url: authUrl,
-      headers: authHeaders,
-      body: resolvedBody,
-      bodyMimeType: requestToSend.bodyMimeType,
-      bodyForm: requestToSend.bodyForm,
-      timeoutMs: requestToSend.timeoutMs,
-      followRedirects: requestToSend.followRedirects,
-    };
 
     const start = performance.now();
     try {
@@ -511,8 +422,8 @@ export function CollectionRunner({
       // Record to history
       void recordRequestHistory({
         requestId: req.id,
-        method: effectiveMethod,
-        url: authUrl,
+        method: executedRequest.method,
+        url: historyUrlToSave,
         status: response.status,
         durationMs,
         sizeBytes: response.sizeBytes,
@@ -549,6 +460,9 @@ export function CollectionRunner({
     const runWorkspace = workspace 
       ? (JSON.parse(JSON.stringify(workspace)) as WorkspaceSummary)
       : workspace;
+    if (runWorkspace && runEnvId !== null) {
+      runWorkspace.activeEnvironment = runEnvId;
+    }
 
     const toRun = allRequests.current.filter((r) => selectedIds.has(r.id));
     const initial: RequestResult[] = allRequests.current.map((r) => ({
@@ -778,6 +692,29 @@ export function CollectionRunner({
                   </button>
                 );
               })}
+            </div>
+
+            {/* Environment config */}
+            <div style={{
+              padding: "12px 16px",
+              borderTop: "1px solid var(--color-border)",
+              display: "flex", flexDirection: "column", gap: "8px",
+            }}>
+              <label style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                Environment
+              </label>
+              <CustomSelect
+                value={runEnvId || ""}
+                onChange={(val) => setRunEnvId(val || null)}
+                options={[
+                  { value: "", label: "(No Environment)" },
+                  ...(workspace?.environments?.map((env) => ({
+                    value: env.name,
+                    label: env.name,
+                  })) || [])
+                ]}
+                disabled={isRunning}
+              />
             </div>
 
             {/* Delay config */}
