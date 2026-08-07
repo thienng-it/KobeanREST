@@ -336,8 +336,186 @@ function HashGenerator() {
   );
 }
 
+function LocalMockServerView() {
+  const [running, setRunning] = useState(false);
+  const [port, setPort] = useState(3010);
+  const [requestCount, setRequestCount] = useState(0);
+  const [logs, setLogs] = useState<string[]>([]);
+
+  const handleToggle = async () => {
+    if (running) {
+      const { stopLocalMockServer } = await import("../services/local-store");
+      await stopLocalMockServer();
+      setRunning(false);
+      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Mock server stopped.`]);
+    } else {
+      const { startLocalMockServer } = await import("../services/local-store");
+      const actualPort = await startLocalMockServer(port);
+      setPort(actualPort);
+      setRunning(true);
+      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Mock server listening on http://127.0.0.1:${actualPort}`]);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>Local Mock Server Engine</h3>
+          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--color-text-muted)" }}>
+            Spin up a local HTTP mock server listening natively on your device.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleToggle}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "6px",
+            border: "none",
+            fontWeight: "600",
+            fontSize: "13px",
+            cursor: "pointer",
+            backgroundColor: running ? "#ef4444" : "#10b981",
+            color: "#ffffff"
+          }}
+        >
+          {running ? "Stop Mock Server" : "Start Mock Server"}
+        </button>
+      </div>
+
+      <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+        <label style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+          Port:
+          <input
+            type="number"
+            value={port}
+            onChange={(e) => setPort(Number(e.target.value))}
+            disabled={running}
+            style={{
+              marginLeft: "8px",
+              padding: "4px 8px",
+              borderRadius: "4px",
+              border: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-bg)",
+              color: "var(--color-text)",
+              width: "90px"
+            }}
+          />
+        </label>
+        <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+          Status: <strong style={{ color: running ? "#10b981" : "var(--color-text-muted)" }}>{running ? "ACTIVE" : "STOPPED"}</strong>
+        </span>
+      </div>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+        <label style={{ fontSize: "12px", fontWeight: "600", color: "var(--color-text)", textTransform: "uppercase" }}>
+          Server Event Log
+        </label>
+        <pre className="api-tools-pre" style={{ flex: 1, overflowY: "auto", margin: 0 }}>
+          {logs.length === 0 ? "// Mock server logs will appear here..." : logs.join("\n")}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+function OpenApiEngineView() {
+  const [spec, setSpec] = useState("");
+
+  const handleExport = async () => {
+    const { exportOpenApiSpec } = await import("../services/local-store");
+    const result = await exportOpenApiSpec(undefined, "KobeanREST Workspace API");
+    setSpec(result.spec_json);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>OpenAPI 3.0 Spec Engine</h3>
+          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--color-text-muted)" }}>
+            Generate compliant OpenAPI 3.0.3 specification documents from your collections.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleExport}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "6px",
+            border: "1px solid var(--color-border)",
+            backgroundColor: "var(--color-surface-hover)",
+            color: "var(--color-text)",
+            fontWeight: "600",
+            fontSize: "13px",
+            cursor: "pointer"
+          }}
+        >
+          Generate OpenAPI 3.0 Spec
+        </button>
+      </div>
+
+      <textarea
+        className="api-tools-textarea"
+        style={{ flex: 1 }}
+        readOnly
+        placeholder="Click Generate to produce OpenAPI 3.0.3 JSON specification..."
+        value={spec}
+      />
+    </div>
+  );
+}
+
+function McpServerView() {
+  const [manifest, setManifest] = useState("");
+
+  const handleExportManifest = async () => {
+    const { exportMcpManifest } = await import("../services/local-store");
+    const result = await exportMcpManifest();
+    setManifest(result.manifest_json);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>AI Assistant MCP Server</h3>
+          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--color-text-muted)" }}>
+            Expose KobeanREST requests & environments to LLMs / AI assistants via Model Context Protocol.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleExportManifest}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "6px",
+            border: "1px solid var(--color-border)",
+            backgroundColor: "var(--color-surface-hover)",
+            color: "var(--color-text)",
+            fontWeight: "600",
+            fontSize: "13px",
+            cursor: "pointer"
+          }}
+        >
+          Get MCP Manifest
+        </button>
+      </div>
+
+      <textarea
+        className="api-tools-textarea"
+        style={{ flex: 1 }}
+        readOnly
+        placeholder="Click Get MCP Manifest to view tool declarations..."
+        value={manifest}
+      />
+    </div>
+  );
+}
+
 export function ApiToolsModal({ open, onClose }: ApiToolsModalProps) {
-  const [activeTab, setActiveTab] = useState<"jwt" | "encode" | "json" | "hash">("jwt");
+  const [activeTab, setActiveTab] = useState<"jwt" | "encode" | "json" | "hash" | "mock" | "openapi" | "mcp">("jwt");
 
   if (!open) return null;
 
@@ -346,6 +524,9 @@ export function ApiToolsModal({ open, onClose }: ApiToolsModalProps) {
     { id: "encode", label: "Encode / Decode", icon: <Code size={14} /> },
     { id: "json", label: "JSON Formatter", icon: <Braces size={14} /> },
     { id: "hash", label: "Hash Generator", icon: <Lock size={14} /> },
+    { id: "mock", label: "Mock Server", icon: <Code size={14} /> },
+    { id: "openapi", label: "OpenAPI 3.0", icon: <Braces size={14} /> },
+    { id: "mcp", label: "MCP Protocol", icon: <Key size={14} /> },
   ] as const;
 
   return (
@@ -399,6 +580,9 @@ export function ApiToolsModal({ open, onClose }: ApiToolsModalProps) {
             {activeTab === "encode" && <EncoderDecoder />}
             {activeTab === "json" && <JsonFormatter />}
             {activeTab === "hash" && <HashGenerator />}
+            {activeTab === "mock" && <LocalMockServerView />}
+            {activeTab === "openapi" && <OpenApiEngineView />}
+            {activeTab === "mcp" && <McpServerView />}
           </div>
         </div>
       </div>
