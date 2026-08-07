@@ -51,7 +51,7 @@ export function EnvironmentEditor({
   onUpdateCollectionDefaultEnvironment,
 }: EnvironmentEditorProps) {
   const toEditable = (vars: EnvironmentVariable[]): EditableVariable[] =>
-    vars.map((v, i) => ({ ...v, _id: `${v.key}-${i}` }));
+    vars.map((v) => ({ ...v, _id: Math.random().toString(36).slice(2) }));
 
   const [editingVars, setEditingVars] = useState<EditableVariable[]>(
     () => toEditable(variables)
@@ -63,7 +63,18 @@ export function EnvironmentEditor({
   const [bulkText, setBulkText] = useState("");
 
   React.useEffect(() => {
-    setEditingVars(toEditable(variables));
+    // Only resync if the incoming variables differ from our locally managed, persistent state.
+    // This prevents wiping out local `_id`s (and losing input focus) on every keystroke.
+    setEditingVars((prev) => {
+      const currentSaved = prev
+        .filter((v) => v.key.trim() !== "")
+        .map(({ _id, ...rest }) => rest);
+      
+      if (JSON.stringify(currentSaved) !== JSON.stringify(variables)) {
+        return toEditable(variables);
+      }
+      return prev;
+    });
   }, [variables]);
 
   React.useEffect(() => {
@@ -87,10 +98,6 @@ export function EnvironmentEditor({
         const updated = prev.map((v) => {
           if (v._id !== id) return v;
           const patch: Partial<EditableVariable> = { [field]: value };
-          // Auto-mask when a key is renamed to something sensitive
-          if (field === "key" && typeof value === "string" && isSensitiveKey(value)) {
-            patch.masked = true;
-          }
           return { ...v, ...patch };
         });
         persistChanges(updated);
@@ -499,6 +506,11 @@ export function EnvironmentEditor({
                       className="headers-row-input-field"
                       value={v.key}
                       onChange={(e) => updateVariable(v._id, "key", e.target.value)}
+                      onBlur={(e) => {
+                        if (isSensitiveKey(e.target.value) && !v.masked) {
+                          updateVariable(v._id, "masked", true);
+                        }
+                      }}
                       placeholder="Variable name"
                       style={{
                         width: "100%",

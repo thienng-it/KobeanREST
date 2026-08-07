@@ -89,16 +89,18 @@ export function buildVariableMap(
   return map;
 }
 
-export function buildScopedVariableMap(
+export function buildScopedVariableObjects(
   workspace: WorkspaceSummary,
   scope: { collectionId?: string; folderId?: string; requestId?: string; request?: import("../types").SavedRequest },
-): Map<string, string> {
-  const map = new Map<string, string>();
+): Map<string, EnvironmentVariable> {
+  const map = new Map<string, EnvironmentVariable>();
 
-  const ingest = (vars: { key: string; value: string }[] | undefined) => {
+  const ingest = (vars: EnvironmentVariable[] | undefined) => {
     if (!vars) return;
     for (const v of vars) {
-      map.set(v.key, v.value);
+      if (v.key) {
+        map.set(v.key, { ...v });
+      }
     }
   };
 
@@ -156,13 +158,25 @@ export function buildScopedVariableMap(
   return map;
 }
 
+export function buildScopedVariableMap(
+  workspace: WorkspaceSummary,
+  scope: { collectionId?: string; folderId?: string; requestId?: string; request?: import("../types").SavedRequest },
+): Map<string, string> {
+  const objMap = buildScopedVariableObjects(workspace, scope);
+  const map = new Map<string, string>();
+  for (const [key, variable] of objMap.entries()) {
+    map.set(key, variable.value);
+  }
+  return map;
+}
+
 export function activeScopedVariablesList(
   workspace: WorkspaceSummary | null,
   scope: { collectionId?: string; folderId?: string; requestId?: string; request?: import("../types").SavedRequest },
 ): EnvironmentVariable[] {
   if (!workspace) return [];
-  const map = buildScopedVariableMap(workspace, scope);
-  const vars = Array.from(map.entries()).map(([key, value]) => ({ key, value, secret: false }));
+  const map = buildScopedVariableObjects(workspace, scope);
+  const vars = Array.from(map.values());
 
   for (const key of Object.keys(DYNAMIC_VARIABLES)) {
     vars.push({ key, value: "(Dynamic Generator)", secret: false });
@@ -201,6 +215,9 @@ export function resolveString(
 ): VariableResolutionResult {
   const usedVariables: string[] = [];
 
+  // Reset lastIndex — VARIABLE_PATTERN is a shared g-flag regex; reusing it without
+  // resetting causes .replace() to start mid-string on subsequent calls.
+  VARIABLE_PATTERN.lastIndex = 0;
   const resolved = text.replace(VARIABLE_PATTERN, (fullMatch, rawName: string) => {
     const name = rawName.trim();
     if (variableMap.has(name)) {
@@ -248,6 +265,8 @@ export function resolveStringSafe(
   text: string,
   variableMap: Map<string, string>,
 ): string {
+  // Reset lastIndex before use to avoid stale state from previous calls.
+  VARIABLE_PATTERN.lastIndex = 0;
   return text.replace(VARIABLE_PATTERN, (fullMatch, rawName: string) => {
     const name = rawName.trim();
     if (variableMap.has(name)) {
@@ -270,7 +289,8 @@ export function resolveStringSafe(
  * Check whether a string contains any `{{...}}` variable references.
  */
 export function containsVariables(text: string): boolean {
-  return VARIABLE_PATTERN.test(text);
+  // Use a non-global regex so .test() is stateless (g-flag .test() advances lastIndex).
+  return /\{\{[^{}]+\}\}/.test(text);
 }
 
 export interface ResolvedRequestFields {

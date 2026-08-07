@@ -35,11 +35,34 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
 
       return {
         from: word.from,
-        options: variables.map(v => ({
-          label: `{{${v}}}`,
-          type: 'variable',
-          detail: 'Environment Variable'
-        }))
+        options: variables.map(v => {
+          if (v.startsWith("$response")) {
+            return {
+              label: `{{${v}}}`,
+              type: 'chain',
+              detail: 'Chain Request',
+              apply: (view: EditorView, completion: any, from: number, to: number) => {
+                window.dispatchEvent(
+                  new CustomEvent("open-chain-modal", {
+                    detail: {
+                      initialValue: "",
+                      onSave: (newKey: string) => {
+                        view.dispatch({
+                          changes: { from, to, insert: `{{${newKey}}}` }
+                        });
+                      }
+                    }
+                  })
+                );
+              }
+            };
+          }
+          return {
+            label: `{{${v}}}`,
+            type: 'variable',
+            detail: 'Environment Variable'
+          };
+        })
       };
     };
 

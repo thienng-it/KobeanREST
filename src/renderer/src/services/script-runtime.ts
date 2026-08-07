@@ -550,6 +550,8 @@ function buildKbObject(
   console: ScriptConsole,
   asyncTests: Promise<void>[]
 ) {
+  let activeTestCount = 0;
+
   return {
     request: buildKbRequest(ctx.request),
     response: ctx.response ? buildKbResponse(ctx.response) : undefined,
@@ -575,6 +577,7 @@ function buildKbObject(
       return p;
     },
     test: (name: string, fn: () => void | Promise<void>) => {
+      activeTestCount++;
       try {
         const result = fn();
         if (result instanceof Promise) {
@@ -584,13 +587,17 @@ function buildKbObject(
           }).catch((err) => {
             if (console.testResult) console.testResult(false, name, err.message || String(err));
             else console.error(`❌ FAIL: ${name} | ${err.message || String(err)}`);
+          }).finally(() => {
+            activeTestCount--;
           });
           asyncTests.push(promise);
         } else {
+          activeTestCount--;
           if (console.testResult) console.testResult(true, name);
           else console.log(`✅ PASS: ${name}`);
         }
       } catch (err: any) {
+        activeTestCount--;
         if (console.testResult) console.testResult(false, name, err.message || String(err));
         else console.error(`❌ FAIL: ${name} | ${err.message || String(err)}`);
       }
@@ -622,6 +629,9 @@ function buildKbObject(
         // Helpers
         _check: (condition: boolean, message: string) => {
           const shouldPass = chain._negate ? !condition : condition;
+          if (activeTestCount === 0 && console.testResult) {
+            console.testResult(shouldPass, `Assertion: ${message}`, shouldPass ? undefined : message);
+          }
           if (!shouldPass) throw new Error(message);
         },
 

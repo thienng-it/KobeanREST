@@ -155,6 +155,12 @@ pub struct RequestHistoryEntry {
     pub scope_name: Option<String>,
     #[serde(default)]
     pub test_passed: Option<bool>,
+    #[serde(default)]
+    pub passed_tests: Option<i64>,
+    #[serde(default)]
+    pub failed_tests: Option<i64>,
+    #[serde(default)]
+    pub test_results: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -204,6 +210,7 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     ensure_request_query_params_column(&connection)?;
     ensure_request_history_response_columns(&connection)?;
     ensure_request_history_run_id_column(&connection)?;
+    ensure_request_history_test_stats_columns(&connection)?;
     ensure_requests_fk_removed(&connection)?;
     ensure_collection_default_environment_column(&connection)?;
     seed_default_workspace(&mut connection)?;
@@ -348,6 +355,46 @@ fn ensure_request_history_response_columns(connection: &Connection) -> Result<()
         connection
             .execute("ALTER TABLE request_history ADD COLUMN response_body_base64 TEXT", [])
             .map_err(|error| format!("failed to add request_history.response_body_base64 column: {error}"))?;
+    }
+    Ok(())
+}
+
+fn ensure_request_history_test_stats_columns(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(request_history)")
+        .map_err(|error| format!("failed to inspect request_history table: {error}"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("failed to query request_history table info: {error}"))?;
+
+    let mut has_passed_tests = false;
+    let mut has_failed_tests = false;
+    let mut has_test_results = false;
+    for column in columns {
+        let col = column.map_err(|error| format!("failed to read request_history column: {error}"))?;
+        if col == "passed_tests" {
+            has_passed_tests = true;
+        } else if col == "failed_tests" {
+            has_failed_tests = true;
+        } else if col == "test_results" {
+            has_test_results = true;
+        }
+    }
+
+    if !has_passed_tests {
+        connection
+            .execute("ALTER TABLE request_history ADD COLUMN passed_tests INTEGER", [])
+            .map_err(|error| format!("failed to add request_history.passed_tests column: {error}"))?;
+    }
+    if !has_failed_tests {
+        connection
+            .execute("ALTER TABLE request_history ADD COLUMN failed_tests INTEGER", [])
+            .map_err(|error| format!("failed to add request_history.failed_tests column: {error}"))?;
+    }
+    if !has_test_results {
+        connection
+            .execute("ALTER TABLE request_history ADD COLUMN test_results TEXT", [])
+            .map_err(|error| format!("failed to add request_history.test_results column: {error}"))?;
     }
     Ok(())
 }
@@ -685,8 +732,11 @@ pub fn record_request_history(app: AppHandle, entry: RequestHistoryEntry) -> Res
                 run_id,
                 scope_id,
                 scope_name,
-                test_passed
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                test_passed,
+                passed_tests,
+                failed_tests,
+                test_results
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
             params![
                 workspace_id,
                 entry.request_id,
@@ -701,7 +751,10 @@ pub fn record_request_history(app: AppHandle, entry: RequestHistoryEntry) -> Res
                 entry.run_id,
                 entry.scope_id,
                 entry.scope_name,
-                entry.test_passed
+                entry.test_passed,
+                entry.passed_tests,
+                entry.failed_tests,
+                entry.test_results
             ],
         )
         .map_err(|error| format!("failed to record request history: {error}"))?;
@@ -724,6 +777,9 @@ pub struct HistoryEntry {
     pub scope_id: Option<String>,
     pub scope_name: Option<String>,
     pub test_passed: Option<bool>,
+    pub passed_tests: Option<i64>,
+    pub failed_tests: Option<i64>,
+    pub test_results: Option<String>,
     pub response_headers: Option<String>,
     pub response_body_text: Option<String>,
     pub response_body_base64: Option<String>,
@@ -736,7 +792,7 @@ pub fn load_request_history(app: AppHandle) -> Result<Vec<HistoryEntry>, String>
     let workspace_id = first_workspace_id(&connection)?;
     let mut statement = connection
         .prepare(
-            "SELECT id, request_id, method, url, status, duration_ms, size_bytes, created_at, run_id, scope_id, scope_name, test_passed, response_headers, response_body_text, response_body_base64
+            "SELECT id, request_id, method, url, status, duration_ms, size_bytes, created_at, run_id, scope_id, scope_name, test_passed, response_headers, response_body_text, response_body_base64, passed_tests, failed_tests, test_results
              FROM request_history
              WHERE workspace_id = ?1
              ORDER BY created_at DESC, id DESC
@@ -761,6 +817,9 @@ pub fn load_request_history(app: AppHandle) -> Result<Vec<HistoryEntry>, String>
                 response_headers: row.get(12)?,
                 response_body_text: row.get(13)?,
                 response_body_base64: row.get(14)?,
+                passed_tests: row.get(15)?,
+                failed_tests: row.get(16)?,
+                test_results: row.get(17)?,
             })
         })
         .map_err(|error| format!("failed to query history: {error}"))?;
@@ -826,6 +885,8 @@ pub struct CollectionRunSummary {
     pub total_requests: i64,
     pub passed_requests: i64,
     pub failed_requests: i64,
+    pub passed_tests: Option<i64>,
+    pub failed_tests: Option<i64>,
     pub total_duration_ms: i64,
 }
 
@@ -845,7 +906,9 @@ pub fn load_collection_runs(app: AppHandle, scope_id: String) -> Result<Vec<Coll
                 COUNT(*) as total_requests,
                 SUM(CASE WHEN COALESCE(test_passed, status < 400) = 1 THEN 1 ELSE 0 END) as passed_requests,
                 SUM(CASE WHEN COALESCE(test_passed, status < 400) = 0 THEN 1 ELSE 0 END) as failed_requests,
-                SUM(duration_ms) as total_duration_ms
+                SUM(duration_ms) as total_duration_ms,
+                SUM(passed_tests) as passed_tests,
+                SUM(failed_tests) as failed_tests
              FROM request_history
              WHERE workspace_id = ?1 AND run_id IS NOT NULL AND scope_id = ?2
              GROUP BY run_id
@@ -865,6 +928,8 @@ pub fn load_collection_runs(app: AppHandle, scope_id: String) -> Result<Vec<Coll
                 passed_requests: row.get(5)?,
                 failed_requests: row.get(6)?,
                 total_duration_ms: row.get(7)?,
+                passed_tests: row.get(8)?,
+                failed_tests: row.get(9)?,
             })
         })
         .map_err(|error| format!("failed to query collection runs: {error}"))?;
@@ -879,7 +944,7 @@ pub fn load_collection_run_details(app: AppHandle, run_id: String) -> Result<Vec
     
     let mut statement = connection
         .prepare(
-            "SELECT id, request_id, method, url, status, duration_ms, size_bytes, created_at, run_id, scope_id, scope_name, test_passed, response_headers, response_body_text, response_body_base64
+            "SELECT id, request_id, method, url, status, duration_ms, size_bytes, created_at, run_id, scope_id, scope_name, test_passed, response_headers, response_body_text, response_body_base64, passed_tests, failed_tests, test_results
              FROM request_history
              WHERE run_id = ?1
              ORDER BY id ASC",
@@ -904,6 +969,9 @@ pub fn load_collection_run_details(app: AppHandle, run_id: String) -> Result<Vec
                 response_headers: row.get(12)?,
                 response_body_text: row.get(13)?,
                 response_body_base64: row.get(14)?,
+                passed_tests: row.get(15)?,
+                failed_tests: row.get(16)?,
+                test_results: row.get(17)?,
             })
         })
         .map_err(|error| format!("failed to query run details: {error}"))?;

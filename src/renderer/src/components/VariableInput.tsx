@@ -290,6 +290,11 @@ export function VariableInput({
     startOffset: number;
   } | null>(null);
 
+  // Keep a stable ref so checkAutocomplete callbacks (setTimeout etc.) always
+  // read the latest activeVariables rather than a stale closure copy.
+  const activeVariablesRef = useRef(activeVariables);
+  useEffect(() => { activeVariablesRef.current = activeVariables; }, [activeVariables]);
+
   const [suggestionState, setSuggestionState] = useState<{
     open: boolean;
     selectedIndex: number;
@@ -379,7 +384,7 @@ export function VariableInput({
     const match = beforeCursor.match(/\{\{([^{}]*)$/);
     if (match) {
       const prefix = match[1].toLowerCase();
-      const options = activeVariables.filter((v) => v.key.toLowerCase().includes(prefix));
+      const options = activeVariablesRef.current.filter((v) => v.key.toLowerCase().includes(prefix));
       if (options.length > 0) {
         setAutocomplete((prev) => ({
           prefix,
@@ -400,6 +405,35 @@ export function VariableInput({
     const val = strValue;
     const start = autocomplete.startOffset;
     const cursor = el.selectionStart ?? start + 2;
+
+    // $response entry → open the Chain Request modal instead of inserting raw key
+    if (variable.key.startsWith("$response")) {
+      setAutocomplete(null);
+      window.dispatchEvent(
+        new CustomEvent("open-chain-modal", {
+          detail: {
+            initialValue: "",
+            onSave: (newKey: string) => {
+              const newVal = val.slice(0, start) + "{{" + newKey + "}}" + val.slice(cursor);
+              if (onChange) {
+                const syntheticEvent = { target: { value: newVal } } as any;
+                onChange(syntheticEvent);
+              }
+              setTimeout(() => {
+                const currentEl = inputRef.current || (backdropRef.current?.parentElement?.querySelector("textarea") as HTMLTextAreaElement);
+                if (currentEl) {
+                  const newCursor = start + 4 + newKey.length;
+                  currentEl.setSelectionRange(newCursor, newCursor);
+                  currentEl.focus();
+                }
+              }, 0);
+            },
+          },
+        })
+      );
+      return;
+    }
+
     const newVal = val.slice(0, start) + "{{" + variable.key + "}}" + val.slice(cursor);
 
     if (onChange) {
@@ -841,16 +875,20 @@ export function VariableInput({
                   onClick={() => applyAutocomplete(item)}
                   onMouseEnter={() => setAutocomplete((prev) => prev ? { ...prev, selectedIndex: index } : null)}
                 >
-                  {item.color ? (
+                  {item.key.startsWith("$response") ? (
+                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-accent-dim, #1e3a5f)", color: "var(--color-accent, #60a5fa)", letterSpacing: "0.3px" }}>
+                      CHAIN
+                    </span>
+                  ) : item.color ? (
                     <span className="env-color-dot" style={{ background: item.color, flexShrink: 0 }} />
                   ) : (
                     <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-primary-dim)", color: "var(--color-primary)" }}>
                       VAR
                     </span>
                   )}
-                  <span className="input-suggestion-text">{item.key}</span>
+                  <span className="input-suggestion-text">{item.key.startsWith("$response") ? "Chain Request ($response)" : item.key}</span>
                   <span className="input-suggestion-value" style={{ marginLeft: "auto", fontSize: "11px", color: "var(--color-text-dim)" }}>
-                    {item.secret ? "••••" : item.value}
+                    {item.key.startsWith("$response") ? "Extract from response" : (item.secret ? "••••" : item.value)}
                   </span>
                 </button>
               );
@@ -911,6 +949,11 @@ export function VariableTextarea({
     startOffset: number;
   } | null>(null);
 
+  // Keep a stable ref so checkAutocomplete callbacks (setTimeout etc.) always
+  // read the latest activeVariables rather than a stale closure copy.
+  const activeVariablesRef = useRef(activeVariables);
+  useEffect(() => { activeVariablesRef.current = activeVariables; }, [activeVariables]);
+
   const cancelCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
       clearTimeout(closeTimerRef.current);
@@ -957,7 +1000,7 @@ export function VariableTextarea({
     const match = beforeCursor.match(/\{\{([^{}]*)$/);
     if (match) {
       const prefix = match[1].toLowerCase();
-      const options = activeVariables.filter((v) => v.key.toLowerCase().includes(prefix));
+      const options = activeVariablesRef.current.filter((v) => v.key.toLowerCase().includes(prefix));
       if (options.length > 0) {
         setAutocomplete((prev) => ({
           prefix,
@@ -978,6 +1021,35 @@ export function VariableTextarea({
     const val = strValue;
     const start = autocomplete.startOffset;
     const cursor = el.selectionStart ?? start + 2;
+
+    // $response entry → open the Chain Request modal instead of inserting raw key
+    if (variable.key.startsWith("$response")) {
+      setAutocomplete(null);
+      window.dispatchEvent(
+        new CustomEvent("open-chain-modal", {
+          detail: {
+            initialValue: "",
+            onSave: (newKey: string) => {
+              const newVal = val.slice(0, start) + "{{" + newKey + "}}" + val.slice(cursor);
+              if (onChange) {
+                const syntheticEvent = { target: { value: newVal } } as any;
+                onChange(syntheticEvent);
+              }
+              setTimeout(() => {
+                const currentEl = textareaRef.current;
+                if (currentEl) {
+                  const newCursor = start + 4 + newKey.length;
+                  currentEl.setSelectionRange(newCursor, newCursor);
+                  currentEl.focus();
+                }
+              }, 0);
+            },
+          },
+        })
+      );
+      return;
+    }
+
     const newVal = val.slice(0, start) + "{{" + variable.key + "}}" + val.slice(cursor);
 
     if (onChange) {
@@ -1287,12 +1359,18 @@ export function VariableTextarea({
                   onClick={() => applyAutocomplete(item)}
                   onMouseEnter={() => setAutocomplete((prev) => prev ? { ...prev, selectedIndex: index } : null)}
                 >
-                  <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-primary-dim)", color: "var(--color-primary)" }}>
-                    VAR
-                  </span>
-                  <span className="input-suggestion-text">{item.key}</span>
+                  {item.key.startsWith("$response") ? (
+                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-accent-dim, #1e3a5f)", color: "var(--color-accent, #60a5fa)", letterSpacing: "0.3px" }}>
+                      CHAIN
+                    </span>
+                  ) : (
+                    <span className="input-suggestion-badge" style={{ backgroundColor: "var(--color-primary-dim)", color: "var(--color-primary)" }}>
+                      VAR
+                    </span>
+                  )}
+                  <span className="input-suggestion-text">{item.key.startsWith("$response") ? "Chain Request ($response)" : item.key}</span>
                   <span className="input-suggestion-value" style={{ marginLeft: "auto", fontSize: "11px", color: "var(--color-text-dim)" }}>
-                    {item.secret ? "••••" : item.value}
+                    {item.key.startsWith("$response") ? "Extract from response" : (item.secret ? "••••" : item.value)}
                   </span>
                 </button>
               );

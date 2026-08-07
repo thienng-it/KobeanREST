@@ -6756,3 +6756,62 @@ select:focus-visible,
   background: rgba(15, 23, 42, 0.8) !important;
   border-color: var(--color-accent) !important;
 }
+
+.api-tools-textarea {
+  display: block;
+  width: 100%;
+  resize: none;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-input-bg, var(--color-surface-muted));
+  color: var(--color-text);
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.api-tools-textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-glow);
+}
+
+.api-tools-textarea::placeholder {
+  color: var(--color-muted);
+  opacity: 0.7;
+}
+
+.api-tools-pre {
+  margin: 0;
+  padding: 16px;
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--color-text);
+}
+.cm-completionIcon-chain {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1 !important;
+}
+
+.cm-completionIcon-chain::after {
+  content: "CHAIN";
+  background-color: var(--color-accent-dim, #1e3a5f);
+  color: var(--color-accent, #60a5fa);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+  margin-right: 4px;
+  position: relative;
+  top: -1px;
+}

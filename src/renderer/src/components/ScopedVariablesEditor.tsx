@@ -66,6 +66,8 @@ export function ScopedVariablesEditor({
   const [editingField, setEditingField] = useState<"key" | "value" | null>(null);
   const [editingKeyDraft, setEditingKeyDraft] = useState("");
   const [editingValueDraft, setEditingValueDraft] = useState("");
+  
+  const [newKeyBlurred, setNewKeyBlurred] = useState("");
 
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
@@ -130,6 +132,7 @@ export function ScopedVariablesEditor({
     if (!newKey.trim()) return;
     await onSave(entityId, entityType, newKey.trim(), newValue);
     setNewKey("");
+    setNewKeyBlurred("");
     setNewValue("");
   }
 
@@ -255,7 +258,7 @@ export function ScopedVariablesEditor({
                         className="env-inline-input"
                         value={editingValueDraft}
                         aria-label="Edit value"
-                        type={isSensitiveKey(editingKeyDraft) && !(visibleValues[v.key] ?? showValues) ? "password" : "text"}
+                        type={isSensitiveKey(v.key) && !(visibleValues[v.key] ?? showValues) ? "password" : "text"}
                         spellCheck={false}
                         autoCorrect="off"
                         autoCapitalize="off"
@@ -345,6 +348,7 @@ export function ScopedVariablesEditor({
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
+                onBlur={() => setNewKeyBlurred(newKey)}
                 onKeyDown={(e) => { if (e.key === "Enter") void handleAdd(); }}
               />
               <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -354,7 +358,7 @@ export function ScopedVariablesEditor({
                   onChange={(e) => setNewValue(e.target.value)}
                   placeholder="Value"
                   aria-label="New variable value"
-                  type={isSensitiveKey(newKey) && !showNewValue ? "password" : "text"}
+                  type={isSensitiveKey(newKeyBlurred) && !showNewValue ? "password" : "text"}
                   spellCheck={false}
                   autoCorrect="off"
                   autoCapitalize="off"

@@ -18,6 +18,7 @@ interface CustomSelectProps {
   ariaLabel?: string;
   disabled?: boolean;
   variant?: "default" | "ghost";
+  searchable?: boolean;
 }
 
 export function CustomSelect({
@@ -28,12 +29,15 @@ export function CustomSelect({
   className = "",
   ariaLabel,
   disabled = false,
-  variant = "default"
+  variant = "default",
+  searchable = false
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number; width: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value);
 
@@ -64,6 +68,7 @@ export function CustomSelect({
         !(targetNode as Element)?.closest?.(".custom-select-dropdown")
       ) {
         setIsOpen(false);
+        setSearchQuery("");
       }
     }
     function handleKeyDown(event: KeyboardEvent) {
@@ -83,6 +88,11 @@ export function CustomSelect({
       window.addEventListener("scroll", handleScrollOrResize, true);
       window.addEventListener("resize", handleScrollOrResize);
     }
+    
+    if (isOpen && searchable && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+    
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
@@ -132,7 +142,30 @@ export function CustomSelect({
       {isOpen &&
         createPortal(
           <div className="custom-select-dropdown" style={dropdownStyle}>
-            {options.map((opt) => {
+            {searchable && (
+              <div style={{ padding: "8px", borderBottom: "1px solid var(--color-border)" }}>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "6px 8px",
+                    borderRadius: "4px",
+                    border: "1px solid var(--color-border)",
+                    backgroundColor: "var(--color-bg)",
+                    color: "var(--color-text)",
+                    fontSize: "12px",
+                    outline: "none"
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            )}
+            <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+            {options.filter(opt => !searchQuery || opt.label.toLowerCase().includes(searchQuery.toLowerCase())).map((opt) => {
               const isSelected = opt.value === value;
               return (
                 <button
@@ -142,6 +175,7 @@ export function CustomSelect({
                   onClick={() => {
                     onChange(opt.value);
                     setIsOpen(false);
+                    setSearchQuery("");
                   }}
                 >
                   <span className="custom-select-option-label">
@@ -155,6 +189,7 @@ export function CustomSelect({
                 </button>
               );
             })}
+            </div>
           </div>,
           document.body
         )}

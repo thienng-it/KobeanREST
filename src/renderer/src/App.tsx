@@ -33,7 +33,7 @@ import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { FolderEditor } from "./components/FolderEditor";
 import { CollectionEditor } from "./components/CollectionEditor";
 import { UniversalImportModal } from "./components/UniversalImportModal";
-import { JwtDecoderModal } from "./components/JwtDecoderModal";
+import { ApiToolsModal } from "./components/ApiToolsModal";
 import { applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token, getEffectiveAuth } from "./services/auth";
 import { CollectionRunner } from "./components/CollectionRunner";
 
@@ -114,7 +114,7 @@ export function App() {
   const [collectionEditorTarget, setCollectionEditorTarget] = useState<string>("");
   const [curlImportOpen, setCurlImportOpen] = useState(false);
   const [createRequestModalOpen, setCreateRequestModalOpen] = useState(false);
-  const [jwtDecoderOpen, setJwtDecoderOpen] = useState(false);
+  const [apiToolsOpen, setApiToolsOpen] = useState(false);
   const [createRequestInitialFolderId, setCreateRequestInitialFolderId] = useState<string | undefined>(undefined);
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
   const [moveToModal, setMoveToModal] = useState<{ type: "request" | "folder"; id: string } | null>(null);
@@ -1028,6 +1028,39 @@ export function App() {
         log: scriptOutputEntries,
       };
 
+      let passed = response.status < 400;
+      const expectedCodesVar = variableMap.get("expectedStatusCodes");
+      if (expectedCodesVar) {
+        try {
+          const parsed = JSON.parse(expectedCodesVar);
+          if (Array.isArray(parsed)) {
+            passed = parsed.includes(response.status);
+          } else if (typeof parsed === 'number') {
+            passed = response.status === parsed;
+          }
+        } catch {
+          const codes = expectedCodesVar.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+          if (codes.length > 0) {
+            passed = codes.includes(response.status);
+          }
+        }
+      }
+
+      const testFails = scriptOutputEntries.filter(s => s.type === "test_fail");
+      const testPasses = scriptOutputEntries.filter(s => s.type === "test_pass");
+      const totalTests = testFails.length + testPasses.length;
+      if (totalTests > 0) {
+        passed = testFails.length === 0;
+      }
+
+      const testResults = scriptOutputEntries
+        .filter(s => s.type === "test_pass" || s.type === "test_fail")
+        .map(s => ({
+          name: (s as any).name || (s as any).message || "Unknown test",
+          passed: s.type === "test_pass",
+          error: (s as any).errMessage,
+        }));
+
       const historyUrl = redactAuthFromUrl(authUrl, finalAuthMode, resolvedAuth);
       void recordRequestHistory({
         requestId: requestToSend.id,
@@ -1039,6 +1072,10 @@ export function App() {
         responseHeaders: JSON.stringify(response.headers),
         responseBodyText: response.bodyText,
         responseBodyBase64: response.bodyBase64,
+        testPassed: passed,
+        passedTests: testPasses.length,
+        failedTests: testFails.length,
+        testResults,
       });
     } catch (error) {
       const isAbort = error instanceof Error && error.message.includes("aborted");
@@ -1572,7 +1609,7 @@ export function App() {
         onOpenHistory={() => void handleOpenHistory()}
         onCheckForUpdates={() => void handleCheckForUpdates("manual")}
         onOpenSettings={() => setSettingsOpen(true)}
-        onOpenJwtDecoder={() => setJwtDecoderOpen(true)}
+        onOpenApiTools={() => setApiToolsOpen(true)}
         onExport={() => {void handleExport()}}
         onImport={() => {
           setUniversalImportInitialContent("");
@@ -1650,20 +1687,17 @@ export function App() {
           {(() => {
             let scopedVarsArray = activeVars;
             if (workspace) {
-              const scopeParams: any = {};
               if (currentTab?.type === "request" && draftRequest) {
-                scopeParams.request = draftRequest;
+                // activeVars is already scoped to draftRequest
               } else if (currentTab?.type === "folder") {
-                scopeParams.folderId = currentTab.entityId;
+                const folder = workspace.folders.find(f => f.id === currentTab.entityId);
+                scopedVarsArray = activeScopedVariablesList(workspace, {
+                  collectionId: folder?.collectionId,
+                  folderId: currentTab.entityId
+                });
               } else if (currentTab?.type === "collection") {
-                scopeParams.collectionId = currentTab.entityId;
-              }
-              
-              if (Object.keys(scopeParams).length > 0) {
-                const scopedVarMap = buildScopedVariableMap(workspace, scopeParams);
-                scopedVarsArray = Array.from(scopedVarMap.entries()).map(([k, v]) => {
-                  const envMatch = activeVars.find(ev => ev.key === k);
-                  return envMatch ? { ...envMatch, value: v } : { key: k, value: v };
+                scopedVarsArray = activeScopedVariablesList(workspace, {
+                  collectionId: currentTab.entityId
                 });
               }
             }
@@ -2201,9 +2235,9 @@ export function App() {
         onClose={() => setWorkspaceSwitcherOpen(false)}
       />
 
-      <JwtDecoderModal
-        open={jwtDecoderOpen}
-        onClose={() => setJwtDecoderOpen(false)}
+      <ApiToolsModal
+        open={apiToolsOpen}
+        onClose={() => setApiToolsOpen(false)}
       />
 
       <UniversalImportModal

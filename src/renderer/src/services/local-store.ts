@@ -26,6 +26,9 @@ export interface RequestHistoryEntry {
   scopeId?: string;
   scopeName?: string;
   testPassed?: boolean;
+  passedTests?: number;
+  failedTests?: number;
+  testResults?: Array<{ name: string; passed: boolean; error?: string }>;
 }
 
 export const defaultAppSettings: AppSettings = {
@@ -221,7 +224,12 @@ export async function recordRequestHistory(entry: RequestHistoryEntry): Promise<
     return;
   }
 
-  return invoke<void>("record_request_history", { entry });
+  const payload = { ...entry };
+  if (payload.testResults && Array.isArray(payload.testResults)) {
+    payload.testResults = JSON.stringify(payload.testResults) as any;
+  }
+
+  return invoke<void>("record_request_history", { entry: payload });
 }
 
 export async function exportWorkspaceData(): Promise<string> {

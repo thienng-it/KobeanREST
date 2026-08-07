@@ -129,6 +129,9 @@ export interface HistoryEntry {
   scopeId?: string;
   scopeName?: string;
   testPassed?: boolean;
+  passedTests?: number;
+  failedTests?: number;
+  testResults?: string;
   responseHeaders?: string | null;
   responseBodyText?: string | null;
   responseBodyBase64?: string | null;
@@ -148,6 +151,8 @@ export interface CollectionRunSummary {
   totalRequests: number;
   passedRequests: number;
   failedRequests: number;
+  passedTests?: number;
+  failedTests?: number;
   totalDurationMs: number;
 }
 

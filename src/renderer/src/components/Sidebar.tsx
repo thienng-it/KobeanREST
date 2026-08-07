@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, Download, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
@@ -60,7 +60,7 @@ export interface SidebarProps {
   onOpenHistory?: () => void;
   onCheckForUpdates?: () => void;
   onOpenSettings?: () => void;
-  onOpenJwtDecoder?: () => void;
+  onOpenApiTools?: () => void;
 
   // Collection state
   collectionSearch: string;
@@ -648,7 +648,7 @@ export function Sidebar({
   onOpenHistory,
   onCheckForUpdates,
   onOpenSettings,
-  onOpenJwtDecoder,
+  onOpenApiTools,
   onExport,
   onImport,
   onCurlImport,
@@ -1463,11 +1463,11 @@ export function Sidebar({
           <button
             type="button"
             className="sidebar-footer-icon-btn"
-            title="JWT Decoder"
-            aria-label="JWT Decoder"
-            onClick={onOpenJwtDecoder}
+            title="API Tools"
+            aria-label="API Tools"
+            onClick={onOpenApiTools}
           >
-            <Key size={15} />
+            <Wrench size={15} />
           </button>
           <button
             type="button"

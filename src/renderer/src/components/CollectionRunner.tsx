@@ -33,6 +33,9 @@ interface RequestResult {
   executedRequest?: import("../types").ExecuteHttpRequest;
   error?: string;
   durationMs?: number;
+  passedTests?: number;
+  failedTests?: number;
+  testResults?: Array<{ name: string; passed: boolean; error?: string }>;
 }
 
 export function CollectionRunner({
@@ -279,12 +282,13 @@ export function CollectionRunner({
       deleteEnvironmentVariable,
     };
 
+    const scriptOutputs: import('../hooks/useScripts').ScriptOutputEntry[] = [];
     // Pre-scripts
     try {
       if (collectionId) {
         const collScripts = await getScripts(collectionId, "collection");
         const pre = collScripts.find((s) => s.scriptType === "pre")?.content;
-        if (pre) await runScript(resolveString(pre, variableMap).resolved, preScriptsCtx, "Collection pre");
+        if (pre) scriptOutputs.push(...await runScript(resolveString(pre, variableMap).resolved, preScriptsCtx, "Collection pre"));
       }
       
       if (!preScriptsCtx.skipRequest) {
@@ -300,14 +304,14 @@ export function CollectionRunner({
           if (preScriptsCtx.skipRequest) break;
           const folderScripts = await getScripts(f.id, "folder");
           const preF = folderScripts.find((s) => s.scriptType === "pre")?.content;
-          if (preF) await runScript(resolveString(preF, variableMap).resolved, preScriptsCtx, `Folder (${f.name}) pre`);
+          if (preF) scriptOutputs.push(...await runScript(resolveString(preF, variableMap).resolved, preScriptsCtx, `Folder (${f.name}) pre`));
         }
       }
 
       if (!preScriptsCtx.skipRequest) {
         const reqScripts = await getScripts(req.id, "request");
         const preR = reqScripts.find((s) => s.scriptType === "pre")?.content;
-        if (preR) await runScript(resolveString(preR, variableMap).resolved, preScriptsCtx, "Request pre");
+        if (preR) scriptOutputs.push(...await runScript(resolveString(preR, variableMap).resolved, preScriptsCtx, "Request pre"));
       }
     } catch (err) {
       return { request: req, status: "failed", error: err instanceof Error ? err.message : String(err) };
@@ -443,7 +447,7 @@ export function CollectionRunner({
       try {
         const reqScripts2 = await getScripts(requestToSend.id, "request");
         const postR = reqScripts2.find((s) => s.scriptType === "post")?.content;
-        if (postR) await runScript(resolveString(postR, variableMap).resolved, postCtx, "Request post");
+        if (postR) scriptOutputs.push(...await runScript(resolveString(postR, variableMap).resolved, postCtx, "Request post"));
         if (!postCtx.skipRequest) {
           const folderPath2: import('../types').FolderSummary[] = [];
           let currentFolder2 = folder;
@@ -455,12 +459,12 @@ export function CollectionRunner({
             if (postCtx.skipRequest) break;
             const folderScripts2 = await getScripts(f.id, "folder");
             const postF = folderScripts2.find((s) => s.scriptType === "post")?.content;
-            if (postF) await runScript(resolveString(postF, variableMap).resolved, postCtx, `Folder (${f.name}) post`);
+            if (postF) scriptOutputs.push(...await runScript(resolveString(postF, variableMap).resolved, postCtx, `Folder (${f.name}) post`));
           }
           if (!postCtx.skipRequest && collectionId) {
             const collScripts2 = await getScripts(collectionId, "collection");
             const postC = collScripts2.find((s) => s.scriptType === "post")?.content;
-            if (postC) await runScript(resolveString(postC, variableMap).resolved, postCtx, "Collection post");
+            if (postC) scriptOutputs.push(...await runScript(resolveString(postC, variableMap).resolved, postCtx, "Collection post"));
           }
         }
       } catch { /* ignore post-script errors for runner */ }
@@ -485,6 +489,25 @@ export function CollectionRunner({
         }
       }
 
+      // Track test statistics
+      const testFails = scriptOutputs.filter(s => s.type === "test_fail");
+      const testPasses = scriptOutputs.filter(s => s.type === "test_pass");
+      const totalTests = testFails.length + testPasses.length;
+
+      // If we have explicit tests, they completely determine the "passed" status.
+      // If we don't have explicit tests, fallback to status code checks.
+      if (totalTests > 0) {
+        passed = testFails.length === 0;
+      }
+
+      const testResults = scriptOutputs
+        .filter(s => s.type === "test_pass" || s.type === "test_fail")
+        .map(s => ({
+          name: (s as any).name || (s as any).message || "Unknown test",
+          passed: s.type === "test_pass",
+          error: (s as any).errMessage,
+        }));
+
       // Record to history
       void recordRequestHistory({
         requestId: req.id,
@@ -497,15 +520,18 @@ export function CollectionRunner({
         responseBodyText: response.bodyText,
         responseBodyBase64: response.bodyBase64,
         runId,
-        scopeId,
+        scopeId: scopeId,
         scopeName: scopeName || undefined,
         testPassed: passed,
+        passedTests: testPasses.length,
+        failedTests: testFails.length,
+        testResults,
       });
 
-      return { request: req, status: passed ? "passed" : "failed", response, executedRequest, durationMs };
+      return { request: req, status: passed ? "passed" : "failed", response, executedRequest, durationMs, passedTests: testPasses.length, failedTests: testFails.length, testResults };
     } catch (err) {
       const durationMs = Math.round(performance.now() - start);
-      return { request: req, status: "failed", error: err instanceof Error ? err.message : String(err), executedRequest, durationMs };
+      return { request: req, status: "failed", error: err instanceof Error ? err.message : String(err), executedRequest, durationMs, passedTests: 0, failedTests: 0, testResults: [] };
     }
   }
 
@@ -581,6 +607,9 @@ export function CollectionRunner({
   const total = results.filter((r) => r.status !== "skipped").length;
   const done = passed + failed;
   const progressPct = total === 0 ? 0 : Math.round((done / total) * 100);
+
+  const totalPassedTests = results.reduce((acc, r) => acc + (r.passedTests || 0), 0);
+  const totalFailedTests = results.reduce((acc, r) => acc + (r.failedTests || 0), 0);
 
   function statusIcon(status: RequestResult["status"]) {
     switch (status) {
@@ -858,6 +887,11 @@ export function CollectionRunner({
                           ↻ {running} running
                         </span>
                       )}
+                      {(totalPassedTests > 0 || totalFailedTests > 0) && (
+                        <span style={{ color: "var(--color-text-muted)" }}>
+                          ({totalPassedTests} tests passed, {totalFailedTests} failed)
+                        </span>
+                      )}
                     </div>
                     <span style={{ color: "var(--color-text-muted)" }}>
                       {done}/{total} ({progressPct}%)
@@ -1032,6 +1066,29 @@ export function CollectionRunner({
                           {result.error && (
                             <div style={{ padding: "10px 14px", color: "var(--color-status-error, #ef4444)" }}>
                               {result.error}
+                            </div>
+                          )}
+                          
+                          {result.testResults && result.testResults.length > 0 && (
+                            <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+                              <div style={{ fontWeight: 600, marginBottom: "4px", color: "var(--color-text)" }}>Test Results</div>
+                              {result.testResults.map((t, i) => (
+                                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginTop: "4px" }}>
+                                  {t.passed 
+                                    ? <CheckCircle size={14} style={{ color: "var(--color-status-success)", flexShrink: 0, marginTop: "1px" }} />
+                                    : <XCircle size={14} style={{ color: "var(--color-status-error)", flexShrink: 0, marginTop: "1px" }} />}
+                                  <div>
+                                    <div style={{ color: t.passed ? "var(--color-status-success)" : "var(--color-status-error)" }}>
+                                      {t.name}
+                                    </div>
+                                    {t.error && (
+                                      <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "2px", whiteSpace: "pre-wrap" }}>
+                                        {t.error}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           )}
                           
