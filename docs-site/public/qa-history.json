@@ -658,5 +658,55 @@
         "durationMs": 0
       }
     ]
+  },
+  {
+    "runId": "31244803844",
+    "timestamp": "2026-08-08T06:50:53.573Z",
+    "commit": "7d4c0d6",
+    "commitMsg": "chore(release): auto-bump version to 0.1.20 [skip ci]",
+    "branch": "main",
+    "status": "passed",
+    "durationMs": 84000,
+    "contractTests": {
+      "total": 130,
+      "passed": 129,
+      "failed": 0,
+      "skipped": 1
+    },
+    "e2eScenarios": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "passRate": 99,
+    "failedTests": [],
+    "failureLog": null,
+    "scenarios": [
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "passed",
+        "durationMs": 840
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "passed",
+        "durationMs": 365
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "passed",
+        "durationMs": 1250
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "passed",
+        "durationMs": 890
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "passed",
+        "durationMs": 510
+      }
+    ]
   }
 ]
