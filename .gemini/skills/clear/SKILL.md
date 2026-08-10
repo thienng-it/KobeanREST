@@ -1,21 +1,15 @@
 ---
 name: clear
-description: Reset temporary working context, clean scratch files, and output a fresh session state. Trigger on /clear or /reset.
+description: Reset temporary working context, clean session scratch files, and start fresh context. Trigger on /clear or /reset.
 ---
 
 # Session Clear Workflow (`/clear`, `/reset`)
 
-Use this skill when the user types `/clear` or `/reset` to clean temporary session scratch files, reset active working state, and present a fresh turn state.
+When `/clear` or `/reset` is triggered:
 
-## Protocol
-
-1. **Scratch & Temp File Cleanup**:
-   - Clear temporary scratch scripts and build log buffers.
-2. **State Preservation**:
-   - Ensure all key technical invariants are stored in project artifacts (`implementation_plan.md` / `walkthrough.md`).
-3. **Clean Reset Output**:
-   - Output an ultra-concise status reset notification.
-
-## Token Budget & Constraints
-- Maximum 1 tool call.
-- Zero conversational filler.
+1. **Context & Scratch Reset**:
+   - Resets active agent prompt working memory.
+   - Cleans temporary scratch files and test log buffers.
+2. **UI Note**:
+   - Notifies the user that active working memory context has been cleared.
+   - (Visual chat UI history can also be reset using the IDE's "New Chat" / "+" button).
