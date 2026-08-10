@@ -1,6 +1,6 @@
 ---
 name: developing-kobeanrest
-description: Use when building features, fixing bugs, or writing tests in the KobeanREST codebase
+description: Use when building features, fixing bugs, or writing tests in the KobeanREST codebase.
 ---
 
 # Developing KobeanREST

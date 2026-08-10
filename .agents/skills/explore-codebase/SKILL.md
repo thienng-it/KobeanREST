@@ -1,6 +1,6 @@
 ---
 name: explore-codebase
-description: Navigate and understand codebase structure using graph analysis tools
+description: Navigate and understand codebase structure using graph analysis tools. Trigger on /explore.
 ---
 
 # Codebase Exploration Workflow

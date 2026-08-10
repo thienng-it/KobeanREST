@@ -1,0 +1,324 @@
+{
+  "name": "kobeanrest-vscode",
+  "displayName": "KobeanREST — Local-First API Client",
+  "description": "A fast, local-first REST API client for VS Code. Send HTTP requests, manage collections, run scripts, and test APIs — all without an account or cloud sync.",
+  "version": "0.2.0",
+  "publisher": "kobeanrest",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thienng-it/KobeanREST"
+  },
+  "homepage": "https://thienng-it.github.io/KobeanREST/",
+  "bugs": {
+    "url": "https://github.com/thienng-it/KobeanREST/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Testing",
+    "Other",
+    "Snippets"
+  ],
+  "keywords": [
+    "REST",
+    "API",
+    "HTTP",
+    "client",
+    "postman",
+    "thunder client",
+    "request",
+    "http file",
+    "local-first"
+  ],
+  "galleryBanner": {
+    "color": "#0f172a",
+    "theme": "dark"
+  },
+  "activationEvents": [
+    "onLanguage:http",
+    "onView:kobeanrest-collections",
+    "onView:kobeanrest-environments",
+    "onView:kobeanrest-history",
+    "onCommand:kobeanrest.openPanel",
+    "onCommand:kobeanrest.newRequest"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kobeanrest-sidebar",
+          "title": "KobeanREST",
+          "icon": "media/icon-sidebar.svg"
+        }
+      ]
+    },
+    "views": {
+      "kobeanrest-sidebar": [
+        {
+          "id": "kobeanrest-collections",
+          "name": "Collections",
+          "icon": "media/icon-sidebar.svg"
+        },
+        {
+          "id": "kobeanrest-environments",
+          "name": "Environments"
+        },
+        {
+          "id": "kobeanrest-history",
+          "name": "History"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "kobeanrest.openPanel",
+        "title": "Open KobeanREST Panel",
+        "category": "KobeanREST",
+        "icon": "$(window)"
+      },
+      {
+        "command": "kobeanrest.sendRequest",
+        "title": "Send Request",
+        "category": "KobeanREST",
+        "icon": "$(play)"
+      },
+      {
+        "command": "kobeanrest.newRequest",
+        "title": "New Request",
+        "category": "KobeanREST",
+        "icon": "$(add)"
+      },
+      {
+        "command": "kobeanrest.newCollection",
+        "title": "New Collection",
+        "category": "KobeanREST",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "kobeanrest.importCollection",
+        "title": "Import Collection (Postman / OpenAPI / cURL)",
+        "category": "KobeanREST",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "kobeanrest.exportCollection",
+        "title": "Export Collection",
+        "category": "KobeanREST",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "kobeanrest.runCollection",
+        "title": "Run Collection",
+        "category": "KobeanREST",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "kobeanrest.openDashboard",
+        "title": "Open QA Dashboard",
+        "category": "KobeanREST",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "kobeanrest.manageEnvironments",
+        "title": "Manage Environments",
+        "category": "KobeanREST",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "kobeanrest.generateCodeSnippet",
+        "title": "Generate Code Snippet",
+        "category": "KobeanREST",
+        "icon": "$(code)"
+      },
+      {
+        "command": "kobeanrest.copyAsCurl",
+        "title": "Copy as cURL",
+        "category": "KobeanREST",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "kobeanrest.clearHistory",
+        "title": "Clear History",
+        "category": "KobeanREST",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "kobeanrest.refreshCollections",
+        "title": "Refresh",
+        "category": "KobeanREST",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "kobeanrest.deleteItem",
+        "title": "Delete",
+        "category": "KobeanREST",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "kobeanrest.duplicateRequest",
+        "title": "Duplicate Request",
+        "category": "KobeanREST",
+        "icon": "$(copy)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "kobeanrest.openPanel",
+          "when": "view == kobeanrest-collections",
+          "group": "navigation@1"
+        },
+        {
+          "command": "kobeanrest.newRequest",
+          "when": "view == kobeanrest-collections",
+          "group": "navigation@2"
+        },
+        {
+          "command": "kobeanrest.newCollection",
+          "when": "view == kobeanrest-collections",
+          "group": "navigation@3"
+        },
+        {
+          "command": "kobeanrest.importCollection",
+          "when": "view == kobeanrest-collections",
+          "group": "navigation@4"
+        },
+        {
+          "command": "kobeanrest.refreshCollections",
+          "when": "view == kobeanrest-collections",
+          "group": "navigation@5"
+        },
+        {
+          "command": "kobeanrest.manageEnvironments",
+          "when": "view == kobeanrest-environments",
+          "group": "navigation"
+        },
+        {
+          "command": "kobeanrest.clearHistory",
+          "when": "view == kobeanrest-history",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "kobeanrest.sendRequest",
+          "when": "view == kobeanrest-collections && viewItem == request",
+          "group": "inline"
+        },
+        {
+          "command": "kobeanrest.deleteItem",
+          "when": "view == kobeanrest-collections && viewItem =~ /request|folder|collection/",
+          "group": "7_modification"
+        },
+        {
+          "command": "kobeanrest.duplicateRequest",
+          "when": "view == kobeanrest-collections && viewItem == request",
+          "group": "7_modification"
+        },
+        {
+          "command": "kobeanrest.copyAsCurl",
+          "when": "view == kobeanrest-collections && viewItem == request",
+          "group": "9_cutcopypaste"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "kobeanrest.sendRequest",
+          "when": "editorLangId == http",
+          "group": "navigation"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "http",
+        "aliases": ["HTTP", "http"],
+        "extensions": [".http", ".rest"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "http",
+        "scopeName": "source.http",
+        "path": "./syntaxes/http.tmLanguage.json"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "kobeanrest.sendRequest",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r",
+        "when": "editorLangId == http"
+      },
+      {
+        "command": "kobeanrest.newRequest",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n"
+      },
+      {
+        "command": "kobeanrest.openPanel",
+        "key": "ctrl+alt+k",
+        "mac": "cmd+alt+k"
+      }
+    ],
+    "configuration": {
+      "title": "KobeanREST",
+      "properties": {
+        "kobeanrest.defaultTimeout": {
+          "type": "number",
+          "default": 30000,
+          "description": "Default request timeout in milliseconds."
+        },
+        "kobeanrest.followRedirects": {
+          "type": "boolean",
+          "default": true,
+          "description": "Follow HTTP redirects by default."
+        },
+        "kobeanrest.maxHistoryEntries": {
+          "type": "number",
+          "default": 500,
+          "description": "Maximum number of history entries to retain."
+        },
+        "kobeanrest.proxy": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP proxy URL (e.g., http://proxy:8080). Leave empty to use system proxy."
+        },
+        "kobeanrest.validateCertificates": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate SSL/TLS certificates. Disable for self-signed certs in development."
+        },
+        "kobeanrest.responsePreviewMaxSize": {
+          "type": "number",
+          "default": 5242880,
+          "description": "Maximum response body size (in bytes) to display in the viewer. Default: 5MB."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "build:prod": "node esbuild.mjs --production",
+    "watch": "node esbuild.mjs --watch",
+    "lint": "tsc --noEmit",
+    "test": "node --test src/test/unit/*.test.ts",
+    "test:integration": "node --test src/test/suite/*.test.ts",
+    "package": "npx @vscode/vsce package --no-dependencies",
+    "publish": "npx @vscode/vsce publish --no-dependencies",
+    "publish:ovsx": "npx ovsx publish"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.4.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

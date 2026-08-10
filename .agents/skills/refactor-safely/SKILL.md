@@ -1,6 +1,6 @@
 ---
 name: refactor-safely
-description: Plan and execute safe refactoring using graph impact analysis and test contract sync
+description: Plan and execute safe refactoring using graph impact analysis and test contract sync. Trigger on /refactor.
 ---
 
 # Safe Refactoring Workflow

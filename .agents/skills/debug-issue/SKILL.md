@@ -1,6 +1,6 @@
 ---
 name: debug-issue
-description: Systematically debug issues using log evidence and graph-powered code navigation
+description: Systematically debug issues using log evidence and graph-powered code navigation. Trigger on /debug.
 ---
 
 # Systematic Debugging Workflow

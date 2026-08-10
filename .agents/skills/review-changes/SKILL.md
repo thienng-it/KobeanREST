@@ -1,6 +1,6 @@
 ---
 name: review-changes
-description: Perform a structured, risk-aware code review using change detection and impact analysis. Trigger on /code-review, /review, or change audit requests.
+description: Perform a structured, risk-aware code review using change detection and impact analysis. Trigger on /code-review or /review.
 ---
 
 # Code Review & Change Audit Workflow

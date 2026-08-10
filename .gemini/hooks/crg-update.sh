@@ -5,6 +5,7 @@ set -euo pipefail
 
 cat > /dev/null || true
 
-code-review-graph update --skip-flows --repo "/Users/thanh.nguyen/Desktop/projects/KobeanREST" >/dev/null 2>&1 || true
+REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+code-review-graph update --skip-flows --repo "$REPO_DIR" >/dev/null 2>&1 || true
 echo '{"suppressOutput": true}'
 exit 0
