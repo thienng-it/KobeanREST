@@ -867,9 +867,17 @@ export function Sidebar({
     setDragOverItem(null);
   }
 
+  function isMatchingTargetId(targetId: string, itemFolderId: string): boolean {
+    if (!itemFolderId) return false;
+    if (itemFolderId === targetId) return true;
+    const cleanItemFolderId = itemFolderId.replace(/^(collection|folder|new_col):/, "").trim();
+    const cleanTargetId = targetId.replace(/^(collection|folder|new_col):/, "").trim();
+    return cleanItemFolderId === cleanTargetId;
+  }
+
   function countRequestsInFolder(folderId: string): number {
     if (!workspace) return 0;
-    let count = workspace.requests.filter((r) => r.folderId === folderId).length;
+    let count = workspace.requests.filter((r) => isMatchingTargetId(folderId, r.folderId)).length;
     const childFolders = workspace.folders.filter((f) => f.parentId === folderId);
     for (const cf of childFolders) {
       count += countRequestsInFolder(cf.id);
@@ -879,7 +887,7 @@ export function Sidebar({
 
   function countRequestsInCollection(collectionId: string): number {
     if (!workspace) return 0;
-    let count = workspace.requests.filter((r) => r.folderId === collectionId).length;
+    let count = workspace.requests.filter((r) => isMatchingTargetId(collectionId, r.folderId)).length;
     const childFolders = workspace.folders.filter((f) => f.collectionId === collectionId && !f.parentId);
     for (const cf of childFolders) {
       count += countRequestsInFolder(cf.id);
@@ -974,7 +982,7 @@ export function Sidebar({
   // Render requests that live directly at the root of a collection
   const renderCollectionRequests = (collectionId: string, forceShowAll: boolean) => {
     const rootRequests = (workspace?.requests ?? [])
-      .filter((r) => r.folderId === collectionId)
+      .filter((r) => isMatchingTargetId(collectionId, r.folderId))
       .filter((r) => forceShowAll || requestMatchesCollectionSearch(r));
 
     if (rootRequests.length === 0) return null;
@@ -1024,7 +1032,7 @@ export function Sidebar({
           const showFolderContents = forceShowAll || (folderNameMatches ?? false);
           const isFolderCollapsed = !isCollectionSearchActive && collapsedFolders[folder.id];
           const folderRequests = (workspace?.requests ?? [])
-            .filter((r) => r.folderId === folder.id)
+            .filter((r) => isMatchingTargetId(folder.id, r.folderId))
             .filter((r) => showFolderContents || requestMatchesCollectionSearch(r));
 
           const folderDragId = encodeDragId("folder", folder.id);

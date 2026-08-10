@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Plus, X, Folder, FolderTree, FileText, Check, Briefcase } from "lucide-react";
 import type { WorkspaceSummary, WorkspaceListItem, HttpMethod } from "../types";
 import { loadWorkspaceById } from "../services/local-store";
@@ -43,6 +43,10 @@ export function CreateRequestModal({
   const [newCollectionName, setNewCollectionName] = useState("New Collection");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Track whether the initial location has been resolved for the current modal session.
+  // This prevents workspace prop changes from overriding the user's manual selection.
+  const locationResolvedForWsRef = useRef<string | null>(null);
+
   // Synchronize initial selection and default values when opening
   useEffect(() => {
     if (open) {
@@ -53,38 +57,60 @@ export function CreateRequestModal({
       const activeWsId = workspace?.id ?? workspaces?.[0]?.id ?? "";
       setSelectedWorkspaceId(activeWsId);
       setTargetWorkspaceSummary(workspace);
+      // Reset the location-resolved tracker so the next effect picks the correct default
+      locationResolvedForWsRef.current = null;
+    } else {
+      // Modal closed — reset tracker for the next open
+      locationResolvedForWsRef.current = null;
     }
-  }, [open, workspace, workspaces, initialName, initialMethod]);
+  }, [open, initialName, initialMethod]);
 
-  // Load target workspace collections & folders whenever selectedWorkspaceId changes
+  // When the workspace prop refreshes while the modal is open, keep targetWorkspaceSummary in sync
+  // (but do NOT re-run location selection — that's the user's choice).
+  useEffect(() => {
+    if (!open || !selectedWorkspaceId) return;
+    if (selectedWorkspaceId === workspace?.id) {
+      setTargetWorkspaceSummary(workspace);
+    }
+  }, [open, selectedWorkspaceId, workspace]);
+
+  // Resolve the default location ONCE per modal-open or when the user explicitly
+  // switches the target workspace via the dropdown.
   useEffect(() => {
     if (!open || !selectedWorkspaceId) return;
 
-    if (selectedWorkspaceId === workspace?.id) {
-      setTargetWorkspaceSummary(workspace);
-      updateDefaultLocation(workspace);
-    } else {
-      loadWorkspaceById(selectedWorkspaceId)
-        .then((loadedWs) => {
-          setTargetWorkspaceSummary(loadedWs);
-          updateDefaultLocation(loadedWs);
-        })
-        .catch(() => {
-          setTargetWorkspaceSummary(null);
-        });
-    }
+    // Skip if we already resolved the location for this workspace in this modal session
+    if (locationResolvedForWsRef.current === selectedWorkspaceId) return;
 
-    function updateDefaultLocation(ws: WorkspaceSummary | null) {
+    function resolveLocation(ws: WorkspaceSummary | null) {
+      locationResolvedForWsRef.current = selectedWorkspaceId;
+
       if (initialFolderId) {
+        const cleanId = initialFolderId.replace(/^(collection|folder|new_col):/, "").trim();
+        const targetLower = cleanId.toLowerCase();
+        const rawLower = initialFolderId.toLowerCase();
+
         if (ws?.folders) {
-          const matchingFolder = ws.folders.find((f) => f.id === initialFolderId);
+          const matchingFolder = ws.folders.find(
+            (f) =>
+              f.id === cleanId ||
+              f.id === initialFolderId ||
+              f.name.toLowerCase() === targetLower ||
+              f.name.toLowerCase() === rawLower
+          );
           if (matchingFolder) {
             setSelectedLocation({ type: "folder", id: matchingFolder.id, name: matchingFolder.name });
             return;
           }
         }
         if (ws?.collections) {
-          const matchingCol = ws.collections.find((c) => c.id === initialFolderId);
+          const matchingCol = ws.collections.find(
+            (c) =>
+              c.id === cleanId ||
+              c.id === initialFolderId ||
+              c.name.toLowerCase() === targetLower ||
+              c.name.toLowerCase() === rawLower
+          );
           if (matchingCol) {
             setSelectedLocation({ type: "collection", id: matchingCol.id, name: matchingCol.name });
             return;
@@ -92,18 +118,31 @@ export function CreateRequestModal({
         }
       }
 
-      if (ws?.folders && ws.folders.length > 0) {
-        const firstFolder = ws.folders[0];
-        setSelectedLocation({ type: "folder", id: firstFolder.id, name: firstFolder.name });
-      } else if (ws?.collections && ws.collections.length > 0) {
+      if (ws?.collections && ws.collections.length > 0) {
         const firstCol = ws.collections[0];
         setSelectedLocation({ type: "collection", id: firstCol.id, name: firstCol.name });
+      } else if (ws?.folders && ws.folders.length > 0) {
+        const firstFolder = ws.folders[0];
+        setSelectedLocation({ type: "folder", id: firstFolder.id, name: firstFolder.name });
       } else {
         setIsCreatingNewCollection(true);
         setSelectedLocation({ type: "new_collection", name: "New Collection" });
       }
     }
-  }, [selectedWorkspaceId, open, workspace, initialFolderId]);
+
+    if (selectedWorkspaceId === workspace?.id) {
+      resolveLocation(workspace);
+    } else {
+      loadWorkspaceById(selectedWorkspaceId)
+        .then((loadedWs) => {
+          setTargetWorkspaceSummary(loadedWs);
+          resolveLocation(loadedWs);
+        })
+        .catch(() => {
+          setTargetWorkspaceSummary(null);
+        });
+    }
+  }, [selectedWorkspaceId, open, initialFolderId]);
 
   // Handle ESC key to close modal
   useEffect(() => {

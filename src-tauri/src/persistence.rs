@@ -2105,16 +2105,33 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
     let mut connection = open_database(&app)?;
     let transaction = connection.transaction().map_err(|e| e.to_string())?;
 
+    let clean_target = request.folder_id.trim_start_matches("collection:").trim_start_matches("folder:").trim();
+
+    let target_folder_id: String = transaction
+        .query_row(
+            "SELECT id FROM folders WHERE id = ?1 OR id = ?2 OR LOWER(name) = LOWER(?2) LIMIT 1",
+            rusqlite::params![&request.folder_id, clean_target],
+            |row| row.get(0),
+        )
+        .or_else(|_| {
+            transaction.query_row(
+                "SELECT id FROM collections WHERE id = ?1 OR id = ?2 OR LOWER(name) = LOWER(?2) LIMIT 1",
+                rusqlite::params![&request.folder_id, clean_target],
+                |row| row.get(0),
+            )
+        })
+        .unwrap_or_else(|_| request.folder_id.clone());
+
     let workspace_id: String = transaction
         .query_row(
             "SELECT collections.workspace_id FROM folders JOIN collections ON collections.id = folders.collection_id WHERE folders.id = ?1",
-            rusqlite::params![request.folder_id],
+            rusqlite::params![&target_folder_id],
             |row| row.get(0),
         )
         .or_else(|_| {
             transaction.query_row(
                 "SELECT workspace_id FROM collections WHERE id = ?1",
-                rusqlite::params![request.folder_id],
+                rusqlite::params![&target_folder_id],
                 |row| row.get(0),
             )
         })
@@ -2140,7 +2157,7 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
         rusqlite::params![
             request.id,
             workspace_id,
-            request.folder_id,
+            target_folder_id,
             request.name,
             request.method,
             request.url,
@@ -2404,13 +2421,32 @@ pub fn delete_folder(app: AppHandle, folder_id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn create_request(app: AppHandle, folder_id: String) -> Result<SavedRequest, String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    let clean_target = folder_id.trim_start_matches("collection:").trim_start_matches("folder:").trim();
+
+    let target_folder_id: String = connection
+        .query_row(
+            "SELECT id FROM folders WHERE id = ?1 OR id = ?2 OR LOWER(name) = LOWER(?2) LIMIT 1",
+            rusqlite::params![&folder_id, clean_target],
+            |row| row.get(0),
+        )
+        .or_else(|_| {
+            connection.query_row(
+                "SELECT id FROM collections WHERE id = ?1 OR id = ?2 OR LOWER(name) = LOWER(?2) LIMIT 1",
+                rusqlite::params![&folder_id, clean_target],
+                |row| row.get(0),
+            )
+        })
+        .unwrap_or_else(|_| clean_target.to_string());
+
     let request_id = format!("request-{}", uuid::Uuid::new_v4());
     let req = SavedRequest {
         id: request_id,
         name: "New Request".to_string(),
         method: "GET".to_string(),
         url: "".to_string(),
-        folder_id,
+        folder_id: target_folder_id,
         auth_mode: "none".to_string(),
         auth_config: "{}".to_string(),
         headers: vec![],

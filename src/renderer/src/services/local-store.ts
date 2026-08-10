@@ -201,7 +201,65 @@ const DEFAULT_PREVIEW_WORKSPACE: WorkspaceSummary = {
   ]
 };
 
+const isVsCodeWebview = () =>
+  typeof (window as any).__kobeanrestInvoke === "function" ||
+  typeof (window as any).acquireVsCodeApi === "function";
+
 export async function loadLocalWorkspace(): Promise<WorkspaceSummary> {
+  if (isVsCodeWebview() && typeof (window as any).__kobeanrestInvoke === "function") {
+    try {
+      const data = await (window as any).__kobeanrestInvoke("loadWorkspace");
+      if (data && Array.isArray(data.collections)) {
+        const collections = data.collections || [];
+        const environments = data.environments || [];
+        const activeEnvironment = data.activeEnvironment || "Development";
+
+        const folders: any[] = [];
+        const requests: any[] = [];
+
+        const collectFoldersAndRequests = (folderList: any[], colId: string) => {
+          for (const f of folderList) {
+            folders.push({ ...f, collectionId: colId });
+            if (Array.isArray(f.requests)) {
+              requests.push(...f.requests.map((r: any) => ({ ...r, folderId: f.id })));
+            }
+            if (Array.isArray(f.folders)) {
+              collectFoldersAndRequests(f.folders, colId);
+            }
+          }
+        };
+
+        for (const col of collections) {
+          if (Array.isArray(col.requests)) {
+            requests.push(...col.requests.map((r: any) => ({ ...r, folderId: col.id })));
+          }
+          if (Array.isArray(col.folders)) {
+            collectFoldersAndRequests(col.folders, col.id);
+          }
+        }
+
+        const summary: WorkspaceSummary = {
+          id: "vscode-workspace",
+          name: "VS Code Workspace",
+          activeEnvironment,
+          environments,
+          collections: collections.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            authMode: c.authMode,
+            authConfig: c.authConfig,
+            variables: c.variables,
+          })),
+          folders,
+          requests,
+        };
+        return parseWorkspaceFields(summary);
+      }
+    } catch (err) {
+      console.error("VS Code webview loadWorkspace failed:", err);
+    }
+  }
+
   if (!isTauriRuntime()) {
     try {
       const saved = localStorage.getItem("kr_browser_preview_workspace");
@@ -247,6 +305,10 @@ export async function importWorkspaceData(json: string): Promise<void> {
 }
 
 export async function saveRequest(request: import("../types").SavedRequest): Promise<void> {
+  if (isVsCodeWebview() && typeof (window as any).__kobeanrestInvoke === "function") {
+    await (window as any).__kobeanrestInvoke("saveRequest", request);
+    return;
+  }
   if (!isTauriRuntime()) return;
   const payload = {
     ...request,
@@ -258,11 +320,18 @@ export async function saveRequest(request: import("../types").SavedRequest): Pro
 }
 
 export async function deleteRequest(requestId: string): Promise<void> {
+  if (isVsCodeWebview() && typeof (window as any).__kobeanrestInvoke === "function") {
+    await (window as any).__kobeanrestInvoke("deleteRequest", { id: requestId, requestId });
+    return;
+  }
   if (!isTauriRuntime()) return;
   return invoke<void>("delete_request", { requestId });
 }
 
 export async function createFolder(name: string, collectionId?: string, parentId?: string): Promise<import("../types").FolderSummary> {
+  if (isVsCodeWebview() && typeof (window as any).__kobeanrestInvoke === "function") {
+    return (window as any).__kobeanrestInvoke("createFolder", { name, collectionId, parentId });
+  }
   if (!isTauriRuntime()) {
     return { id: `preview-folder-${Date.now()}`, name, collectionId, parentId };
   }
@@ -312,6 +381,10 @@ export async function loadWorkspaceById(workspaceId: string): Promise<WorkspaceS
 }
 
 export async function createCollection(name: string, workspaceId?: string): Promise<string> {
+  if (isVsCodeWebview() && typeof (window as any).__kobeanrestInvoke === "function") {
+    const col = await (window as any).__kobeanrestInvoke("createCollection", { name });
+    return typeof col === "string" ? col : col?.id ?? `col-${Date.now()}`;
+  }
   if (!isTauriRuntime()) return `preview-collection-${Date.now()}`;
   return invoke<string>("create_collection", { name, workspaceId: workspaceId ?? null });
 }
@@ -344,16 +417,28 @@ export async function updateCollectionDefaultEnvironment(collectionId: string, d
 }
 
 export async function deleteCollection(collectionId: string): Promise<void> {
+  if (isVsCodeWebview() && typeof (window as any).__kobeanrestInvoke === "function") {
+    await (window as any).__kobeanrestInvoke("deleteCollection", { id: collectionId });
+    return;
+  }
   if (!isTauriRuntime()) return;
   return invoke<void>("delete_collection", { collectionId });
 }
 
 export async function deleteFolder(folderId: string): Promise<void> {
+  if (isVsCodeWebview() && typeof (window as any).__kobeanrestInvoke === "function") {
+    await (window as any).__kobeanrestInvoke("deleteFolder", { id: folderId });
+    return;
+  }
   if (!isTauriRuntime()) return;
   return invoke<void>("delete_folder", { folderId });
 }
 
 export async function createRequest(folderId: string): Promise<import("../types").SavedRequest> {
+  if (isVsCodeWebview() && typeof (window as any).__kobeanrestInvoke === "function") {
+    const res = await (window as any).__kobeanrestInvoke("createRequest", { folderId });
+    if (res) return res;
+  }
   if (!isTauriRuntime()) {
     return {
       id: `preview-request-${Date.now()}`,

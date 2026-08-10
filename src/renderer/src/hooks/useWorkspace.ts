@@ -874,18 +874,43 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       let targetFolderId = "";
       let createdColObj: { id: string; name: string } | null = null;
 
+      const cleanTarget = locationTarget.replace(/^(collection|folder|new_col):/, "").trim();
+      const targetLower = cleanTarget.toLowerCase();
+      const rawLower = locationTarget.toLowerCase();
+
       if (locationTarget.startsWith("new_col:")) {
-        const colName = locationTarget.replace("new_col:", "").trim() || "New Collection";
+        const colName = cleanTarget || "New Collection";
         const colId = await createCollection(colName, activeWsId);
         createdColObj = { id: colId, name: colName };
         targetFolderId = colId;
-      } else if (locationTarget.startsWith("collection:")) {
-        const colId = locationTarget.replace("collection:", "");
-        targetFolderId = colId;
-      } else if (locationTarget.startsWith("folder:")) {
-        targetFolderId = locationTarget.replace("folder:", "");
       } else {
-        targetFolderId = locationTarget;
+        // Match existing folder by ID or Name (case-insensitive)
+        const matchingFolder = workspace?.folders.find(
+          (f) =>
+            f.id === cleanTarget ||
+            f.id === locationTarget ||
+            f.name.toLowerCase() === targetLower ||
+            f.name.toLowerCase() === rawLower
+        );
+
+        if (matchingFolder) {
+          targetFolderId = matchingFolder.id;
+        } else {
+          // Match existing collection by ID or Name (case-insensitive)
+          const matchingCol = workspace?.collections?.find(
+            (c) =>
+              c.id === cleanTarget ||
+              c.id === locationTarget ||
+              c.name.toLowerCase() === targetLower ||
+              c.name.toLowerCase() === rawLower
+          );
+
+          if (matchingCol) {
+            targetFolderId = matchingCol.id;
+          } else if (cleanTarget) {
+            targetFolderId = cleanTarget;
+          }
+        }
       }
 
       if (!targetFolderId) {
