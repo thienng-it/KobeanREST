@@ -6,6 +6,7 @@
 
 # Slash Commands & Skill Triggers
 Recognize and immediately activate corresponding skills when the user executes slash commands:
+- `/clear` or `/reset`: Activates `clear` skill to reset temporary working context and clean session scratch files.
 - `/create-pr` or `/pr`: Activates `create-pr` skill to format, verify, and submit pull requests.
 - `/rebase` or `/rebase-main`: Activates `rebase-main` skill to pull latest remote code from main/master and rebase cleanly.
 - `/fix` or `/fix-code`: Activates `fix-code` skill for empirical log-first code and CI repairs.
