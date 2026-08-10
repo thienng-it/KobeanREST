@@ -6,6 +6,8 @@
 
 # Slash Commands & Skill Triggers
 Recognize and immediately activate corresponding skills when the user executes slash commands:
+- `/create-pr` or `/pr`: Activates `create-pr` skill to format, verify, and submit pull requests.
+- `/rebase` or `/rebase-main`: Activates `rebase-main` skill to pull latest remote code from main/master and rebase cleanly.
 - `/fix` or `/fix-code`: Activates `fix-code` skill for empirical log-first code and CI repairs.
 - `/code-review` or `/review`: Activates `code-review` / `review-changes` skill for risk-scored code review.
 - `/compact` or `/summarize`: Activates `compact` skill to summarize context, save persistent state to artifacts, and minimize token usage.
