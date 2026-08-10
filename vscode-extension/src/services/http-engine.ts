@@ -35,12 +35,11 @@ export interface HttpResponse {
  * and detailed timing breakdown.
  */
 export class HttpEngine {
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(_context: vscode.ExtensionContext) {}
 
   async execute(request: HttpRequest): Promise<HttpResponse> {
     const config = vscode.workspace.getConfiguration("kobeanrest");
     const validateCerts = config.get<boolean>("validateCertificates") ?? true;
-    const proxyUrl = config.get<string>("proxy") ?? "";
 
     const url = new URL(request.url);
     const isHttps = url.protocol === "https:";

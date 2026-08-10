@@ -9,7 +9,7 @@ export class ResponseViewerPanel {
   private static panel: vscode.WebviewPanel | undefined;
 
   static show(
-    context: vscode.ExtensionContext,
+    _context: vscode.ExtensionContext,
     response: HttpResponse,
     method: string,
     url: string,

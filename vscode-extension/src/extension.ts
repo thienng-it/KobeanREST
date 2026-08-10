@@ -96,6 +96,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerCommands(context, {
     panelManager,
     collectionTreeProvider,
+    environmentTreeProvider,
     historyTreeProvider,
     workspaceStorage,
     secretStorage,

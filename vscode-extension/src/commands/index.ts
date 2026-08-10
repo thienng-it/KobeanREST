@@ -65,7 +65,7 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "kobeanrest.sendRequest",
-      async (arg?: unknown) => {
+      async (_arg?: unknown) => {
         try {
           const editor = vscode.window.activeTextEditor;
           if (!editor || editor.document.languageId !== "http") {

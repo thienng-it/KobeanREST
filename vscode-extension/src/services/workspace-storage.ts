@@ -81,7 +81,7 @@ export class WorkspaceStorageService {
   private readonly dataFile: vscode.Uri;
   private saveTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  constructor(context: vscode.ExtensionContext) {
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
     this.storageDir = workspaceRoot
       ? vscode.Uri.joinPath(workspaceRoot, ".kobeanrest")

@@ -32,7 +32,7 @@ export interface AuthConfig {
  */
 export class AuthService {
   constructor(
-    private readonly secrets: SecretStorageService,
+    _secrets: SecretStorageService,
     private readonly resolver: VariableResolver,
   ) {}
 

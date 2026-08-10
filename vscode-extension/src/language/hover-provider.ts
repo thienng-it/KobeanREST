@@ -38,7 +38,6 @@ export class HttpHoverProvider implements vscode.HoverProvider {
   ): vscode.Hover | null {
     const lineText = document.lineAt(position.line).text;
     const wordRange = document.getWordRangeAtPosition(position);
-    const word = wordRange ? document.getText(wordRange) : "";
 
     // Variable hover: {{variableName}}
     const varPattern = /\{\{([^}]+)\}\}/g;
@@ -49,8 +48,7 @@ export class HttpHoverProvider implements vscode.HoverProvider {
       if (position.character >= varStart && position.character <= varEnd) {
         const varName = match[1].trim();
         const value = this.resolver.getVariableValue(varName);
-        const env = this.resolver.getActiveVariableMap();
-        const envName = (this.resolver as { storage: { getActiveEnvironmentName(): string } })
+        const envName = (this.resolver as unknown as { storage: { getActiveEnvironmentName(): string } })
           .storage?.getActiveEnvironmentName?.() ?? "Active Environment";
 
         const md = new vscode.MarkdownString();

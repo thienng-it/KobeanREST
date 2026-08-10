@@ -57,7 +57,7 @@ export class HttpCompletionProvider implements vscode.CompletionItemProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
     _token: vscode.CancellationToken,
-    context: vscode.CompletionContext,
+    _context: vscode.CompletionContext,
   ): vscode.CompletionItem[] {
     const lineText = document.lineAt(position.line).text;
     const linePrefix = lineText.substring(0, position.character);
