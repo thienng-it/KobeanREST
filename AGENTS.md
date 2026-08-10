@@ -6,6 +6,7 @@
 
 # Slash Commands & Skill Triggers
 Recognize and immediately activate corresponding skills when the user executes slash commands:
+- `/fix` or `/fix-code`: Activates `fix-code` skill for empirical log-first code and CI repairs.
 - `/code-review` or `/review`: Activates `code-review` / `review-changes` skill for risk-scored code review.
 - `/compact` or `/summarize`: Activates `compact` skill to summarize context, save persistent state to artifacts, and minimize token usage.
 - `/debug`: Activates `debug-issue` skill for log-first systematic debugging.
