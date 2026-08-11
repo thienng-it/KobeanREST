@@ -597,3 +597,10 @@ export async function exportMcpManifest(): Promise<{ manifest_json: string; serv
   }
   return invoke("export_mcp_manifest");
 }
+
+export async function executeMcpToolCall(toolName: string, argumentsJson: string): Promise<any> {
+  if (!isTauriRuntime()) {
+    return { status: "error", message: "Not in Tauri runtime" };
+  }
+  return invoke("execute_mcp_tool_call", { toolName, arguments: argumentsJson });
+}

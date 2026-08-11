@@ -1,5 +1,5 @@
 import { useEffect, useState, useTransition, useRef, useMemo, useCallback, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { PanelLeftOpen } from "lucide-react";
+import { PanelLeftOpen, Sparkles } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestFieldsSafe, UnresolvedVariableError, buildScopedVariableMap, activeScopedVariablesList, resolveString } from "./services/variables";
@@ -27,6 +27,7 @@ import { Sidebar } from "./components/Sidebar";
 import { WorkspaceSwitcherModal } from "./components/WorkspaceSwitcherModal";
 import { CreateRequestModal } from "./components/CreateRequestModal";
 import { TabBar } from "./components/TabBar";
+import { AIChatSidebar } from "./components/AIChatSidebar";
 import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { FolderEditor } from "./components/FolderEditor";
 import { CollectionEditor } from "./components/CollectionEditor";
@@ -74,6 +75,7 @@ export function App() {
     return localStorage.getItem("kr_sidebar_collapsed") === "true";
   });
   const [isSidebarResizing, setIsSidebarResizing] = useState(false);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -1559,8 +1561,11 @@ export function App() {
           </div>
         )}
 
-        <div className="workspace-main">
-          <TabBar
+        <div className="workspace-main" style={{ display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', borderBottom: "1px solid var(--color-border)", backgroundColor: "var(--color-sidebar)", alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                <TabBar
             tabs={tabs}
             activeTabId={activeTabId}
             unsavedEntityIds={unsavedEntityIds}
@@ -1591,6 +1596,29 @@ export function App() {
               setContextMenu({ x, y, target: { id: tabId, type: "tab" } });
             }}
           />
+              </div>
+              <button
+                onClick={() => setAiChatOpen(prev => !prev)}
+                className="icon-btn"
+                title="Toggle AI Chat"
+                style={{
+                   margin: '0 8px',
+                   padding: '4px 8px',
+                   display: 'flex',
+                   alignItems: 'center',
+                   gap: '6px',
+                   background: aiChatOpen ? 'var(--color-surface-active)' : 'transparent',
+                   border: 'none',
+                   borderRadius: '6px',
+                   color: aiChatOpen ? 'var(--color-text-active)' : 'var(--color-text-muted)',
+                   cursor: 'pointer',
+                   flexShrink: 0
+                }}
+              >
+                <Sparkles size={14} />
+                <span style={{ fontSize: '12px', fontWeight: 500 }}>AI Chat</span>
+              </button>
+            </div>
           {(() => {
             let scopedVarsArray = activeVars;
             if (workspace) {
@@ -1802,6 +1830,8 @@ export function App() {
               onClearConsole={() => setScriptOutputLog([])}
             />
           )}
+          </div>
+          <AIChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
         </div>
       </section>
 
