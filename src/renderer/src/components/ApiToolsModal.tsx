@@ -5,6 +5,7 @@ import { CustomSelect } from "./CustomSelect";
 interface ApiToolsModalProps {
   open: boolean;
   onClose: () => void;
+  collections?: { id: string; name: string }[];
 }
 
 function b64DecodeUnicode(str: string) {
@@ -420,12 +421,20 @@ function LocalMockServerView() {
   );
 }
 
-function OpenApiEngineView() {
+function OpenApiEngineView({ collections }: { collections: { id: string; name: string }[] }) {
   const [spec, setSpec] = useState("");
+  const [selectedCollection, setSelectedCollection] = useState<string>(collections[0]?.id || "");
+
+  useEffect(() => {
+    if (!selectedCollection && collections.length > 0) {
+      setSelectedCollection(collections[0].id);
+    }
+  }, [collections, selectedCollection]);
 
   const handleExport = async () => {
     const { exportOpenApiSpec } = await import("../services/local-store");
-    const result = await exportOpenApiSpec(undefined, "KobeanREST Workspace API");
+    const colName = collections.find(c => c.id === selectedCollection)?.name || "KobeanREST Workspace API";
+    const result = await exportOpenApiSpec(selectedCollection || undefined, colName);
     setSpec(result.spec_json);
   };
 
@@ -438,22 +447,33 @@ function OpenApiEngineView() {
             Generate compliant OpenAPI 3.0.3 specification documents from your collections.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleExport}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "6px",
-            border: "1px solid var(--color-border)",
-            backgroundColor: "var(--color-surface-hover)",
-            color: "var(--color-text)",
-            fontWeight: "600",
-            fontSize: "13px",
-            cursor: "pointer"
-          }}
-        >
-          Generate OpenAPI 3.0 Spec
-        </button>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <div style={{ width: "200px" }}>
+            <CustomSelect
+              options={collections.map(c => ({ label: c.name, value: c.id }))}
+              value={selectedCollection}
+              onChange={setSelectedCollection}
+              placeholder="Select collection..."
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleExport}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "6px",
+              border: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-surface-hover)",
+              color: "var(--color-text)",
+              fontWeight: "600",
+              fontSize: "13px",
+              cursor: "pointer",
+              whiteSpace: "nowrap"
+            }}
+          >
+            Generate OpenAPI 3.0 Spec
+          </button>
+        </div>
       </div>
 
       <textarea
@@ -514,8 +534,8 @@ function McpServerView() {
   );
 }
 
-export function ApiToolsModal({ open, onClose }: ApiToolsModalProps) {
-  const [activeTab, setActiveTab] = useState<"jwt" | "encode" | "json" | "hash" | "mock" | "openapi" | "mcp">("jwt");
+export function ApiToolsModal({ open, onClose, collections = [] }: ApiToolsModalProps) {
+  const [activeTab, setActiveTab] = useState<"jwt" | "encode" | "json" | "hash" | "mock" | "openapi" | "mcp">("openapi");
 
   if (!open) return null;
 
@@ -581,7 +601,7 @@ export function ApiToolsModal({ open, onClose }: ApiToolsModalProps) {
             {activeTab === "json" && <JsonFormatter />}
             {activeTab === "hash" && <HashGenerator />}
             {activeTab === "mock" && <LocalMockServerView />}
-            {activeTab === "openapi" && <OpenApiEngineView />}
+            {activeTab === "openapi" && <OpenApiEngineView collections={collections || []} />}
             {activeTab === "mcp" && <McpServerView />}
           </div>
         </div>

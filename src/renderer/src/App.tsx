@@ -2177,6 +2177,7 @@ export function App() {
       <ApiToolsModal
         open={apiToolsOpen}
         onClose={() => setApiToolsOpen(false)}
+        collections={workspace?.collections || []}
       />
 
       <UniversalImportModal
