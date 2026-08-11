@@ -1,51 +1,45 @@
-# Token Saving Directives
-- CRITICAL: Never explain the code you are writing.
-- Output ONLY the necessary shell commands or code edits.
-- Do not use conversational filler, greetings, or apologies (e.g., skip "Here is the code", "I understand", "Let me fix that").
-- When running tests or reading logs, ALWAYS pipe the output through grep to find errors rather than dumping the whole file (e.g., `npm test 2>&1 | grep -A5 -E "FAIL|ERROR"`).
+# Token Saving & Execution Directives
+- **CRITICAL**: Never explain the code you are writing unless explicitly asked.
+- Output ONLY necessary shell commands, code edits, or concise progress summaries.
+- Do not use conversational filler, greetings, or apologies (e.g. skip "Here is the code", "I understand", "Let me fix that").
+- **Log & Error Parsing**: When running tests or checking logs, ALWAYS pipe output through grep to highlight failures rather than printing full logs (e.g. `npm test 2>&1 | grep -A5 -E "FAIL|ERROR"`).
 
-<!-- code-review-graph MCP tools -->
-## MCP Tools: code-review-graph
+# Slash Commands & Skill Triggers
+Recognize and immediately activate corresponding skills when the user executes slash commands:
+- `/clear` or `/reset`: Activates `clear` skill to reset temporary working context and clean session scratch files.
+- `/create-pr` or `/pr`: Activates `create-pr` skill to format, verify, and submit pull requests.
+- `/rebase` or `/rebase-main`: Activates `rebase-main` skill to pull latest remote code from main/master and rebase cleanly.
+- `/fix` or `/fix-code`: Activates `fix-code` skill for empirical log-first code and CI repairs.
+- `/code-review` or `/review`: Activates `code-review` / `review-changes` skill for risk-scored code review.
+- `/compact` or `/summarize`: Activates `compact` skill to summarize context, save persistent state to artifacts, and minimize token usage.
+- `/debug`: Activates `debug-issue` skill for log-first systematic debugging.
+- `/explore`: Activates `explore-codebase` skill for graph architecture exploration.
+- `/refactor`: Activates `refactor-safely` skill for impact-checked refactoring.
+- `/tauri`: Activates `tauri-rust-bridge` skill for Tauri IPC, SQLite, and OS Keychain development.
+- `/ai-pipeline`: Activates `ai-pipeline-integration` skill for automated CI/CD pipeline management.
 
-**IMPORTANT: This project has a knowledge graph. ALWAYS use the
-code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
-the codebase.** The graph is faster, cheaper (fewer tokens), and gives
-you structural context (callers, dependents, test coverage) that file
-scanning cannot.
+# Context & Memory Compaction Protocol
+- When handling `/compact`, extract all active architectural decisions, modified file paths, and pending verifications.
+- Persist structured state into project artifacts (`implementation_plan.md` or `walkthrough.md`) to maintain continuity across sessions.
+- Provide a token-dense summary snapshot and clear current task queue.
 
-### When to use graph tools FIRST
+# Codebase Architecture & System Boundaries
+- **Tauri / Rust Core (`src-tauri/`)**: Handles window management, SQLite database persistence (`persistence.rs`), OS Keychain secrets management, and native HTTP request dispatching.
+- **React UI Renderer (`src/renderer/`)**: TypeScript & React UI layer. Styled using custom CSS variables (e.g. `var(--color-surface-muted)`). Avoid hardcoded hex colors or inline style hacks.
+- **Request Execution Engine (`src/renderer/src/services/request-executor.ts`)**: Centralizes variable resolution, OAuth/Auth inheritance, header injection, and secret redaction. Never duplicate auth logic in UI components.
+- **VSCode Extension Suite (`vscode-extension/`)**: Standalone extension for KobeanREST integration inside VSCode.
 
-- **Exploring code**: `semantic_search_nodes_tool` or `query_graph_tool` instead of Grep
-- **Understanding impact**: `get_impact_radius_tool` instead of manually tracing imports
-- **Code review**: `detect_changes_tool` + `get_review_context_tool` instead of reading entire files
-- **Finding relationships**: `query_graph_tool` with callers_of/callees_of/imports_of/tests_for
-- **Architecture questions**: `get_architecture_overview_tool` + `list_communities_tool`
+# MCP & Knowledge Graph Navigation
+- **Primary Exploration**: ALWAYS use `code-review-graph` MCP tools (`semantic_search_nodes_tool`, `query_graph_tool`, `get_impact_radius_tool`, `detect_changes_tool`) before using raw search tools.
+- **Token Efficiency**: Target completing review/debug tasks in ≤5 tool calls and ≤800 tokens. Start with `get_minimal_context` and `detail_level="minimal"`.
+- **Search Fallback**: Use `grep_search` only if searching for raw string literals, `.yml` pipeline files, or when the knowledge graph returns no results.
 
-Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
+# Testing & Contract Synchronization
+- **Contract Tests (`tests/*.test.mjs`)**: Contract tests use `node:test` and read source code via `fs.readFileSync` with `assert.match()` regex patterns.
+- **Synchronous Updates**: When refactoring functions, parameters, or constants, search `tests/*.test.mjs` and synchronously update regex assertions to prevent false positive contract test failures.
+- **CI Synchronization**: Sync `.github/workflows/*.yml` step names, runner versions, and concurrency groups with contract test assertions.
 
-### Key Tools
-
-| Tool | Use when |
-| ------ | ---------- |
-| `detect_changes_tool` | Reviewing code changes — gives risk-scored analysis |
-| `get_review_context_tool` | Need source snippets for review — token-efficient |
-| `get_impact_radius_tool` | Understanding blast radius of a change |
-| `get_affected_flows_tool` | Finding which execution paths are impacted |
-| `query_graph_tool` | Tracing callers, callees, imports, tests, dependencies |
-| `semantic_search_nodes_tool` | Finding functions/classes by name or keyword |
-| `get_architecture_overview_tool` | Understanding high-level codebase structure |
-| `refactor_tool` | Planning renames, finding dead code |
-
-### Workflow
-
-1. The graph auto-updates on file changes (via hooks).
-2. Use `detect_changes_tool` for code review.
-3. Use `get_affected_flows_tool` to understand impact.
-4. Use `query_graph_tool` pattern="tests_for" to check coverage.
-
-## CI Workflow & Contract Test Synchronization
-- Whenever updating `.github/workflows/*.yml` (such as concurrency groups, step names, or action versions), search `tests/*-contract.test.mjs` for corresponding assertions and update them synchronously to prevent CI failure false positives.
-
-## Component Boundaries & Git Safety Directives
-- Keep layout controls (`LayoutControls`) decoupled from core tab bars (`TabBar`). Prefer composing toolbars in the parent app container rather than threading layout nodes through tab bar props.
-- NEVER execute `git push` unless explicitly requested by the user.
+# Component Boundaries & Security Safety Directives
+- **Layout Decoupling**: Keep layout controls (`LayoutControls`) decoupled from core tab navigation (`TabBar`). Compose toolbars in parent containers rather than threading layout props through tab bars.
+- **Secrets Protection**: Credentials and tokens MUST use OS Keychain integration via Rust (`persistence.rs`). Never store secrets in plaintext SQLite fields or local state.
+- **Git Safety**: NEVER execute `git push`, `git reset --hard`, or destructive branch manipulations unless explicitly instructed by the user.

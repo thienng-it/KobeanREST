@@ -1,28 +1,26 @@
 ---
 name: refactor-safely
-description: Plan and execute safe refactoring using dependency analysis
+description: Plan and execute safe refactoring using graph impact analysis and test contract sync
 ---
 
-## Refactor Safely
+# Safe Refactoring Workflow
 
-Use the knowledge graph to plan and execute refactoring with confidence.
+Use this skill when renaming symbols, reorganizing component hierarchies, or modifying core signatures.
 
-### Steps
+## Refactoring Protocol
 
-1. Use `refactor_tool` with mode="suggest" for community-driven refactoring suggestions.
-2. Use `refactor_tool` with mode="dead_code" to find unreferenced code.
-3. For renames, use `refactor_tool` with mode="rename" to preview all affected locations.
-4. Use `apply_refactor_tool` with the refactor_id to apply renames.
-5. After changes, run `detect_changes_tool` to verify the refactoring impact.
+1. **Impact Analysis**:
+   - Run `get_impact_radius_tool` on target files to isolate all dependent modules.
+   - Run `get_affected_flows_tool` to ensure critical execution paths are mapped.
 
-### Safety Checks
+2. **Renaming & Restructuring**:
+   - Use `refactor_tool` with `mode="preview"` before committing edits.
+   - Preview list of affected imports, types, and function calls.
 
-- Always preview before applying (rename mode gives you an edit list).
-- Check `get_impact_radius_tool` before major refactors.
-- Use `get_affected_flows_tool` to ensure no critical paths are broken.
-- Run `find_large_functions` to identify decomposition targets.
+3. **Contract Synchronization**:
+   - Search `tests/*.test.mjs` for regex patterns referencing refactored source code symbols (`assert.match`).
+   - Update contract regexes synchronously alongside source changes.
 
-## Token Efficiency Rules
-- ALWAYS start with `get_minimal_context(task="<your task>")` before any other graph tool.
-- Use `detail_level="minimal"` on all calls. Only escalate to "standard" when minimal is insufficient.
-- Target: complete any review/debug/refactor task in ≤5 tool calls and ≤800 total output tokens.
+4. **Post-Refactor Verification**:
+   - Run `detect_changes_tool` to review change score.
+   - Execute test suite (`npm test 2>&1 | grep -A5 -E "FAIL|ERROR"`).

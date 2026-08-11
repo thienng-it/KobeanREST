@@ -1,0 +1,116 @@
+{
+  "name": "HTTP",
+  "scopeName": "source.http",
+  "fileTypes": ["http", "rest"],
+  "patterns": [
+    { "include": "#request-separator" },
+    { "include": "#comment" },
+    { "include": "#directive" },
+    { "include": "#variable-definition" },
+    { "include": "#request-line" },
+    { "include": "#header" },
+    { "include": "#variable-reference" },
+    { "include": "#request-body" }
+  ],
+  "repository": {
+    "request-separator": {
+      "match": "^###.*$",
+      "name": "comment.line.separator.http"
+    },
+    "comment": {
+      "patterns": [
+        {
+          "match": "^\\s*#(?!##).*$",
+          "name": "comment.line.number-sign.http"
+        },
+        {
+          "match": "^\\s*//.*$",
+          "name": "comment.line.double-slash.http"
+        }
+      ]
+    },
+    "directive": {
+      "patterns": [
+        {
+          "match": "^\\s*#\\s*@(name|env|no-redirect|no-cookie-jar|note|prompt)\\b(.*)$",
+          "captures": {
+            "1": { "name": "keyword.control.directive.http" },
+            "2": { "name": "string.unquoted.directive-value.http" }
+          }
+        }
+      ]
+    },
+    "variable-definition": {
+      "match": "^@(\\w[\\w-]*)\\s*=\\s*(.+)$",
+      "captures": {
+        "1": { "name": "variable.other.definition.http" },
+        "2": {
+          "patterns": [
+            { "include": "#variable-reference" },
+            {
+              "match": ".+",
+              "name": "string.unquoted.variable-value.http"
+            }
+          ]
+        }
+      }
+    },
+    "request-line": {
+      "match": "^\\s*(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|TRACE|CONNECT|PROPFIND|PROPPATCH|MKCOL|COPY|MOVE|LOCK|UNLOCK|QUERY)\\s+(.+?)(?:\\s+(HTTP/\\S+))?\\s*$",
+      "captures": {
+        "1": { "name": "keyword.operator.http-method.http" },
+        "2": {
+          "name": "markup.underline.link.url.http",
+          "patterns": [
+            { "include": "#variable-reference" },
+            {
+              "match": "\\?",
+              "name": "punctuation.separator.query.http"
+            },
+            {
+              "match": "&",
+              "name": "punctuation.separator.query-param.http"
+            },
+            {
+              "match": "=",
+              "name": "punctuation.separator.key-value.http"
+            }
+          ]
+        },
+        "3": { "name": "constant.other.http-version.http" }
+      }
+    },
+    "header": {
+      "match": "^([\\w-]+)\\s*:\\s*(.*)$",
+      "captures": {
+        "1": { "name": "entity.name.tag.header-name.http" },
+        "2": {
+          "name": "string.other.header-value.http",
+          "patterns": [
+            { "include": "#variable-reference" }
+          ]
+        }
+      }
+    },
+    "variable-reference": {
+      "match": "\\{\\{([^}]+)\\}\\}",
+      "captures": {
+        "0": { "name": "variable.other.readwrite.http" },
+        "1": { "name": "variable.other.readwrite.name.http" }
+      }
+    },
+    "request-body": {
+      "begin": "^\\s*$",
+      "end": "(?=^###|^\\s*(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|TRACE|CONNECT)\\s)",
+      "name": "meta.request-body.http",
+      "patterns": [
+        { "include": "#variable-reference" },
+        { "include": "source.json" },
+        {
+          "match": ".+",
+          "name": "string.other.body.http"
+        }
+      ]
+    }
+  }
+}

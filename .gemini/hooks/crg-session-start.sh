@@ -5,7 +5,8 @@ set -euo pipefail
 
 cat > /dev/null || true
 
-msg="$(code-review-graph status --repo "/Users/thanh.nguyen/Desktop/projects/KobeanREST" 2>&1 | head -n 1 || true)"
+REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+msg="$(code-review-graph status --repo "$REPO_DIR" 2>&1 | head -n 1 || true)"
 
 CRG_MSG="$msg" python3 -c '
 import json,os

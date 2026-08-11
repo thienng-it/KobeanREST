@@ -2064,12 +2064,13 @@ export function App() {
 
           if (oldTempId && oldDraftData && createdReq) {
             lastSelectedRequestIdRef.current = createdReq.id;
+            const targetLocId = locationTarget.replace(/^(collection|folder|new_col):/, "").trim();
             const fullReq: SavedRequest = {
               ...oldDraftData,
               id: createdReq.id,
               name: createdReq.name,
               method: createdReq.method,
-              folderId: createdReq.folderId,
+              folderId: createdReq.folderId || targetLocId,
             };
             await saveRequest(fullReq);
             try {

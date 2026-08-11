@@ -18,3 +18,4 @@ dist-webview/
 *.vsix
 # Added by code-review-graph
 .code-review-graph/
+.kobeanrest/

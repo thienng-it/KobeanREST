@@ -1,27 +1,28 @@
 ---
 name: debug-issue
-description: Systematically debug issues using graph-powered code navigation
+description: Systematically debug issues using log evidence and graph-powered code navigation
 ---
 
-## Debug Issue
+# Systematic Debugging Workflow
 
-Use the knowledge graph to systematically trace and debug issues.
+Use this skill to diagnose and fix runtime errors, test failures, or unexpected UI behavior.
 
-### Steps
+## Debugging Protocol (Mandatory Rules)
 
-1. Use `semantic_search_nodes_tool` to find code related to the issue.
-2. Use `query_graph_tool` with `callers_of` and `callees_of` to trace call chains.
-3. Use `get_flow` to see full execution paths through suspected areas.
-4. Run `detect_changes_tool` to check if recent changes caused the issue.
-5. Use `get_impact_radius_tool` on suspected files to see what else is affected.
+1. **Log & Traceback Inspection First**:
+   - Inspect full error log before forming a hypothesis.
+   - Run tests with failure filters: `npm test 2>&1 | grep -A5 -E "FAIL|ERROR"`.
 
-### Tips
+2. **Graph Navigation Strategy**:
+   - `semantic_search_nodes_tool`: Find entry points, handlers, or error symbols.
+   - `query_graph_tool`: Trace `callers_of` and `callees_of` to isolate failure propagation paths.
+   - `detect_changes_tool`: Analyze recent file modifications that correlated with the failure.
+   - `get_impact_radius_tool`: Evaluate affected modules before committing code fixes.
 
-- Check both callers and callees to understand the full context.
-- Look at affected flows to find the entry point that triggers the bug.
-- Recent changes are the most common source of new issues.
+3. **Verification & Root Cause Elimination**:
+   - Fix the underlying cause rather than masking symptoms or wrapping calls in empty `try/catch` blocks.
+   - Run verification tests to confirm the issue is completely resolved.
 
 ## Token Efficiency Rules
-- ALWAYS start with `get_minimal_context(task="<your task>")` before any other graph tool.
-- Use `detail_level="minimal"` on all calls. Only escalate to "standard" when minimal is insufficient.
-- Target: complete any review/debug/refactor task in ≤5 tool calls and ≤800 total output tokens.
+- Always begin with `get_minimal_context(task="<your task>")`.
+- Keep tool calls under 5 actions and total context output under 800 tokens.
