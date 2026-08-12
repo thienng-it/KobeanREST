@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Play, Square, Activity, Download, BarChart3, Clock, TrendingUp, AlertTriangle, CheckCircle2, RefreshCw, History, SlidersHorizontal } from "lucide-react";
+import { X, Play, Square, Activity, Download, BarChart3, Clock, TrendingUp, AlertTriangle, CheckCircle2, RefreshCw, History, SlidersHorizontal, Users, Repeat, Zap, PauseCircle, Check } from "lucide-react";
 import type { SavedRequest, WorkspaceSummary } from "../types";
 import { prepareRequestForExecution } from "../services/request-executor";
 import { executeHttpRequest } from "../services/http-client";
@@ -600,72 +600,306 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
 
           {/* ── Configure ──────────────────────────────────────────── */}
           {(status === "configuring" && activeTab === "results") && (
-            <section className="settings-section">
-              {/* Mode toggle */}
-              <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-                {(["iterations", "duration"] as const).map(m => (
-                  <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: "10px", borderRadius: 8, border: `2px solid ${mode === m ? "var(--color-accent)" : "var(--color-border)"}`, background: mode === m ? "rgba(99,102,241,0.08)" : "transparent", color: mode === m ? "var(--color-accent)" : "var(--color-text-muted)", cursor: "pointer", fontWeight: mode === m ? 700 : 500, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                    {m === "iterations" ? <><BarChart3 size={14} /> Iteration-based</> : <><Clock size={14} /> Duration-based</>}
-                  </button>
-                ))}
+            <section className="settings-section" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {/* Mode Selection Cards */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 10 }}>
+                  Test Execution Strategy
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {(["iterations", "duration"] as const).map((m) => {
+                    const isSelected = mode === m;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setMode(m)}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: 6,
+                          padding: "16px 18px",
+                          borderRadius: 10,
+                          border: `1.5px solid ${isSelected ? "var(--color-accent)" : "var(--color-border)"}`,
+                          background: isSelected
+                            ? "linear-gradient(135deg, rgba(99, 102, 241, 0.14) 0%, rgba(99, 102, 241, 0.04) 100%)"
+                            : "var(--color-surface-hover)",
+                          color: isSelected ? "var(--color-text)" : "var(--color-text-muted)",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+                          boxShadow: isSelected ? "0 4px 14px rgba(99, 102, 241, 0.15)" : "none",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 14, color: isSelected ? "var(--color-accent-light)" : "var(--color-text)" }}>
+                            {m === "iterations" ? <BarChart3 size={16} /> : <Clock size={16} />}
+                            {m === "iterations" ? "Iteration-based" : "Duration-based"}
+                          </span>
+                          <span
+                            style={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: "50%",
+                              border: `1.5px solid ${isSelected ? "var(--color-accent)" : "var(--color-border)"}`,
+                              background: isSelected ? "var(--color-accent)" : "transparent",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              transition: "all 0.15s",
+                            }}
+                          >
+                            {isSelected && <Check size={11} color="#ffffff" strokeWidth={3} />}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: "1.4" }}>
+                          {m === "iterations"
+                            ? "Send a fixed total number of HTTP requests across concurrent Virtual Users."
+                            : "Sustain continuous concurrent load for a specified time window in seconds."}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 24px" }}>
-                {/* Left column */}
-                <div>
+              {/* Form Parameters Cards Grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                {/* Column 1: Main Metric */}
+                <div style={{ padding: 16, borderRadius: 10, border: "1px solid var(--color-border)", background: "var(--color-surface-solid)", display: "flex", flexDirection: "column", gap: 14 }}>
                   {mode === "iterations" ? (
-                    <label className="settings-row" style={{ borderBottom: "none" }}>
-                      <span style={{ flex: 1 }}>
-                        <strong>Total Iterations</strong>
-                        <small>Total number of requests to send</small>
-                      </span>
-                      <input type="number" min="1" className="input" style={{ width: 100 }} value={iterations} onChange={e => setIterations(Math.max(1, parseInt(e.target.value) || 1))} />
-                    </label>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13 }}>
+                          <Repeat size={14} style={{ color: "var(--color-accent)" }} />
+                          Total Iterations
+                        </label>
+                        <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>reqs</span>
+                      </div>
+                      <input
+                        type="number"
+                        min="1"
+                        className="input"
+                        style={{ width: "100%", fontSize: 14, fontWeight: 600 }}
+                        value={iterations}
+                        onChange={(e) => setIterations(Math.max(1, parseInt(e.target.value) || 1))}
+                      />
+                      <div style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+                        {[50, 100, 250, 500, 1000].map((val) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setIterations(val)}
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: 5,
+                              border: "1px solid var(--color-border)",
+                              background: iterations === val ? "var(--color-accent-subtle)" : "transparent",
+                              color: iterations === val ? "var(--color-accent-light)" : "var(--color-text-muted)",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {val}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ) : (
-                    <label className="settings-row" style={{ borderBottom: "none" }}>
-                      <span style={{ flex: 1 }}>
-                        <strong>Test Duration</strong>
-                        <small>How long to run (seconds)</small>
-                      </span>
-                      <input type="number" min="1" max="3600" className="input" style={{ width: 100 }} value={durationSecs} onChange={e => setDurationSecs(Math.max(1, parseInt(e.target.value) || 30))} />
-                    </label>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13 }}>
+                          <Clock size={14} style={{ color: "var(--color-accent)" }} />
+                          Test Duration
+                        </label>
+                        <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>seconds</span>
+                      </div>
+                      <input
+                        type="number"
+                        min="1"
+                        max="3600"
+                        className="input"
+                        style={{ width: "100%", fontSize: 14, fontWeight: 600 }}
+                        value={durationSecs}
+                        onChange={(e) => setDurationSecs(Math.max(1, parseInt(e.target.value) || 30))}
+                      />
+                      <div style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+                        {[10, 30, 60, 120, 300].map((val) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setDurationSecs(val)}
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: 5,
+                              border: "1px solid var(--color-border)",
+                              background: durationSecs === val ? "var(--color-accent-subtle)" : "transparent",
+                              color: durationSecs === val ? "var(--color-accent-light)" : "var(--color-text-muted)",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {val}s
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                  <label className="settings-row" style={{ borderBottom: "none", paddingBottom: 0 }}>
-                    <span style={{ flex: 1 }}>
-                      <strong>Virtual Users (Concurrency)</strong>
-                      <small>Simultaneous parallel requests</small>
-                    </span>
-                    <input type="number" min="1" max="500" className="input" style={{ width: 100 }} value={concurrency} onChange={e => setConcurrency(Math.max(1, parseInt(e.target.value) || 1))} />
-                  </label>
+
+                  <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13 }}>
+                        <Users size={14} style={{ color: "var(--color-accent)" }} />
+                        Virtual Users (Concurrency)
+                      </label>
+                      <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>VUs</span>
+                    </div>
+                    <input
+                      type="number"
+                      min="1"
+                      max="500"
+                      className="input"
+                      style={{ width: "100%", fontSize: 14, fontWeight: 600 }}
+                      value={concurrency}
+                      onChange={(e) => setConcurrency(Math.max(1, parseInt(e.target.value) || 1))}
+                    />
+                    <div style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+                      {[1, 5, 10, 25, 50, 100].map((val) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setConcurrency(val)}
+                          style={{
+                            padding: "3px 8px",
+                            borderRadius: 5,
+                            border: "1px solid var(--color-border)",
+                            background: concurrency === val ? "var(--color-accent-subtle)" : "transparent",
+                            color: concurrency === val ? "var(--color-accent-light)" : "var(--color-text-muted)",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {val} VUs
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Right column: advanced */}
-                <div>
-                  <label className="settings-row" style={{ borderBottom: "none" }}>
-                    <span style={{ flex: 1 }}>
-                      <strong>Ramp-up Duration</strong>
-                      <small>Seconds to gradually start all VUs (0 = instant)</small>
-                    </span>
-                    <input type="number" min="0" max="300" className="input" style={{ width: 100 }} value={rampUpSecs} onChange={e => setRampUpSecs(Math.max(0, parseInt(e.target.value) || 0))} />
-                  </label>
-                  <label className="settings-row" style={{ borderBottom: "none", paddingBottom: 0 }}>
-                    <span style={{ flex: 1 }}>
-                      <strong>Think Time</strong>
-                      <small>Wait between requests per VU (ms)</small>
-                    </span>
-                    <input type="number" min="0" max="60000" className="input" style={{ width: 100 }} value={thinkTimeMs} onChange={e => setThinkTimeMs(Math.max(0, parseInt(e.target.value) || 0))} />
-                  </label>
+                {/* Column 2: Advanced Controls */}
+                <div style={{ padding: 16, borderRadius: 10, border: "1px solid var(--color-border)", background: "var(--color-surface-solid)", display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13 }}>
+                        <Zap size={14} style={{ color: "var(--color-accent)" }} />
+                        Ramp-up Duration
+                      </label>
+                      <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>sec</span>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="300"
+                      className="input"
+                      style={{ width: "100%", fontSize: 14, fontWeight: 600 }}
+                      value={rampUpSecs}
+                      onChange={(e) => setRampUpSecs(Math.max(0, parseInt(e.target.value) || 0))}
+                    />
+                    <small style={{ display: "block", marginTop: 6, color: "var(--color-text-muted)", fontSize: 11, lineHeight: "1.3" }}>
+                      Seconds to gradually spawn VUs (0 = instant burst)
+                    </small>
+                  </div>
+
+                  <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13 }}>
+                        <PauseCircle size={14} style={{ color: "var(--color-accent)" }} />
+                        Think Time Delay
+                      </label>
+                      <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>ms</span>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="60000"
+                      className="input"
+                      style={{ width: "100%", fontSize: 14, fontWeight: 600 }}
+                      value={thinkTimeMs}
+                      onChange={(e) => setThinkTimeMs(Math.max(0, parseInt(e.target.value) || 0))}
+                    />
+                    <small style={{ display: "block", marginTop: 6, color: "var(--color-text-muted)", fontSize: 11, lineHeight: "1.3" }}>
+                      Wait time between requests per VU (ms)
+                    </small>
+                  </div>
                 </div>
               </div>
 
-              {/* Summary preview */}
-              <div style={{ marginTop: 16, padding: "10px 14px", borderRadius: 8, background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", fontSize: 12, color: "var(--color-text-muted)", display: "flex", gap: 24, flexWrap: "wrap" }}>
-                <span>🔀 <strong>{concurrency}</strong> virtual users</span>
-                {mode === "iterations"
-                  ? <span>🔁 <strong>{iterations}</strong> total requests</span>
-                  : <span>⏱ <strong>{durationSecs}s</strong> duration</span>}
-                {rampUpSecs > 0 && <span>📈 <strong>{rampUpSecs}s</strong> ramp-up</span>}
-                {thinkTimeMs > 0 && <span>💤 <strong>{thinkTimeMs}ms</strong> think time / VU</span>}
+              {/* Live Strategy Summary Card */}
+              <div
+                style={{
+                  padding: "14px 18px",
+                  borderRadius: 10,
+                  background: "linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(15, 23, 42, 0.4) 100%)",
+                  border: "1px solid rgba(99, 102, 241, 0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                    <Users size={16} style={{ color: "var(--color-accent)" }} />
+                    <span><strong>{concurrency}</strong> Parallel VUs</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                    {mode === "iterations" ? (
+                      <>
+                        <Repeat size={16} style={{ color: "var(--color-accent)" }} />
+                        <span><strong>{iterations}</strong> Total Requests</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock size={16} style={{ color: "var(--color-accent)" }} />
+                        <span><strong>{durationSecs}s</strong> Stress Window</span>
+                      </>
+                    )}
+                  </div>
+                  {rampUpSecs > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                      <Zap size={16} style={{ color: "#f59e0b" }} />
+                      <span>Ramping over <strong>{rampUpSecs}s</strong></span>
+                    </div>
+                  )}
+                  {thinkTimeMs > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                      <PauseCircle size={16} style={{ color: "var(--color-text-muted)" }} />
+                      <span><strong>{thinkTimeMs}ms</strong> Delay</span>
+                    </div>
+                  )}
+                </div>
+                <div
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 12,
+                    background: "rgba(16, 185, 129, 0.12)",
+                    border: "1px solid rgba(16, 185, 129, 0.3)",
+                    color: "#10b981",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
+                  Ready to Benchmark
+                </div>
               </div>
             </section>
           )}
