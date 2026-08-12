@@ -334,6 +334,12 @@ export function RequestPanel({
     ? ["request.url", "request.method", "request.headers", "variables.get(key)", "variables.set(key, value)","variables.unset(key)"]
     : ["request.url", "request.method", "request.headers", "response.status", "response.body", "variables.get(key)", "variables.set(key, value)", "variables.unset(key)"];
 
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (draftRequest.method === "GET" && activeTab === "body") {
       setActiveTab("headers");
@@ -1312,14 +1318,23 @@ export function RequestPanel({
           {draftRequest.authMode === "oauth2" && (
             <div className="auth-config-fields" aria-label="OAuth 2.0 credentials" style={{ display: 'flex', flexDirection: 'column', gap: '12px' } as CSSProperties}>
               <label>
-                <span>Token</span>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Token</span>
+                  {draftRequest.authConfig?.expiresAt && now > draftRequest.authConfig.expiresAt && (
+                    <span style={{ color: "var(--color-danger, #ef4444)", fontSize: "11px", fontWeight: 600, padding: "2px 6px", backgroundColor: "rgba(239, 68, 68, 0.1)", borderRadius: "4px" }}>EXPIRED</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                   <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.token ?? ""} onChange={e => updateAuthConfig({ token: e.target.value })} placeholder="access token or {{variable}}" autoComplete="off" style={{ flex: 1 } as CSSProperties} />
                   <button className="primary-action" type="button" onClick={async () => {
                     try {
                       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Obtaining OAuth 2.0 token...", tone: "info" } }));
-                      const token = await obtainOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
-                      updateAuthConfig({ token });
+                      const result = await obtainOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
+                      updateAuthConfig({ 
+                        token: result.token, 
+                        refreshToken: result.refreshToken || draftRequest.authConfig?.refreshToken, 
+                        expiresAt: result.expiresAt 
+                      });
                       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token obtained successfully!", tone: "success" } }));
                     } catch (err) {
                       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
@@ -1327,11 +1342,42 @@ export function RequestPanel({
                   }}>
                     Get Token
                   </button>
+                  {draftRequest.authConfig?.refreshToken && (
+                    <button type="button" onClick={async () => {
+                      try {
+                        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Refreshing OAuth 2.0 token...", tone: "info" } }));
+                        const { refreshOAuth2Token } = await import("../services/auth");
+                        const result = await refreshOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
+                        updateAuthConfig({ 
+                          token: result.token, 
+                          refreshToken: result.refreshToken || draftRequest.authConfig?.refreshToken, 
+                          expiresAt: result.expiresAt 
+                        });
+                        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token refreshed successfully!", tone: "success" } }));
+                      } catch (err) {
+                        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to refresh OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
+                      }
+                    }} style={{ padding: "4px 12px", cursor: "pointer", backgroundColor: "var(--color-success, #10b981)", color: "#fff", border: "none", borderRadius: "4px", flexShrink: 0, fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>
+                      Refresh
+                    </button>
+                  )}
                   <button type="button" className="icon-button" onClick={() => navigator.clipboard.writeText(draftRequest.authConfig?.token ?? "")} title="Copy Token" aria-label="Copy Token">
                     <Copy size={16} />
                   </button>
                 </div>
               </label>
+              <div style={{ padding: "12px", background: "linear-gradient(to right, rgba(0, 102, 204, 0.05), transparent)", borderLeft: "3px solid var(--color-primary, #0066cc)", borderRadius: "0 6px 6px 0", marginTop: "4px", marginBottom: "12px" }}>
+                <label style={{ margin: 0 }}>
+                  <span style={{ color: "var(--color-primary, #0066cc)", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>
+                    Refresh Token
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.refreshToken ?? ""} onChange={e => updateAuthConfig({ refreshToken: e.target.value })} placeholder="refresh token or {{variable}}" autoComplete="off" style={{ flex: 1, borderColor: "rgba(0, 102, 204, 0.3)", boxShadow: "0 0 0 1px rgba(0, 102, 204, 0.1)" } as CSSProperties} />
+                  </div>
+                </label>
+              </div>
               <label>
                 <span>Grant Type</span>
                 <CustomSelect
@@ -1344,47 +1390,44 @@ export function RequestPanel({
                   ]}
                 />
               </label>
-              {draftRequest.authConfig?.grantType === "authorization_code" ? (
+              {draftRequest.authConfig?.grantType === "authorization_code" && (
                 <label>
                   <span>Target URL (Login URL)</span>
                   <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.authUrl ?? ""} onChange={e => updateAuthConfig({ authUrl: e.target.value })} placeholder="https://example.com/auth or {{variable}}" autoComplete="off" />
                 </label>
-              ) : (
+              )}
+              <label>
+                <span>Access Token URL</span>
+                <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.accessTokenUrl ?? ""} onChange={e => updateAuthConfig({ accessTokenUrl: e.target.value })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
+              </label>
+              <label>
+                <span>Client ID</span>
+                <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.clientId ?? ""} onChange={e => updateAuthConfig({ clientId: e.target.value })} placeholder="client_id or {{variable}}" autoComplete="off" />
+              </label>
+              <label>
+                <span>Client Secret</span>
+                <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.clientSecret ?? ""} onChange={e => updateAuthConfig({ clientSecret: e.target.value })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
+              </label>
+              {(draftRequest.authConfig?.grantType === "password_credentials") && (
                 <>
                   <label>
-                    <span>Access Token URL</span>
-                    <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.accessTokenUrl ?? ""} onChange={e => updateAuthConfig({ accessTokenUrl: e.target.value })} placeholder="https://example.com/oauth/token or {{variable}}" autoComplete="off" />
+                    <span>Username</span>
+                    <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
                   </label>
                   <label>
-                    <span>Client ID</span>
-                    <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.clientId ?? ""} onChange={e => updateAuthConfig({ clientId: e.target.value })} placeholder="client_id or {{variable}}" autoComplete="off" />
-                  </label>
-                  <label>
-                    <span>Client Secret</span>
-                    <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.clientSecret ?? ""} onChange={e => updateAuthConfig({ clientSecret: e.target.value })} placeholder="client_secret or {{variable}}" autoComplete="new-password" />
-                  </label>
-                  {(draftRequest.authConfig?.grantType === "password_credentials") && (
-                    <>
-                      <label>
-                        <span>Username</span>
-                        <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.username ?? ""} onChange={e => updateAuthConfig({ username: e.target.value })} placeholder="username or {{variable}}" autoComplete="off" />
-                      </label>
-                      <label>
-                        <span>Password</span>
-                        <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
-                      </label>
-                    </>
-                  )}
-                  <label>
-                    <span>Scope</span>
-                    <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.scope ?? ""} onChange={e => updateAuthConfig({ scope: e.target.value })} placeholder="read write or {{variable}}" autoComplete="off" />
-                  </label>
-                  <label>
-                    <span>Audience</span>
-                    <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.audience ?? ""} onChange={e => updateAuthConfig({ audience: e.target.value })} placeholder="audience or {{variable}}" autoComplete="off" />
+                    <span>Password</span>
+                    <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.password ?? ""} onChange={e => updateAuthConfig({ password: e.target.value })} placeholder="password or {{variable}}" autoComplete="new-password" />
                   </label>
                 </>
               )}
+              <label>
+                <span>Scope</span>
+                <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.scope ?? ""} onChange={e => updateAuthConfig({ scope: e.target.value })} placeholder="read write or {{variable}}" autoComplete="off" />
+              </label>
+              <label>
+                <span>Audience</span>
+                <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.audience ?? ""} onChange={e => updateAuthConfig({ audience: e.target.value })} placeholder="audience or {{variable}}" autoComplete="off" />
+              </label>
             </div>
           )}
           {draftRequest.authMode === "apiKey" && (

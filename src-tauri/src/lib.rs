@@ -10,7 +10,7 @@ mod spec_generator;
 use http_client::execute_http_request;
 use local_only::{app_contract, check_for_update, local_storage_status, request_auth_modes};
 use mcp_server::{execute_mcp_tool_call, export_mcp_manifest};
-use mock_server::{get_mock_server_status, start_local_mock_server, stop_local_mock_server, MockServerState};
+use mock_server::{get_mock_server_status, start_local_mock_server, stop_local_mock_server, set_mock_routes, get_mock_routes, get_mock_request_log, clear_mock_request_log, MockServerState};
 use oauth::start_oauth_login;
 use persistence::{
     clear_request_history, create_collection, create_environment, create_folder, create_request,
@@ -108,6 +108,10 @@ pub fn run() {
             start_local_mock_server,
             stop_local_mock_server,
             get_mock_server_status,
+            set_mock_routes,
+            get_mock_routes,
+            get_mock_request_log,
+            clear_mock_request_log,
             export_openapi_30_spec,
             import_openapi_30_spec,
             export_mcp_manifest,

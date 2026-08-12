@@ -661,6 +661,47 @@ export async function getMockServerStatus(): Promise<MockServerStatus> {
   return invoke<MockServerStatus>("get_mock_server_status");
 }
 
+export interface MockRoute {
+  id: string;
+  method: string;
+  path: string;
+  status_code: number;
+  response_body: string;
+  content_type: string;
+  delay_ms: number;
+  enabled: boolean;
+}
+
+export interface MockRequestLog {
+  id: number;
+  timestamp: number;
+  method: string;
+  path: string;
+  matched_route_id: string | null;
+  status_code: number;
+  duration_ms: number;
+}
+
+export async function setMockRoutes(routes: MockRoute[]): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("set_mock_routes", { routes });
+}
+
+export async function getMockRoutes(): Promise<MockRoute[]> {
+  if (!isTauriRuntime()) return [];
+  return invoke<MockRoute[]>("get_mock_routes");
+}
+
+export async function getMockRequestLog(): Promise<MockRequestLog[]> {
+  if (!isTauriRuntime()) return [];
+  return invoke<MockRequestLog[]>("get_mock_request_log");
+}
+
+export async function clearMockRequestLog(): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("clear_mock_request_log");
+}
+
 export async function exportOpenApiSpec(collectionId?: string, collectionName?: string): Promise<{ spec_json: string; format: string; title: string }> {
   if (!isTauriRuntime()) {
     return {

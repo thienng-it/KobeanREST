@@ -1,18 +1,23 @@
 import type { SavedRequest, WorkspaceSummary, ExecuteHttpRequest } from "../types";
 import { resolveRequestFields, injectAsyncVariables } from "./variables";
-import { getEffectiveAuth, applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token } from "./auth";
+import { getEffectiveAuth, applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token, refreshOAuth2Token } from "./auth";
 
 export async function prepareRequestForExecution(
   requestToSend: SavedRequest,
   workspace: WorkspaceSummary,
   variableMap: Map<string, string>,
   inMemoryResponses?: Map<string, import("../types").ExecuteHttpResponse>
-): Promise<{ request: ExecuteHttpRequest, obtainedToken?: string, historyUrl: string }> {
+): Promise<{ request: ExecuteHttpRequest, updatedAuth?: Partial<import("../types").AuthConfig>, updatedAuthEntityId?: string, updatedAuthEntityType?: "request" | "folder" | "collection", historyUrl: string }> {
   let authToScan = requestToSend.authConfig;
+  let authEntityId: string | null = requestToSend.id;
+  let authEntityType: "request" | "folder" | "collection" | null = "request";
+  
   if (requestToSend.authMode === "none") {
     const inherited = getEffectiveAuth(requestToSend, workspace);
     if (inherited.mode !== "none") {
       authToScan = inherited.config;
+      authEntityId = inherited.entityId;
+      authEntityType = inherited.entityType;
     }
   }
 
@@ -42,17 +47,59 @@ export async function prepareRequestForExecution(
   }
 
   const resolvedAuth = resolveAuthConfig(finalAuthConfig ?? {}, variableMap);
-  let obtainedToken: string | undefined = undefined;
+  let updatedAuth: Partial<import("../types").AuthConfig> | undefined = undefined;
   
-  if (finalAuthMode === "oauth2" && !resolvedAuth.token) {
-    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Obtaining OAuth 2.0 token...", tone: "info" } }));
-    try {
-      obtainedToken = await obtainOAuth2Token(resolvedAuth, variableMap);
-      resolvedAuth.token = obtainedToken;
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token obtained successfully!", tone: "success" } }));
-    } catch (e: any) {
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to obtain OAuth 2.0 token: " + e.message, tone: "error" } }));
-      throw e;
+  let needsToken = false;
+  let shouldRefresh = false;
+
+  if (finalAuthMode === "oauth2") {
+    if (!resolvedAuth.token) {
+      needsToken = true;
+    } else if (resolvedAuth.expiresAt && Date.now() > resolvedAuth.expiresAt) {
+      needsToken = true;
+      if (resolvedAuth.refreshToken) {
+        shouldRefresh = true;
+      }
+    }
+  }
+
+  if (needsToken) {
+    if (shouldRefresh) {
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Refreshing OAuth 2.0 token...", tone: "info" } }));
+      try {
+        const result = await refreshOAuth2Token(resolvedAuth, variableMap);
+        updatedAuth = { 
+          token: result.token, 
+          refreshToken: result.refreshToken || resolvedAuth.refreshToken, 
+          expiresAt: result.expiresAt 
+        };
+        resolvedAuth.token = result.token;
+        if (result.refreshToken) resolvedAuth.refreshToken = result.refreshToken;
+        if (result.expiresAt) resolvedAuth.expiresAt = result.expiresAt;
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token refreshed successfully!", tone: "success" } }));
+      } catch (e: any) {
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to refresh OAuth 2.0 token: " + e.message + ". Attempting to obtain new one...", tone: "warning" } }));
+        shouldRefresh = false; // Fall back to obtain new
+      }
+    }
+    
+    if (!shouldRefresh) {
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Obtaining OAuth 2.0 token...", tone: "info" } }));
+      try {
+        const result = await obtainOAuth2Token(resolvedAuth, variableMap);
+        updatedAuth = { 
+          token: result.token, 
+          refreshToken: result.refreshToken || resolvedAuth.refreshToken, 
+          expiresAt: result.expiresAt 
+        };
+        resolvedAuth.token = result.token;
+        if (result.refreshToken) resolvedAuth.refreshToken = result.refreshToken;
+        if (result.expiresAt) resolvedAuth.expiresAt = result.expiresAt;
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token obtained successfully!", tone: "success" } }));
+      } catch (e: any) {
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to obtain OAuth 2.0 token: " + e.message, tone: "error" } }));
+        throw e;
+      }
     }
   }
 
@@ -73,7 +120,9 @@ export async function prepareRequestForExecution(
       timeoutMs: requestToSend.timeoutMs,
       followRedirects: requestToSend.followRedirects,
     },
-    obtainedToken,
+    updatedAuth,
+    updatedAuthEntityId: authEntityId || undefined,
+    updatedAuthEntityType: authEntityType || undefined,
     historyUrl
   };
 }

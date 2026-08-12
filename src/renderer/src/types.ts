@@ -26,6 +26,8 @@ export interface AuthConfig {
   clientSecret?: string;
   scope?: string;
   audience?: string;
+  refreshToken?: string;
+  expiresAt?: number;
 }
 
 export interface Script {

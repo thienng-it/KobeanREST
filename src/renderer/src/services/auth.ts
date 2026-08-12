@@ -38,13 +38,13 @@ export function resolveAuthConfig(
   };
 }
 
-export function getEffectiveAuth(request: SavedRequest, workspace: WorkspaceSummary | null): { mode: ApiAuthMode; config: AuthConfig; source: string } {
+export function getEffectiveAuth(request: SavedRequest, workspace: WorkspaceSummary | null): { mode: ApiAuthMode; config: AuthConfig; source: string; entityId: string | null; entityType: "request" | "folder" | "collection" | null } {
   if (!workspace) {
-    return { mode: "none", config: {}, source: "No workspace loaded" };
+    return { mode: "none", config: {}, source: "No workspace loaded", entityId: null, entityType: null };
   }
 
   if (request.authMode !== "none") {
-    return { mode: request.authMode, config: request.authConfig, source: "Request level" };
+    return { mode: request.authMode, config: request.authConfig, source: "Request level", entityId: request.id, entityType: "request" };
   }
 
   let currentFolderId: string | undefined = request.folderId;
@@ -60,7 +60,7 @@ export function getEffectiveAuth(request: SavedRequest, workspace: WorkspaceSumm
     }
     
     if (folder.authMode && folder.authMode !== "none") {
-      return { mode: folder.authMode, config: folder.authConfig ?? {}, source: `Inherited from folder: ${folder.name}` };
+      return { mode: folder.authMode, config: folder.authConfig ?? {}, source: `Inherited from folder: ${folder.name}`, entityId: folder.id, entityType: "folder" };
     }
     
     if (!resolvedCollectionId && folder.collectionId) {
@@ -72,11 +72,11 @@ export function getEffectiveAuth(request: SavedRequest, workspace: WorkspaceSumm
   if (resolvedCollectionId) {
     const collection = workspace.collections?.find((c) => c.id === resolvedCollectionId);
     if (collection?.authMode && collection.authMode !== "none") {
-      return { mode: collection.authMode, config: collection.authConfig ?? {}, source: `Inherited from collection: ${collection.name}` };
+      return { mode: collection.authMode, config: collection.authConfig ?? {}, source: `Inherited from collection: ${collection.name}`, entityId: collection.id, entityType: "collection" };
     }
   }
 
-  return { mode: "none", config: {}, source: "No inherited auth" };
+  return { mode: "none", config: {}, source: "No inherited auth", entityId: null, entityType: null };
 }
 
 /**
@@ -212,7 +212,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 export async function obtainOAuth2Token(
   authConfig: AuthConfig,
   variableMap: Map<string, string>,
-): Promise<string> {
+): Promise<{ token: string; refreshToken?: string; expiresAt?: number }> {
   const grantType = authConfig.grantType ?? "client_credentials";
   
   const url = tryResolve(authConfig.accessTokenUrl, variableMap);
@@ -287,10 +287,10 @@ export async function obtainOAuth2Token(
     if (unlistenCallback) unlistenCallback();
     if (unlistenToken) unlistenToken();
     
-    // If the returned string is an access_token (because it was captured via implicit flow or monkey-patching),
-    // or if no accessTokenUrl is configured to perform the exchange, return it directly.
-    if (!url || authCode.length > 200) {
-      return authCode; // likely already a JWT or token
+    // If no accessTokenUrl is configured to perform the exchange, return the code directly
+    // (This acts as a fallback for Implicit Flow where the user manually captured the token).
+    if (!url) {
+      return { token: authCode }; 
     }
     
     // Otherwise, assume it's a code and we need to exchange it
@@ -338,10 +338,13 @@ export async function obtainOAuth2Token(
     }
     
     const exchangeData = JSON.parse(exchangeResponse.bodyText || "{}");
-    if (exchangeData.access_token) {
-      return exchangeData.access_token;
-    } else if (exchangeData.token) {
-      return exchangeData.token;
+    if (exchangeData.access_token || exchangeData.token) {
+      const expiresIn = exchangeData.expires_in || exchangeData.expiresIn;
+      return {
+        token: exchangeData.access_token || exchangeData.token,
+        refreshToken: exchangeData.refresh_token || exchangeData.refreshToken,
+        expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : undefined,
+      };
     } else {
       throw new Error("Exchange response did not contain an access_token");
     }
@@ -386,11 +389,74 @@ export async function obtainOAuth2Token(
   }
 
   const data = JSON.parse(response.bodyText || "{}");
-  if (data.access_token) {
-    return data.access_token;
-  } else if (data.token) {
-    return data.token;
+  if (data.access_token || data.token) {
+    const expiresIn = data.expires_in || data.expiresIn;
+    return {
+      token: data.access_token || data.token,
+      refreshToken: data.refresh_token || data.refreshToken,
+      expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : undefined,
+    };
   } else {
     throw new Error("Response did not contain an access_token");
+  }
+}
+
+/**
+ * Perform a POST request to refresh an Access Token via OAuth 2.0.
+ */
+export async function refreshOAuth2Token(
+  authConfig: AuthConfig,
+  variableMap: Map<string, string>,
+): Promise<{ token: string; refreshToken?: string; expiresAt?: number }> {
+  const url = tryResolve(authConfig.accessTokenUrl, variableMap);
+  if (!url) throw new Error("Access Token URL is required to refresh token");
+  if (!authConfig.refreshToken) throw new Error("No refresh token available");
+
+  const clientId = tryResolve(authConfig.clientId, variableMap);
+  const clientSecret = tryResolve(authConfig.clientSecret, variableMap);
+
+  const params = new URLSearchParams();
+  params.append("grant_type", "refresh_token");
+  params.append("refresh_token", authConfig.refreshToken);
+
+  const headers: Array<{ key: string; value: string; enabled: boolean }> = [
+    { key: "Content-Type", value: "application/x-www-form-urlencoded", enabled: true }
+  ];
+
+  if (clientId && clientSecret) {
+    try {
+      const encoded = btoa(`${clientId}:${clientSecret}`);
+      headers.push({ key: "Authorization", value: `Basic ${encoded}`, enabled: true });
+    } catch (e) {
+      params.append("client_id", clientId);
+      params.append("client_secret", clientSecret);
+    }
+  } else if (clientId) {
+    params.append("client_id", clientId);
+  }
+
+  const response = await executeHttpRequest({
+    method: "POST",
+    url,
+    headers,
+    body: params.toString(),
+    bodyMimeType: "application/x-www-form-urlencoded",
+    timeoutMs: 30000,
+    followRedirects: true,
+  });
+
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`Failed to refresh token (HTTP ${response.status}): ${response.bodyText || response.statusText}`);
+  }
+
+  const data = JSON.parse(response.bodyText || "{}");
+  if (data.access_token || data.token) {
+    return {
+      token: data.access_token || data.token,
+      refreshToken: data.refresh_token || authConfig.refreshToken, // keep old if not returned
+      expiresAt: data.expires_in ? Date.now() + data.expires_in * 1000 : undefined,
+    };
+  } else {
+    throw new Error("Refresh response did not contain an access_token");
   }
 }

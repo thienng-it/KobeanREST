@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { X, Key, ClipboardPaste, Trash2, Code, Braces, Lock } from "lucide-react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import { X, Key, ClipboardPaste, Trash2, Code, Braces, Lock, Copy, Check } from "lucide-react";
+import type { MockRoute, MockRequestLog } from "../services/local-store";
 import { CustomSelect } from "./CustomSelect";
 
 interface ApiToolsModalProps {
@@ -337,86 +338,251 @@ function HashGenerator() {
   );
 }
 
+function StatPill({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+      <span style={{ fontSize: "10px", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</span>
+      <span style={{ fontSize: "13px", fontWeight: 700, color }}>{value}</span>
+    </div>
+  );
+}
+
+function RouteEditor({ route, onSave, onCancel }: { route: MockRoute; onSave: (r: MockRoute) => void; onCancel: () => void }) {
+  const [draft, setDraft] = useState<MockRoute>({ ...route });
+  const update = (fields: Partial<MockRoute>) => setDraft(prev => ({ ...prev, ...fields }));
+  const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "*"];
+  const CONTENT_TYPES = ["application/json", "text/plain", "text/html", "text/xml", "application/xml"];
+  const COMMON_STATUSES = [200, 201, 204, 301, 400, 401, 403, 404, 409, 422, 429, 500, 502, 503];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+        <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>Edit Route</h3>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button onClick={onCancel} style={{ padding: "7px 16px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "13px" }}>Cancel</button>
+          <button onClick={() => onSave(draft)} style={{ padding: "7px 16px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}>Save Route</button>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 110px", gap: "12px", flexShrink: 0 }}>
+        {[
+          { label: "Method", el: <select value={draft.method} onChange={e => update({ method: e.target.value })} style={{ width: "100%", padding: "7px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px" }}>{METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select> },
+          { label: "Path", el: <input type="text" value={draft.path} onChange={e => update({ path: e.target.value })} placeholder="/users/:id" style={{ width: "100%", padding: "7px 10px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px", fontFamily: "monospace", boxSizing: "border-box" }} /> },
+          { label: "Status", el: <select value={draft.status_code} onChange={e => update({ status_code: Number(e.target.value) })} style={{ width: "100%", padding: "7px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px" }}>{COMMON_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select> },
+        ].map(({ label, el }) => (
+          <div key={label} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>{label}</label>
+            {el}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 130px", gap: "12px", flexShrink: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>Content-Type</label>
+          <select value={draft.content_type} onChange={e => update({ content_type: e.target.value })} style={{ padding: "7px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px" }}>
+            {CONTENT_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>Delay (ms)</label>
+          <input type="number" value={draft.delay_ms} min={0} max={30000} onChange={e => update({ delay_ms: Number(e.target.value) })} style={{ padding: "7px 10px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px" }} />
+        </div>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+        <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>Response Body</label>
+        <textarea className="api-tools-textarea" style={{ flex: 1 }} value={draft.response_body} onChange={e => update({ response_body: e.target.value })} placeholder='{"message": "Hello!"}' />
+      </div>
+    </div>
+  );
+}
+
 function LocalMockServerView() {
   const [running, setRunning] = useState(false);
   const [port, setPort] = useState(3010);
   const [requestCount, setRequestCount] = useState(0);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [routes, setRoutes] = useState<MockRoute[]>([]);
+  const [requestLog, setRequestLog] = useState<MockRequestLog[]>([]);
+  const [activeView, setActiveView] = useState<"routes" | "log">("routes");
+  const [editingRoute, setEditingRoute] = useState<MockRoute | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const newRoute = (): MockRoute => ({
+    id: `route-${Date.now()}`,
+    method: "GET",
+    path: "/",
+    status_code: 200,
+    response_body: JSON.stringify({ message: "Hello from KobeanREST mock server!" }, null, 2),
+    content_type: "application/json",
+    delay_ms: 0,
+    enabled: true,
+  });
+
+  useEffect(() => {
+    import("../services/local-store").then(({ getMockRoutes, getMockServerStatus }) => {
+      getMockRoutes().then(setRoutes);
+      getMockServerStatus().then(s => { setRunning(s.running); setPort(s.port); setRequestCount(s.request_count); });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (running) {
+      pollRef.current = setInterval(async () => {
+        const { getMockServerStatus, getMockRequestLog } = await import("../services/local-store");
+        getMockServerStatus().then(s => setRequestCount(s.request_count));
+        getMockRequestLog().then(log => setRequestLog([...log].reverse()));
+      }, 1000);
+    } else {
+      if (pollRef.current) clearInterval(pollRef.current);
+    }
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [running]);
+
+  const syncRoutes = async (next: MockRoute[]) => {
+    setRoutes(next);
+    const { setMockRoutes } = await import("../services/local-store");
+    await setMockRoutes(next);
+  };
 
   const handleToggle = async () => {
+    const { startLocalMockServer, stopLocalMockServer, setMockRoutes } = await import("../services/local-store");
     if (running) {
-      const { stopLocalMockServer } = await import("../services/local-store");
       await stopLocalMockServer();
       setRunning(false);
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Mock server stopped.`]);
     } else {
-      const { startLocalMockServer } = await import("../services/local-store");
+      await setMockRoutes(routes);
       const actualPort = await startLocalMockServer(port);
       setPort(actualPort);
       setRunning(true);
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Mock server listening on http://127.0.0.1:${actualPort}`]);
+      setRequestCount(0);
+      setRequestLog([]);
     }
   };
 
+  const copyUrl = (id: string, path: string) => {
+    navigator.clipboard.writeText(`http://127.0.0.1:${port}${path}`);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const clearLog = async () => {
+    const { clearMockRequestLog } = await import("../services/local-store");
+    await clearMockRequestLog();
+    setRequestLog([]);
+  };
+
+  const statusColor = (code: number) => code < 300 ? "#10b981" : code < 400 ? "#f59e0b" : "#ef4444";
+  const methodColor = (m: string) => ({ GET: "#10b981", POST: "#3b82f6", PUT: "#f59e0b", PATCH: "#8b5cf6", DELETE: "#ef4444" }[m] ?? "#6b7280");
+
+  if (editingRoute) {
+    return (
+      <RouteEditor
+        route={editingRoute}
+        onSave={async (r) => {
+          const exists = routes.some(x => x.id === r.id);
+          await syncRoutes(exists ? routes.map(x => x.id === r.id ? r : x) : [...routes, r]);
+          setEditingRoute(null);
+        }}
+        onCancel={() => setEditingRoute(null)}
+      />
+    );
+  }
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "14px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>Local Mock Server Engine</h3>
+          <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>Local Mock Server</h3>
           <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--color-text-muted)" }}>
-            Spin up a local HTTP mock server listening natively on your device.
+            Define routes with custom responses, status codes, and simulated delays.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleToggle}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "6px",
-            border: "none",
-            fontWeight: "600",
-            fontSize: "13px",
-            cursor: "pointer",
-            backgroundColor: running ? "#ef4444" : "#10b981",
-            color: "#ffffff"
-          }}
-        >
-          {running ? "Stop Mock Server" : "Start Mock Server"}
-        </button>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          {!running && (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>Port</span>
+              <input type="number" value={port} onChange={e => setPort(Number(e.target.value))} style={{ width: "80px", padding: "5px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "12px" }} />
+            </div>
+          )}
+          {running && (
+            <button onClick={() => copyUrl("__base", "/")} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "var(--color-surface-hover)", color: "var(--color-text)", fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontFamily: "monospace" }}>
+              {copiedId === "__base" ? <Check size={12} /> : <Copy size={12} />}
+              http://127.0.0.1:{port}
+            </button>
+          )}
+          <button type="button" onClick={handleToggle} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer", backgroundColor: running ? "#ef4444" : "#10b981", color: "#fff", display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.7)", display: "inline-block", animation: running ? "pulse-dot 1.5s ease-in-out infinite" : "none" }} />
+            {running ? "Stop Server" : "Start Server"}
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-        <label style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
-          Port:
-          <input
-            type="number"
-            value={port}
-            onChange={(e) => setPort(Number(e.target.value))}
-            disabled={running}
-            style={{
-              marginLeft: "8px",
-              padding: "4px 8px",
-              borderRadius: "4px",
-              border: "1px solid var(--color-border)",
-              backgroundColor: "var(--color-bg)",
-              color: "var(--color-text)",
-              width: "90px"
-            }}
-          />
-        </label>
-        <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
-          Status: <strong style={{ color: running ? "#10b981" : "var(--color-text-muted)" }}>{running ? "ACTIVE" : "STOPPED"}</strong>
-        </span>
+      {/* Stats bar */}
+      {running && (
+        <div style={{ display: "flex", gap: "24px", padding: "10px 16px", borderRadius: "8px", backgroundColor: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)", flexShrink: 0 }}>
+          <StatPill label="Status" value="RUNNING" color="#10b981" />
+          <StatPill label="Port" value={String(port)} color="var(--color-text)" />
+          <StatPill label="Total Requests" value={String(requestCount)} color="var(--color-accent)" />
+          <StatPill label="Active Routes" value={`${routes.filter(r => r.enabled).length} / ${routes.length}`} color="var(--color-text-muted)" />
+        </div>
+      )}
+
+      {/* Tab bar */}
+      <div style={{ display: "flex", borderBottom: "1px solid var(--color-border)", flexShrink: 0, alignItems: "center" }}>
+        {(["routes", "log"] as const).map(v => (
+          <button key={v} onClick={() => setActiveView(v)} style={{ padding: "8px 16px", border: "none", borderBottom: `2px solid ${activeView === v ? "var(--color-accent)" : "transparent"}`, background: "none", color: activeView === v ? "var(--color-text)" : "var(--color-text-muted)", cursor: "pointer", fontSize: "13px", fontWeight: activeView === v ? 600 : 400 }}>
+            {v === "log" ? `Request Log${requestLog.length > 0 ? ` (${requestLog.length})` : ""}` : "Routes"}
+          </button>
+        ))}
+        <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+          {activeView === "routes" && <button onClick={() => setEditingRoute(newRoute())} style={{ padding: "4px 14px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}>+ Add Route</button>}
+          {activeView === "log" && requestLog.length > 0 && <button onClick={clearLog} style={{ padding: "4px 12px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "12px" }}>Clear</button>}
+        </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
-        <label style={{ fontSize: "12px", fontWeight: "600", color: "var(--color-text)", textTransform: "uppercase" }}>
-          Server Event Log
-        </label>
-        <pre className="api-tools-pre" style={{ flex: 1, overflowY: "auto", margin: 0 }}>
-          {logs.length === 0 ? "// Mock server logs will appear here..." : logs.join("\n")}
-        </pre>
-      </div>
+      {/* Routes */}
+      {activeView === "routes" && (
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+          {routes.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "48px 16px", color: "var(--color-text-muted)", border: "2px dashed var(--color-border)", borderRadius: "8px" }}>
+              <p style={{ marginBottom: "12px", fontSize: "14px" }}>No routes defined yet.</p>
+              <button onClick={() => setEditingRoute(newRoute())} style={{ padding: "8px 20px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: "13px" }}>+ Add your first route</button>
+            </div>
+          ) : routes.map(r => (
+            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 14px", borderRadius: "8px", border: "1px solid var(--color-border)", background: r.enabled ? "var(--color-surface)" : "transparent", opacity: r.enabled ? 1 : 0.5 }}>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: methodColor(r.method), minWidth: "52px", textAlign: "center", padding: "2px 6px", borderRadius: "4px", background: `${methodColor(r.method)}18` }}>{r.method}</span>
+              <span style={{ flex: 1, fontFamily: "monospace", fontSize: "13px", color: "var(--color-text)" }}>{r.path}</span>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: statusColor(r.status_code), minWidth: "38px" }}>{r.status_code}</span>
+              {r.delay_ms > 0 && <span style={{ fontSize: "11px", color: "var(--color-text-muted)", minWidth: "40px" }}>{r.delay_ms}ms</span>}
+              {running && <button onClick={() => copyUrl(r.id, r.path)} title="Copy URL" style={{ padding: "3px 6px", background: "none", border: "1px solid var(--color-border)", borderRadius: "4px", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", alignItems: "center" }}>{copiedId === r.id ? <Check size={11} /> : <Copy size={11} />}</button>}
+              <button onClick={() => syncRoutes(routes.map(x => x.id === r.id ? { ...x, enabled: !x.enabled } : x))} style={{ padding: "3px 8px", background: "none", border: "1px solid var(--color-border)", borderRadius: "4px", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "11px" }}>{r.enabled ? "Disable" : "Enable"}</button>
+              <button onClick={() => setEditingRoute(r)} style={{ padding: "3px 8px", background: "none", border: "1px solid var(--color-border)", borderRadius: "4px", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "11px" }}>Edit</button>
+              <button onClick={() => syncRoutes(routes.filter(x => x.id !== r.id))} style={{ padding: "3px 6px", background: "none", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "4px", cursor: "pointer", color: "#ef4444", display: "flex", alignItems: "center" }}><Trash2 size={12} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Request Log */}
+      {activeView === "log" && (
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "4px" }}>
+          {requestLog.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "48px 16px", color: "var(--color-text-muted)", border: "2px dashed var(--color-border)", borderRadius: "8px", fontSize: "13px" }}>
+              {running ? "Waiting for incoming requests…" : "Start the server and send requests to see the log."}
+            </div>
+          ) : requestLog.map(entry => (
+            <div key={entry.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "7px 12px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "var(--color-surface)", fontSize: "12px" }}>
+              <span style={{ fontWeight: 700, color: methodColor(entry.method), minWidth: "45px", textAlign: "center", fontSize: "11px" }}>{entry.method}</span>
+              <span style={{ flex: 1, fontFamily: "monospace", color: "var(--color-text)" }}>{entry.path}</span>
+              <span style={{ fontWeight: 700, color: statusColor(entry.status_code), minWidth: "35px", textAlign: "right" }}>{entry.status_code}</span>
+              <span style={{ color: "var(--color-text-muted)", minWidth: "55px", textAlign: "right" }}>{entry.duration_ms}ms</span>
+              <span style={{ color: "var(--color-text-muted)", fontSize: "10px", minWidth: "72px", textAlign: "right" }}>{new Date(entry.timestamp).toLocaleTimeString()}</span>
+              {!entry.matched_route_id && <span style={{ fontSize: "10px", color: "#ef4444", padding: "1px 5px", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "3px" }}>no match</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <style>{`@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
     </div>
   );
 }

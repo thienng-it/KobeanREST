@@ -64,8 +64,7 @@ export function CollectionEditor({
     setIsDirty(true);
   };
 
-  const handleTokenObtained = async (token: string) => {
-    const newConfig = { ...draftAuthConfig, token };
+  const handleTokenObtained = async (newConfig: AuthConfig) => {
     await saveScript(collection.id, "collection", "pre", preScript);
     await saveScript(collection.id, "collection", "post", postScript);
     await saveCollectionAuth(collection.id, draftAuthMode, newConfig);

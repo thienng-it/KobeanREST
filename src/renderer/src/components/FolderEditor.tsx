@@ -64,10 +64,10 @@ export function FolderEditor({
     setIsDirty(true);
   };
 
-  const handleTokenObtained = async (token: string) => {
-    const newConfig = { ...draftAuthConfig, token };
+  const handleTokenObtained = async (newConfig: AuthConfig) => {
     await saveScript(folder.id, "folder", "pre", preScript);
     await saveScript(folder.id, "folder", "post", postScript);
+    await saveFolderAuth(folder.id, draftAuthMode, newConfig);
     onUpdateFolder({
       ...folder,
       authMode: draftAuthMode,

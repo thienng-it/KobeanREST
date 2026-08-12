@@ -788,13 +788,31 @@ export function App() {
     let executedRequest;
     let historyUrlToSave = "";
     try {
-      const { request, obtainedToken, historyUrl } = await prepareRequestForExecution(requestToSend, scopeWorkspace!, variableMap);
+      const { request, updatedAuth, updatedAuthEntityId, updatedAuthEntityType, historyUrl } = await prepareRequestForExecution(requestToSend, scopeWorkspace!, variableMap);
       executedRequest = request;
       historyUrlToSave = historyUrl;
       
-      // Update the source of truth to persist the token
-      if (obtainedToken && requestToSend.authMode === "oauth2") {
-        updateDraft({ authConfig: { ...requestToSend.authConfig, token: obtainedToken } });
+      // Update the source of truth to persist the token (request, folder, or collection)
+      if (updatedAuth && updatedAuthEntityId && updatedAuthEntityType) {
+        if (updatedAuthEntityType === "request" && updatedAuthEntityId === requestToSend.id) {
+          updateDraft({ authConfig: { ...requestToSend.authConfig, ...updatedAuth } });
+        } else if (updatedAuthEntityType === "folder") {
+          const folderToUpdate = scopeWorkspace!.folders.find(f => f.id === updatedAuthEntityId);
+          if (folderToUpdate) {
+            const { saveFolderAuth } = await import("./services/local-store");
+            const newConfig = { ...folderToUpdate.authConfig, ...updatedAuth };
+            await saveFolderAuth(folderToUpdate.id, folderToUpdate.authMode, newConfig);
+            handleUpdateFolder({ ...folderToUpdate, authConfig: newConfig });
+          }
+        } else if (updatedAuthEntityType === "collection") {
+          const colToUpdate = scopeWorkspace!.collections?.find(c => c.id === updatedAuthEntityId);
+          if (colToUpdate) {
+            const { saveCollectionAuth } = await import("./services/local-store");
+            const newConfig = { ...colToUpdate.authConfig, ...updatedAuth };
+            await saveCollectionAuth(colToUpdate.id, colToUpdate.authMode, newConfig);
+            handleUpdateCollection({ ...colToUpdate, authConfig: newConfig });
+          }
+        }
       }
     } catch (error) {
       if (error instanceof UnresolvedVariableError) {
@@ -1831,7 +1849,7 @@ export function App() {
             />
           )}
           </div>
-          <AIChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
+          <AIChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} draftRequest={draftRequest} workspace={workspace} />
         </div>
       </section>
 
