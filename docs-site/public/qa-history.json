@@ -1071,5 +1071,56 @@
         "durationMs": 500
       }
     ]
+  },
+  {
+    "runId": "31594300038",
+    "timestamp": "2026-08-12T12:00:16.168Z",
+    "commit": "ffa21df",
+    "commitMsg": "Merge branch 'main' of github.com:thienng-it/KobeanREST",
+    "branch": "main",
+    "status": "failed",
+    "durationMs": 84000,
+    "contractTests": {
+      "total": 163,
+      "passed": 161,
+      "failed": 1,
+      "skipped": 1
+    },
+    "e2eScenarios": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "passRate": 99,
+    "failedTests": [
+      "139 - VS Code Extension Contract"
+    ],
+    "scenarios": [
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "passed",
+        "durationMs": 500
+      }
+    ]
   }
 ]
