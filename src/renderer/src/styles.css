@@ -2943,13 +2943,20 @@ button:disabled {
 /* Glass Segmented Controls (Pill Tabs) */
 .tab-row {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
-  padding: 5px;
+  padding: 4px;
   background: rgba(255, 255, 255, 0.46);
   border-radius: 12px;
   border: 1px solid var(--color-border);
   flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab-row::-webkit-scrollbar {
+  display: none;
 }
 
 :root:not([data-theme="light"]):not([data-theme="warm"]) .tab-row {
@@ -2958,9 +2965,9 @@ button:disabled {
 }
 
 .tab {
-  flex: 1;
-  min-height: 36px;
-  padding: 7px 12px;
+  flex: 1 0 auto;
+  min-height: 34px;
+  padding: 6px 12px;
   border: 1px solid transparent;
   border-radius: 9px;
   color: var(--color-muted);
@@ -2968,6 +2975,7 @@ button:disabled {
   font-size: 13px;
   text-transform: capitalize;
   text-align: center;
+  white-space: nowrap;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   display: inline-flex;
   align-items: center;

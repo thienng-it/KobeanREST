@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Bot, User, Trash2, Loader2, Sparkles, Settings, Square, Copy, Check, ChevronDown, ChevronRight, Zap, AlertTriangle, Eye, EyeOff, Shield } from "lucide-react";
+import { X, Send, Bot, User, Trash2, Loader2, Sparkles, Settings, Square, Copy, Check, ChevronDown, ChevronRight, Zap, AlertTriangle, Eye, EyeOff, Shield, Plus, MessageSquare, History, Edit2, Search } from "lucide-react";
 import { exportMcpManifest, executeMcpToolCall } from "../services/local-store";
 import type { SavedRequest, WorkspaceSummary } from "../types";
 
@@ -92,14 +92,9 @@ const PROVIDERS: AIProvider[] = [
   },
 ];
 
-// ── Interfaces ──────────────────────────────────────────────────────────────
-interface Message {
-  role: "user" | "assistant" | "tool" | "system";
-  content: string;
-  tool_calls?: any[];
-  tool_name?: string;
-  isStreaming?: boolean;
-}
+import type { Message, ChatSession } from "../services/ai-chat-store";
+import { loadChatSessions, saveChatSessions, loadActiveSessionId, saveActiveSessionId } from "../services/ai-chat-store";
+export type { Message, ChatSession };
 
 interface AIChatSidebarProps {
   isOpen: boolean;
@@ -171,17 +166,19 @@ function inlineMarkdown(text: string): React.ReactNode {
 
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
   const [copied, setCopied] = useState(false);
+  const displayLang = lang || "code";
   return (
-    <div style={{ position: "relative", margin: "6px 0", borderRadius: "6px", overflow: "hidden", border: "1px solid var(--color-border)" }}>
-      {lang && (
-        <div style={{ padding: "3px 10px", backgroundColor: "rgba(0,0,0,0.2)", fontSize: "10px", color: "var(--color-text-muted)", fontFamily: "monospace", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>{lang}</span>
-          <button onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0, display: "flex", alignItems: "center", gap: "4px", fontSize: "10px" }}>
-            {copied ? <Check size={10} /> : <Copy size={10} />} {copied ? "Copied" : "Copy"}
-          </button>
-        </div>
-      )}
-      <pre style={{ margin: 0, padding: "10px", overflowX: "auto", backgroundColor: "rgba(0,0,0,0.15)", fontSize: "12px", fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-all" }}><code>{code}</code></pre>
+    <div style={{ position: "relative", margin: "8px 0", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)" }}>
+      <div style={{ padding: "4px 10px", backgroundColor: "rgba(0,0,0,0.25)", fontSize: "11px", color: "var(--color-text-muted)", fontFamily: "monospace", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--color-border)" }}>
+        <span style={{ fontWeight: 500, textTransform: "lowercase" }}>{displayLang}</span>
+        <button
+          onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: copied ? "var(--color-accent)" : "var(--color-text-muted)", padding: "2px 6px", borderRadius: "4px", display: "flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: 500, transition: "color 0.15s ease" }}
+        >
+          {copied ? <Check size={11} /> : <Copy size={11} />} {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+      <pre style={{ margin: 0, padding: "10px 12px", overflowX: "auto", fontSize: "12px", fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--color-text)", lineHeight: 1.45 }}><code>{code}</code></pre>
     </div>
   );
 }
@@ -443,7 +440,129 @@ function saveSettings(data: any) {
 export function AIChatSidebar({ isOpen, onClose, width = 360, draftRequest, workspace }: AIChatSidebarProps) {
   const saved = loadSettings();
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [sessions, setSessions] = useState<ChatSession[]>(() => loadChatSessions());
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    const savedId = loadActiveSessionId();
+    const loaded = loadChatSessions();
+    if (savedId && loaded.some(s => s.id === savedId)) return savedId;
+    return loaded[0]?.id || "session_default";
+  });
+  const [showSessionsDrawer, setShowSessionsDrawer] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [sessionFilter, setSessionFilter] = useState("");
+
+  const activeSessionIdRef = useRef(activeSessionId);
+  useEffect(() => { activeSessionIdRef.current = activeSessionId; }, [activeSessionId]);
+
+  const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0];
+  const messages = activeSession?.messages || [];
+
+  const updateMessages = useCallback((updater: Message[] | ((prev: Message[]) => Message[])) => {
+    setSessions(prevSessions => {
+      const targetId = activeSessionIdRef.current;
+      const nextSessions = prevSessions.map(session => {
+        if (session.id !== targetId) return session;
+        const newMsgs = typeof updater === "function" ? updater(session.messages) : updater;
+        let title = session.title;
+        if (title === "New Chat" && newMsgs.length > 0) {
+          const firstUserMsg = newMsgs.find(m => m.role === "user")?.content;
+          if (firstUserMsg) {
+            const clean = firstUserMsg.trim().replace(/\n/g, " ");
+            title = clean.slice(0, 28) + (clean.length > 28 ? "…" : "");
+          }
+        }
+        return {
+          ...session,
+          title,
+          messages: newMsgs,
+          updatedAt: Date.now(),
+        };
+      });
+      saveChatSessions(nextSessions);
+      return nextSessions;
+    });
+  }, []);
+
+  const setMessages = updateMessages;
+
+  const getClampedWidth = useCallback((targetWidth: number): number => {
+    const windowW = typeof window !== "undefined" ? window.innerWidth : 1200;
+    const minW = Math.max(280, Math.floor(windowW * 0.28));
+    const maxW = Math.max(360, Math.floor(windowW * 0.48));
+    return Math.min(Math.max(targetWidth, minW), maxW);
+  }, []);
+
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const savedWidth = localStorage.getItem("kobeanrest_ai_chat_width");
+      if (savedWidth) {
+        const parsed = parseInt(savedWidth, 10);
+        if (!isNaN(parsed)) {
+          const windowW = typeof window !== "undefined" ? window.innerWidth : 1200;
+          const minW = Math.max(280, Math.floor(windowW * 0.28));
+          const maxW = Math.max(360, Math.floor(windowW * 0.48));
+          return Math.min(Math.max(parsed, minW), maxW);
+        }
+      }
+    } catch { /* ignore */ }
+    const windowW = typeof window !== "undefined" ? window.innerWidth : 1200;
+    return Math.min(420, Math.max(320, Math.floor(windowW * 0.35)));
+  });
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem("kobeanrest_ai_chat_width", sidebarWidth.toString()); } catch { /* ignore */ }
+  }, [sidebarWidth]);
+
+  // Auto reset to default width every time AI Chat is opened/toggled
+  useEffect(() => {
+    if (isOpen) {
+      const windowW = typeof window !== "undefined" ? window.innerWidth : 1200;
+      const defaultW = Math.min(380, Math.max(320, Math.floor(windowW * 0.32)));
+      setSidebarWidth(defaultW);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleWindowResize = () => {
+      setSidebarWidth(prev => getClampedWidth(prev));
+    };
+    window.addEventListener("resize", handleWindowResize);
+    return () => window.removeEventListener("resize", handleWindowResize);
+  }, [getClampedWidth]);
+
+  const handleMouseDownResizer = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = startX - moveEvent.clientX;
+      const targetW = startWidth + delta;
+      const windowW = window.innerWidth;
+      const minW = Math.max(280, Math.floor(windowW * 0.28));
+      const maxW = Math.max(360, Math.floor(windowW * 0.48));
+      const clamped = Math.min(Math.max(targetW, minW), maxW);
+      setSidebarWidth(clamped);
+    };
+
+    const onMouseUp = () => {
+      setIsResizing(false);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  const handleDoubleClickResizer = () => {
+    const windowW = typeof window !== "undefined" ? window.innerWidth : 1200;
+    setSidebarWidth(Math.floor(windowW * 0.35));
+  };
+
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -458,6 +577,92 @@ export function AIChatSidebar({ isOpen, onClose, width = 360, draftRequest, work
   const [showSettings, setShowSettings] = useState(false);
   const [mcpTools, setMcpTools] = useState<any[]>([]);
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
+
+  const isCurrentSessionEmpty = messages.length === 0;
+
+  const createNewSession = useCallback(() => {
+    if (messages.length === 0) {
+      textareaRef.current?.focus();
+      setShowSessionsDrawer(false);
+      return;
+    }
+
+    const newSession: ChatSession = {
+      id: "session_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+      title: "New Chat",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: [],
+      providerId,
+      selectedModel,
+    };
+    setSessions(prev => {
+      // Prune inactive 0-message sessions
+      const cleaned = prev.filter(s => s.messages && s.messages.length > 0);
+      const next = [newSession, ...cleaned];
+      saveChatSessions(next);
+      return next;
+    });
+    setActiveSessionId(newSession.id);
+    saveActiveSessionId(newSession.id);
+    setError(null);
+    setShowSessionsDrawer(false);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }, [messages.length, providerId, selectedModel]);
+
+  const switchSession = useCallback((id: string) => {
+    setSessions(prev => {
+      // Keep target session and non-empty sessions
+      const cleaned = prev.filter(s => s.id === id || (s.messages && s.messages.length > 0));
+      saveChatSessions(cleaned);
+      return cleaned;
+    });
+    setActiveSessionId(id);
+    saveActiveSessionId(id);
+    setError(null);
+    setShowSessionsDrawer(false);
+  }, []);
+
+  const renameSession = useCallback((id: string, newTitle: string) => {
+    const trimmed = newTitle.trim() || "Untitled Chat";
+    setSessions(prev => {
+      const next = prev.map(s => s.id === id ? { ...s, title: trimmed, updatedAt: Date.now() } : s);
+      saveChatSessions(next);
+      return next;
+    });
+    setEditingSessionId(null);
+  }, []);
+
+  const deleteSession = useCallback((id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSessions(prev => {
+      const remaining = prev.filter(s => s.id !== id);
+      if (remaining.length === 0) {
+        const fresh: ChatSession = {
+          id: "session_" + Date.now(),
+          title: "New Chat",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          messages: [],
+        };
+        saveChatSessions([fresh]);
+        setActiveSessionId(fresh.id);
+        saveActiveSessionId(fresh.id);
+        return [fresh];
+      }
+      saveChatSessions(remaining);
+      if (activeSessionIdRef.current === id) {
+        const nextActive = remaining[0].id;
+        setActiveSessionId(nextActive);
+        saveActiveSessionId(nextActive);
+      }
+      return remaining;
+    });
+  }, []);
+
+  const filteredSessions = sessions.filter(s =>
+    !sessionFilter.trim() || s.title.toLowerCase().includes(sessionFilter.toLowerCase())
+  );
 
   const abortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -561,9 +766,10 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
 
   const stop = () => { abortRef.current?.abort(); abortRef.current = null; setIsLoading(false); };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent, overrideText?: string) => {
     if (e) e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    const textToSend = (overrideText || input).trim();
+    if (!textToSend || isLoading) return;
 
     if (provider.requiresApiKey && !apiKey.trim()) {
       setApiKeyMissing(true);
@@ -572,7 +778,7 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
     }
     setApiKeyMissing(false);
 
-    const userMessage: Message = { role: "user", content: input.trim() };
+    const userMessage: Message = { role: "user", content: textToSend };
     const history = [...messages, userMessage];
     setMessages(history);
     setInput("");
@@ -661,55 +867,240 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
   if (!isOpen) return null;
 
   return (
-    <div className="ai-chat-sidebar" style={{ width, display: "flex", flexDirection: "column", backgroundColor: "var(--color-sidebar)", borderLeft: "1px solid var(--color-border)", height: "100%", flexShrink: 0, zIndex: 10 }}>
+    <div
+      className="ai-chat-sidebar"
+      style={{
+        width: sidebarWidth,
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "var(--color-sidebar)",
+        borderLeft: "1px solid var(--color-border)",
+        height: "100%",
+        flexShrink: 0,
+        zIndex: 10,
+        userSelect: isResizing ? "none" : "auto",
+      }}
+    >
+      {/* ── Left Resize Drag Handle ──────────────────────────────── */}
+      <div
+        onMouseDown={handleMouseDownResizer}
+        onDoubleClick={handleDoubleClickResizer}
+        title="Drag to resize (Double-click to reset width)"
+        style={{
+          position: "absolute",
+          left: "-3px",
+          top: 0,
+          bottom: 0,
+          width: "7px",
+          cursor: "col-resize",
+          zIndex: 30,
+          backgroundColor: isResizing ? "var(--color-accent)" : "transparent",
+          transition: "background-color 0.15s ease",
+        }}
+        className="ai-chat-resize-handle"
+      />
 
       {/* ── Header ────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)", flexShrink: 0 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 600 }}>
-            <Sparkles size={16} style={{ color: "var(--color-accent)", flexShrink: 0 }} />
-            <span>AI Assistant</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "10px 12px", borderBottom: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)", flexShrink: 0 }}>
+        {/* Row 1: Title & Top Action Controls */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, overflow: "hidden" }}>
+            <Sparkles size={15} style={{ color: "var(--color-accent)", flexShrink: 0 }} />
+            <span style={{ fontWeight: 600, fontSize: "13px", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              AI Assistant
+            </span>
             {hasContext && (
-              <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "10px", backgroundColor: "rgba(99,102,241,0.15)", color: "var(--color-accent)", fontWeight: 500 }}>Context ✓</span>
+              <span title="Active API Request context loaded" style={{ fontSize: "10px", padding: "1px 5px", borderRadius: "8px", backgroundColor: "rgba(99,102,241,0.15)", color: "var(--color-accent)", fontWeight: 600, flexShrink: 0 }}>
+                Context ✓
+              </span>
             )}
           </div>
-          {/* Provider + Model row */}
-          <div style={{ display: "flex", gap: "4px" }}>
-            <select
-              value={providerId}
-              onChange={(e) => { setProviderId(e.target.value as ProviderId); setModels([]); setSelectedModel(""); setError(null); }}
-              style={{ fontSize: "11px", padding: "3px 4px", borderRadius: "4px", backgroundColor: "var(--color-surface)", color: "var(--color-text)", border: "1px solid var(--color-border)", outline: "none", cursor: "pointer" }}
+
+          <div style={{ display: "flex", alignItems: "center", gap: "2px", flexShrink: 0 }}>
+            <button
+              onClick={() => setShowSessionsDrawer(!showSessionsDrawer)}
+              title="Chat History & Sessions"
+              style={{ padding: "4px 5px", background: showSessionsDrawer ? "var(--color-surface-active)" : "none", border: "none", cursor: "pointer", color: showSessionsDrawer ? "var(--color-text-active)" : "var(--color-text-muted)", borderRadius: "4px" }}
             >
-              {PROVIDERS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              disabled={isFetchingModels}
-              style={{ flex: 1, fontSize: "11px", padding: "3px 4px", borderRadius: "4px", backgroundColor: "var(--color-surface)", color: "var(--color-text)", border: "1px solid var(--color-border)", outline: "none", cursor: "pointer", minWidth: 0 }}
+              <History size={13} />
+            </button>
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              title="Settings"
+              style={{ padding: "4px 5px", background: showSettings ? "var(--color-surface-active)" : "none", border: "none", cursor: "pointer", color: showSettings ? "var(--color-text-active)" : "var(--color-text-muted)", borderRadius: "4px" }}
             >
-              {models.length === 0
-                ? <option value={selectedModel}>{isFetchingModels ? "Loading…" : (selectedModel || "Select model")}</option>
-                : models.map(m => <option key={m} value={m}>{m}</option>)
-              }
-            </select>
-            <button onClick={fetchModels} disabled={isFetchingModels} title="Refresh models" style={{ padding: "3px 6px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "4px", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "11px", flexShrink: 0 }}>
-              {isFetchingModels ? <Loader2 size={11} className="animate-spin" /> : "↻"}
+              <Settings size={13} />
+            </button>
+            <button
+              onClick={clearChat}
+              title="Clear Current Chat"
+              style={{ padding: "4px 5px", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", borderRadius: "4px" }}
+            >
+              <Trash2 size={13} />
+            </button>
+            <button
+              onClick={onClose}
+              title="Close Sidebar"
+              style={{ padding: "4px 5px", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", borderRadius: "4px" }}
+            >
+              <X size={13} />
             </button>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "8px", flexShrink: 0 }}>
-          <button onClick={() => setShowSettings(!showSettings)} title="Settings" style={{ padding: "4px", background: showSettings ? "var(--color-surface-active)" : "none", border: "none", cursor: "pointer", color: showSettings ? "var(--color-text-active)" : "var(--color-text-muted)", borderRadius: "4px" }}>
-            <Settings size={15} />
+
+        {/* Row 2: Provider Select, Model Select, Refresh & New Chat */}
+        <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+          <select
+            value={providerId}
+            onChange={(e) => { setProviderId(e.target.value as ProviderId); setModels([]); setSelectedModel(""); setError(null); }}
+            style={{ fontSize: "11px", padding: "4px 4px", borderRadius: "5px", backgroundColor: "var(--color-background)", color: "var(--color-text)", border: "1px solid var(--color-border)", outline: "none", cursor: "pointer", maxWidth: "98px", flexShrink: 0 }}
+          >
+            {PROVIDERS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            disabled={isFetchingModels}
+            style={{ flex: 1, fontSize: "11px", padding: "4px 4px", borderRadius: "5px", backgroundColor: "var(--color-background)", color: "var(--color-text)", border: "1px solid var(--color-border)", outline: "none", cursor: "pointer", minWidth: 0 }}
+          >
+            {models.length === 0
+              ? <option value={selectedModel}>{isFetchingModels ? "Loading…" : (selectedModel || "Select model")}</option>
+              : models.map(m => <option key={m} value={m}>{m}</option>)
+            }
+          </select>
+
+          <button onClick={fetchModels} disabled={isFetchingModels} title="Refresh models" style={{ width: "26px", height: "26px", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: "5px", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "11px", flexShrink: 0 }}>
+            {isFetchingModels ? <Loader2 size={11} className="animate-spin" /> : "↻"}
           </button>
-          <button onClick={clearChat} title="Clear Chat" style={{ padding: "4px", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", borderRadius: "4px" }}>
-            <Trash2 size={15} />
+
+          <button
+            onClick={createNewSession}
+            disabled={isCurrentSessionEmpty}
+            title={isCurrentSessionEmpty ? "Current chat is empty" : "New Chat"}
+            style={{ width: "26px", height: "26px", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: isCurrentSessionEmpty ? "var(--color-surface)" : "var(--color-accent)", color: isCurrentSessionEmpty ? "var(--color-text-muted)" : "#fff", border: "1px solid var(--color-border)", borderRadius: "5px", cursor: isCurrentSessionEmpty ? "not-allowed" : "pointer", opacity: isCurrentSessionEmpty ? 0.6 : 1, flexShrink: 0 }}
+          >
+            <Plus size={13} />
           </button>
-          <button onClick={onClose} title="Close" style={{ padding: "4px", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", borderRadius: "4px" }}>
-            <X size={15} />
+        </div>
+
+        {/* Row 3: Active Session Bar */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: "5px", padding: "4px 8px", fontSize: "11px" }}>
+          <button
+            onClick={() => setShowSessionsDrawer(!showSessionsDrawer)}
+            style={{ display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", cursor: "pointer", color: "var(--color-text)", padding: 0, minWidth: 0, flex: 1, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}
+          >
+            <MessageSquare size={12} style={{ color: "var(--color-accent)", flexShrink: 0 }} />
+            <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {activeSession?.title || "New Chat"}
+            </span>
+            <span style={{ fontSize: "10px", color: "var(--color-text-muted)", flexShrink: 0 }}>
+              ({messages.length} msg{messages.length === 1 ? "" : "s"})
+            </span>
+          </button>
+
+          <button
+            onClick={() => setShowSessionsDrawer(!showSessionsDrawer)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: "2px", display: "flex", alignItems: "center", flexShrink: 0 }}
+          >
+            <ChevronDown size={12} style={{ transform: showSessionsDrawer ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }} />
           </button>
         </div>
       </div>
+
+      {/* ── Sessions Drawer Overlay Panel ─────────────────────────── */}
+      {showSessionsDrawer && (
+        <div style={{ display: "flex", flexDirection: "column", borderBottom: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)", padding: "10px 14px", gap: "8px", flexShrink: 0, maxHeight: "220px", overflowY: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: "6px" }}>
+              <History size={13} /> Sessions ({sessions.length})
+            </span>
+            <button
+              onClick={createNewSession}
+              disabled={isCurrentSessionEmpty}
+              title={isCurrentSessionEmpty ? "Current chat is empty" : "New Chat"}
+              style={{ fontSize: "11px", display: "flex", alignItems: "center", gap: "4px", padding: "2px 8px", backgroundColor: isCurrentSessionEmpty ? "var(--color-surface)" : "var(--color-accent)", color: isCurrentSessionEmpty ? "var(--color-text-muted)" : "#fff", border: "1px solid var(--color-border)", borderRadius: "4px", cursor: isCurrentSessionEmpty ? "not-allowed" : "pointer", opacity: isCurrentSessionEmpty ? 0.6 : 1 }}
+            >
+              <Plus size={11} /> New Chat
+            </button>
+          </div>
+
+          {/* Search Filter */}
+          {sessions.length > 3 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: "4px", padding: "3px 8px" }}>
+              <Search size={11} style={{ color: "var(--color-text-muted)" }} />
+              <input
+                type="text"
+                value={sessionFilter}
+                onChange={(e) => setSessionFilter(e.target.value)}
+                placeholder="Filter sessions..."
+                style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: "11px", color: "var(--color-text)" }}
+              />
+            </div>
+          )}
+
+          {/* Sessions List */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            {filteredSessions.map(session => {
+              const isActive = session.id === activeSessionId;
+              const isEditing = session.id === editingSessionId;
+
+              return (
+                <div
+                  key={session.id}
+                  onClick={() => switchSession(session.id)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", borderRadius: "5px", cursor: "pointer", backgroundColor: isActive ? "rgba(99,102,241,0.12)" : "var(--color-background)", border: isActive ? "1px solid var(--color-accent)" : "1px solid var(--color-border)", fontSize: "11px" }}
+                >
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onBlur={() => renameSession(session.id, editingTitle)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") renameSession(session.id, editingTitle);
+                        if (e.key === "Escape") setEditingSessionId(null);
+                      }}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ flex: 1, fontSize: "11px", padding: "1px 4px", borderRadius: "3px", border: "1px solid var(--color-accent)", backgroundColor: "var(--color-surface)", color: "var(--color-text)", outline: "none" }}
+                    />
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                      <span style={{ fontWeight: isActive ? 600 : 400, color: isActive ? "var(--color-accent)" : "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {session.title}
+                      </span>
+                      <span style={{ fontSize: "10px", color: "var(--color-text-muted)" }}>
+                        {session.messages.length} msg{session.messages.length === 1 ? "" : "s"} • {new Date(session.updatedAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "6px", flexShrink: 0 }}>
+                    {!isEditing && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingSessionId(session.id); setEditingTitle(session.title); }}
+                        title="Rename"
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: "2px", borderRadius: "3px" }}
+                      >
+                        <Edit2 size={11} />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => deleteSession(session.id, e)}
+                      title="Delete Session"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: "2px", borderRadius: "3px" }}
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Privacy Notice (non-local providers) ─────────────────── */}
       {!provider.isLocal && (
@@ -816,8 +1207,13 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
             )}
             <div style={{ display: "flex", flexDirection: "column", gap: "6px", textAlign: "left" }}>
               {["Explain this response body", "Generate test cases for this endpoint", "Help me debug this auth error", "Convert this to a curl command"].map(s => (
-                <button key={s} onClick={() => setInput(s)} style={{ padding: "7px 12px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text)", fontSize: "12px", textAlign: "left", cursor: "pointer" }}>
-                  {s}
+                <button
+                  key={s}
+                  onClick={() => handleSubmit(undefined, s)}
+                  style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text)", fontSize: "12px", textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", transition: "all 0.15s ease" }}
+                >
+                  <span>{s}</span>
+                  <ChevronRight size={12} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
                 </button>
               ))}
             </div>
@@ -884,9 +1280,9 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
-            placeholder="Ask AI… (Shift+Enter for newline)"
+            placeholder="Ask AI…"
             disabled={isLoading}
-            style={{ flex: 1, minHeight: "44px", maxHeight: "120px", padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px", resize: "none", fontFamily: "inherit", outline: "none", lineHeight: 1.4, boxSizing: "border-box", display: "block", overflowY: "hidden" }}
+            style={{ flex: 1, minHeight: "40px", maxHeight: "120px", padding: "9px 12px", borderRadius: "8px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "12px", resize: "none", fontFamily: "inherit", outline: "none", lineHeight: 1.4, boxSizing: "border-box", display: "block", overflowY: "hidden", minWidth: 0 }}
             rows={1}
           />
           {isLoading ? (
