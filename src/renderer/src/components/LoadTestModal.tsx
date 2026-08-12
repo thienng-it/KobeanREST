@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Play, Square, Activity, Download, BarChart3, Clock, TrendingUp, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
+import { X, Play, Square, Activity, Download, BarChart3, Clock, TrendingUp, AlertTriangle, CheckCircle2, RefreshCw, History, SlidersHorizontal } from "lucide-react";
 import type { SavedRequest, WorkspaceSummary } from "../types";
 import { prepareRequestForExecution } from "../services/request-executor";
 import { executeHttpRequest } from "../services/http-client";
@@ -525,17 +525,78 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
           </div>
         </div>
 
-        <div className="settings-content" style={{ flex: 1, overflowY: "auto", paddingBottom: 0 }}>
-          {/* ── Tab bar ────────────────────────────────────────────── */}
-          {status !== "running" && (
-            <div style={{ display: "flex", borderBottom: "1px solid var(--color-border)", marginBottom: 0, flexShrink: 0 }}>
-              {(["results", "history"] as const).map(t => (
-                <button key={t} onClick={() => setActiveTab(t)} style={{ padding: "10px 20px", border: "none", borderBottom: `2px solid ${activeTab === t ? "var(--color-accent)" : "transparent"}`, background: "none", color: activeTab === t ? "var(--color-text)" : "var(--color-text-muted)", cursor: "pointer", fontSize: 13, fontWeight: activeTab === t ? 600 : 400, textTransform: "capitalize" }}>
-                  {t === "history" ? `History (${history.length})` : t === "results" && status === "completed" ? "Results" : "Configure"}
-                </button>
-              ))}
+        {/* ── Tab bar ────────────────────────────────────────────── */}
+        {status !== "running" && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "10px 24px",
+              borderBottom: "1px solid var(--color-border)",
+              background: "var(--color-surface-muted)",
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "inline-flex",
+                gap: 4,
+                background: "rgba(15, 23, 42, 0.45)",
+                borderRadius: 8,
+                padding: 3,
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              {(["results", "history"] as const).map(t => {
+                const isActive = activeTab === t;
+                const label = t === "history" ? "History" : status === "completed" ? "Results" : "Configure";
+                const Icon = t === "history" ? History : SlidersHorizontal;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setActiveTab(t)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      padding: "6px 14px",
+                      borderRadius: 6,
+                      border: "none",
+                      background: isActive ? "var(--color-accent)" : "transparent",
+                      color: isActive ? "#ffffff" : "var(--color-text-muted)",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: isActive ? 600 : 500,
+                      transition: "all 0.15s ease",
+                      boxShadow: isActive ? "0 2px 8px rgba(99, 102, 241, 0.25)" : "none",
+                    }}
+                  >
+                    <Icon size={14} style={{ opacity: isActive ? 1 : 0.7 }} />
+                    <span>{label}</span>
+                    {t === "history" && (
+                      <span
+                        style={{
+                          marginLeft: 2,
+                          padding: "1px 7px",
+                          borderRadius: 10,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          background: isActive ? "rgba(255, 255, 255, 0.25)" : "var(--color-surface-hover)",
+                          color: isActive ? "#ffffff" : "var(--color-text-muted)",
+                        }}
+                      >
+                        {history.length}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
+
+        <div className="settings-content" style={{ flex: 1, overflowY: "auto", paddingBottom: 0 }}>
 
           {/* ── Configure ──────────────────────────────────────────── */}
           {(status === "configuring" && activeTab === "results") && (
