@@ -864,5 +864,61 @@
         "durationMs": 0
       }
     ]
+  },
+  {
+    "runId": "31573614879",
+    "timestamp": "2026-08-12T07:22:01.228Z",
+    "commit": "144bc7f",
+    "commitMsg": "chore(release): auto-bump version to 0.1.24 [skip ci]",
+    "branch": "main",
+    "status": "failed",
+    "durationMs": 58000,
+    "contractTests": {
+      "total": 130,
+      "passed": 124,
+      "failed": 5,
+      "skipped": 1
+    },
+    "e2eScenarios": {
+      "total": 5,
+      "passed": 0,
+      "failed": 5
+    },
+    "passRate": 92,
+    "failedTests": [
+      "tests/environment-editor-contract.test.mjs:115 - AssertionError: deleteEnvironmentBlock is falsy",
+      "tests/universal-import-contract.test.mjs:56 - AssertionError: regular expression mismatch (& vs &amp;)",
+      "tests/editable-ui-contract.test.mjs:291 - AssertionError: className='headers-grid-header' missing",
+      "tests/editable-ui-contract.test.mjs:439 - AssertionError: RequestCodeSnippetTarget expanded union mismatch",
+      "tests/api-auth-contract.test.mjs:145 - AssertionError: auth_config not found in 800-byte slice"
+    ],
+    "failureLog": "[FAIL] 5 contract test assertions failed in Node.js test runner:\n  - environment-editor-contract.test.mjs:115 -> AssertionError: deleteEnvironmentBlock is falsy\n  - universal-import-contract.test.mjs:56 -> AssertionError: input did not match /Upload File \\/ Drag & Drop/\n  - editable-ui-contract.test.mjs:291 -> AssertionError: input did not match /className=\"headers-grid-header\"/\n  - editable-ui-contract.test.mjs:439 -> AssertionError: input did not match /export type RequestCodeSnippetTarget = \"curl\" | \"fetch\" | \"node\";/\n  - api-auth-contract.test.mjs:145 -> AssertionError: input did not match /auth_config/ in saveBody slice (offset 969)",
+    "scenarios": [
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "failed",
+        "durationMs": 0
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "failed",
+        "durationMs": 0
+      }
+    ]
   }
 ]
