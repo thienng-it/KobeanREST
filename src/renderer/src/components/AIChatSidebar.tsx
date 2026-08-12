@@ -239,6 +239,9 @@ async function callOllama(
     const txt = await response.text();
     let msg = response.statusText;
     try { const p = JSON.parse(txt); if (p.error) msg = p.error; } catch { if (txt) msg = txt; }
+    if (tools && msg.toLowerCase().includes("does not support tools")) {
+      return callOllama(baseUrl, model, messages, systemPrompt, undefined, signal, onChunk);
+    }
     throw new Error(`Ollama: ${msg}`);
   }
 
@@ -452,7 +455,6 @@ export function AIChatSidebar({ isOpen, onClose, width = 360, draftRequest, work
   const [selectedModel, setSelectedModel] = useState(saved?.selectedModel ?? "llama3");
   const [models, setModels] = useState<string[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
-  const [isLocalServiceRunning, setIsLocalServiceRunning] = useState<boolean | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [mcpTools, setMcpTools] = useState<any[]>([]);
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
@@ -482,7 +484,6 @@ export function AIChatSidebar({ isOpen, onClose, width = 360, draftRequest, work
     if (!provider.modelsEndpoint) {
       setModels(provider.defaultModels);
       if (!provider.defaultModels.includes(selectedModel)) setSelectedModel(provider.defaultModels[0] ?? "");
-      setIsLocalServiceRunning(null);
       return;
     }
 
@@ -506,12 +507,8 @@ export function AIChatSidebar({ isOpen, onClose, width = 360, draftRequest, work
       } else {
         setModels(provider.defaultModels);
       }
-      if (provider.isLocal) setIsLocalServiceRunning(true);
-      else setIsLocalServiceRunning(null);
     } catch {
       setModels(provider.defaultModels);
-      if (provider.isLocal) setIsLocalServiceRunning(false);
-      else setIsLocalServiceRunning(null);
     } finally {
       setIsFetchingModels(false);
     }
@@ -804,29 +801,6 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
                 <span>This provider sends data to external servers. Do not share API keys, passwords, or sensitive PII.</span>
               </div>
             )}
-            {provider.isLocal && isLocalServiceRunning === false && (
-              <div style={{ marginBottom: "12px", padding: "12px", backgroundColor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "8px", fontSize: "12px", textAlign: "left", color: "var(--color-text)" }}>
-                <div style={{ color: "#ef4444", fontWeight: 600, marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <AlertTriangle size={14} /> Local AI Service Not Running
-                </div>
-                <p style={{ margin: "0 0 10px 0", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
-                  We couldn't connect to <strong>{provider.name}</strong> at <code>{effectiveBaseUrl}</code>.
-                </p>
-                {provider.id === "ollama" && (
-                  <div style={{ backgroundColor: "var(--color-surface)", padding: "8px", borderRadius: "4px", fontFamily: "monospace", fontSize: "11px", color: "var(--color-text-muted)" }}>
-                    $ ollama run llama3
-                  </div>
-                )}
-                {provider.id === "lmstudio" && (
-                  <p style={{ margin: "0 0 8px 0", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
-                    Open LM Studio, load a model, and click <strong>Start Server</strong> in the Local Server tab.
-                  </p>
-                )}
-                <button onClick={fetchModels} style={{ marginTop: "10px", padding: "6px 12px", borderRadius: "6px", backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text)", cursor: "pointer", fontSize: "11px", fontWeight: 600 }}>
-                  Check Again
-                </button>
-              </div>
-            )}
             {provider.requiresApiKey && !apiKey && (
               <div style={{ marginBottom: "12px" }}>
                 <button onClick={() => setShowSettings(true)} style={{ padding: "7px 14px", borderRadius: "8px", border: "none", backgroundColor: "var(--color-accent)", color: "#fff", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
@@ -837,7 +811,7 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
             {hasContext && (
               <div style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "8px", backgroundColor: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", fontSize: "12px", textAlign: "left" }}>
                 <div style={{ fontWeight: 600, color: "var(--color-accent)", marginBottom: "4px" }}>📡 Context loaded</div>
-                <div style={{ fontSize: "11px", wordBreak: "break-all" }}>{draftRequest?.method} {draftRequest?.url || "(no URL)"}</div>
+                <div style={{ fontSize: "11px" }}>{draftRequest?.method} {draftRequest?.url || "(no URL)"}</div>
               </div>
             )}
             <div style={{ display: "flex", flexDirection: "column", gap: "6px", textAlign: "left" }}>
