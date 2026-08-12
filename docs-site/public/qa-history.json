@@ -969,5 +969,56 @@
         "durationMs": 500
       }
     ]
+  },
+  {
+    "runId": "31591697999",
+    "timestamp": "2026-08-12T11:25:13.918Z",
+    "commit": "177979e",
+    "commitMsg": "fix(docs): qa summary",
+    "branch": "main",
+    "status": "failed",
+    "durationMs": 84000,
+    "contractTests": {
+      "total": 163,
+      "passed": 161,
+      "failed": 1,
+      "skipped": 1
+    },
+    "e2eScenarios": {
+      "total": 5,
+      "passed": 0,
+      "failed": 5
+    },
+    "passRate": 96,
+    "failedTests": [
+      "139 - VS Code Extension Contract"
+    ],
+    "scenarios": [
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "failed",
+        "durationMs": 500
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "failed",
+        "durationMs": 500
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "failed",
+        "durationMs": 500
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "failed",
+        "durationMs": 500
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "failed",
+        "durationMs": 500
+      }
+    ]
   }
 ]
