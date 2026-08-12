@@ -1,63 +1,131 @@
+import { useState, useEffect } from "react";
 import { releasesUrl } from "../site";
 import type { DocsPageContent } from "./shared";
 
-const latestDownloadBase = "https://github.com/thienng-it/KobeanREST/releases/latest/download";
+function useLatestVersion() {
+  const [version, setVersion] = useState("0.1.23");
+  useEffect(() => {
+    fetch("https://api.github.com/repos/thienng-it/KobeanREST/releases/latest")
+      .then(res => res.json())
+      .then(data => {
+        if (data.tag_name) {
+          setVersion(data.tag_name.replace(/^v/, ""));
+        }
+      })
+      .catch(console.error);
+  }, []);
+  return version;
+}
 
-const downloadCards = [
-  {
-    platform: "macOS",
-    artifact: "Universal DMG",
-    file: "KobeanREST_0.1.0_universal.dmg",
-    href: `${latestDownloadBase}/KobeanREST_0.1.0_universal.dmg`,
-    note: "Open the DMG, drag KobeanREST to Applications, then launch it.",
-  },
-  {
-    platform: "Windows",
-    artifact: "MSI installer",
-    file: "KobeanREST_0.1.0_x64_en-US.msi",
-    href: `${latestDownloadBase}/KobeanREST_0.1.0_x64_en-US.msi`,
-    note: "Run the installer, then launch KobeanREST from the Start menu.",
-  },
-  {
-    platform: "Linux",
-    artifact: "AppImage",
-    file: "KobeanREST_0.1.0_amd64.AppImage",
-    href: `${latestDownloadBase}/KobeanREST_0.1.0_amd64.AppImage`,
-    note: "Make it executable, then run the portable app directly.",
-  },
-  {
-    platform: "Linux",
-    artifact: "Debian package",
-    file: "KobeanREST_0.1.0_amd64.deb",
-    href: `${latestDownloadBase}/KobeanREST_0.1.0_amd64.deb`,
-    note: "Install with your package manager on Debian-based systems.",
-  },
-];
+function DownloadSection() {
+  const version = useLatestVersion();
+  const baseUrl = "https://github.com/thienng-it/KobeanREST/releases/latest/download";
+  const checksumUrl = `${baseUrl}/SHA256SUMS.txt`;
 
-const checksumUrl = `${latestDownloadBase}/SHA256SUMS.txt`;
+  const downloadCards = [
+    {
+      platform: "macOS",
+      artifact: "Universal DMG",
+      file: `KobeanREST_${version}_universal.dmg`,
+      href: `${baseUrl}/KobeanREST_${version}_universal.dmg`,
+      note: "Open the DMG, drag KobeanREST to Applications, then launch it.",
+    },
+    {
+      platform: "Windows",
+      artifact: "MSI installer",
+      file: `KobeanREST_${version}_x64_en-US.msi`,
+      href: `${baseUrl}/KobeanREST_${version}_x64_en-US.msi`,
+      note: "Run the installer, then launch KobeanREST from the Start menu.",
+    },
+    {
+      platform: "Linux",
+      artifact: "AppImage",
+      file: `KobeanREST_${version}_amd64.AppImage`,
+      href: `${baseUrl}/KobeanREST_${version}_amd64.AppImage`,
+      note: "Make it executable, then run the portable app directly.",
+    },
+    {
+      platform: "Linux",
+      artifact: "Debian package",
+      file: `KobeanREST_${version}_amd64.deb`,
+      href: `${baseUrl}/KobeanREST_${version}_amd64.deb`,
+      note: "Install with your package manager on Debian-based systems.",
+    },
+  ];
 
-const cliCommands = [
-  {
-    label: "macOS",
-    command: `curl -L -o KobeanREST.dmg ${downloadCards[0].href}`,
-  },
-  {
-    label: "Windows PowerShell",
-    command: `Invoke-WebRequest -Uri ${downloadCards[1].href} -OutFile KobeanREST.msi`,
-  },
-  {
-    label: "Linux AppImage",
-    command: `curl -L -o KobeanREST.AppImage ${downloadCards[2].href} && chmod +x KobeanREST.AppImage`,
-  },
-  {
-    label: "Linux deb",
-    command: `curl -L -o KobeanREST.deb ${downloadCards[3].href}`,
-  },
-  {
-    label: "Checksums",
-    command: `curl -L -o SHA256SUMS.txt ${checksumUrl}`,
-  },
-];
+  return (
+    <div className="download-intro">
+      <p>
+        Choose your operating system below for the fastest path. No KobeanREST account, cloud workspace, or server setup
+        is required. The public source of truth remains{" "}
+        <a href={releasesUrl} target="_blank" rel="noreferrer">
+          GitHub Releases
+        </a>
+        , and each release should include platform artifacts, <code>SHA256SUMS.txt</code>, and signed Tauri update
+        metadata as <code>latest.json</code>.
+      </p>
+      <div className="download-grid">
+        {downloadCards.map((card) => (
+          <article className="download-card" key={card.file}>
+            <span>{card.platform}</span>
+            <h3>{card.artifact}</h3>
+            <p>{card.note}</p>
+            <code>{card.file}</code>
+            <a className="download-button" href={card.href}>
+              Download {card.platform}
+            </a>
+          </article>
+        ))}
+      </div>
+      <div className="download-actions">
+        <a href={checksumUrl}>Download SHA256SUMS.txt</a>
+        <a href={releasesUrl} target="_blank" rel="noreferrer">
+          View all release files
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function CLISection() {
+  const version = useLatestVersion();
+  const baseUrl = "https://github.com/thienng-it/KobeanREST/releases/latest/download";
+  const checksumUrl = `${baseUrl}/SHA256SUMS.txt`;
+
+  const cliCommands = [
+    {
+      label: "macOS",
+      command: `curl -L -o KobeanREST.dmg ${baseUrl}/KobeanREST_${version}_universal.dmg`,
+    },
+    {
+      label: "Windows PowerShell",
+      command: `Invoke-WebRequest -Uri ${baseUrl}/KobeanREST_${version}_x64_en-US.msi -OutFile KobeanREST.msi`,
+    },
+    {
+      label: "Linux AppImage",
+      command: `curl -L -o KobeanREST.AppImage ${baseUrl}/KobeanREST_${version}_amd64.AppImage && chmod +x KobeanREST.AppImage`,
+    },
+    {
+      label: "Linux deb",
+      command: `curl -L -o KobeanREST.deb ${baseUrl}/KobeanREST_${version}_amd64.deb`,
+    },
+    {
+      label: "Checksums",
+      command: `curl -L -o SHA256SUMS.txt ${checksumUrl}`,
+    },
+  ];
+
+  return (
+    <div className="command-grid">
+      {cliCommands.map((entry) => (
+        <div className="command-card" key={entry.label}>
+          <strong>{entry.label}</strong>
+          <code>{entry.command}</code>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export const downloadsContent: DocsPageContent = {
   eyebrow: "Downloads",
@@ -68,38 +136,7 @@ export const downloadsContent: DocsPageContent = {
     {
       id: "latest",
       title: "Latest release",
-      body: (
-        <div className="download-intro">
-          <p>
-            Choose your operating system below for the fastest path. No KobeanREST account, cloud workspace, or server setup
-            is required. The public source of truth remains{" "}
-            <a href={releasesUrl} target="_blank" rel="noreferrer">
-              GitHub Releases
-            </a>
-            , and each release should include platform artifacts, <code>SHA256SUMS.txt</code>, and signed Tauri update
-            metadata as <code>latest.json</code>.
-          </p>
-          <div className="download-grid">
-            {downloadCards.map((card) => (
-              <article className="download-card" key={card.file}>
-                <span>{card.platform}</span>
-                <h3>{card.artifact}</h3>
-                <p>{card.note}</p>
-                <code>{card.file}</code>
-                <a className="download-button" href={card.href}>
-                  Download {card.platform}
-                </a>
-              </article>
-            ))}
-          </div>
-          <div className="download-actions">
-            <a href={checksumUrl}>Download SHA256SUMS.txt</a>
-            <a href={releasesUrl} target="_blank" rel="noreferrer">
-              View all release files
-            </a>
-          </div>
-        </div>
-      ),
+      body: <DownloadSection />
     },
     {
       id: "first-run",
@@ -139,16 +176,7 @@ export const downloadsContent: DocsPageContent = {
       id: "command-line",
       title: "Command-line downloads",
       intro: "Use these commands when downloading from a terminal or setup script.",
-      body: (
-        <div className="command-grid">
-          {cliCommands.map((entry) => (
-            <div className="command-card" key={entry.label}>
-              <strong>{entry.label}</strong>
-              <code>{entry.command}</code>
-            </div>
-          ))}
-        </div>
-      ),
+      body: <CLISection />,
     },
     {
       id: "updates",
