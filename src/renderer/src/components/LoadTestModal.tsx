@@ -235,17 +235,33 @@ function StatsGrid({ avg, p50, p95, p99, min, max, rps, successRate, errorCount,
 // ── CSV Export ────────────────────────────────────────────────────────────────
 
 function exportCsv(results: RawResult[], requestName: string) {
-  const lines = ["index,duration_ms,status,time_offset_ms,ok"];
-  results.forEach((r, i) => {
-    lines.push(`${i + 1},${r.duration},${r.status},${r.timeOffset},${r.status >= 200 && r.status < 300 ? "true" : "false"}`);
-  });
-  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `load-test-${requestName.replace(/\s+/g, "-")}-${new Date().toISOString().slice(0, 19)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  if (!results || results.length === 0) return;
+  try {
+    const lines = ["index,duration_ms,status,time_offset_ms,ok"];
+    results.forEach((r, i) => {
+      const isOk = r.status >= 200 && r.status < 300 ? "true" : "false";
+      lines.push(`${i + 1},${r.duration},${r.status},${r.timeOffset},${isOk}`);
+    });
+    const csvContent = lines.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = url;
+    const cleanName = (requestName || "request").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const timestampStr = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    a.setAttribute("download", `load-test-${cleanName}-${timestampStr}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (document.body.contains(a)) {
+        document.body.removeChild(a);
+      }
+      URL.revokeObjectURL(url);
+    }, 200);
+  } catch (err) {
+    console.error("Failed to export CSV:", err);
+  }
 }
 
 // ── History helpers ───────────────────────────────────────────────────────────
@@ -299,13 +315,22 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
   const [elapsedMs, setElapsedMs] = useState(0);
   const [statusBreakdown, setStatusBreakdown] = useState<Record<string, number>>({});
 
-  // History
+  // History & Toast
   const [history, setHistory] = useState<LoadTestHistoryRecord[]>([]);
   const [selectedRun, setSelectedRun] = useState<LoadTestHistoryRecord | null>(null);
   const [activeTab, setActiveTab] = useState<"results" | "history">("results");
+  const [exportedToast, setExportedToast] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const rawResultsRef = useRef<RawResult[]>([]);
+
+  const handleExportCsv = useCallback(() => {
+    const listToExport = rawResultsRef.current.length > 0 ? rawResultsRef.current : results;
+    if (!listToExport || listToExport.length === 0) return;
+    exportCsv(listToExport, request?.name || "request");
+    setExportedToast(true);
+    setTimeout(() => setExportedToast(false), 2000);
+  }, [request?.name, results]);
 
   // Live timer
   useEffect(() => {
@@ -512,13 +537,27 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
             <p>{request?.method} {request?.url}</p>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {status === "completed" && results.length > 0 && (
+            {status === "completed" && (results.length > 0 || rawResultsRef.current.length > 0) && (
               <button
                 type="button"
-                onClick={() => exportCsv(rawResultsRef.current, request?.name || "request")}
-                style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-surface-hover)", color: "var(--color-text)", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}
+                onClick={handleExportCsv}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 6,
+                  border: `1px solid ${exportedToast ? "rgba(16, 185, 129, 0.4)" : "var(--color-border)"}`,
+                  background: exportedToast ? "rgba(16, 185, 129, 0.15)" : "var(--color-surface-hover)",
+                  color: exportedToast ? "#10b981" : "var(--color-text)",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "all 0.2s ease",
+                }}
               >
-                <Download size={13} /> Export CSV
+                {exportedToast ? <Check size={13} /> : <Download size={13} />}
+                <span>{exportedToast ? "Exported CSV!" : "Export CSV"}</span>
               </button>
             )}
             <button className="settings-close" type="button" onClick={handleClose}><X size={18} /></button>
