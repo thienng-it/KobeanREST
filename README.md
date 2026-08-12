@@ -38,6 +38,7 @@
 
 | Feature | Description |
 | :--- | :--- |
+| 🤖 **AI Assistant & Session Manager** | Built-in local/cloud AI Assistant supporting Ollama (Local), OpenAI, Anthropic, Gemini, Groq, OpenRouter, and custom endpoints. Features drag-to-resize sidebar (`28%–48%` window bounds), multi-session management, auto-titling, code copying, prompt suggestions, and automatic non-tool model fallbacks. |
 | 🚀 **Native Tauri 2 Core** | Blazing-fast desktop performance powered by Rust with lightweight memory usage. |
 | 🎨 **High-Density Desktop UI** | Modern, compact aesthetic with refined focus states, single-ring inputs, and crisp typography. |
 | 🗂️ **Tabbed Workspace** | Advanced unsaved draft tab workflow with visual indicators, auto-removal, and tab views for collections and folders. |

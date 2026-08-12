@@ -12,6 +12,7 @@ export const productContent: DocsPageContent = {
       intro:
         "KobeanREST is a desktop API client for REST and HTTP workflows. Users download the app, launch it locally, and use it without creating an account.",
       items: [
+        "Built-in AI Assistant with multi-session management, Ollama local model support (100% on-device), cloud model adapters (OpenAI, Anthropic, Gemini, Groq, OpenRouter), resizable sidebar, and automatic non-tool fallback retries.",
         "Build, save, and replay HTTP requests from a local workspace with advanced tabbed UI and visual indicators.",
         "Execute entire collections sequentially with comprehensive run history and results tracking.",
         "Manage URL query parameters (`Params`) with real-time bi-directional synchronization to the URL bar.",
