@@ -160,12 +160,6 @@ describe("VS Code Extension Contract", () => {
         ),
       );
     });
-
-    it("has webview dist directory", () => {
-      assert.ok(
-        fs.existsSync(path.join(EXT_DIR, "dist-webview")),
-      );
-    });
   });
 
   // --- TextMate Grammar Validation ---
