@@ -801,7 +801,7 @@ export function App() {
           if (folderToUpdate) {
             const { saveFolderAuth } = await import("./services/local-store");
             const newConfig = { ...folderToUpdate.authConfig, ...updatedAuth };
-            await saveFolderAuth(folderToUpdate.id, folderToUpdate.authMode, newConfig);
+            await saveFolderAuth(folderToUpdate.id, folderToUpdate.authMode || "none", newConfig);
             handleUpdateFolder({ ...folderToUpdate, authConfig: newConfig });
           }
         } else if (updatedAuthEntityType === "collection") {
@@ -809,7 +809,7 @@ export function App() {
           if (colToUpdate) {
             const { saveCollectionAuth } = await import("./services/local-store");
             const newConfig = { ...colToUpdate.authConfig, ...updatedAuth };
-            await saveCollectionAuth(colToUpdate.id, colToUpdate.authMode, newConfig);
+            await saveCollectionAuth(colToUpdate.id, colToUpdate.authMode || "none", newConfig);
             handleUpdateCollection({ ...colToUpdate, authConfig: newConfig });
           }
         }

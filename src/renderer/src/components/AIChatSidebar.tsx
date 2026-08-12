@@ -833,9 +833,9 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
                     ? <>{renderMarkdown(msg.content)}{msg.isStreaming && <span style={{ display: "inline-block", width: "8px", height: "14px", backgroundColor: "var(--color-accent)", borderRadius: "2px", marginLeft: "2px", animation: "blink 1s step-end infinite", verticalAlign: "middle" }} />}</>
                     : <span style={{ whiteSpace: "pre-wrap" }}>{msg.content}</span>
                   }
-                  {msg.tool_calls?.length > 0 && (
+                  {(msg.tool_calls?.length ?? 0) > 0 && (
                     <div style={{ marginTop: msg.content ? "8px" : 0, paddingTop: msg.content ? "6px" : 0, borderTop: msg.content ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
-                      {msg.tool_calls.map((tc, j) => <div key={j} style={{ fontSize: "11px", display: "flex", alignItems: "center", gap: "5px", opacity: 0.75 }}><Zap size={10} /> Calling: <strong>{tc.function?.name}</strong></div>)}
+                      {msg.tool_calls?.map((tc, j) => <div key={j} style={{ fontSize: "11px", display: "flex", alignItems: "center", gap: "5px", opacity: 0.75 }}><Zap size={10} /> Calling: <strong>{tc.function?.name}</strong></div>)}
                     </div>
                   )}
                 </div>

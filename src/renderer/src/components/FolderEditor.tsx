@@ -4,7 +4,7 @@ import type { FolderSummary, EnvironmentVariable, ScopedVariable, ScopedVariable
 import { AuthEditorForm } from "./AuthEditorForm";
 import { ScriptEditor } from "./ScriptEditor";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
-import { getScripts, saveScript } from "../services/local-store";
+import { getScripts, saveScript, saveFolderAuth } from "../services/local-store";
 
 export interface FolderEditorProps {
   folder: FolderSummary;
