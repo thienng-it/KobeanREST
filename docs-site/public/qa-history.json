@@ -1122,5 +1122,54 @@
         "durationMs": 500
       }
     ]
+  },
+  {
+    "runId": "31594560963",
+    "timestamp": "2026-08-12T12:03:17.751Z",
+    "commit": "409f422",
+    "commitMsg": "Merge branch 'main' of github.com:thienng-it/KobeanREST",
+    "branch": "main",
+    "status": "passed",
+    "durationMs": 84000,
+    "contractTests": {
+      "total": 162,
+      "passed": 161,
+      "failed": 0,
+      "skipped": 1
+    },
+    "e2eScenarios": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "passRate": 99,
+    "failedTests": [],
+    "scenarios": [
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "passed",
+        "durationMs": 500
+      }
+    ]
   }
 ]
