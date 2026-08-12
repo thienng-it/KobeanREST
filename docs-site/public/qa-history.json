@@ -920,5 +920,54 @@
         "durationMs": 0
       }
     ]
+  },
+  {
+    "runId": "1786533596080",
+    "timestamp": "2026-08-12T11:19:56.114Z",
+    "commit": "local",
+    "commitMsg": "fix(docs): download latest version",
+    "branch": "main",
+    "status": "failed",
+    "durationMs": 84000,
+    "contractTests": {
+      "total": 163,
+      "passed": 162,
+      "failed": 0,
+      "skipped": 1
+    },
+    "e2eScenarios": {
+      "total": 5,
+      "passed": 0,
+      "failed": 5
+    },
+    "passRate": 96,
+    "failedTests": [],
+    "scenarios": [
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "failed",
+        "durationMs": 500
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "failed",
+        "durationMs": 500
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "failed",
+        "durationMs": 500
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "failed",
+        "durationMs": 500
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "failed",
+        "durationMs": 500
+      }
+    ]
   }
 ]

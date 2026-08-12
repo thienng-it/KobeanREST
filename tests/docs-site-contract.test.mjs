@@ -58,10 +58,10 @@ test("docs site includes product, download, developer, release, roadmap, and QA 
 
   assert.match(combined, /local-first desktop REST client/i);
   assert.match(combined, /GitHub Releases/);
-  assert.match(combined, /KobeanREST_0\.1\.0_universal\.dmg/);
-  assert.match(combined, /KobeanREST_0\.1\.0_x64_en-US\.msi/);
-  assert.match(combined, /KobeanREST_0\.1\.0_amd64\.AppImage/);
-  assert.match(combined, /KobeanREST_0\.1\.0_amd64\.deb/);
+  assert.match(combined, /KobeanREST_\$\{version\}_universal\.dmg/);
+  assert.match(combined, /KobeanREST_\$\{version\}_x64_en-US\.msi/);
+  assert.match(combined, /KobeanREST_\$\{version\}_amd64\.AppImage/);
+  assert.match(combined, /KobeanREST_\$\{version\}_amd64\.deb/);
   assert.match(combined, /curl -L -o KobeanREST\.dmg/);
   assert.match(combined, /Invoke-WebRequest/);
   assert.match(combined, /Tauri 2/);
