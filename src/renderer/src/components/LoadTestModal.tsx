@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { X, Play, Square, Activity, Download, BarChart3, Clock, TrendingUp, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import type { SavedRequest, WorkspaceSummary } from "../types";
 import { prepareRequestForExecution } from "../services/request-executor";
@@ -493,7 +494,7 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
     ? (completedCount / Math.max(1, iterations)) * 100
     : Math.min(100, (elapsedMs / Math.max(1, durationSecs * 1000)) * 100);
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={handleClose}>
       <div
         className="modal settings-modal"
@@ -761,5 +762,5 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
         </div>
       </div>
     </div>
-  );
+  , document.body);
 }
