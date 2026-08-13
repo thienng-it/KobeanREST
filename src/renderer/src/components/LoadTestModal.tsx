@@ -524,7 +524,7 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
       <div
         className="modal settings-modal"
         onClick={e => e.stopPropagation()}
-        style={{ width: "900px", maxWidth: "96vw", height: "88vh", display: "flex", flexDirection: "column" }}
+        style={{ width: "900px", maxWidth: "96vw", maxHeight: "88vh", display: "flex", flexDirection: "column" }}
       >
         {/* ── Header ──────────────────────────────────────────────── */}
         <div className="settings-header">
