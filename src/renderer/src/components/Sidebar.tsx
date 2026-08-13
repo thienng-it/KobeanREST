@@ -53,6 +53,8 @@ export interface SidebarProps {
   isResizing: boolean;
   theme?: AppSettings["theme"];
   onThemeChange?: (theme: AppSettings["theme"]) => void;
+  autoUpdate?: boolean;
+  onToggleAutoUpdate?: () => void;
   onToggleSidebar?: () => void;
 
   // Topbar / App Actions
@@ -643,6 +645,8 @@ export function Sidebar({
   onDismissDeleteError,
   theme = "system",
   onThemeChange,
+  autoUpdate = true,
+  onToggleAutoUpdate,
   onToggleSidebar,
   onOpenDocs,
   onOpenHistory,
@@ -1440,57 +1444,10 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-footer">
-        <div className="sidebar-footer-actions">
-          <button
-            type="button"
-            className="sidebar-footer-icon-btn"
-            title="Product Documentation"
-            aria-label="Product Documentation"
-            onClick={onOpenDocs}
-          >
-            <HelpCircle size={15} />
-          </button>
-          <button
-            type="button"
-            className="sidebar-footer-icon-btn"
-            title="Request History"
-            aria-label="Request History"
-            onClick={onOpenHistory}
-          >
-            <History size={15} />
-          </button>
-          <button
-            type="button"
-            className="sidebar-footer-icon-btn"
-            title="Check for Updates"
-            aria-label="Check for Updates"
-            onClick={onCheckForUpdates}
-          >
-            <RefreshCw size={15} />
-          </button>
-          <button
-            type="button"
-            className="sidebar-footer-icon-btn"
-            title="API Tools"
-            aria-label="API Tools"
-            onClick={onOpenApiTools}
-          >
-            <Wrench size={15} />
-          </button>
-          <button
-            type="button"
-            className="sidebar-footer-icon-btn"
-            title="Settings"
-            aria-label="Settings"
-            onClick={onOpenSettings}
-          >
-            <Settings size={15} />
-          </button>
-        </div>
         <div ref={themeRef} className="sidebar-footer-theme" style={{ position: "relative" }}>
           <button
             type="button"
-            className="sidebar-footer-theme-btn"
+            className="sidebar-quick-settings-trigger"
             onClick={(e) => {
               e.stopPropagation();
               setThemeMenuOpen((prev) => !prev);
@@ -1500,7 +1457,10 @@ export function Sidebar({
               <span className="sidebar-footer-theme-icon">{currentThemeIcon()}</span>
               <span className="sidebar-footer-theme-label">Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
             </div>
-            <ChevronDown size={14} style={{ opacity: 0.6, transform: themeMenuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Settings size={14} style={{ opacity: 0.8 }} />
+              <ChevronDown size={14} style={{ opacity: 0.6, transform: themeMenuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }} />
+            </div>
           </button>
           {themeMenuOpen && (
             <div className="quick-settings-popover" onClick={(e) => e.stopPropagation()}>
@@ -1609,6 +1569,19 @@ export function Sidebar({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Auto Update Row */}
+              <div className="quick-settings-row">
+                <span className="quick-settings-row-label">Auto Update</span>
+                <button
+                  type="button"
+                  className={`quick-settings-toggle ${autoUpdate ? "on" : "off"}`}
+                  onClick={() => onToggleAutoUpdate?.()}
+                >
+                  <span className="quick-settings-toggle-handle" />
+                  <span className="quick-settings-toggle-text">{autoUpdate ? "On" : "Off"}</span>
+                </button>
               </div>
             </div>
           )}

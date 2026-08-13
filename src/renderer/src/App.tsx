@@ -1488,6 +1488,8 @@ export function App() {
         isResizing={isSidebarResizing}
         theme={appSettings.theme}
         onThemeChange={(nextTheme) => updateAppSettings({ theme: nextTheme })}
+        autoUpdate={appSettings.updateChecksEnabled}
+        onToggleAutoUpdate={() => updateAppSettings({ updateChecksEnabled: !appSettings.updateChecksEnabled })}
         onToggleSidebar={toggleSidebar}
         collectionSearch={collectionSearch}
         collapsedFolders={collapsedFolders}
