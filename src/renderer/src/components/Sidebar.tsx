@@ -63,6 +63,7 @@ export interface SidebarProps {
   onCheckForUpdates?: () => void;
   onOpenSettings?: () => void;
   onOpenApiTools?: () => void;
+  onOpenQuickSettings?: () => void;
 
   // Collection state
   collectionSearch: string;
@@ -653,6 +654,7 @@ export function Sidebar({
   onCheckForUpdates,
   onOpenSettings,
   onOpenApiTools,
+  onOpenQuickSettings,
   onExport,
   onImport,
   onCurlImport,
@@ -1444,148 +1446,20 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-footer">
-        <div ref={themeRef} className="sidebar-footer-theme" style={{ position: "relative" }}>
-          <button
-            type="button"
-            className="sidebar-quick-settings-trigger"
-            onClick={(e) => {
-              e.stopPropagation();
-              setThemeMenuOpen((prev) => !prev);
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span className="sidebar-footer-theme-icon">{currentThemeIcon()}</span>
-              <span className="sidebar-footer-theme-label">Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Settings size={14} style={{ opacity: 0.8 }} />
-              <ChevronDown size={14} style={{ opacity: 0.6, transform: themeMenuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }} />
-            </div>
-          </button>
-          {themeMenuOpen && (
-            <div className="quick-settings-popover" onClick={(e) => e.stopPropagation()}>
-              {/* Header */}
-              <div className="quick-settings-header">
-                <span className="quick-settings-title">Quick Settings</span>
-                <button
-                  type="button"
-                  className="quick-settings-close"
-                  onClick={() => setThemeMenuOpen(false)}
-                  aria-label="Close Quick Settings"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-
-              {/* Quick Action Bar Section */}
-              <div className="quick-settings-section">
-                <div className="quick-settings-label">Quick Action bar</div>
-                <div className="quick-action-grid">
-                  <button
-                    type="button"
-                    className="quick-action-card"
-                    title="Product Documentation"
-                    onClick={() => {
-                      setThemeMenuOpen(false);
-                      onOpenDocs?.();
-                    }}
-                  >
-                    <div className="quick-action-icon"><HelpCircle size={18} /></div>
-                    <span className="quick-action-text">Help</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="quick-action-card"
-                    title="Request History"
-                    onClick={() => {
-                      setThemeMenuOpen(false);
-                      onOpenHistory?.();
-                    }}
-                  >
-                    <div className="quick-action-icon"><History size={18} /></div>
-                    <span className="quick-action-text">History</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="quick-action-card"
-                    title="Check for Updates"
-                    onClick={() => {
-                      setThemeMenuOpen(false);
-                      onCheckForUpdates?.();
-                    }}
-                  >
-                    <div className="quick-action-icon"><RefreshCw size={18} /></div>
-                    <span className="quick-action-text">Updates</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="quick-action-card"
-                    title="API Tools"
-                    onClick={() => {
-                      setThemeMenuOpen(false);
-                      onOpenApiTools?.();
-                    }}
-                  >
-                    <div className="quick-action-icon"><Wrench size={18} /></div>
-                    <span className="quick-action-text">Tools</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="quick-action-card"
-                    title="Settings"
-                    onClick={() => {
-                      setThemeMenuOpen(false);
-                      onOpenSettings?.();
-                    }}
-                  >
-                    <div className="quick-action-icon"><Settings size={18} /></div>
-                    <span className="quick-action-text">Settings</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Theme Section */}
-              <div className="quick-settings-section">
-                <div className="quick-settings-label">Theme</div>
-                <div className="segmented-theme-control">
-                  {[
-                    { id: "dark", label: "Dark", icon: <Moon size={14} /> },
-                    { id: "light", label: "Light", icon: <Sun size={14} /> },
-                    { id: "warm", label: "Warm", icon: <Flame size={14} /> },
-                    { id: "system", label: "System", icon: <Monitor size={14} /> },
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      className={`segmented-theme-pill ${theme === t.id ? "active" : ""}`}
-                      onClick={() => handleSelectTheme(t.id as AppSettings["theme"])}
-                    >
-                      {t.icon}
-                      <span>{t.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Auto Update Row */}
-              <div className="quick-settings-row">
-                <span className="quick-settings-row-label">Auto Update</span>
-                <button
-                  type="button"
-                  className={`quick-settings-toggle ${autoUpdate ? "on" : "off"}`}
-                  onClick={() => onToggleAutoUpdate?.()}
-                >
-                  <span className="quick-settings-toggle-handle" />
-                  <span className="quick-settings-toggle-text">{autoUpdate ? "On" : "Off"}</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        <button
+          type="button"
+          className="sidebar-quick-settings-trigger"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenQuickSettings?.();
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span className="sidebar-footer-theme-icon">{currentThemeIcon()}</span>
+            <span className="sidebar-footer-theme-label">Quick Settings</span>
+          </div>
+          <Settings size={15} style={{ opacity: 0.8 }} />
+        </button>
       </div>
     </aside>
   );

@@ -33,6 +33,7 @@ import { FolderEditor } from "./components/FolderEditor";
 import { CollectionEditor } from "./components/CollectionEditor";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { ApiToolsModal } from "./components/ApiToolsModal";
+import { QuickSettingsModal } from "./components/QuickSettingsModal";
 import { resolveAuthConfig, getEffectiveAuth } from "./services/auth";
 import { prepareRequestForExecution } from "./services/request-executor";
 import { CollectionRunner } from "./components/CollectionRunner";
@@ -76,6 +77,7 @@ export function App() {
   });
   const [isSidebarResizing, setIsSidebarResizing] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [quickSettingsModalOpen, setQuickSettingsModalOpen] = useState(false);
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -1490,6 +1492,7 @@ export function App() {
         onThemeChange={(nextTheme) => updateAppSettings({ theme: nextTheme })}
         autoUpdate={appSettings.updateChecksEnabled}
         onToggleAutoUpdate={() => updateAppSettings({ updateChecksEnabled: !appSettings.updateChecksEnabled })}
+        onOpenQuickSettings={() => setQuickSettingsModalOpen(true)}
         onToggleSidebar={toggleSidebar}
         collectionSearch={collectionSearch}
         collapsedFolders={collapsedFolders}
@@ -2221,6 +2224,20 @@ export function App() {
         onSave={(newVal) => {
           chainRequestModal?.onSave(newVal);
         }}
+      />
+
+      <QuickSettingsModal
+        isOpen={quickSettingsModalOpen}
+        onClose={() => setQuickSettingsModalOpen(false)}
+        theme={appSettings.theme}
+        onThemeChange={(nextTheme) => updateAppSettings({ theme: nextTheme })}
+        autoUpdate={appSettings.updateChecksEnabled}
+        onToggleAutoUpdate={() => updateAppSettings({ updateChecksEnabled: !appSettings.updateChecksEnabled })}
+        onOpenDocs={openProductDocs}
+        onOpenHistory={handleOpenHistory}
+        onCheckForUpdates={() => void handleCheckForUpdates("manual")}
+        onOpenApiTools={() => setApiToolsOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
     </main>
   );
