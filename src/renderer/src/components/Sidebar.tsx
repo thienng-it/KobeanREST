@@ -1503,18 +1503,113 @@ export function Sidebar({
             <ChevronDown size={14} style={{ opacity: 0.6, transform: themeMenuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }} />
           </button>
           {themeMenuOpen && (
-            <div className="theme-popover sidebar-footer-popover" onClick={(e) => e.stopPropagation()}>
-              {themes.map((t) => (
+            <div className="quick-settings-popover" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="quick-settings-header">
+                <span className="quick-settings-title">Quick Settings</span>
                 <button
-                  key={t.id}
                   type="button"
-                  className={theme === t.id ? "theme-popover-option active" : "theme-popover-option"}
-                  onClick={() => handleSelectTheme(t.id)}
+                  className="quick-settings-close"
+                  onClick={() => setThemeMenuOpen(false)}
+                  aria-label="Close Quick Settings"
                 >
-                  {t.icon}
-                  <span>{t.label}</span>
+                  <X size={14} />
                 </button>
-              ))}
+              </div>
+
+              {/* Quick Action Bar Section */}
+              <div className="quick-settings-section">
+                <div className="quick-settings-label">Quick Action bar</div>
+                <div className="quick-action-grid">
+                  <button
+                    type="button"
+                    className="quick-action-card"
+                    title="Product Documentation"
+                    onClick={() => {
+                      setThemeMenuOpen(false);
+                      onOpenDocs?.();
+                    }}
+                  >
+                    <div className="quick-action-icon"><HelpCircle size={18} /></div>
+                    <span className="quick-action-text">Help</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="quick-action-card"
+                    title="Request History"
+                    onClick={() => {
+                      setThemeMenuOpen(false);
+                      onOpenHistory?.();
+                    }}
+                  >
+                    <div className="quick-action-icon"><History size={18} /></div>
+                    <span className="quick-action-text">History</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="quick-action-card"
+                    title="Check for Updates"
+                    onClick={() => {
+                      setThemeMenuOpen(false);
+                      onCheckForUpdates?.();
+                    }}
+                  >
+                    <div className="quick-action-icon"><RefreshCw size={18} /></div>
+                    <span className="quick-action-text">Updates</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="quick-action-card"
+                    title="API Tools"
+                    onClick={() => {
+                      setThemeMenuOpen(false);
+                      onOpenApiTools?.();
+                    }}
+                  >
+                    <div className="quick-action-icon"><Wrench size={18} /></div>
+                    <span className="quick-action-text">Tools</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="quick-action-card"
+                    title="Settings"
+                    onClick={() => {
+                      setThemeMenuOpen(false);
+                      onOpenSettings?.();
+                    }}
+                  >
+                    <div className="quick-action-icon"><Settings size={18} /></div>
+                    <span className="quick-action-text">Settings</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Theme Section */}
+              <div className="quick-settings-section">
+                <div className="quick-settings-label">Theme</div>
+                <div className="segmented-theme-control">
+                  {[
+                    { id: "dark", label: "Dark", icon: <Moon size={14} /> },
+                    { id: "light", label: "Light", icon: <Sun size={14} /> },
+                    { id: "warm", label: "Warm", icon: <Flame size={14} /> },
+                    { id: "system", label: "System", icon: <Monitor size={14} /> },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`segmented-theme-pill ${theme === t.id ? "active" : ""}`}
+                      onClick={() => handleSelectTheme(t.id as AppSettings["theme"])}
+                    >
+                      {t.icon}
+                      <span>{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
