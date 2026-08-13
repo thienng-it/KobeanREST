@@ -2602,7 +2602,7 @@ dependencies = [
 
 [[package]]
 name = "kobeanrest"
-version = "0.1.24"
+version = "0.1.26"
 dependencies = [
  "base64 0.22.1",
  "form_urlencoded",

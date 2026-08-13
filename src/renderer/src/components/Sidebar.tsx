@@ -53,8 +53,6 @@ export interface SidebarProps {
   isResizing: boolean;
   theme?: AppSettings["theme"];
   onThemeChange?: (theme: AppSettings["theme"]) => void;
-  autoUpdate?: boolean;
-  onToggleAutoUpdate?: () => void;
   onToggleSidebar?: () => void;
 
   // Topbar / App Actions
@@ -63,7 +61,6 @@ export interface SidebarProps {
   onCheckForUpdates?: () => void;
   onOpenSettings?: () => void;
   onOpenApiTools?: () => void;
-  onOpenQuickSettings?: () => void;
 
   // Collection state
   collectionSearch: string;
@@ -646,15 +643,12 @@ export function Sidebar({
   onDismissDeleteError,
   theme = "system",
   onThemeChange,
-  autoUpdate = true,
-  onToggleAutoUpdate,
   onToggleSidebar,
   onOpenDocs,
   onOpenHistory,
   onCheckForUpdates,
   onOpenSettings,
   onOpenApiTools,
-  onOpenQuickSettings,
   onExport,
   onImport,
   onCurlImport,
@@ -1446,20 +1440,81 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-footer">
-        <button
-          type="button"
-          className="sidebar-quick-settings-trigger"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenQuickSettings?.();
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="sidebar-footer-actions">
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="Product Documentation"
+            aria-label="Product Documentation"
+            onClick={onOpenDocs}
+          >
+            <HelpCircle size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="Request History"
+            aria-label="Request History"
+            onClick={onOpenHistory}
+          >
+            <History size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="Check for Updates"
+            aria-label="Check for Updates"
+            onClick={onCheckForUpdates}
+          >
+            <RefreshCw size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="API Tools"
+            aria-label="API Tools"
+            onClick={onOpenApiTools}
+          >
+            <Wrench size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="Settings"
+            aria-label="Settings"
+            onClick={onOpenSettings}
+          >
+            <Settings size={15} />
+          </button>
+        </div>
+        <div ref={themeRef} className="sidebar-footer-theme" style={{ position: "relative" }}>
+          <button
+            type="button"
+            className="sidebar-footer-theme-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setThemeMenuOpen((prev) => !prev);
+            }}
+          >
             <span className="sidebar-footer-theme-icon">{currentThemeIcon()}</span>
-            <span className="sidebar-footer-theme-label">Quick Settings</span>
-          </div>
-          <Settings size={15} style={{ opacity: 0.8 }} />
-        </button>
+            <span className="sidebar-footer-theme-label">Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
+          </button>
+          {themeMenuOpen && (
+            <div className="theme-popover sidebar-footer-popover" onClick={(e) => e.stopPropagation()}>
+              {themes.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={theme === t.id ? "theme-popover-option active" : "theme-popover-option"}
+                  onClick={() => handleSelectTheme(t.id)}
+                >
+                  {t.icon}
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
