@@ -1496,8 +1496,11 @@ export function Sidebar({
               setThemeMenuOpen((prev) => !prev);
             }}
           >
-            <span className="sidebar-footer-theme-icon">{currentThemeIcon()}</span>
-            <span className="sidebar-footer-theme-label">Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="sidebar-footer-theme-icon">{currentThemeIcon()}</span>
+              <span className="sidebar-footer-theme-label">Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
+            </div>
+            <ChevronDown size={14} style={{ opacity: 0.6, transform: themeMenuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }} />
           </button>
           {themeMenuOpen && (
             <div className="theme-popover sidebar-footer-popover" onClick={(e) => e.stopPropagation()}>
