@@ -75,7 +75,7 @@ jobs:
         if: matrix.platform.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf squashfs-tools file wget
 
       # --- ADDED LIBSODIUM FIX HERE ---
       - name: Install libsodium (Windows)
@@ -98,6 +98,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_CLI_APPIMAGE_APPRUN_URL: https://cdn.jsdelivr.net/gh/tauri-apps/binary-releases@apprun-old/AppRun-x86_64
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "KobeanREST ${{ github.ref_name }}"
