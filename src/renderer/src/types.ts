@@ -53,7 +53,7 @@ export interface SavedRequest {
   queryParams: Array<{ key: string; value: string; enabled: boolean }>;
   body: string;
   bodyMimeType: string;
-  bodyForm: Array<{ key: string; value: string; enabled: boolean }>;
+  bodyForm: Array<{ key: string; value: string; enabled: boolean; type?: "text" | "file" }>;
   timeoutMs: number;
   followRedirects: boolean;
   variables?: ScopedVariable[];

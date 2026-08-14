@@ -10,6 +10,8 @@ pub struct HeaderEntry {
     pub value: String,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
+    #[serde(rename = "type")]
+    pub field_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,6 +83,7 @@ fn response_headers(headers: &HeaderMap) -> Vec<HeaderEntry> {
             key: key.to_string(),
             value: value.to_str().unwrap_or("<binary header>").to_string(),
             enabled: true,
+            field_type: None,
         })
         .collect()
 }
@@ -135,7 +138,11 @@ pub async fn execute_http_request(
     {
         let mut serializer = form_urlencoded::Serializer::new(String::new());
         let mut has_params = false;
-        for item in input.body_form.iter().filter(|item| item.enabled && !item.key.is_empty()) {
+        for item in input
+            .body_form
+            .iter()
+            .filter(|item| item.enabled && !item.key.is_empty())
+        {
             serializer.append_pair(&item.key, &item.value);
             has_params = true;
         }
@@ -144,24 +151,47 @@ pub async fn execute_http_request(
         } else if let Some(body_content) = input.body.filter(|b| !b.is_empty()) {
             request = request.body(body_content);
         }
-    } else if input.body_mime_type.as_deref() == Some("application/octet-stream") {
-        if let Some(body_content) = input.body.filter(|b| !b.is_empty()) {
-            let decoded_bytes = if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&body_content) {
-                if let Some(b64) = json_val.get("base64").and_then(|v| v.as_str()) {
-                    BASE64.decode(b64.trim()).ok()
-                } else {
-                    None
-                }
-            } else if let Some(b64_part) = body_content.strip_prefix("data:") {
-                if let Some(comma_pos) = b64_part.find(',') {
-                    let b64_data = &b64_part[comma_pos + 1..];
-                    BASE64.decode(b64_data.trim()).ok()
-                } else {
-                    None
+    } else if input.body_mime_type.as_deref() == Some("multipart/form-data") {
+        let mut form = reqwest::multipart::Form::new();
+        for item in input
+            .body_form
+            .iter()
+            .filter(|item| item.enabled && !item.key.is_empty())
+        {
+            if item.field_type.as_deref() == Some("file") {
+                if let Ok(bytes) = std::fs::read(&item.value) {
+                    let file_name = std::path::Path::new(&item.value)
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .into_owned();
+                    let part = reqwest::multipart::Part::bytes(bytes).file_name(file_name);
+                    form = form.part(item.key.clone(), part);
                 }
             } else {
-                BASE64.decode(body_content.trim()).ok()
-            };
+                form = form.text(item.key.clone(), item.value.clone());
+            }
+        }
+        request = request.multipart(form);
+    } else if input.body_mime_type.as_deref() == Some("application/octet-stream") {
+        if let Some(body_content) = input.body.filter(|b| !b.is_empty()) {
+            let decoded_bytes =
+                if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&body_content) {
+                    if let Some(b64) = json_val.get("base64").and_then(|v| v.as_str()) {
+                        BASE64.decode(b64.trim()).ok()
+                    } else {
+                        None
+                    }
+                } else if let Some(b64_part) = body_content.strip_prefix("data:") {
+                    if let Some(comma_pos) = b64_part.find(',') {
+                        let b64_data = &b64_part[comma_pos + 1..];
+                        BASE64.decode(b64_data.trim()).ok()
+                    } else {
+                        None
+                    }
+                } else {
+                    BASE64.decode(body_content.trim()).ok()
+                };
 
             if let Some(bytes) = decoded_bytes {
                 request = request.body(bytes);
@@ -179,9 +209,9 @@ pub async fn execute_http_request(
         .await
         .map_err(|error| format!("request failed: {error}"))?;
     let duration_ms = started.elapsed().as_millis();
-    
+
     // For a minimal implementation without changing the reqwest connector,
-    // we approximate the breakdown. In a production system, we would use 
+    // we approximate the breakdown. In a production system, we would use
     // a custom connector or a tracing layer.
     let dns_ms = (duration_ms as f64 * 0.1).round() as u128;
     let connect_ms = (duration_ms as f64 * 0.2).round() as u128;

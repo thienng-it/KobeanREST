@@ -10,20 +10,23 @@ mod spec_generator;
 use http_client::execute_http_request;
 use local_only::{app_contract, check_for_update, local_storage_status, request_auth_modes};
 use mcp_server::{execute_mcp_tool_call, export_mcp_manifest};
-use mock_server::{get_mock_server_status, start_local_mock_server, stop_local_mock_server, set_mock_routes, get_mock_routes, get_mock_request_log, clear_mock_request_log, MockServerState};
+use mock_server::{
+    clear_mock_request_log, get_mock_request_log, get_mock_routes, get_mock_server_status,
+    set_mock_routes, start_local_mock_server, stop_local_mock_server, MockServerState,
+};
 use oauth::start_oauth_login;
 use persistence::{
     clear_request_history, create_collection, create_environment, create_folder, create_request,
     create_workspace, delete_collection, delete_environment, delete_folder, delete_request,
     delete_scoped_variable, delete_script, delete_variable, delete_workspace,
     export_workspace_data, get_all_scripts, get_scoped_variables, get_scripts,
-    import_workspace_data, initialize_persistence, load_app_settings, load_collection_run_details,
-    load_collection_runs, load_history_response, load_request_history, load_workspace,
-    load_workspace_by_id, move_folder, record_request_history, rename_environment,
+    import_workspace_data, initialize_persistence, list_workspaces, load_app_settings,
+    load_collection_run_details, load_collection_runs, load_history_response, load_request_history,
+    load_workspace, load_workspace_by_id, move_folder, record_request_history, rename_environment,
     rename_workspace, save_app_settings, save_collection_auth, save_folder_auth, save_request,
     save_scoped_secret_variable, save_scoped_variable, save_script, save_secret_variable,
     save_variable, set_active_environment, switch_workspace, update_collection,
-    update_collection_default_environment, update_folder, list_workspaces,
+    update_collection_default_environment, update_folder,
 };
 use secrets::{delete_secret, resolve_secrets, store_secret};
 use spec_generator::{export_openapi_30_spec, import_openapi_30_spec};
@@ -32,6 +35,7 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(MockServerState::default())
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_shell::init())

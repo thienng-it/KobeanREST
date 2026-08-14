@@ -7,6 +7,7 @@ import { ScriptEditor } from "./ScriptEditor";
 import { CodeSnippetViewer } from "./CodeSnippetViewer";
 import { VariableInput, VariableTextarea } from "./VariableInput";
 import { BodyEditor } from "./BodyEditor";
+import { BinaryBodyEditor } from "./BinaryBodyEditor";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
 import { AdvancedSendModal } from "./AdvancedSendModal";
 import { LoadTestModal } from "./LoadTestModal";
@@ -1071,7 +1072,7 @@ export function RequestPanel({
               )}
             </div>
 
-            {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
+            {["application/x-www-form-urlencoded", "multipart/form-data"].some(mime => (draftRequest.bodyMimeType || "").startsWith(mime)) ? (
               <div className="headers-table" aria-label="Body form data">
                 <div className="headers-table-toolbar">
                   <div className="headers-toolbar-actions">
@@ -1091,7 +1092,11 @@ export function RequestPanel({
                 <div className="headers-grid-body">
                   <div className="headers-rows">
                     {(draftRequest.bodyForm ?? []).map((item, idx) => (
-                      <div className={item.enabled ? "headers-row" : "headers-row headers-row-disabled"} key={idx}>
+                      <div 
+                        className={item.enabled ? "headers-row" : "headers-row headers-row-disabled"} 
+                        key={idx}
+                        style={{ gridTemplateColumns: "36px minmax(0, 0.8fr) 75px minmax(0, 1.2fr) 32px" }}
+                      >
                         <label className="headers-toggle">
                           <input
                             type="checkbox"
@@ -1119,21 +1124,93 @@ export function RequestPanel({
                           className="headers-row-input-field"
                           containerClassName="headers-row-input"
                         />
-                        <VariableInput
-                          type={isSensitiveKey(item.key) ? "password" : "text"}
-                          activeVariables={activeVars}
-                          value={item.value}
-                          placeholder="Value"
-                          onChange={(e) => {
-                            updateDraft((prev: SavedRequest) => {
-                              const form = [...(prev.bodyForm ?? [])];
-                              form[idx] = { ...form[idx], value: e.target.value };
-                              return { bodyForm: form };
-                            });
-                          }}
-                          className="headers-row-input-field"
-                          containerClassName="headers-row-input"
-                        />
+                        <div className="headers-row-input" style={{ borderLeft: "none", display: "flex", alignItems: "center" }}>
+                          <select
+                            className="headers-row-input-field"
+                            value={item.type || "text"}
+                            onChange={(e) => {
+                              updateDraft((prev: SavedRequest) => {
+                                const form = [...(prev.bodyForm ?? [])];
+                                form[idx] = { ...form[idx], type: e.target.value as "text" | "file", value: "" };
+                                return { bodyForm: form };
+                              });
+                            }}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: "var(--color-text)",
+                              fontSize: 13,
+                              width: "100%",
+                              cursor: "pointer",
+                              outline: "none",
+                              padding: "0 8px"
+                            }}
+                          >
+                            <option value="text">Text</option>
+                            <option value="file">File</option>
+                          </select>
+                        </div>
+                        {item.type === "file" ? (
+                          <div className="headers-row-input" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0 8px", borderLeft: "none" }}>
+                            <button
+                              type="button"
+                              className="ghost-button"
+                              onClick={async () => {
+                                if (window.hasOwnProperty("__TAURI_INTERNALS__")) {
+                                  try {
+                                    const { open } = await import("@tauri-apps/plugin-dialog");
+                                    const selected = await open({ multiple: false, title: "Select File" });
+                                    if (selected && typeof selected === "string") {
+                                      updateDraft((prev: SavedRequest) => {
+                                        const form = [...(prev.bodyForm ?? [])];
+                                        form[idx] = { ...form[idx], value: selected };
+                                        return { bodyForm: form };
+                                      });
+                                    }
+                                  } catch (err) {
+                                    console.error(err);
+                                  }
+                                } else {
+                                  const input = document.createElement("input");
+                                  input.type = "file";
+                                  input.onchange = (e: any) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      updateDraft((prev: SavedRequest) => {
+                                        const form = [...(prev.bodyForm ?? [])];
+                                        form[idx] = { ...form[idx], value: file.name };
+                                        return { bodyForm: form };
+                                      });
+                                    }
+                                  };
+                                  input.click();
+                                }
+                              }}
+                              style={{ padding: "4px 8px", fontSize: 12, flexShrink: 0 }}
+                            >
+                              Select File
+                            </button>
+                            <span style={{ fontSize: 12, color: item.value ? "var(--color-text)" : "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {item.value || "No file selected"}
+                            </span>
+                          </div>
+                        ) : (
+                          <VariableInput
+                            type={isSensitiveKey(item.key) ? "password" : "text"}
+                            activeVariables={activeVars}
+                            value={item.value}
+                            placeholder="Value"
+                            onChange={(e) => {
+                              updateDraft((prev: SavedRequest) => {
+                                const form = [...(prev.bodyForm ?? [])];
+                                form[idx] = { ...form[idx], value: e.target.value };
+                                return { bodyForm: form };
+                              });
+                            }}
+                            className="headers-row-input-field"
+                            containerClassName="headers-row-input"
+                          />
+                        )}
                         <div className="headers-actions">
                           <button
                             type="button"
@@ -1155,6 +1232,14 @@ export function RequestPanel({
                     ))}
                   </div>
                 </div>
+              </div>
+            ) : draftRequest.bodyMimeType === "application/octet-stream" ? (
+              <div className="request-body-editor-shell" style={{ flex: 1, minHeight: 0, padding: "8px 0" }}>
+                <BinaryBodyEditor
+                  value={draftRequest.body ?? ""}
+                  onChange={(val) => updateDraft({ body: val })}
+                  variables={activeVars}
+                />
               </div>
             ) : (
               <div className="request-body-editor-shell" style={{ flex: 1, minHeight: 0 }}>
