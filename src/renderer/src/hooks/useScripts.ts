@@ -3,6 +3,7 @@ import { getScripts, saveScript } from "../services/local-store";
 import { diagnosticMessage, formatScriptLogValue } from "../app-utils";
 import { prettifyScriptContent, type ScriptEditorMode, type RequestCodeSnippetTarget } from "../services/script-tools";
 import { runKbScript, type KbScriptContext } from "../services/script-runtime";
+import { runPluginPreRequestScripts, runPluginPostResponseScripts } from "../services/plugin-runner";
 
 export type ScriptOutputEntry =
   | {
@@ -200,6 +201,12 @@ export function useScripts(selectedRequestId: string | null) {
 
     try {
       await runKbScript(content, context, scriptConsole);
+      // Run installed plugins after user script (same context)
+      if (label.includes("pre-request")) {
+        await runPluginPreRequestScripts(context, scriptConsole);
+      } else if (label.includes("post-response")) {
+        await runPluginPostResponseScripts(context, scriptConsole);
+      }
     } catch (err) {
       if (err instanceof Error && err.message === "PM_EXECUTION_SKIP_REQUEST") {
         entries.push({ tone: "info", type: "log", message: "Request skipped by script." });

@@ -208,3 +208,25 @@ export interface ExecuteHttpResponse {
   sizeBytes: number;
   contentType?: any;
 }
+
+export type PluginCategory = 'auth' | 'transform' | 'testing' | 'utility' | 'logging';
+export type PluginSource = 'builtin' | 'local-file';
+
+export interface KbPlugin {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  category: PluginCategory;
+  version: string;
+  tags: string[];
+  source: PluginSource;
+  preRequestScript?: string;
+  postResponseScript?: string;
+  enabled: boolean;
+  installedAt?: number;
+  // For local-file plugins:
+  filePath?: string;
+  fileContent?: string; // cached content of the file
+}
+

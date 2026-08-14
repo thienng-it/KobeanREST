@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
@@ -61,6 +61,7 @@ export interface SidebarProps {
   onCheckForUpdates?: () => void;
   onOpenSettings?: () => void;
   onOpenApiTools?: () => void;
+  onOpenPlugins?: () => void;
 
   // Collection state
   collectionSearch: string;
@@ -649,6 +650,7 @@ export function Sidebar({
   onCheckForUpdates,
   onOpenSettings,
   onOpenApiTools,
+  onOpenPlugins,
   onExport,
   onImport,
   onCurlImport,
@@ -1476,6 +1478,15 @@ export function Sidebar({
             onClick={onOpenApiTools}
           >
             <Wrench size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            title="Plugins"
+            aria-label="Plugin Manager"
+            onClick={onOpenPlugins}
+          >
+            <Puzzle size={15} />
           </button>
           <button
             type="button"

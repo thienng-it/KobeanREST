@@ -36,6 +36,7 @@ import { ApiToolsModal } from "./components/ApiToolsModal";
 import { resolveAuthConfig, getEffectiveAuth } from "./services/auth";
 import { prepareRequestForExecution } from "./services/request-executor";
 import { CollectionRunner } from "./components/CollectionRunner";
+import { PluginsModal } from "./components/PluginsModal";
 
 import {
   SCRIPT_SNIPPETS,
@@ -112,6 +113,7 @@ export function App() {
   const [curlImportOpen, setCurlImportOpen] = useState(false);
   const [createRequestModalOpen, setCreateRequestModalOpen] = useState(false);
   const [apiToolsOpen, setApiToolsOpen] = useState(false);
+  const [pluginsOpen, setPluginsOpen] = useState(false);
   const [createRequestInitialFolderId, setCreateRequestInitialFolderId] = useState<string | undefined>(undefined);
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
   const [moveToModal, setMoveToModal] = useState<{ type: "request" | "folder"; id: string } | null>(null);
@@ -1537,6 +1539,7 @@ export function App() {
         onCheckForUpdates={() => void handleCheckForUpdates("manual")}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenApiTools={() => setApiToolsOpen(true)}
+        onOpenPlugins={() => setPluginsOpen(true)}
         onExport={() => {void handleExport()}}
         onImport={() => {
           setUniversalImportInitialContent("");
@@ -2219,6 +2222,11 @@ export function App() {
         onSave={(newVal) => {
           chainRequestModal?.onSave(newVal);
         }}
+      />
+
+      <PluginsModal
+        open={pluginsOpen}
+        onClose={() => setPluginsOpen(false)}
       />
     </main>
   );
