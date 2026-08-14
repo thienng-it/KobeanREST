@@ -1,17 +1,23 @@
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Emitter};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
-pub fn start_oauth_login(app: AppHandle, login_url: String, redirect_uri: Option<String>) -> Result<(), String> {
+pub fn start_oauth_login(
+    app: AppHandle,
+    login_url: String,
+    redirect_uri: Option<String>,
+) -> Result<(), String> {
     // Ensure any existing window is closed
     if let Some(existing) = app.get_webview_window("oauth-login") {
         let _ = existing.close();
     }
 
     let app_handle = app.clone();
-    
-    let login_url_parsed = login_url.parse::<tauri::Url>().unwrap_or_else(|_| tauri::Url::parse("http://localhost").unwrap());
+
+    let login_url_parsed = login_url
+        .parse::<tauri::Url>()
+        .unwrap_or_else(|_| tauri::Url::parse("http://localhost").unwrap());
     let login_host = login_url_parsed.host_str().unwrap_or("").to_string();
-    
+
     let _window = WebviewWindowBuilder::new(&app, "oauth-login", WebviewUrl::External(login_url_parsed))
         .title("Browser Login")
         .inner_size(800.0, 700.0)

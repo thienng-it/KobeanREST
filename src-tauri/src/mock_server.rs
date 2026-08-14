@@ -10,8 +10,8 @@ use tauri::State;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MockRoute {
     pub id: String,
-    pub method: String,    // GET, POST, *, etc.
-    pub path: String,      // e.g. /users or /users/:id
+    pub method: String, // GET, POST, *, etc.
+    pub path: String,   // e.g. /users or /users/:id
     pub status_code: u16,
     pub response_body: String,
     pub content_type: String,
@@ -86,9 +86,10 @@ fn path_matches(pattern: &str, path: &str) -> bool {
     if pat_segs.len() != path_segs.len() {
         return false;
     }
-    pat_segs.iter().zip(path_segs.iter()).all(|(p, s)| {
-        p.starts_with(':') || *p == *s
-    })
+    pat_segs
+        .iter()
+        .zip(path_segs.iter())
+        .all(|(p, s)| p.starts_with(':') || *p == *s)
 }
 
 fn find_matching_route(routes: &[MockRoute], method: &str, path: &str) -> Option<MockRoute> {
@@ -130,7 +131,10 @@ pub async fn start_local_mock_server(
 
     *running_guard = true;
     *state.port.lock().map_err(|e| e.to_string())? = actual_port;
-    *state.active_collection_id.lock().map_err(|e| e.to_string())? = collection_id;
+    *state
+        .active_collection_id
+        .lock()
+        .map_err(|e| e.to_string())? = collection_id;
     *state.request_count.lock().map_err(|e| e.to_string())? = 0;
 
     let running_flag = Arc::clone(&state.running);
@@ -161,21 +165,22 @@ pub async fn start_local_mock_server(
                 let matched = find_matching_route(&routes_guard, &method, &path);
                 drop(routes_guard);
 
-                let (status_code, body, content_type, delay_ms, matched_id) = if let Some(route) = matched {
-                    let id = route.id.clone();
-                    let delay = route.delay_ms;
-                    let sc = route.status_code;
-                    let ct = route.content_type.clone();
-                    let b = route.response_body.clone();
-                    (sc, b, ct, delay, Some(id))
-                } else {
-                    // Default 404 for unmatched routes
-                    let body = format!(
-                        r#"{{"error":"No mock route matched","method":"{}","path":"{}"}}"#,
-                        method, path
-                    );
-                    (404u16, body, "application/json".to_string(), 0u32, None)
-                };
+                let (status_code, body, content_type, delay_ms, matched_id) =
+                    if let Some(route) = matched {
+                        let id = route.id.clone();
+                        let delay = route.delay_ms;
+                        let sc = route.status_code;
+                        let ct = route.content_type.clone();
+                        let b = route.response_body.clone();
+                        (sc, b, ct, delay, Some(id))
+                    } else {
+                        // Default 404 for unmatched routes
+                        let body = format!(
+                            r#"{{"error":"No mock route matched","method":"{}","path":"{}"}}"#,
+                            method, path
+                        );
+                        (404u16, body, "application/json".to_string(), 0u32, None)
+                    };
 
                 // Apply delay
                 if delay_ms > 0 {
@@ -186,11 +191,20 @@ pub async fn start_local_mock_server(
 
                 // Status text
                 let status_text = match status_code {
-                    200 => "OK", 201 => "Created", 204 => "No Content",
-                    400 => "Bad Request", 401 => "Unauthorized", 403 => "Forbidden",
-                    404 => "Not Found", 405 => "Method Not Allowed", 409 => "Conflict",
-                    422 => "Unprocessable Entity", 429 => "Too Many Requests",
-                    500 => "Internal Server Error", 502 => "Bad Gateway", 503 => "Service Unavailable",
+                    200 => "OK",
+                    201 => "Created",
+                    204 => "No Content",
+                    400 => "Bad Request",
+                    401 => "Unauthorized",
+                    403 => "Forbidden",
+                    404 => "Not Found",
+                    405 => "Method Not Allowed",
+                    409 => "Conflict",
+                    422 => "Unprocessable Entity",
+                    429 => "Too Many Requests",
+                    500 => "Internal Server Error",
+                    502 => "Bad Gateway",
+                    503 => "Service Unavailable",
                     _ => "Unknown",
                 };
 
@@ -217,7 +231,9 @@ pub async fn start_local_mock_server(
                     status_code,
                     duration_ms,
                 };
-                if log_guard.len() >= 200 { log_guard.pop_front(); }
+                if log_guard.len() >= 200 {
+                    log_guard.pop_front();
+                }
                 log_guard.push_back(entry);
             } else {
                 std::thread::sleep(std::time::Duration::from_millis(20));
@@ -229,9 +245,7 @@ pub async fn start_local_mock_server(
 }
 
 #[tauri::command]
-pub async fn stop_local_mock_server(
-    state: State<'_, MockServerState>,
-) -> Result<(), String> {
+pub async fn stop_local_mock_server(state: State<'_, MockServerState>) -> Result<(), String> {
     let mut running = state.running.lock().map_err(|e| e.to_string())?;
     *running = false;
     Ok(())
@@ -244,8 +258,17 @@ pub fn get_mock_server_status(
     let running = *state.running.lock().map_err(|e| e.to_string())?;
     let port = *state.port.lock().map_err(|e| e.to_string())?;
     let request_count = *state.request_count.lock().map_err(|e| e.to_string())?;
-    let active_collection_id = state.active_collection_id.lock().map_err(|e| e.to_string())?.clone();
-    Ok(MockServerStatus { running, port, request_count, active_collection_id })
+    let active_collection_id = state
+        .active_collection_id
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone();
+    Ok(MockServerStatus {
+        running,
+        port,
+        request_count,
+        active_collection_id,
+    })
 }
 
 #[tauri::command]
@@ -259,9 +282,7 @@ pub fn set_mock_routes(
 }
 
 #[tauri::command]
-pub fn get_mock_routes(
-    state: State<'_, MockServerState>,
-) -> Result<Vec<MockRoute>, String> {
+pub fn get_mock_routes(state: State<'_, MockServerState>) -> Result<Vec<MockRoute>, String> {
     let routes_guard = state.routes.lock().map_err(|e| e.to_string())?;
     Ok(routes_guard.clone())
 }
@@ -275,9 +296,7 @@ pub fn get_mock_request_log(
 }
 
 #[tauri::command]
-pub fn clear_mock_request_log(
-    state: State<'_, MockServerState>,
-) -> Result<(), String> {
+pub fn clear_mock_request_log(state: State<'_, MockServerState>) -> Result<(), String> {
     let mut log_guard = state.request_log.lock().map_err(|e| e.to_string())?;
     log_guard.clear();
     Ok(())

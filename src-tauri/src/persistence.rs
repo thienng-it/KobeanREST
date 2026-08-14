@@ -256,8 +256,13 @@ fn ensure_collection_default_environment_column(connection: &Connection) -> Resu
 
     if !has_default_env {
         connection
-            .execute("ALTER TABLE collections ADD COLUMN default_environment TEXT", [])
-            .map_err(|error| format!("failed to add collections.default_environment column: {error}"))?;
+            .execute(
+                "ALTER TABLE collections ADD COLUMN default_environment TEXT",
+                [],
+            )
+            .map_err(|error| {
+                format!("failed to add collections.default_environment column: {error}")
+            })?;
     }
 
     Ok(())
@@ -284,12 +289,18 @@ fn ensure_request_body_columns(connection: &Connection) -> Result<(), String> {
 
     if !has_mime {
         connection
-            .execute("ALTER TABLE requests ADD COLUMN body_mime_type TEXT NOT NULL DEFAULT 'text/plain'", [])
+            .execute(
+                "ALTER TABLE requests ADD COLUMN body_mime_type TEXT NOT NULL DEFAULT 'text/plain'",
+                [],
+            )
             .map_err(|error| format!("failed to add requests.body_mime_type column: {error}"))?;
     }
     if !has_form {
         connection
-            .execute("ALTER TABLE requests ADD COLUMN body_form TEXT NOT NULL DEFAULT '[]'", [])
+            .execute(
+                "ALTER TABLE requests ADD COLUMN body_form TEXT NOT NULL DEFAULT '[]'",
+                [],
+            )
             .map_err(|error| format!("failed to add requests.body_form column: {error}"))?;
     }
     Ok(())
@@ -313,7 +324,10 @@ fn ensure_request_query_params_column(connection: &Connection) -> Result<(), Str
 
     if !has_query_params {
         connection
-            .execute("ALTER TABLE requests ADD COLUMN query_params TEXT NOT NULL DEFAULT '[]'", [])
+            .execute(
+                "ALTER TABLE requests ADD COLUMN query_params TEXT NOT NULL DEFAULT '[]'",
+                [],
+            )
             .map_err(|error| format!("failed to add requests.query_params column: {error}"))?;
     }
     Ok(())
@@ -331,7 +345,8 @@ fn ensure_request_history_response_columns(connection: &Connection) -> Result<()
     let mut has_body_text = false;
     let mut has_body_base64 = false;
     for column in columns {
-        let col = column.map_err(|error| format!("failed to read request_history column: {error}"))?;
+        let col =
+            column.map_err(|error| format!("failed to read request_history column: {error}"))?;
         if col == "response_headers" {
             has_headers = true;
         } else if col == "response_body_text" {
@@ -343,18 +358,33 @@ fn ensure_request_history_response_columns(connection: &Connection) -> Result<()
 
     if !has_headers {
         connection
-            .execute("ALTER TABLE request_history ADD COLUMN response_headers TEXT", [])
-            .map_err(|error| format!("failed to add request_history.response_headers column: {error}"))?;
+            .execute(
+                "ALTER TABLE request_history ADD COLUMN response_headers TEXT",
+                [],
+            )
+            .map_err(|error| {
+                format!("failed to add request_history.response_headers column: {error}")
+            })?;
     }
     if !has_body_text {
         connection
-            .execute("ALTER TABLE request_history ADD COLUMN response_body_text TEXT", [])
-            .map_err(|error| format!("failed to add request_history.response_body_text column: {error}"))?;
+            .execute(
+                "ALTER TABLE request_history ADD COLUMN response_body_text TEXT",
+                [],
+            )
+            .map_err(|error| {
+                format!("failed to add request_history.response_body_text column: {error}")
+            })?;
     }
     if !has_body_base64 {
         connection
-            .execute("ALTER TABLE request_history ADD COLUMN response_body_base64 TEXT", [])
-            .map_err(|error| format!("failed to add request_history.response_body_base64 column: {error}"))?;
+            .execute(
+                "ALTER TABLE request_history ADD COLUMN response_body_base64 TEXT",
+                [],
+            )
+            .map_err(|error| {
+                format!("failed to add request_history.response_body_base64 column: {error}")
+            })?;
     }
     Ok(())
 }
@@ -371,7 +401,8 @@ fn ensure_request_history_test_stats_columns(connection: &Connection) -> Result<
     let mut has_failed_tests = false;
     let mut has_test_results = false;
     for column in columns {
-        let col = column.map_err(|error| format!("failed to read request_history column: {error}"))?;
+        let col =
+            column.map_err(|error| format!("failed to read request_history column: {error}"))?;
         if col == "passed_tests" {
             has_passed_tests = true;
         } else if col == "failed_tests" {
@@ -383,18 +414,33 @@ fn ensure_request_history_test_stats_columns(connection: &Connection) -> Result<
 
     if !has_passed_tests {
         connection
-            .execute("ALTER TABLE request_history ADD COLUMN passed_tests INTEGER", [])
-            .map_err(|error| format!("failed to add request_history.passed_tests column: {error}"))?;
+            .execute(
+                "ALTER TABLE request_history ADD COLUMN passed_tests INTEGER",
+                [],
+            )
+            .map_err(|error| {
+                format!("failed to add request_history.passed_tests column: {error}")
+            })?;
     }
     if !has_failed_tests {
         connection
-            .execute("ALTER TABLE request_history ADD COLUMN failed_tests INTEGER", [])
-            .map_err(|error| format!("failed to add request_history.failed_tests column: {error}"))?;
+            .execute(
+                "ALTER TABLE request_history ADD COLUMN failed_tests INTEGER",
+                [],
+            )
+            .map_err(|error| {
+                format!("failed to add request_history.failed_tests column: {error}")
+            })?;
     }
     if !has_test_results {
         connection
-            .execute("ALTER TABLE request_history ADD COLUMN test_results TEXT", [])
-            .map_err(|error| format!("failed to add request_history.test_results column: {error}"))?;
+            .execute(
+                "ALTER TABLE request_history ADD COLUMN test_results TEXT",
+                [],
+            )
+            .map_err(|error| {
+                format!("failed to add request_history.test_results column: {error}")
+            })?;
     }
     Ok(())
 }
@@ -412,7 +458,8 @@ fn ensure_request_history_run_id_column(connection: &Connection) -> Result<(), S
     let mut has_scope_name = false;
     let mut has_test_passed = false;
     for column in columns {
-        let col = column.map_err(|error| format!("failed to read request_history column: {error}"))?;
+        let col =
+            column.map_err(|error| format!("failed to read request_history column: {error}"))?;
         if col == "run_id" {
             has_run_id = true;
         } else if col == "scope_id" {
@@ -441,8 +488,13 @@ fn ensure_request_history_run_id_column(connection: &Connection) -> Result<(), S
     }
     if !has_test_passed {
         connection
-            .execute("ALTER TABLE request_history ADD COLUMN test_passed INTEGER", [])
-            .map_err(|error| format!("failed to add request_history.test_passed column: {error}"))?;
+            .execute(
+                "ALTER TABLE request_history ADD COLUMN test_passed INTEGER",
+                [],
+            )
+            .map_err(|error| {
+                format!("failed to add request_history.test_passed column: {error}")
+            })?;
     }
     Ok(())
 }
@@ -457,8 +509,7 @@ fn ensure_folder_parent_id_column(connection: &Connection) -> Result<(), String>
 
     let mut has_parent_id = false;
     for column in columns {
-        if column.map_err(|error| format!("failed to read folders column: {error}"))?
-            == "parent_id"
+        if column.map_err(|error| format!("failed to read folders column: {error}"))? == "parent_id"
         {
             has_parent_id = true;
             break;
@@ -472,7 +523,10 @@ fn ensure_folder_parent_id_column(connection: &Connection) -> Result<(), String>
     }
 
     connection
-        .execute("CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id)", [])
+        .execute(
+            "CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id)",
+            [],
+        )
         .map_err(|error| format!("failed to create folders.parent_id index: {error}"))?;
 
     Ok(())
@@ -554,12 +608,16 @@ pub fn create_workspace(app: AppHandle, name: String) -> Result<String, String> 
 }
 
 #[tauri::command]
-pub fn create_collection(app: AppHandle, name: String, workspace_id: Option<String>) -> Result<String, String> {
+pub fn create_collection(
+    app: AppHandle,
+    name: String,
+    workspace_id: Option<String>,
+) -> Result<String, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
     let workspace_id = match workspace_id {
         Some(id) => id,
-        None => active_workspace_id(&connection)?
+        None => active_workspace_id(&connection)?,
     };
     let collection_id = format!("collection-{}", uuid::Uuid::new_v4());
     connection
@@ -613,10 +671,12 @@ pub fn list_workspaces(app: AppHandle) -> Result<Vec<WorkspaceListItem>, String>
         .prepare("SELECT id, name FROM workspaces ORDER BY created_at, id")
         .map_err(|e| format!("failed to list workspaces: {e}"))?;
     let rows = statement
-        .query_map([], |row| Ok(WorkspaceListItem {
-            id: row.get(0)?,
-            name: row.get(1)?,
-        }))
+        .query_map([], |row| {
+            Ok(WorkspaceListItem {
+                id: row.get(0)?,
+                name: row.get(1)?,
+            })
+        })
         .map_err(|e| format!("failed to query workspaces: {e}"))?;
     let mut list = Vec::new();
     for row in rows {
@@ -653,7 +713,10 @@ pub fn delete_workspace(app: AppHandle, workspace_id: String) -> Result<(), Stri
         return Err("cannot delete the last workspace".to_string());
     }
     connection
-        .execute("DELETE FROM workspaces WHERE id = ?1", params![workspace_id])
+        .execute(
+            "DELETE FROM workspaces WHERE id = ?1",
+            params![workspace_id],
+        )
         .map_err(|e| format!("failed to delete workspace: {e}"))?;
     connection
         .execute(
@@ -679,18 +742,30 @@ pub fn switch_workspace(app: AppHandle, workspace_id: String) -> Result<Workspac
 }
 
 #[tauri::command]
-pub fn load_workspace_by_id(app: AppHandle, workspace_id: String) -> Result<WorkspaceSummary, String> {
+pub fn load_workspace_by_id(
+    app: AppHandle,
+    workspace_id: String,
+) -> Result<WorkspaceSummary, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
     load_workspace_by_id_inner(&connection, &workspace_id)
 }
 
-fn load_workspace_by_id_inner(connection: &Connection, workspace_id: &str) -> Result<WorkspaceSummary, String> {
+fn load_workspace_by_id_inner(
+    connection: &Connection,
+    workspace_id: &str,
+) -> Result<WorkspaceSummary, String> {
     let workspace = connection
         .query_row(
             "SELECT id, name, active_environment FROM workspaces WHERE id = ?1",
             params![workspace_id],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)),
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            },
         )
         .optional()
         .map_err(|e| format!("failed to load workspace: {e}"))?
@@ -855,7 +930,7 @@ pub fn load_history_response(app: AppHandle, id: i64) -> Result<HistoryResponseP
     let mut statement = connection
         .prepare("SELECT response_headers, response_body_text, response_body_base64 FROM request_history WHERE id = ?1")
         .map_err(|error| format!("failed to prepare history response query: {error}"))?;
-    
+
     let payload = statement
         .query_row(params![id], |row| {
             Ok(HistoryResponsePayload {
@@ -891,11 +966,14 @@ pub struct CollectionRunSummary {
 }
 
 #[tauri::command]
-pub fn load_collection_runs(app: AppHandle, scope_id: String) -> Result<Vec<CollectionRunSummary>, String> {
+pub fn load_collection_runs(
+    app: AppHandle,
+    scope_id: String,
+) -> Result<Vec<CollectionRunSummary>, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
     let workspace_id = first_workspace_id(&connection)?;
-    
+
     let mut statement = connection
         .prepare(
             "SELECT 
@@ -916,7 +994,7 @@ pub fn load_collection_runs(app: AppHandle, scope_id: String) -> Result<Vec<Coll
              LIMIT 50",
         )
         .map_err(|error| format!("failed to prepare collection runs query: {error}"))?;
-    
+
     let rows = statement
         .query_map(params![workspace_id, scope_id], |row| {
             Ok(CollectionRunSummary {
@@ -933,15 +1011,18 @@ pub fn load_collection_runs(app: AppHandle, scope_id: String) -> Result<Vec<Coll
             })
         })
         .map_err(|error| format!("failed to query collection runs: {error}"))?;
-    
+
     collect_rows(rows, "collection run")
 }
 
 #[tauri::command]
-pub fn load_collection_run_details(app: AppHandle, run_id: String) -> Result<Vec<HistoryEntry>, String> {
+pub fn load_collection_run_details(
+    app: AppHandle,
+    run_id: String,
+) -> Result<Vec<HistoryEntry>, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
-    
+
     let mut statement = connection
         .prepare(
             "SELECT id, request_id, method, url, status, duration_ms, size_bytes, created_at, run_id, scope_id, scope_name, test_passed, response_headers, response_body_text, response_body_base64, passed_tests, failed_tests, test_results
@@ -950,7 +1031,7 @@ pub fn load_collection_run_details(app: AppHandle, run_id: String) -> Result<Vec
              ORDER BY id ASC",
         )
         .map_err(|error| format!("failed to prepare run details query: {error}"))?;
-    
+
     let rows = statement
         .query_map(params![run_id], |row| {
             Ok(HistoryEntry {
@@ -975,7 +1056,7 @@ pub fn load_collection_run_details(app: AppHandle, run_id: String) -> Result<Vec
             })
         })
         .map_err(|error| format!("failed to query run details: {error}"))?;
-    
+
     collect_rows(rows, "run detail")
 }
 
@@ -1063,7 +1144,10 @@ fn ensure_folder_auth_columns(connection: &Connection) -> Result<(), String> {
 
     if !columns.contains(&"auth_mode".to_string()) {
         connection
-            .execute("ALTER TABLE folders ADD COLUMN auth_mode TEXT NOT NULL DEFAULT 'none'", [])
+            .execute(
+                "ALTER TABLE folders ADD COLUMN auth_mode TEXT NOT NULL DEFAULT 'none'",
+                [],
+            )
             .map_err(|error| format!("failed to add folders.auth_mode column: {error}"))?;
     }
     if !columns.contains(&"auth_config".to_string()) {
@@ -1086,7 +1170,10 @@ fn ensure_collection_auth_columns(connection: &Connection) -> Result<(), String>
 
     if !columns.contains(&"auth_mode".to_string()) {
         connection
-            .execute("ALTER TABLE collections ADD COLUMN auth_mode TEXT NOT NULL DEFAULT 'none'", [])
+            .execute(
+                "ALTER TABLE collections ADD COLUMN auth_mode TEXT NOT NULL DEFAULT 'none'",
+                [],
+            )
             .map_err(|error| format!("failed to add collections.auth_mode column: {error}"))?;
     }
     if !columns.contains(&"auth_config".to_string()) {
@@ -1132,7 +1219,10 @@ fn ensure_masked_column(connection: &Connection) -> Result<(), String> {
 
     if !columns.contains(&"masked".to_string()) {
         connection
-            .execute("ALTER TABLE variables ADD COLUMN masked INTEGER NOT NULL DEFAULT 0", [])
+            .execute(
+                "ALTER TABLE variables ADD COLUMN masked INTEGER NOT NULL DEFAULT 0",
+                [],
+            )
             .map_err(|error| format!("failed to add variables.masked column: {error}"))?;
     }
 
@@ -1178,7 +1268,6 @@ fn seed_default_workspace(connection: &mut Connection) -> Result<(), String> {
             )
             .map_err(|error| format!("failed to seed folder '{folder}': {error}"))?;
     }
-
 
     let requests = [
         (
@@ -1485,7 +1574,10 @@ fn load_folders(connection: &Connection, workspace_id: &str) -> Result<Vec<Folde
     Ok(folders)
 }
 
-fn load_collections(connection: &Connection, workspace_id: &str) -> Result<Vec<CollectionSummary>, String> {
+fn load_collections(
+    connection: &Connection,
+    workspace_id: &str,
+) -> Result<Vec<CollectionSummary>, String> {
     let mut statement = connection
         .prepare(
             "SELECT id, name, auth_mode, auth_config, default_environment FROM collections
@@ -1624,12 +1716,14 @@ fn ensure_requests_fk_removed(connection: &Connection) -> Result<(), String> {
     let mut stmt = connection
         .prepare("PRAGMA foreign_key_list(requests)")
         .map_err(|e| e.to_string())?;
-    
+
     let mut has_folders_fk = false;
-    let iter = stmt.query_map([], |row| {
-        let table: String = row.get(2)?;
-        Ok(table)
-    }).map_err(|e| e.to_string())?;
+    let iter = stmt
+        .query_map([], |row| {
+            let table: String = row.get(2)?;
+            Ok(table)
+        })
+        .map_err(|e| e.to_string())?;
 
     for table_res in iter {
         if let Ok(table) = table_res {
@@ -1638,22 +1732,28 @@ fn ensure_requests_fk_removed(connection: &Connection) -> Result<(), String> {
             }
         }
     }
-    
+
     if has_folders_fk {
-        let create_sql: String = connection.query_row(
-            "SELECT sql FROM sqlite_master WHERE type='table' AND name='requests'",
-            [],
-            |row| row.get(0)
-        ).map_err(|e| e.to_string())?;
-        
+        let create_sql: String = connection
+            .query_row(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='requests'",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+
         // Remove the foreign key constraint
         let new_create_sql = create_sql
-            .replace("folder_id TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE", "folder_id TEXT NOT NULL")
+            .replace(
+                "folder_id TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE",
+                "folder_id TEXT NOT NULL",
+            )
             .replace("CREATE TABLE requests", "CREATE TABLE new_requests")
             .replace("CREATE TABLE \"requests\"", "CREATE TABLE new_requests");
-            
-        connection.execute_batch(&format!(
-            "PRAGMA foreign_keys=OFF;
+
+        connection
+            .execute_batch(&format!(
+                "PRAGMA foreign_keys=OFF;
              BEGIN TRANSACTION;
              {} ;
              INSERT INTO new_requests SELECT * FROM requests;
@@ -1661,10 +1761,11 @@ fn ensure_requests_fk_removed(connection: &Connection) -> Result<(), String> {
              ALTER TABLE new_requests RENAME TO requests;
              COMMIT;
              PRAGMA foreign_keys=ON;",
-             new_create_sql
-        )).map_err(|e| e.to_string())?;
+                new_create_sql
+            ))
+            .map_err(|e| e.to_string())?;
     }
-    
+
     Ok(())
 }
 
@@ -1722,6 +1823,7 @@ pub struct ExportData {
     pub collections: Vec<CollectionRow>,
     pub folders: Vec<FolderRow>,
     pub requests: Vec<RequestRow>,
+    #[serde(alias = "requestHeaders")]
     pub request_headers: Vec<RequestHeaderRow>,
     pub environments: Vec<EnvironmentRow>,
     pub variables: Vec<VariableRow>,
@@ -2079,8 +2181,10 @@ pub fn import_workspace_data(app: AppHandle, json: String) -> Result<(), String>
 pub fn reorder_items(app: AppHandle, item_type: String, ids: Vec<String>) -> Result<(), String> {
     ensure_database(&app)?;
     let mut connection = open_database(&app)?;
-    let tx = connection.transaction().map_err(|e| format!("failed to start tx: {e}"))?;
-    
+    let tx = connection
+        .transaction()
+        .map_err(|e| format!("failed to start tx: {e}"))?;
+
     let table = match item_type.as_str() {
         "folder" => "folders",
         "request" => "requests",
@@ -2088,12 +2192,13 @@ pub fn reorder_items(app: AppHandle, item_type: String, ids: Vec<String>) -> Res
         "environment" => "environments",
         _ => return Err("invalid item type".to_string()),
     };
-    
+
     for (i, id) in ids.iter().enumerate() {
         tx.execute(
             &format!("UPDATE {} SET position = ?1 WHERE id = ?2", table),
             params![i as i64, id],
-        ).map_err(|e| format!("failed to update position: {e}"))?;
+        )
+        .map_err(|e| format!("failed to update position: {e}"))?;
     }
     tx.commit().map_err(|e| format!("failed to commit: {e}"))?;
     Ok(())
@@ -2105,7 +2210,11 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
     let mut connection = open_database(&app)?;
     let transaction = connection.transaction().map_err(|e| e.to_string())?;
 
-    let clean_target = request.folder_id.trim_start_matches("collection:").trim_start_matches("folder:").trim();
+    let clean_target = request
+        .folder_id
+        .trim_start_matches("collection:")
+        .trim_start_matches("folder:")
+        .trim();
 
     let target_folder_id: String = transaction
         .query_row(
@@ -2210,7 +2319,12 @@ pub fn delete_request(app: AppHandle, request_id: String) -> Result<(), String> 
 }
 
 #[tauri::command]
-pub fn create_folder(app: AppHandle, name: String, collection_id: Option<String>, parent_id: Option<String>) -> Result<FolderSummary, String> {
+pub fn create_folder(
+    app: AppHandle,
+    name: String,
+    collection_id: Option<String>,
+    parent_id: Option<String>,
+) -> Result<FolderSummary, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
     let folder_id = format!("folder-{}", uuid::Uuid::new_v4());
@@ -2267,7 +2381,9 @@ pub fn move_folder(
 ) -> Result<(), String> {
     ensure_database(&app)?;
     let mut connection = open_database(&app)?;
-    let tx = connection.transaction().map_err(|e| format!("failed to start tx: {e}"))?;
+    let tx = connection
+        .transaction()
+        .map_err(|e| format!("failed to start tx: {e}"))?;
 
     let final_collection_id = match &parent_id {
         Some(pid) => tx
@@ -2298,7 +2414,11 @@ pub fn move_folder(
 }
 
 #[tauri::command]
-pub fn update_collection(app: AppHandle, collection_id: String, name: String) -> Result<(), String> {
+pub fn update_collection(
+    app: AppHandle,
+    collection_id: String,
+    name: String,
+) -> Result<(), String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
     connection
@@ -2311,7 +2431,11 @@ pub fn update_collection(app: AppHandle, collection_id: String, name: String) ->
 }
 
 #[tauri::command]
-pub fn update_collection_default_environment(app: AppHandle, collection_id: String, default_environment: Option<String>) -> Result<(), String> {
+pub fn update_collection_default_environment(
+    app: AppHandle,
+    collection_id: String,
+    default_environment: Option<String>,
+) -> Result<(), String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
     connection
@@ -2423,7 +2547,10 @@ pub fn delete_folder(app: AppHandle, folder_id: String) -> Result<(), String> {
 pub fn create_request(app: AppHandle, folder_id: String) -> Result<SavedRequest, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
-    let clean_target = folder_id.trim_start_matches("collection:").trim_start_matches("folder:").trim();
+    let clean_target = folder_id
+        .trim_start_matches("collection:")
+        .trim_start_matches("folder:")
+        .trim();
 
     let target_folder_id: String = connection
         .query_row(
@@ -2752,7 +2879,11 @@ pub fn get_scoped_variables(
 }
 
 #[tauri::command]
-pub fn get_scripts(app: AppHandle, entity_id: String, entity_type: String) -> Result<Vec<Script>, String> {
+pub fn get_scripts(
+    app: AppHandle,
+    entity_id: String,
+    entity_type: String,
+) -> Result<Vec<Script>, String> {
     ensure_database(&app)?;
     let connection = open_database(&app)?;
     let mut statement = connection

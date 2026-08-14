@@ -18,7 +18,10 @@ pub fn export_openapi_30_spec(
     let workspace = crate::persistence::load_workspace(_app).map_err(|e| e.to_string())?;
 
     let active_collection = if let Some(cid) = &_collection_id {
-        workspace.collections.as_ref().and_then(|cols| cols.iter().find(|c| c.id == *cid))
+        workspace
+            .collections
+            .as_ref()
+            .and_then(|cols| cols.iter().find(|c| c.id == *cid))
     } else {
         workspace.collections.as_ref().and_then(|cols| cols.first())
     };
@@ -52,7 +55,7 @@ pub fn export_openapi_30_spec(
 
         let method = req.method.to_lowercase();
         let mut safe_path = req.url.clone();
-        
+
         if safe_path.starts_with("http") {
             if let Some(idx) = safe_path.find("://") {
                 let after_scheme = &safe_path[idx + 3..];
@@ -63,11 +66,11 @@ pub fn export_openapi_30_spec(
                 }
             }
         }
-        
+
         if let Some(q_idx) = safe_path.find('?') {
             safe_path = safe_path[..q_idx].to_string();
         }
-        
+
         if !safe_path.starts_with('/') {
             safe_path = format!("/{}", safe_path);
         }
@@ -76,16 +79,19 @@ pub fn export_openapi_30_spec(
             Some(Value::Object(map)) => map,
             _ => serde_json::Map::new(),
         };
-        
-        path_item.insert(method, json!({
-            "summary": req.name,
-            "responses": {
-                "200": {
-                    "description": "Successful operation"
+
+        path_item.insert(
+            method,
+            json!({
+                "summary": req.name,
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
                 }
-            }
-        }));
-        
+            }),
+        );
+
         paths.insert(safe_path, Value::Object(path_item));
     }
 
@@ -118,10 +124,7 @@ pub fn export_openapi_30_spec(
 }
 
 #[tauri::command]
-pub fn import_openapi_30_spec(
-    _app: AppHandle,
-    openapi_content: String,
-) -> Result<Value, String> {
+pub fn import_openapi_30_spec(_app: AppHandle, openapi_content: String) -> Result<Value, String> {
     let parsed: Value = serde_json::from_str(&openapi_content)
         .map_err(|e| format!("Invalid OpenAPI JSON: {}", e))?;
 

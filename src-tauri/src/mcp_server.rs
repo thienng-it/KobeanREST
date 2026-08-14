@@ -208,17 +208,18 @@ pub fn execute_mcp_tool_call(
                 "status": "success",
                 "collections": workspace.collections.unwrap_or_default()
             }))
-        },
+        }
         "run_request" => {
-            let args: Value = serde_json::from_str(&arguments)
-                .map_err(|e| format!("Invalid arguments: {e}"))?;
-            let request_id = args.get("request_id")
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let request_id = args
+                .get("request_id")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| "Missing request_id".to_string())?;
 
             let workspace = crate::persistence::load_workspace(app.clone())
                 .map_err(|e| format!("Failed to load workspace: {e}"))?;
-            
+
             let request = workspace.requests.into_iter().find(|r| r.id == request_id);
             if let Some(req) = request {
                 Ok(json!({
@@ -228,7 +229,7 @@ pub fn execute_mcp_tool_call(
             } else {
                 Err(format!("Request with ID {} not found", request_id))
             }
-        },
+        }
         "get_environment" => {
             let workspace = crate::persistence::load_workspace(app.clone())
                 .map_err(|e| format!("Failed to load workspace: {e}"))?;
@@ -237,7 +238,7 @@ pub fn execute_mcp_tool_call(
                 "active_environment": workspace.active_environment,
                 "environments": workspace.environments
             }))
-        },
+        }
         "list_workspaces" => {
             let workspaces = crate::persistence::list_workspaces(app.clone())
                 .map_err(|e| format!("Failed to list workspaces: {e}"))?;
@@ -245,7 +246,7 @@ pub fn execute_mcp_tool_call(
                 "status": "success",
                 "workspaces": workspaces
             }))
-        },
+        }
         "get_request_history" => {
             let history = crate::persistence::load_request_history(app.clone())
                 .map_err(|e| format!("Failed to load history: {e}"))?;
@@ -253,10 +254,15 @@ pub fn execute_mcp_tool_call(
                 "status": "success",
                 "history": history
             }))
-        },
+        }
         "search_collections" => {
-            let args: Value = serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
-            let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let query = args
+                .get("query")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_lowercase();
             let terms: Vec<&str> = query.split_whitespace().collect();
             let workspace = crate::persistence::load_workspace(app.clone())
                 .map_err(|e| format!("Failed to load workspace: {e}"))?;
@@ -270,32 +276,49 @@ pub fn execute_mcp_tool_call(
                 }
             }
             Ok(json!({ "status": "success", "results": results }))
-        },
+        }
         "search_folders" => {
-            let args: Value = serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
-            let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let query = args
+                .get("query")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_lowercase();
             let terms: Vec<&str> = query.split_whitespace().collect();
             let workspace = crate::persistence::load_workspace(app.clone())
                 .map_err(|e| format!("Failed to load workspace: {e}"))?;
-            let results: Vec<_> = workspace.folders.into_iter()
+            let results: Vec<_> = workspace
+                .folders
+                .into_iter()
                 .filter(|f| {
                     let name_lower = f.name.to_lowercase();
                     terms.is_empty() || terms.iter().any(|t| name_lower.contains(t))
                 })
                 .collect();
             Ok(json!({ "status": "success", "results": results }))
-        },
+        }
         "search_requests" => {
-            let args: Value = serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
-            let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let query = args
+                .get("query")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_lowercase();
             let terms: Vec<&str> = query.split_whitespace().collect();
             let workspace = crate::persistence::load_workspace(app.clone())
                 .map_err(|e| format!("Failed to load workspace: {e}"))?;
-            let results: Vec<_> = workspace.requests.into_iter()
+            let results: Vec<_> = workspace
+                .requests
+                .into_iter()
                 .filter(|r| {
                     let name_lower = r.name.to_lowercase();
                     let url_lower = r.url.to_lowercase();
-                    terms.is_empty() || terms.iter().any(|t| name_lower.contains(t) || url_lower.contains(t))
+                    terms.is_empty()
+                        || terms
+                            .iter()
+                            .any(|t| name_lower.contains(t) || url_lower.contains(t))
                 })
                 .map(|r| {
                     json!({
@@ -308,64 +331,160 @@ pub fn execute_mcp_tool_call(
                 })
                 .collect();
             Ok(json!({ "status": "success", "results": results }))
-        },
+        }
         "update_request" => {
-            let args: Value = serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
-            let request_id = args.get("request_id").and_then(|v| v.as_str()).ok_or_else(|| "Missing request_id".to_string())?;
-            let mut workspace = crate::persistence::load_workspace(app.clone()).map_err(|e| format!("Failed to load workspace: {e}"))?;
-            let request = workspace.requests.iter_mut().find(|r| r.id == request_id).ok_or_else(|| format!("Request {} not found", request_id))?;
-            if let Some(name) = args.get("name").and_then(|v| v.as_str()) { request.name = name.to_string(); }
-            if let Some(url) = args.get("url").and_then(|v| v.as_str()) { request.url = url.to_string(); }
-            if let Some(method) = args.get("method").and_then(|v| v.as_str()) { request.method = method.to_string(); }
-            if let Some(body) = args.get("body").and_then(|v| v.as_str()) { request.body = body.to_string(); }
-            if let Some(mime) = args.get("body_mime_type").and_then(|v| v.as_str()) { request.body_mime_type = mime.to_string(); }
-            crate::persistence::save_request(app.clone(), request.clone()).map_err(|e| format!("Failed to save request: {e}"))?;
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let request_id = args
+                .get("request_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing request_id".to_string())?;
+            let mut workspace = crate::persistence::load_workspace(app.clone())
+                .map_err(|e| format!("Failed to load workspace: {e}"))?;
+            let request = workspace
+                .requests
+                .iter_mut()
+                .find(|r| r.id == request_id)
+                .ok_or_else(|| format!("Request {} not found", request_id))?;
+            if let Some(name) = args.get("name").and_then(|v| v.as_str()) {
+                request.name = name.to_string();
+            }
+            if let Some(url) = args.get("url").and_then(|v| v.as_str()) {
+                request.url = url.to_string();
+            }
+            if let Some(method) = args.get("method").and_then(|v| v.as_str()) {
+                request.method = method.to_string();
+            }
+            if let Some(body) = args.get("body").and_then(|v| v.as_str()) {
+                request.body = body.to_string();
+            }
+            if let Some(mime) = args.get("body_mime_type").and_then(|v| v.as_str()) {
+                request.body_mime_type = mime.to_string();
+            }
+            crate::persistence::save_request(app.clone(), request.clone())
+                .map_err(|e| format!("Failed to save request: {e}"))?;
             Ok(json!({ "status": "success", "message": "Request updated", "id": request_id }))
-        },
+        }
         "save_request_script" => {
-            let args: Value = serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
-            let entity_id = args.get("entity_id").and_then(|v| v.as_str()).ok_or_else(|| "Missing entity_id".to_string())?;
-            let entity_type = args.get("entity_type").and_then(|v| v.as_str()).ok_or_else(|| "Missing entity_type".to_string())?;
-            let script_type = args.get("script_type").and_then(|v| v.as_str()).ok_or_else(|| "Missing script_type".to_string())?;
-            let content = args.get("content").and_then(|v| v.as_str()).ok_or_else(|| "Missing content".to_string())?;
-            crate::persistence::save_script(app.clone(), entity_id.to_string(), entity_type.to_string(), script_type.to_string(), content.to_string()).map_err(|e| format!("Failed to save script: {e}"))?;
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let entity_id = args
+                .get("entity_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing entity_id".to_string())?;
+            let entity_type = args
+                .get("entity_type")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing entity_type".to_string())?;
+            let script_type = args
+                .get("script_type")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing script_type".to_string())?;
+            let content = args
+                .get("content")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing content".to_string())?;
+            crate::persistence::save_script(
+                app.clone(),
+                entity_id.to_string(),
+                entity_type.to_string(),
+                script_type.to_string(),
+                content.to_string(),
+            )
+            .map_err(|e| format!("Failed to save script: {e}"))?;
             Ok(json!({ "status": "success", "message": "Script saved" }))
-        },
+        }
         "set_environment_variable" => {
-            let args: Value = serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
-            let env_name = args.get("environment_name").and_then(|v| v.as_str()).ok_or_else(|| "Missing environment_name".to_string())?;
-            let key = args.get("key").and_then(|v| v.as_str()).ok_or_else(|| "Missing key".to_string())?;
-            let value = args.get("value").and_then(|v| v.as_str()).ok_or_else(|| "Missing value".to_string())?;
-            crate::persistence::save_variable(app.clone(), env_name.to_string(), key.to_string(), value.to_string(), None).map_err(|e| format!("Failed to save variable: {e}"))?;
-            Ok(json!({ "status": "success", "message": format!("Set {}={} in {}", key, value, env_name) }))
-        },
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let env_name = args
+                .get("environment_name")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing environment_name".to_string())?;
+            let key = args
+                .get("key")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing key".to_string())?;
+            let value = args
+                .get("value")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing value".to_string())?;
+            crate::persistence::save_variable(
+                app.clone(),
+                env_name.to_string(),
+                key.to_string(),
+                value.to_string(),
+                None,
+            )
+            .map_err(|e| format!("Failed to save variable: {e}"))?;
+            Ok(
+                json!({ "status": "success", "message": format!("Set {}={} in {}", key, value, env_name) }),
+            )
+        }
         "create_new_request" => {
-            let args: Value = serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
-            let folder_id = args.get("folder_id").and_then(|v| v.as_str()).ok_or_else(|| "Missing folder_id".to_string())?;
-            let request = crate::persistence::create_request(app.clone(), folder_id.to_string()).map_err(|e| format!("Failed to create request: {e}"))?;
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let folder_id = args
+                .get("folder_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing folder_id".to_string())?;
+            let request = crate::persistence::create_request(app.clone(), folder_id.to_string())
+                .map_err(|e| format!("Failed to create request: {e}"))?;
             Ok(json!({ "status": "success", "request": request }))
-        },
+        }
         "rename_folder" => {
-            let args: Value = serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
-            let folder_id = args.get("folder_id").and_then(|v| v.as_str()).ok_or_else(|| "Missing folder_id".to_string())?;
-            let name = args.get("name").and_then(|v| v.as_str()).ok_or_else(|| "Missing name".to_string())?;
-            crate::persistence::update_folder(app.clone(), folder_id.to_string(), name.to_string()).map_err(|e| format!("Failed to rename folder: {e}"))?;
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let folder_id = args
+                .get("folder_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing folder_id".to_string())?;
+            let name = args
+                .get("name")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing name".to_string())?;
+            crate::persistence::update_folder(app.clone(), folder_id.to_string(), name.to_string())
+                .map_err(|e| format!("Failed to rename folder: {e}"))?;
             Ok(json!({ "status": "success", "message": format!("Folder renamed to {}", name) }))
-        },
+        }
         "rename_collection" => {
-            let args: Value = serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
-            let collection_id = args.get("collection_id").and_then(|v| v.as_str()).ok_or_else(|| "Missing collection_id".to_string())?;
-            let name = args.get("name").and_then(|v| v.as_str()).ok_or_else(|| "Missing name".to_string())?;
-            crate::persistence::update_collection(app.clone(), collection_id.to_string(), name.to_string()).map_err(|e| format!("Failed to rename collection: {e}"))?;
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let collection_id = args
+                .get("collection_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing collection_id".to_string())?;
+            let name = args
+                .get("name")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing name".to_string())?;
+            crate::persistence::update_collection(
+                app.clone(),
+                collection_id.to_string(),
+                name.to_string(),
+            )
+            .map_err(|e| format!("Failed to rename collection: {e}"))?;
             Ok(json!({ "status": "success", "message": format!("Collection renamed to {}", name) }))
-        },
+        }
         "get_scripts" => {
-            let args: Value = serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
-            let entity_id = args.get("entity_id").and_then(|v| v.as_str()).ok_or_else(|| "Missing entity_id".to_string())?;
-            let entity_type = args.get("entity_type").and_then(|v| v.as_str()).ok_or_else(|| "Missing entity_type".to_string())?;
-            let scripts = crate::persistence::get_scripts(app.clone(), entity_id.to_string(), entity_type.to_string()).map_err(|e| format!("Failed to get scripts: {e}"))?;
+            let args: Value =
+                serde_json::from_str(&arguments).map_err(|e| format!("Invalid arguments: {e}"))?;
+            let entity_id = args
+                .get("entity_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing entity_id".to_string())?;
+            let entity_type = args
+                .get("entity_type")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "Missing entity_type".to_string())?;
+            let scripts = crate::persistence::get_scripts(
+                app.clone(),
+                entity_id.to_string(),
+                entity_type.to_string(),
+            )
+            .map_err(|e| format!("Failed to get scripts: {e}"))?;
             Ok(json!({ "status": "success", "scripts": scripts }))
-        },
+        }
         _ => Err(format!("Unknown MCP tool: {}", tool_name)),
     }
 }

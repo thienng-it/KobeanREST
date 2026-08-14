@@ -1095,7 +1095,7 @@ export function RequestPanel({
                       <div 
                         className={item.enabled ? "headers-row" : "headers-row headers-row-disabled"} 
                         key={idx}
-                        style={{ gridTemplateColumns: "36px minmax(0, 0.8fr) 75px minmax(0, 1.2fr) 32px" }}
+                        style={{ gridTemplateColumns: "36px minmax(0, 0.8fr) 95px minmax(0, 1.2fr) 32px" }}
                       >
                         <label className="headers-toggle">
                           <input
