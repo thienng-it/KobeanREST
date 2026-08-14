@@ -524,7 +524,7 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
       <div
         className="modal settings-modal"
         onClick={e => e.stopPropagation()}
-        style={{ width: "900px", maxWidth: "96vw", maxHeight: "88vh", display: "flex", flexDirection: "column" }}
+        style={{ width: "900px", height: "820px", maxWidth: "96vw", maxHeight: "88vh", display: "flex", flexDirection: "column" }}
       >
         {/* ── Header ──────────────────────────────────────────────── */}
         <div className="settings-header">
@@ -566,72 +566,25 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
 
         {/* ── Tab bar ────────────────────────────────────────────── */}
         {status !== "running" && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "10px 24px",
-              borderBottom: "1px solid var(--color-border)",
-              background: "var(--color-surface-muted)",
-              flexShrink: 0,
-            }}
-          >
-            <div
-              style={{
-                display: "inline-flex",
-                gap: 4,
-                background: "rgba(15, 23, 42, 0.45)",
-                borderRadius: 8,
-                padding: 3,
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              {(["results", "history"] as const).map(t => {
-                const isActive = activeTab === t;
-                const label = t === "history" ? "History" : status === "completed" ? "Results" : "Configure";
-                const Icon = t === "history" ? History : SlidersHorizontal;
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setActiveTab(t)}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 7,
-                      padding: "6px 14px",
-                      borderRadius: 6,
-                      border: "none",
-                      background: isActive ? "var(--color-accent)" : "transparent",
-                      color: isActive ? "#ffffff" : "var(--color-text-muted)",
-                      cursor: "pointer",
-                      fontSize: 13,
-                      fontWeight: isActive ? 600 : 500,
-                      transition: "all 0.15s ease",
-                      boxShadow: isActive ? "0 2px 8px rgba(99, 102, 241, 0.25)" : "none",
-                    }}
-                  >
-                    <Icon size={14} style={{ opacity: isActive ? 1 : 0.7 }} />
-                    <span>{label}</span>
-                    {t === "history" && (
-                      <span
-                        style={{
-                          marginLeft: 2,
-                          padding: "1px 7px",
-                          borderRadius: 10,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          background: isActive ? "rgba(255, 255, 255, 0.25)" : "var(--color-surface-hover)",
-                          color: isActive ? "#ffffff" : "var(--color-text-muted)",
-                        }}
-                      >
-                        {history.length}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="tab-row" role="tablist" aria-label="Load Test configuration">
+            {(["results", "history"] as const).map(t => {
+              const isActive = activeTab === t;
+              const label = t === "history" ? "History" : status === "completed" ? "Results" : "Configure";
+              const count = t === "history" ? history.length : 0;
+              const tabLabel = count > 0 ? `${label} (${count})` : label;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setActiveTab(t)}
+                  className={isActive ? "tab active" : "tab"}
+                  role="tab"
+                  aria-selected={isActive}
+                >
+                  {tabLabel}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -640,6 +593,18 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
           {/* ── Configure ──────────────────────────────────────────── */}
           {(status === "configuring" && activeTab === "results") && (
             <section className="settings-section" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              
+              <div style={{ background: "var(--color-surface-hover)", border: "1px solid var(--color-border)", padding: "14px 18px", borderRadius: 10, fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.5, display: "flex", gap: 12 }}>
+                <Activity size={18} style={{ color: "var(--color-text)", flexShrink: 0, marginTop: 2 }} />
+                <div>
+                  <strong style={{ display: "block", marginBottom: 4, color: "var(--color-text)" }}>How Load Testing Works</strong>
+                  Load testing helps you measure API performance under concurrent stress. 
+                  Choose a <strong>Strategy</strong> (a fixed number of requests vs. a set duration). 
+                  <strong>Virtual Users (VUs)</strong> represent parallel clients hitting the endpoint simultaneously. 
+                  Use <strong>Ramp-up</strong> to gradually increase load, and <strong>Think Time</strong> to simulate realistic user pauses between requests.
+                </div>
+              </div>
+
               {/* Mode Selection Cards */}
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 10 }}>
@@ -662,7 +627,7 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
                           borderRadius: 10,
                           border: `1.5px solid ${isSelected ? "var(--color-accent)" : "var(--color-border)"}`,
                           background: isSelected
-                            ? "linear-gradient(135deg, rgba(99, 102, 241, 0.14) 0%, rgba(99, 102, 241, 0.04) 100%)"
+                            ? "var(--color-surface-solid)"
                             : "var(--color-surface-hover)",
                           color: isSelected ? "var(--color-text)" : "var(--color-text-muted)",
                           cursor: "pointer",
@@ -882,8 +847,8 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
                 style={{
                   padding: "14px 18px",
                   borderRadius: 10,
-                  background: "linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(15, 23, 42, 0.4) 100%)",
-                  border: "1px solid rgba(99, 102, 241, 0.2)",
+                  background: "var(--color-surface-hover)",
+                  border: "1px solid var(--color-border)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",

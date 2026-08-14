@@ -1,4 +1,4 @@
-import { ChevronDown, Code2, Plus, Play, Save, Settings, Trash2, WandSparkles, Copy, Check } from "lucide-react";
+import { ChevronDown, Code2, Plus, Play, Save, Settings, Trash2, WandSparkles, Copy, Check, Clock, Repeat, Activity } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type MutableRefObject } from "react";
 import { createPortal } from "react-dom";
 import { CustomSelect } from "./CustomSelect";
@@ -855,8 +855,9 @@ export function RequestPanel({
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "transparent";
                     }}
-                    style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%" }}
+                    style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%", display: "flex", alignItems: "center", gap: "8px" }}
                   >
+                    <Clock size={14} style={{ opacity: 0.7 }} />
                     Send after delay...
                   </button>
                   <button
@@ -872,8 +873,9 @@ export function RequestPanel({
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "transparent";
                     }}
-                    style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%" }}
+                    style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%", display: "flex", alignItems: "center", gap: "8px" }}
                   >
+                    <Repeat size={14} style={{ opacity: 0.7 }} />
                     Repeat on interval...
                   </button>
                   <button
@@ -889,8 +891,9 @@ export function RequestPanel({
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "transparent";
                     }}
-                    style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%" }}
+                    style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%", display: "flex", alignItems: "center", gap: "8px" }}
                   >
+                    <Activity size={14} style={{ opacity: 0.7 }} />
                     Load Test...
                   </button>
                 </div>
@@ -1069,7 +1072,22 @@ export function RequestPanel({
             </div>
 
             {["application/x-www-form-urlencoded", "multipart/form-data"].includes(draftRequest.bodyMimeType) ? (
-              <div className="headers-table-inner" aria-label="Body form data">
+              <div className="headers-table" aria-label="Body form data">
+                <div className="headers-table-toolbar">
+                  <div className="headers-toolbar-actions">
+                    <button
+                      type="button"
+                      className="ghost-button headers-add-button"
+                      onClick={() =>
+                        updateDraft((prev: SavedRequest) => ({
+                          bodyForm: [...(prev.bodyForm ?? []), { key: '', value: '', enabled: true }],
+                        }))
+                      }
+                    >
+                      <Plus size={14} /> Add Field
+                    </button>
+                  </div>
+                </div>
                 <div className="headers-grid-body">
                   <div className="headers-rows">
                     {(draftRequest.bodyForm ?? []).map((item, idx) => (
@@ -1098,6 +1116,8 @@ export function RequestPanel({
                               return { bodyForm: form };
                             });
                           }}
+                          className="headers-row-input-field"
+                          containerClassName="headers-row-input"
                         />
                         <VariableInput
                           type={isSensitiveKey(item.key) ? "password" : "text"}
@@ -1111,29 +1131,28 @@ export function RequestPanel({
                               return { bodyForm: form };
                             });
                           }}
+                          className="headers-row-input-field"
+                          containerClassName="headers-row-input"
                         />
-                        <button
-                          type="button"
-                          className="icon-button-danger"
-                          onClick={() => {
-                            const form = (draftRequest.bodyForm ?? []).filter((_, i) => i !== idx);
-                            updateDraft({ bodyForm: form });
-                          }}
-                          aria-label="Remove field"
-                          title="Remove field"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        <div className="headers-actions">
+                          <button
+                            type="button"
+                            className="icon-button headers-delete-button"
+                            onClick={() => {
+                              updateDraft((prev: SavedRequest) => {
+                                const form = [...(prev.bodyForm ?? [])];
+                                form.splice(idx, 1);
+                                return { bodyForm: form };
+                              });
+                            }}
+                            aria-label={`Delete field ${item.key || idx + 1}`}
+                            title="Remove field"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))}
-                  </div>
-                  <div className="headers-add-row">
-                    <button type="button" className="ghost-button" onClick={() =>
-                          updateDraft((prev: SavedRequest) => ({
-                            bodyForm: [...(prev.bodyForm ?? []), { key: '', value: '', enabled: true }],
-                          }))
-                        }><Plus size={14}/> Add Field
-                    </button>
                   </div>
                 </div>
               </div>
