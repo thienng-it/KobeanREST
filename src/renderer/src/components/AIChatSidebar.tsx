@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Bot, User, Trash2, Loader2, Sparkles, Settings, Square, Copy, Check, ChevronDown, ChevronRight, Zap, AlertTriangle, Eye, EyeOff, Shield, Plus, MessageSquare, History, Edit2, Search } from "lucide-react";
+import { X, Send, Bot, User, Trash2, Loader2, Sparkles, Settings, Square, Copy, Check, ChevronDown, ChevronRight, Zap, AlertTriangle, Eye, EyeOff, Shield, Plus, MessageSquare, History, Edit2, Search, BookOpen, Database, Cpu } from "lucide-react";
 import { exportMcpManifest, executeMcpToolCall } from "../services/local-store";
 import type { SavedRequest, WorkspaceSummary } from "../types";
 
@@ -92,8 +92,8 @@ const PROVIDERS: AIProvider[] = [
   },
 ];
 
-import type { Message, ChatSession } from "../services/ai-chat-store";
-import { loadChatSessions, saveChatSessions, loadActiveSessionId, saveActiveSessionId } from "../services/ai-chat-store";
+import type { Message, ChatSession, McpServerConfig } from "../services/ai-chat-store";
+import { loadChatSessions, saveChatSessions, loadActiveSessionId, saveActiveSessionId, loadKnowledgeBase, saveKnowledgeBase, loadMcpServers, saveMcpServers } from "../services/ai-chat-store";
 export type { Message, ChatSession };
 
 interface AIChatSidebarProps {
@@ -102,6 +102,8 @@ interface AIChatSidebarProps {
   width?: number;
   draftRequest?: SavedRequest | null;
   workspace?: WorkspaceSummary | null;
+  lastResponse?: { status: number; body: string; headers: Record<string, string>; durationMs: number } | null;
+  onUpdateRequest?: (updater: (draft: SavedRequest) => SavedRequest) => void;
 }
 
 // ── Markdown Renderer ───────────────────────────────────────────────────────
@@ -422,6 +424,44 @@ async function callGemini(
   return { finalMessage: { role: "assistant", content: fullContent } };
 }
 
+// ── RAG: Workspace Request Retrieval ────────────────────────────────────────
+function tokenize(text: string): string[] {
+  return text.toLowerCase().replace(/[^a-z0-9/._-]/g, ' ').split(/\s+/).filter(Boolean);
+}
+
+function scoreRequest(req: { name: string; method: string; url: string }, queryTokens: string[]): number {
+  const target = tokenize(`${req.name} ${req.method} ${req.url}`);
+  let score = 0;
+  for (const qt of queryTokens) {
+    if (target.some(t => t.includes(qt) || qt.includes(t))) score++;
+  }
+  return score;
+}
+
+function retrieveRelevantRequests(
+  workspace: WorkspaceSummary | null | undefined,
+  query: string,
+  topN = 5
+): Array<{ name: string; method: string; url: string; folder?: string }> {
+  if (!workspace?.requests?.length) return [];
+  const tokens = tokenize(query);
+  if (tokens.length === 0) return [];
+
+  const folderMap = new Map<string, string>(workspace.folders.map(f => [f.id, f.name]));
+
+  return workspace.requests
+    .map(r => ({ r, score: scoreRequest(r, tokens) }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topN)
+    .map(({ r }) => ({
+      name: r.name,
+      method: r.method,
+      url: r.url,
+      folder: folderMap.get(r.folderId),
+    }));
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────
 const STORAGE_KEY = "kobeanrest_ai_settings";
 
@@ -437,7 +477,7 @@ function saveSettings(data: any) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
 }
 
-export function AIChatSidebar({ isOpen, onClose, width = 360, draftRequest, workspace }: AIChatSidebarProps) {
+export function AIChatSidebar({ isOpen, onClose, width = 360, draftRequest, workspace, lastResponse, onUpdateRequest }: AIChatSidebarProps) {
   const saved = loadSettings();
 
   const [sessions, setSessions] = useState<ChatSession[]>(() => loadChatSessions());
@@ -576,7 +616,92 @@ export function AIChatSidebar({ isOpen, onClose, width = 360, draftRequest, work
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [mcpTools, setMcpTools] = useState<any[]>([]);
+  const [thirdPartyServers, setThirdPartyServers] = useState<McpServerConfig[]>(() => loadMcpServers());
+  const [thirdPartyTools, setThirdPartyTools] = useState<any[]>([]);
+  const [showMcpServers, setShowMcpServers] = useState(false);
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
+  const [knowledgeBase, setKnowledgeBase] = useState<string>(() => loadKnowledgeBase());
+  const [showKnowledgeBase, setShowKnowledgeBase] = useState(false);
+  const [kbDraft, setKbDraft] = useState<string>("");
+  const [contextBadges, setContextBadges] = useState<string[]>([]);
+
+  // Built-in workspace tools callable by the AI
+  const builtinTools: any[] = workspace ? [
+    {
+      type: "function",
+      function: {
+        name: "search_workspace_requests",
+        description: "Search the workspace for API requests by name, method, or URL keyword. Returns up to 10 matching requests.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Search keyword (endpoint name, HTTP method, URL path fragment)" }
+          },
+          required: ["query"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_environment_variables",
+        description: "List the active environment variables (non-secret) available in the workspace.",
+        parameters: { type: "object", properties: {} }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_request_details",
+        description: "Get full details of a specific saved request by name.",
+        parameters: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "The exact name of the saved request" }
+          },
+          required: ["name"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_current_request",
+        description: "Get the full details of the currently active draft request that the user is looking at.",
+        parameters: { type: "object", properties: {} }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "update_current_request",
+        description: "Update the currently active draft request. You can change url, method, authMode, authConfig, headers, queryParams, bodyMimeType, or body. Only provide fields you want to update.",
+        parameters: {
+          type: "object",
+          properties: {
+            url: { type: "string" },
+            method: { type: "string" },
+            authMode: { type: "string" },
+            authConfig: { type: "object", additionalProperties: true },
+            headers: { 
+              type: "array", 
+              items: { type: "object", properties: { key: { type: "string" }, value: { type: "string" }, enabled: { type: "boolean" } } }
+            },
+            queryParams: {
+              type: "array",
+              items: { type: "object", properties: { key: { type: "string" }, value: { type: "string" }, enabled: { type: "boolean" } } }
+            },
+            body: { type: "string" },
+            bodyMimeType: { type: "string" },
+            bodyForm: {
+              type: "array",
+              items: { type: "object", properties: { key: { type: "string" }, value: { type: "string" }, enabled: { type: "boolean" } } }
+            }
+          }
+        }
+      }
+    }
+  ] : [];
 
   const isCurrentSessionEmpty = messages.length === 0;
 
@@ -719,6 +844,32 @@ export function AIChatSidebar({ isOpen, onClose, width = 360, draftRequest, work
     }
   }, [provider, effectiveBaseUrl, apiKey, selectedModel]);
 
+  const fetchThirdPartyTools = useCallback(async () => {
+    const enabledServers = thirdPartyServers.filter(s => s.enabled && s.url.trim());
+    if (enabledServers.length === 0) { setThirdPartyTools([]); return; }
+    const allTools: any[] = [];
+    for (const server of enabledServers) {
+      try {
+        const res = await fetch(`${server.url.replace(/\/$/, '')}/tools/list`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const tools = (data.tools || []).map((t: any) => ({ ...t, _serverUrl: server.url, _serverName: server.name }));
+          allTools.push(...tools);
+        }
+      } catch { /* server offline, skip */ }
+    }
+    setThirdPartyTools(allTools);
+  }, [thirdPartyServers]);
+
+  useEffect(() => {
+    fetchThirdPartyTools();
+  }, [thirdPartyServers]);
+
   useEffect(() => {
     if (isOpen) fetchModels();
   }, [isOpen, providerId]);
@@ -734,15 +885,24 @@ export function AIChatSidebar({ isOpen, onClose, width = 360, draftRequest, work
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   }, [input]);
 
-  const buildSystemPrompt = useCallback((): string => {
-    let prompt = `You are an expert AI assistant embedded in KobeanREST, a REST API client. You help developers work with HTTP APIs.
+  const buildSystemPrompt = useCallback((userQuery?: string): string => {
+    let prompt = `You are an expert AI assistant embedded in KobeanREST, a professional REST API client application.
 
-Capabilities: HTTP concepts, status codes, OAuth2/JWT/auth flows, request debugging, JSON/API body generation, pre/post request scripts (JavaScript), testing strategies.
+Your role is to help developers work efficiently with HTTP APIs. You have deep expertise in:
+- HTTP methods, status codes, headers, authentication (OAuth2, JWT, API keys, Bearer tokens)
+- Request debugging, response analysis, and performance troubleshooting
+- JSON, XML, GraphQL, gRPC, and other API formats
+- Pre/post request scripting in JavaScript (for KobeanREST's script runner)
+- API testing strategies, load testing, and mock server configuration
+- Security best practices for APIs
 
-Format responses with markdown. Use fenced code blocks for code and JSON. Keep answers concise and actionable.`;
+Format all responses with markdown. Use fenced code blocks with language tags for code and JSON. Be concise and actionable.
 
+IMPORTANT: When the user asks you to modify, update, rename, or create anything in the workspace, use the available tools directly — do NOT ask the user for IDs. All IDs are already provided below in the workspace index.`;
+
+    // Active request context (with ID so AI can modify it directly)
     if (draftRequest) {
-      prompt += `\n\n## Active Request\nMethod: ${draftRequest.method}\nURL: ${draftRequest.url || "(not set)"}\nAuth: ${draftRequest.authMode || "none"}`;
+      prompt += `\n\n## Currently Open Request\nID: ${draftRequest.id}\nName: ${draftRequest.name}\nMethod: ${draftRequest.method}\nURL: ${draftRequest.url || "(not set)"}\nAuth: ${draftRequest.authMode || "none"}`;
       if (draftRequest.headers?.filter(h => h.enabled && h.key).length > 0) {
         const hdrs = draftRequest.headers.filter(h => h.enabled && h.key)
           .map(h => `  ${h.key}: ${/auth|secret|token|key/i.test(h.key) ? "[REDACTED]" : h.value}`)
@@ -750,21 +910,162 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
         prompt += `\nHeaders:\n${hdrs}`;
       }
       if (draftRequest.body && draftRequest.bodyMimeType) {
-        const preview = draftRequest.body.length > 500 ? draftRequest.body.slice(0, 500) + "…" : draftRequest.body;
-        prompt += `\nContent-Type: ${draftRequest.bodyMimeType}\nBody:\n${preview}`;
+        const preview = draftRequest.body.length > 800 ? draftRequest.body.slice(0, 800) + "…" : draftRequest.body;
+        prompt += `\nContent-Type: ${draftRequest.bodyMimeType}\nBody (preview):\n${preview}`;
+      }
+      if (draftRequest.queryParams?.filter(p => p.enabled && p.key).length > 0) {
+        const qp = draftRequest.queryParams.filter(p => p.enabled && p.key).map(p => `  ${p.key}=${p.value}`).join("\n");
+        prompt += `\nQuery Params:\n${qp}`;
       }
     }
 
+    // Last HTTP response context
+    if (lastResponse) {
+      prompt += `\n\n## Last HTTP Response\nStatus: ${lastResponse.status}\nDuration: ${lastResponse.durationMs}ms`;
+      const contentType = lastResponse.headers["content-type"] || lastResponse.headers["Content-Type"] || "";
+      if (lastResponse.body) {
+        const preview = lastResponse.body.length > 1200 ? lastResponse.body.slice(0, 1200) + "…" : lastResponse.body;
+        prompt += `\nContent-Type: ${contentType}\nBody (preview):\n${preview}`;
+      }
+    }
+
+    // Full workspace index with IDs — allows AI to call write tools without asking for IDs
     if (workspace) {
-      prompt += `\n\n## Workspace: ${workspace.name || "Unnamed"}`;
-      if (workspace.collections?.length) prompt += `\nCollections: ${workspace.collections.map(c => c.name).join(", ")}`;
-      if (workspace.activeEnvironment) prompt += `\nActive Environment: ${workspace.activeEnvironment}`;
+      prompt += `\n\n## Workspace: ${workspace.name || "Unnamed"}\nID: ${workspace.id}\nActive Environment: ${workspace.activeEnvironment || "none"}`;
+
+      // Collections index
+      if (workspace.collections?.length) {
+        prompt += `\n\n### Collections`;
+        for (const c of workspace.collections) {
+          prompt += `\n- "${c.name}" | id: ${c.id}${c.authMode && c.authMode !== "none" ? ` | auth: ${c.authMode}` : ""}`;
+        }
+      }
+
+      // Folders index (grouped by collection)
+      if (workspace.folders?.length) {
+        prompt += `\n\n### Folders`;
+        const colMap = new Map((workspace.collections || []).map(c => [c.id, c.name]));
+        for (const f of workspace.folders) {
+          const colName = f.collectionId ? colMap.get(f.collectionId) : undefined;
+          prompt += `\n- "${f.name}" | id: ${f.id}${colName ? ` | collection: "${colName}"` : ""}${f.parentId ? ` | parent_folder_id: ${f.parentId}` : ""}`;
+        }
+      }
+
+      // Full requests index with IDs
+      if (workspace.requests?.length) {
+        // Build folder name map
+        const folderMap = new Map((workspace.folders || []).map(f => [f.id, f.name]));
+        prompt += `\n\n### All Requests (${workspace.requests.length} total)`;
+
+        // If query given, show relevant first then rest; otherwise show all
+        const relevant = userQuery ? retrieveRelevantRequests(workspace, userQuery, 8).map(r => r.name) : [];
+        const sorted = userQuery && relevant.length > 0
+          ? [...workspace.requests.filter(r => relevant.includes(r.name)), ...workspace.requests.filter(r => !relevant.includes(r.name))]
+          : workspace.requests;
+
+        for (const r of sorted) {
+          const folder = folderMap.get(r.folderId);
+          const isRelevant = relevant.includes(r.name);
+          prompt += `\n- ${isRelevant ? "★ " : ""}[${r.method}] "${r.name}" | id: ${r.id} | url: ${r.url || "(empty)"}${folder ? ` | folder: "${folder}"` : ""}`;
+        }
+      }
+
+      // Environments index
+      if (workspace.environments?.length) {
+        prompt += `\n\n### Environments`;
+        for (const env of workspace.environments) {
+          const isActive = env.name === workspace.activeEnvironment;
+          const nonSecretVars = env.variables?.filter(v => !v.secret && !v.secretRef) || [];
+          prompt += `\n- "${env.name}"${isActive ? " (active)" : ""}`;
+          if (nonSecretVars.length > 0) {
+            prompt += `: ${nonSecretVars.slice(0, 8).map(v => `${v.key}=${v.value}`).join(", ")}${nonSecretVars.length > 8 ? `, …+${nonSecretVars.length - 8} more` : ""}`;
+          }
+        }
+      }
+    }
+
+    // Knowledge base notes
+    const kb = loadKnowledgeBase();
+    if (kb.trim()) {
+      prompt += `\n\n## Knowledge Base (custom notes)\n${kb.trim()}`;
+    }
+
+    // Tool instructions — tell the AI what it can do and that it already has all IDs
+    const allToolNames = [
+      ...builtinTools.map(t => t.function.name),
+      "update_request", "save_request_script", "set_environment_variable",
+      "create_new_request", "rename_folder", "rename_collection", "get_scripts",
+    ];
+    if (allToolNames.length > 0) {
+      prompt += `\n\n## Available Tools\nYou have access to the following tools. All entity IDs are listed above — use them directly:\n${allToolNames.map(n => `- ${n}`).join("\n")}\n\nWhen the user says "modify this request", "update the URL", "add a script", etc. — use the ID from the workspace index above. Never say "please provide the ID". If the user asks to modify the currently open request, or refers to "this request", you can use \`get_current_request\` and \`update_current_request\` without needing an ID.`;
     }
 
     return prompt;
-  }, [draftRequest, workspace]);
+  }, [draftRequest, workspace, lastResponse, knowledgeBase, builtinTools]);
+
 
   const stop = () => { abortRef.current?.abort(); abortRef.current = null; setIsLoading(false); };
+
+  const executeBuiltinTool = useCallback((name: string, args: any): string => {
+    if (name === "search_workspace_requests") {
+      const results = retrieveRelevantRequests(workspace, args.query || "", 10);
+      if (results.length === 0) return JSON.stringify({ results: [], message: "No matching requests found." });
+      return JSON.stringify({ results });
+    }
+    if (name === "get_environment_variables") {
+      const env = workspace?.environments?.find(e => e.name === workspace.activeEnvironment);
+      const vars = (env?.variables || []).filter(v => !v.secret && !v.secretRef).map(v => ({ key: v.key, value: v.value }));
+      return JSON.stringify({ environment: workspace?.activeEnvironment, variables: vars });
+    }
+    if (name === "get_request_details") {
+      const req = workspace?.requests?.find(r => r.name === args.name);
+      if (!req) return JSON.stringify({ error: `Request '${args.name}' not found.` });
+      const folder = workspace?.folders?.find(f => f.id === req.folderId);
+      return JSON.stringify({
+        name: req.name, method: req.method, url: req.url,
+        folder: folder?.name, authMode: req.authMode,
+        headers: req.headers?.filter(h => h.enabled && h.key && !/auth|secret|token|key/i.test(h.key)),
+        queryParams: req.queryParams?.filter(p => p.enabled && p.key),
+        bodyMimeType: req.bodyMimeType,
+        body: req.body?.slice(0, 1000)
+      });
+    }
+    if (name === "get_current_request") {
+      if (!draftRequest) return JSON.stringify({ error: "No active draft request is currently open." });
+      return JSON.stringify({
+        name: draftRequest.name,
+        method: draftRequest.method,
+        url: draftRequest.url,
+        authMode: draftRequest.authMode,
+        authConfig: draftRequest.authConfig,
+        headers: draftRequest.headers,
+        queryParams: draftRequest.queryParams,
+        bodyMimeType: draftRequest.bodyMimeType,
+        body: draftRequest.body,
+        bodyForm: draftRequest.bodyForm
+      });
+    }
+    if (name === "update_current_request") {
+      if (!draftRequest) return JSON.stringify({ error: "No active draft request is currently open." });
+      if (!onUpdateRequest) return JSON.stringify({ error: "onUpdateRequest handler is not provided." });
+
+      onUpdateRequest((prev) => {
+        const next = { ...prev };
+        if (args.url !== undefined) next.url = args.url;
+        if (args.method !== undefined) next.method = args.method as any;
+        if (args.authMode !== undefined) next.authMode = args.authMode as any;
+        if (args.authConfig !== undefined) next.authConfig = { ...next.authConfig, ...args.authConfig };
+        if (args.headers !== undefined) next.headers = args.headers;
+        if (args.queryParams !== undefined) next.queryParams = args.queryParams;
+        if (args.body !== undefined) next.body = args.body;
+        if (args.bodyMimeType !== undefined) next.bodyMimeType = args.bodyMimeType;
+        if (args.bodyForm !== undefined) next.bodyForm = args.bodyForm;
+        return next;
+      });
+      return JSON.stringify({ success: true, message: "Draft request updated successfully." });
+    }
+    return JSON.stringify({ error: `Unknown tool: ${name}` });
+  }, [workspace, draftRequest, onUpdateRequest]);
 
   const handleSubmit = async (e?: React.FormEvent, overrideText?: string) => {
     if (e) e.preventDefault();
@@ -784,22 +1085,35 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
     setInput("");
     setIsLoading(true);
     setError(null);
-    await processChat(history);
+    await processChat(history, textToSend);
   };
 
-  const processChat = async (currentMessages: Message[]) => {
+  const processChat = async (currentMessages: Message[], userQuery?: string, isToolContinuation = false, fallbackSummary = "") => {
     try {
       const controller = new AbortController();
       abortRef.current = controller;
-      const systemPrompt = buildSystemPrompt();
+      const systemPrompt = buildSystemPrompt(userQuery);
 
-      // Add streaming placeholder
-      setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
+      // Add streaming placeholder (skip on tool continuations — content may be empty)
+      if (!isToolContinuation) {
+        setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
+      } else {
+        // For tool continuations, add placeholder but track it may be empty
+        setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
+      }
 
-      const ollamaTools = mcpTools.length > 0 ? mcpTools.map(t => ({
-        type: "function",
-        function: { name: t.name, description: t.description, parameters: t.inputSchema }
-      })) : undefined;
+      const allTools = [
+        ...(mcpTools.length > 0 ? mcpTools.map(t => ({
+          type: "function",
+          function: { name: t.name, description: t.description, parameters: t.inputSchema }
+        })) : []),
+        ...builtinTools,
+        ...thirdPartyTools.map(t => ({
+          type: "function",
+          function: { name: t.name, description: t.description || "", parameters: t.inputSchema || { type: "object", properties: {} } }
+        }))
+      ];
+      const ollamaTools = allTools.length > 0 ? allTools : undefined;
 
       let finalMessage: any;
 
@@ -822,13 +1136,28 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
         ({ finalMessage } = await callOpenAI(effectiveBaseUrl, selectedModel, currentMessages, systemPrompt, apiKey, controller.signal, onChunk));
       }
 
-      // Mark streaming done
+      // Mark streaming done — use fallback summary if model returned empty (common after write tool calls)
       setMessages(prev => {
         const next = [...prev];
         const last = next[next.length - 1];
-        if (last?.role === "assistant") next[next.length - 1] = { ...last, isStreaming: false, tool_calls: finalMessage?.tool_calls };
+        if (last?.role === "assistant") {
+          const hasContent = last.content.trim().length > 0;
+          const hasToolCalls = (finalMessage?.tool_calls?.length ?? 0) > 0;
+          if (!hasContent && !hasToolCalls && isToolContinuation) {
+            if (fallbackSummary) {
+              // Fill with the tool result summary so user sees what happened
+              next[next.length - 1] = { ...last, isStreaming: false, content: fallbackSummary };
+            } else {
+              // Nothing to show — remove the empty bubble
+              return next.slice(0, -1);
+            }
+            return next;
+          }
+          next[next.length - 1] = { ...last, isStreaming: false, tool_calls: finalMessage?.tool_calls };
+        }
         return next;
       });
+
 
       // Handle tool calls (Ollama only for now)
       if (finalMessage?.tool_calls?.length > 0) {
@@ -836,15 +1165,54 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
         const toolMessages: Message[] = [];
         for (const call of finalMessage.tool_calls) {
           try {
-            const result = await executeMcpToolCall(call.function.name, JSON.stringify(call.function.arguments));
-            toolMessages.push({ role: "tool", content: typeof result === "string" ? result : JSON.stringify(result), tool_name: call.function.name });
+            const isBuiltin = builtinTools.some(t => t.function.name === call.function.name);
+            const thirdPartyTool = thirdPartyTools.find(t => t.name === call.function.name);
+            let result: string;
+            if (isBuiltin) {
+              result = executeBuiltinTool(call.function.name, call.function.arguments || {});
+            } else if (thirdPartyTool) {
+              // Call third-party MCP server
+              const serverUrl = thirdPartyTool._serverUrl;
+              const tRes = await fetch(`${serverUrl.replace(/\/$/, '')}/tools/call`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: call.function.name, arguments: call.function.arguments || {} }),
+                signal: AbortSignal.timeout(30000),
+              });
+              const tData = await tRes.json();
+              result = typeof tData === 'string' ? tData : JSON.stringify(tData);
+            } else {
+              const raw = await executeMcpToolCall(call.function.name, JSON.stringify(call.function.arguments));
+              result = typeof raw === "string" ? raw : JSON.stringify(raw);
+            }
+            toolMessages.push({ role: "tool", content: result, tool_name: call.function.name });
           } catch (err: any) {
             toolMessages.push({ role: "tool", content: JSON.stringify({ error: err.message }), tool_name: call.function.name });
           }
         }
         const next = [...snapshot, ...toolMessages];
         setMessages(next);
-        await processChat(next);
+
+        // Build a synthetic fallback summary from tool results in case model returns empty
+        const writeToolNames = ["update_request","save_request_script","set_environment_variable","create_new_request","rename_folder","rename_collection"];
+        const writeCalls = finalMessage.tool_calls.filter((tc: any) => writeToolNames.includes(tc.function?.name));
+        let fallbackSummary = "";
+        if (writeCalls.length > 0) {
+          const lines = toolMessages
+            .filter(tm => writeCalls.some((tc: any) => tc.function?.name === tm.tool_name))
+            .map(tm => {
+              try {
+                const r = JSON.parse(tm.content);
+                if (r.status === "success") return `✅ **${tm.tool_name}**: ${r.message || "Done"}`;
+                if (r.error) return `❌ **${tm.tool_name}**: ${r.error}`;
+              } catch { /* ignore */ }
+              return `✅ **${tm.tool_name}** executed`;
+            });
+          if (lines.length > 0) fallbackSummary = lines.join("\n");
+        }
+
+        await processChat(next, userQuery, true /* isToolContinuation */, fallbackSummary);
+
       } else {
         setIsLoading(false);
       }
@@ -1161,15 +1529,165 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
                 🔒 Local — data stays on device
               </span>
             )}
-            {mcpTools.length > 0 && (
+            {(mcpTools.length + builtinTools.length) > 0 && (
               <span style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "10px", backgroundColor: "rgba(99,102,241,0.1)", color: "var(--color-accent)", border: "1px solid rgba(99,102,241,0.2)" }}>
-                🔧 {mcpTools.length} MCP tools
+                🔧 {mcpTools.length + builtinTools.length} tools ({builtinTools.length} built-in{mcpTools.length > 0 ? `, ${mcpTools.length} MCP` : ""})
               </span>
             )}
             {hasContext && (
               <span style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "10px", backgroundColor: "rgba(99,102,241,0.1)", color: "var(--color-accent)", border: "1px solid rgba(99,102,241,0.2)" }}>
                 📡 Request context injected
               </span>
+            )}
+            {lastResponse && (
+              <span style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "10px", backgroundColor: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}>
+                📥 Last response ({lastResponse.status}) injected
+              </span>
+            )}
+            {knowledgeBase.trim() && (
+              <span style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "10px", backgroundColor: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}>
+                📚 Knowledge base active
+              </span>
+            )}
+            {!!workspace?.requests?.length && (
+              <span style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "10px", backgroundColor: "rgba(99,102,241,0.1)", color: "var(--color-accent)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                🗂 {workspace.requests.length} requests indexed for RAG
+              </span>
+            )}
+          </div>
+
+          {/* Knowledge Base */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: "6px" }}>
+                <BookOpen size={12} /> Knowledge Base
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (showKnowledgeBase) {
+                    saveKnowledgeBase(kbDraft);
+                    setKnowledgeBase(kbDraft);
+                  } else {
+                    setKbDraft(loadKnowledgeBase());
+                  }
+                  setShowKnowledgeBase(!showKnowledgeBase);
+                }}
+                style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", background: showKnowledgeBase ? "var(--color-accent)" : "var(--color-surface)", color: showKnowledgeBase ? "#fff" : "var(--color-text)", cursor: "pointer" }}
+              >
+                {showKnowledgeBase ? "Save" : (knowledgeBase.trim() ? "Edit" : "Add Notes")}
+              </button>
+            </div>
+            {showKnowledgeBase && (
+              <textarea
+                value={kbDraft}
+                onChange={(e) => setKbDraft(e.target.value)}
+                placeholder={"Add custom notes, API documentation snippets, team conventions, or any context you want the AI to always know about.\n\nExample:\n- Our API uses snake_case for all JSON fields\n- Auth tokens expire after 15 minutes\n- Base URL for prod: https://api.example.com"}
+                style={{ height: "120px", padding: "7px 10px", borderRadius: "6px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "11px", resize: "vertical", fontFamily: "inherit", outline: "none", lineHeight: 1.5 }}
+              />
+            )}
+            {!showKnowledgeBase && knowledgeBase.trim() && (
+              <span style={{ fontSize: "10px", color: "#10b981" }}>✓ {knowledgeBase.trim().split("\n").length} lines of custom context loaded</span>
+            )}
+            {!showKnowledgeBase && !knowledgeBase.trim() && (
+              <span style={{ fontSize: "10px", color: "var(--color-text-muted)" }}>Add notes, docs, or conventions that the AI should always remember</span>
+            )}
+          </div>
+
+          {/* Third-party MCP Servers */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Database size={12} /> MCP Servers
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowMcpServers(!showMcpServers)}
+                style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", background: showMcpServers ? "var(--color-accent)" : "var(--color-surface)", color: showMcpServers ? "#fff" : "var(--color-text)", cursor: "pointer" }}
+              >
+                {showMcpServers ? "Hide" : `Manage (${thirdPartyServers.length})`}
+              </button>
+            </div>
+            {showMcpServers && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {thirdPartyServers.map((srv, i) => (
+                  <div key={srv.id} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={srv.enabled}
+                      onChange={e => {
+                        const next = thirdPartyServers.map((s, j) => j === i ? { ...s, enabled: e.target.checked } : s);
+                        setThirdPartyServers(next); saveMcpServers(next);
+                      }}
+                      style={{ flexShrink: 0 }}
+                    />
+                    <input
+                      type="text"
+                      value={srv.name}
+                      onChange={e => {
+                        const next = thirdPartyServers.map((s, j) => j === i ? { ...s, name: e.target.value } : s);
+                        setThirdPartyServers(next); saveMcpServers(next);
+                      }}
+                      placeholder="Server name"
+                      style={{ width: "80px", padding: "3px 6px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "11px", outline: "none" }}
+                    />
+                    <input
+                      type="text"
+                      value={srv.url}
+                      onChange={e => {
+                        const next = thirdPartyServers.map((s, j) => j === i ? { ...s, url: e.target.value } : s);
+                        setThirdPartyServers(next); saveMcpServers(next);
+                      }}
+                      placeholder="http://localhost:8080"
+                      style={{ flex: 1, padding: "3px 6px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "11px", outline: "none" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = thirdPartyServers.filter((_, j) => j !== i);
+                        setThirdPartyServers(next); saveMcpServers(next);
+                      }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: "2px" }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = [...thirdPartyServers, { id: Date.now().toString(), name: "My MCP", url: "http://localhost:8080", enabled: true }];
+                      setThirdPartyServers(next); saveMcpServers(next);
+                    }}
+                    style={{ fontSize: "11px", padding: "3px 10px", borderRadius: "4px", border: "1px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text)", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                  >
+                    <Plus size={11} /> Add Server
+                  </button>
+                  <button
+                    type="button"
+                    onClick={fetchThirdPartyTools}
+                    style={{ fontSize: "11px", padding: "3px 10px", borderRadius: "4px", border: "1px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text)", cursor: "pointer" }}
+                  >
+                    Refresh Tools
+                  </button>
+                </div>
+                {thirdPartyTools.length > 0 && (
+                  <div style={{ fontSize: "10px", color: "#10b981", display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                    {thirdPartyTools.map((t, i) => (
+                      <span key={i} style={{ padding: "1px 6px", borderRadius: "8px", backgroundColor: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                        {t.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <span style={{ fontSize: "10px", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
+                  Connect any MCP-compatible server (e.g. filesystem, database, GitHub). Uses the MCP /tools/list and /tools/call HTTP transport.
+                </span>
+              </div>
+            )}
+            {!showMcpServers && thirdPartyTools.length > 0 && (
+              <span style={{ fontSize: "10px", color: "#10b981" }}>✓ {thirdPartyTools.length} external tools from {thirdPartyServers.filter(s=>s.enabled).length} server(s)</span>
             )}
           </div>
         </div>
@@ -1205,8 +1723,20 @@ Format responses with markdown. Use fenced code blocks for code and JSON. Keep a
                 <div style={{ fontSize: "11px" }}>{draftRequest?.method} {draftRequest?.url || "(no URL)"}</div>
               </div>
             )}
+            {lastResponse && (
+              <div style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "8px", backgroundColor: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.18)", fontSize: "12px", textAlign: "left" }}>
+                <div style={{ fontWeight: 600, color: "#10b981", marginBottom: "4px" }}>📥 Last response ready</div>
+                <div style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>HTTP {lastResponse.status} · {lastResponse.durationMs}ms · Ask me to explain or debug it</div>
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: "6px", textAlign: "left" }}>
-              {["Explain this response body", "Generate test cases for this endpoint", "Help me debug this auth error", "Convert this to a curl command"].map(s => (
+              {[
+                lastResponse ? "Explain this response body" : "How do I authenticate with OAuth2?",
+                "Generate test cases for this endpoint",
+                hasContext ? "Help me debug this request" : "Help me debug this auth error",
+                lastResponse ? `Why did I get HTTP ${lastResponse.status}?` : "Convert this to a curl command",
+                workspace?.requests?.length ? "List all requests in my workspace" : "How do I set up environment variables?"
+              ].map(s => (
                 <button
                   key={s}
                   onClick={() => handleSubmit(undefined, s)}

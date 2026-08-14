@@ -67,3 +67,35 @@ export function saveActiveSessionId(id: string) {
     localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, id);
   } catch { /* ignore */ }
 }
+
+const KB_STORAGE_KEY = "kobeanrest_ai_knowledge_base";
+
+export function loadKnowledgeBase(): string {
+  try { return localStorage.getItem(KB_STORAGE_KEY) || ""; } catch { return ""; }
+}
+
+export function saveKnowledgeBase(text: string) {
+  try { localStorage.setItem(KB_STORAGE_KEY, text); } catch { /* ignore */ }
+}
+
+const MCP_SERVERS_KEY = "kobeanrest_mcp_servers";
+
+export interface McpServerConfig {
+  id: string;
+  name: string;
+  url: string; // e.g. http://localhost:8080
+  enabled: boolean;
+}
+
+export function loadMcpServers(): McpServerConfig[] {
+  try {
+    const raw = localStorage.getItem(MCP_SERVERS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return [];
+}
+
+export function saveMcpServers(servers: McpServerConfig[]) {
+  try { localStorage.setItem(MCP_SERVERS_KEY, JSON.stringify(servers)); } catch { /* ignore */ }
+}
+

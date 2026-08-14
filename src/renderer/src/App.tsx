@@ -1849,7 +1849,7 @@ export function App() {
             />
           )}
           </div>
-          <AIChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} draftRequest={draftRequest} workspace={workspace} />
+          <AIChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} draftRequest={draftRequest} workspace={workspace} onUpdateRequest={updateDraft as any} />
         </div>
       </section>
 
