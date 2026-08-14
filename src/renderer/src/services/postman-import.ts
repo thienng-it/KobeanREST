@@ -38,14 +38,18 @@ interface PostmanHeader {
 interface PostmanBody {
   mode?: "raw" | "urlencoded" | "formdata" | "file" | "graphql";
   raw?: string;
-  urlencoded?: Array<{ key: string; value: string; disabled?: boolean; type?: string }>;
+  urlencoded?: Array<{ key: string; value?: string; disabled?: boolean; type?: string; description?: string }>;
   formdata?: Array<{
     key: string;
     value?: string;
     type?: string;
-    src?: string;
+    src?: string | string[];
+    uuid?: string;
     disabled?: boolean;
+    description?: string;
   }>;
+  file?: { src?: string; content?: string };
+  graphql?: { query?: string; variables?: string };
   options?: { raw?: { language?: string } };
 }
 
@@ -376,9 +380,7 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
             // Extract query params from URL object
             if (req.url.query) {
               for (const q of req.url.query) {
-                if (!q.disabled) {
-                  queryParams.push({ key: q.key, value: q.value, enabled: true });
-                }
+                queryParams.push({ key: q.key || "", value: q.value ?? "", enabled: !q.disabled });
               }
             }
           }
@@ -386,12 +388,10 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
           // Headers
           if (req.header) {
             for (const h of req.header) {
-              if (!h.disabled) {
-                headers.push({ key: h.key, value: h.value, enabled: true });
-                // Detect Content-Type for body
-                if (h.key.toLowerCase() === "content-type") {
-                  bodyMimeType = h.value.split(";")[0].trim();
-                }
+              headers.push({ key: h.key || "", value: h.value ?? "", enabled: !h.disabled });
+              // Detect Content-Type for body
+              if (!h.disabled && h.key.toLowerCase() === "content-type") {
+                bodyMimeType = h.value.split(";")[0].trim();
               }
             }
           }
@@ -409,10 +409,11 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
                 if (req.body.urlencoded) {
                   const params = new URLSearchParams();
                   for (const f of req.body.urlencoded) {
+                    const val = f.value ?? "";
                     if (!f.disabled) {
-                      params.append(f.key, f.value);
-                      bodyForm.push({ key: f.key, value: f.value, enabled: true });
+                      params.append(f.key || "", val);
                     }
+                    bodyForm.push({ key: f.key || "", value: val, enabled: !f.disabled });
                   }
                   body = params.toString();
                   bodyMimeType = "application/x-www-form-urlencoded";
@@ -420,17 +421,45 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
                 break;
               case "formdata":
                 if (req.body.formdata) {
-                  // For formdata, we store it as JSON string in body
-                  const formData = req.body.formdata
-                    .filter((f) => !f.disabled)
-                    .map((f) => ({ key: f.key, value: f.value ?? "", type: f.type ?? "text" }));
+                  const formData = req.body.formdata.map((f) => {
+                    let val = f.value !== undefined && f.value !== null ? f.value : "";
+                    if (val === "" && f.src) {
+                      val = Array.isArray(f.src) ? f.src.join(", ") : String(f.src);
+                    }
+                    return {
+                      key: f.key || "",
+                      value: val,
+                      type: f.type ?? (f.src ? "file" : "text"),
+                      src: f.src,
+                      disabled: f.disabled,
+                    };
+                  });
                   body = JSON.stringify(formData, null, 2);
                   bodyMimeType = "multipart/form-data";
                   for (const f of req.body.formdata) {
-                    if (!f.disabled && f.value) {
-                      bodyForm.push({ key: f.key, value: f.value, enabled: true });
+                    let val = f.value !== undefined && f.value !== null ? f.value : "";
+                    if (val === "" && f.src) {
+                      val = Array.isArray(f.src) ? f.src.join(", ") : String(f.src);
                     }
+                    bodyForm.push({ key: f.key || "", value: val, enabled: !f.disabled });
                   }
+                }
+                break;
+              case "file":
+                bodyMimeType = "application/octet-stream";
+                if (req.body.file?.src) {
+                  const src = req.body.file.src;
+                  const fileName = src.split("/").pop()?.split("\\").pop() || src;
+                  body = JSON.stringify({ type: "file", fileName, fileSize: 0, fileType: "application/octet-stream", base64: "" }, null, 2);
+                }
+                break;
+              case "graphql":
+                if (req.body.graphql) {
+                  body = JSON.stringify({
+                    query: req.body.graphql.query || "",
+                    variables: req.body.graphql.variables || "",
+                  }, null, 2);
+                  bodyMimeType = "application/json";
                 }
                 break;
             }

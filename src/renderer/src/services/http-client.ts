@@ -56,7 +56,7 @@ export async function executeHttpRequest(
       headersObj["Content-Type"] = request.bodyMimeType;
     }
 
-    let body: string | undefined = undefined;
+    let body: BodyInit | undefined = undefined;
     if (request.method !== "GET" && request.method !== "HEAD") {
       if (request.bodyMimeType === "application/x-www-form-urlencoded" && request.bodyForm && request.bodyForm.length > 0) {
         const params = new URLSearchParams();
@@ -66,6 +66,37 @@ export async function executeHttpRequest(
           }
         });
         body = params.toString();
+      } else if (request.bodyMimeType === "application/octet-stream" && request.body) {
+        let base64Data: string | null = null;
+        try {
+          const parsed = JSON.parse(request.body);
+          if (parsed && typeof parsed === "object" && typeof parsed.base64 === "string") {
+            base64Data = parsed.base64;
+          }
+        } catch {
+          if (request.body.startsWith("data:")) {
+            const commaIdx = request.body.indexOf(",");
+            if (commaIdx !== -1) {
+              base64Data = request.body.substring(commaIdx + 1);
+            }
+          }
+        }
+
+        if (base64Data) {
+          try {
+            const binStr = atob(base64Data.trim());
+            const len = binStr.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytes[i] = binStr.charCodeAt(i);
+            }
+            body = bytes;
+          } catch {
+            body = request.body;
+          }
+        } else {
+          body = request.body;
+        }
       } else {
         body = request.body;
       }

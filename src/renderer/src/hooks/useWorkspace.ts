@@ -166,13 +166,16 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       }
     }
     setDraftRequest((prevDraft) => {
+      const req = workspace.requests.find((r) => r.id === selectedRequestId);
+      if (!req) {
+        return null;
+      }
       // If we already have a draft for the selected request, keep it
       // so we don't overwrite unsaved edits when workspace saves in the background
       if (prevDraft && prevDraft.id === selectedRequestId) {
         return prevDraft;
       }
-      const req = workspace.requests.find((r) => r.id === selectedRequestId);
-      return req ? JSON.parse(JSON.stringify(req)) : null;
+      return JSON.parse(JSON.stringify(req));
     });
   }, [selectedRequestId, workspace]);
 
@@ -1079,6 +1082,8 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       const doImport = async (finalCollectionName: string, overrideCollectionId?: string) => {
         try {
           if (overrideCollectionId) {
+            setDraftRequest(null);
+            setSelectedRequestId("");
             await deleteCollection(overrideCollectionId);
           }
 
@@ -1140,11 +1145,13 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
             if (result.collectionPostScript) await saveScript(collectionId, "collection", "post", result.collectionPostScript);
           }
 
+          let firstReqId: string | undefined;
           let imported = 0;
           for (const req of result.requests) {
             const targetFolderId = req.folderId ? folderIdMap[req.folderId] : defaultFolderId;
             if (!targetFolderId) continue;
             const newReq = await createRequest(targetFolderId);
+            if (!firstReqId) firstReqId = newReq.id;
             const updatedReq: SavedRequest = {
               ...newReq,
               name: req.name,
@@ -1170,7 +1177,12 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
             }
           }
 
+          setDraftRequest(null);
+          setSelectedRequestId("");
           await loadWorkspace();
+          if (firstReqId) {
+            setSelectedRequestId(firstReqId);
+          }
 
           const scriptNote = stripScripts ? " (scripts stripped)" : "";
           const renamedNote = finalCollectionName !== result.collectionName ? ` → renamed to "${finalCollectionName}"` : "";

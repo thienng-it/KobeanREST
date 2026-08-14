@@ -1402,8 +1402,8 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 12px;
-  padding: 8px 0 8px;
+  margin: 0;
+  padding: 16px 0 12px;
   color: var(--color-text-soft);
   font-size: 12px;
   font-weight: 600;
@@ -1412,7 +1412,7 @@ button:disabled {
   letter-spacing: 0.05em;
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 10;
   background: var(--color-surface);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);

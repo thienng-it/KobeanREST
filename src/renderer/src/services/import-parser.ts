@@ -308,19 +308,32 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
               } else if (req.body.mode === "urlencoded" && Array.isArray(req.body.urlencoded)) {
                 const formArr = req.body.urlencoded.map((f: any) => ({
                   key: f.key || "",
-                  value: f.value || "",
+                  value: f.value ?? "",
                   enabled: f.disabled ? false : true,
                 }));
                 bodyFormStr = JSON.stringify(formArr);
                 mimeType = "application/x-www-form-urlencoded";
               } else if (req.body.mode === "formdata" && Array.isArray(req.body.formdata)) {
-                const formArr = req.body.formdata.map((f: any) => ({
-                  key: f.key || "",
-                  value: f.value || "",
-                  enabled: f.disabled ? false : true,
-                }));
+                const formArr = req.body.formdata.map((f: any) => {
+                  let val = f.value !== undefined && f.value !== null ? f.value : "";
+                  if (val === "" && f.src) {
+                    val = Array.isArray(f.src) ? f.src.join(", ") : String(f.src);
+                  }
+                  return {
+                    key: f.key || "",
+                    value: val,
+                    enabled: f.disabled ? false : true,
+                  };
+                });
                 bodyFormStr = JSON.stringify(formArr);
                 mimeType = "multipart/form-data";
+              } else if (req.body.mode === "file") {
+                mimeType = "application/octet-stream";
+                if (req.body.file?.src) {
+                  const src = req.body.file.src;
+                  const fileName = src.split("/").pop()?.split("\\").pop() || src;
+                  bodyStr = JSON.stringify({ type: "file", fileName, fileSize: 0, fileType: "application/octet-stream", base64: "" }, null, 2);
+                }
               }
             }
 

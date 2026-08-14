@@ -382,7 +382,20 @@ function generateCurlSnippet(request: SavedRequest): string {
     parts.push(`  -H ${quoteShell(`${header.key}: ${header.value}`)}`);
   }
   if (request.body.trim()) {
-    parts.push(`  --data-raw ${quoteShell(request.body)}`);
+    if (request.bodyMimeType === "application/octet-stream") {
+      try {
+        const parsed = JSON.parse(request.body);
+        if (parsed && typeof parsed === "object" && parsed.fileName) {
+          parts.push(`  --data-binary @${quoteShell(parsed.fileName)}`);
+        } else {
+          parts.push(`  --data-binary ${quoteShell(request.body)}`);
+        }
+      } catch {
+        parts.push(`  --data-binary ${quoteShell(request.body)}`);
+      }
+    } else {
+      parts.push(`  --data-raw ${quoteShell(request.body)}`);
+    }
   }
   return parts.join(" \\\n");
 }

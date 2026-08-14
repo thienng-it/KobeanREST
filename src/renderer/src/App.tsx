@@ -2209,6 +2209,8 @@ export function App() {
         onImportEnvironment={handleImportPostmanEnvironment}
         onImportCurl={handleImportCurlAsDraft}
         onImportSuccess={async (jsonPayload) => {
+          setDraftRequest(null);
+          setSelectedRequestId("");
           await importWorkspaceData(jsonPayload);
           await loadWorkspace();
         }}

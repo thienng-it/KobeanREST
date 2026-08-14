@@ -130,7 +130,7 @@ pub async fn execute_http_request(
     }
 
     // Handle body: for application/x-www-form-urlencoded, use bodyForm if available
-    let body: Option<String> = if input.body_mime_type.as_deref() == Some("application/x-www-form-urlencoded")
+    if input.body_mime_type.as_deref() == Some("application/x-www-form-urlencoded")
         && !input.body_form.is_empty()
     {
         let mut serializer = form_urlencoded::Serializer::new(String::new());
@@ -140,15 +140,36 @@ pub async fn execute_http_request(
             has_params = true;
         }
         if has_params {
-            Some(serializer.finish())
-        } else {
-            input.body.clone().filter(|b| !b.is_empty())
+            request = request.body(serializer.finish());
+        } else if let Some(body_content) = input.body.filter(|b| !b.is_empty()) {
+            request = request.body(body_content);
         }
-    } else {
-        input.body.clone().filter(|b| !b.is_empty())
-    };
+    } else if input.body_mime_type.as_deref() == Some("application/octet-stream") {
+        if let Some(body_content) = input.body.filter(|b| !b.is_empty()) {
+            let decoded_bytes = if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&body_content) {
+                if let Some(b64) = json_val.get("base64").and_then(|v| v.as_str()) {
+                    BASE64.decode(b64.trim()).ok()
+                } else {
+                    None
+                }
+            } else if let Some(b64_part) = body_content.strip_prefix("data:") {
+                if let Some(comma_pos) = b64_part.find(',') {
+                    let b64_data = &b64_part[comma_pos + 1..];
+                    BASE64.decode(b64_data.trim()).ok()
+                } else {
+                    None
+                }
+            } else {
+                BASE64.decode(body_content.trim()).ok()
+            };
 
-    if let Some(body_content) = body {
+            if let Some(bytes) = decoded_bytes {
+                request = request.body(bytes);
+            } else {
+                request = request.body(body_content);
+            }
+        }
+    } else if let Some(body_content) = input.body.filter(|b| !b.is_empty()) {
         request = request.body(body_content);
     }
 

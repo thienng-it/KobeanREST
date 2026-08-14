@@ -86,7 +86,7 @@ if (ms < warn) {
   {
     id: 'timestamp-auth',
     name: 'Timestamp + Nonce Auth',
-    description: 'Adds X-Timestamp and X-Nonce headers to each request. Useful for APIs that require timestamp-based request signing to prevent replay attacks.',
+    description: 'Adds X-Timestamp and X-Nonce headers to each request. Useful for APIs that require timestamp-based request signature validation to prevent replay attacks.',
     author: 'KobeanREST',
     category: 'auth',
     version: '1.0.0',
@@ -100,11 +100,11 @@ kb.request.setHeader('X-Nonce', crypto.randomUUID().replace(/-/g, ''));`,
   {
     id: 'hmac-signer',
     name: 'HMAC-SHA256 Signer',
-    description: 'Signs each request with an HMAC-SHA256 signature using a secret from the environment variable HMAC_SECRET. Sets the Authorization header in the format: HMAC-SHA256 <signature>.',
+    description: 'Generates an HMAC-SHA256 signature for each request using a secret from the environment variable HMAC_SECRET. Sets the Authorization header in the format: HMAC-SHA256 <signature>.',
     author: 'KobeanREST',
     category: 'auth',
     version: '1.0.0',
-    tags: ['hmac', 'security', 'signing', 'sha256'],
+    tags: ['hmac', 'security', 'signature', 'sha256'],
     source: 'builtin',
     enabled: false,
     preRequestScript: `// HMAC-SHA256 Signer
@@ -118,7 +118,7 @@ if (secret) {
   const b64 = btoa(String.fromCharCode(...new Uint8Array(sig)));
   kb.request.setHeader('Authorization', 'HMAC-SHA256 ' + b64);
 } else {
-  console.warn('[HmacSigner] Set HMAC_SECRET environment variable to enable signing.');
+  console.warn('[HmacSigner] Set HMAC_SECRET environment variable to enable HMAC signatures.');
 }`,
   },
   {
