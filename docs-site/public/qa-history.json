@@ -1321,5 +1321,57 @@
         "durationMs": 500
       }
     ]
+  },
+  {
+    "runId": "31931801814",
+    "timestamp": "2026-08-16T06:37:20.098Z",
+    "commit": "d9cc304",
+    "commitMsg": "chore(release): auto-bump version to 0.1.29 [skip ci]",
+    "branch": "main",
+    "status": "failed",
+    "durationMs": 84000,
+    "contractTests": {
+      "total": 163,
+      "passed": 160,
+      "failed": 2,
+      "skipped": 1
+    },
+    "e2eScenarios": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "passRate": 98,
+    "failedTests": [
+      "81 - persistence.rs exposes multi-workspace commands",
+      "99 - Rust native core exposes SQLite persistence commands"
+    ],
+    "scenarios": [
+      {
+        "name": "1. Verify Workspace Load & Sidebar Collections",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "2. Verify URL and Query Params Bi-Directional Synchronization",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "3. Verify HTTP Request Execution & Response Panel",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "4. Verify Environment Selector & Variables Modal",
+        "status": "passed",
+        "durationMs": 500
+      },
+      {
+        "name": "5. Verify Pre & Post Request Scripts Execution Interface",
+        "status": "passed",
+        "durationMs": 500
+      }
+    ]
   }
 ]
