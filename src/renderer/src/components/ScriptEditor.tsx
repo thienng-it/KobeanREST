@@ -97,6 +97,11 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
     const onClick = (e: MouseEvent, view: EditorView) => {
       const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
       if (pos === null) return;
+      const coords = view.coordsAtPos(pos);
+      if (!coords) return;
+      if (e.clientX < coords.left - 4 || e.clientX > coords.right + 4 || e.clientY < coords.top - 4 || e.clientY > coords.bottom + 4) {
+        return;
+      }
       const line = view.state.doc.lineAt(pos);
       const lineText = line.text;
       const regex = /\{\{([^{}]+)\}\}/g;
@@ -107,6 +112,13 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
         if (pos >= start && pos <= end) {
           const varName = match[1].trim();
           if (varName.startsWith("$response")) {
+            const startCoords = view.coordsAtPos(start);
+            const endCoords = view.coordsAtPos(end);
+            if (startCoords && endCoords) {
+              if (e.clientX < startCoords.left || e.clientX > endCoords.right) {
+                break;
+              }
+            }
             window.dispatchEvent(
               new CustomEvent("open-chain-modal", {
                 detail: {

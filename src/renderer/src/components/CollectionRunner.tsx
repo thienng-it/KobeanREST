@@ -324,11 +324,30 @@ export function CollectionRunner({
     }
 
     const requestToSend = preScriptsCtx.request;
+    const executeUpstream = async (reqId: string) => {
+      const upstreamReq = runWorkspace?.requests.find(r => r.id === reqId);
+      if (!upstreamReq || !runWorkspace) return undefined;
+      
+      const upMap = buildScopedVariableMap(runWorkspace, {
+        collectionId: undefined, 
+        folderId: upstreamReq.folderId,
+        request: upstreamReq
+      });
+      
+      const { request: upExecReq } = await prepareRequestForExecution(upstreamReq, runWorkspace, upMap, undefined, undefined);
+      
+      const res = await executeHttpRequest(upExecReq);
+      if (res) {
+        inMemoryResponses?.set(upstreamReq.id, res);
+      }
+      return res;
+    };
+
     let executedRequest;
     let historyUrlToSave = "";
 
     try {
-      const { request, historyUrl } = await prepareRequestForExecution(requestToSend, runWorkspace, variableMap, inMemoryResponses);
+      const { request, historyUrl } = await prepareRequestForExecution(requestToSend, runWorkspace, variableMap, inMemoryResponses, executeUpstream);
       executedRequest = request;
       historyUrlToSave = historyUrl;
     } catch (err) {

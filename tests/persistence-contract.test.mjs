@@ -54,9 +54,9 @@ test("Rust native core exposes SQLite persistence commands", () => {
   assert.match(persistence, /pub fn initialize_persistence/);
   assert.match(persistence, /pub fn load_workspace/);
   assert.match(persistence, /pub fn record_request_history/);
-  assert.match(persistence, /pub fn create_collection\(app: AppHandle, name: String, workspace_id: Option<String>\)/);
+  assert.match(persistence, /pub fn create_collection\(\s*app: AppHandle,\s*name: String,\s*workspace_id: Option<String>,?\s*\)/);
   assert.match(persistence, /None => first_workspace_id\(&connection\)\?/);
-  assert.match(persistence, /pub fn update_collection\(app: AppHandle, collection_id: String, name: String\)/);
+  assert.match(persistence, /pub fn update_collection\(\s*app: AppHandle,\s*collection_id: String,\s*name: String,?\s*\)/);
   assert.match(persistence, /UPDATE collections SET name = \?2 WHERE id = \?1/);
   assert.match(persistence, /pub fn delete_collection\(app: AppHandle, collection_id: String\)/);
   assert.match(persistence, /DELETE FROM scripts WHERE/);

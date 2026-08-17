@@ -787,10 +787,42 @@ export function App() {
 
     // Use the modified request from scripts
     const requestToSend = preScriptsContext.request;
+    const executeUpstream = async (reqId: string) => {
+      const upstreamReq = workspace?.requests.find(r => r.id === reqId);
+      if (!upstreamReq || !scopeWorkspace) return undefined;
+      
+      const upMap = buildScopedVariableMap(scopeWorkspace, {
+        collectionId: undefined, 
+        folderId: upstreamReq.folderId,
+        request: upstreamReq
+      });
+      
+      const { request: upExecReq, historyUrl: upHistoryUrl } = await prepareRequestForExecution(upstreamReq, scopeWorkspace, upMap, undefined, undefined);
+      
+      const res = await executeHttpRequest(upExecReq);
+      if (res) {
+        try {
+          await recordRequestHistory({
+            requestId: upstreamReq.id,
+            method: upstreamReq.method,
+            url: upHistoryUrl,
+            status: res.status,
+            durationMs: res.durationMs,
+            sizeBytes: res.sizeBytes,
+            responseHeaders: JSON.stringify(res.headers),
+            responseBodyText: res.bodyText,
+          });
+        } catch (e) {
+          console.error("Failed to save upstream history", e);
+        }
+      }
+      return res;
+    };
+
     let executedRequest;
     let historyUrlToSave = "";
     try {
-      const { request, updatedAuth, updatedAuthEntityId, updatedAuthEntityType, historyUrl } = await prepareRequestForExecution(requestToSend, scopeWorkspace!, variableMap);
+      const { request, updatedAuth, updatedAuthEntityId, updatedAuthEntityType, historyUrl } = await prepareRequestForExecution(requestToSend, scopeWorkspace!, variableMap, undefined, executeUpstream);
       executedRequest = request;
       historyUrlToSave = historyUrl;
       

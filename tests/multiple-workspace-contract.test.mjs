@@ -31,7 +31,7 @@ test("persistence.rs exposes multi-workspace commands", () => {
   assert.match(p, /pub fn rename_workspace\(app: AppHandle, workspace_id: String, name: String\)/);
   assert.match(p, /pub fn delete_workspace\(app: AppHandle, workspace_id: String\)/);
   assert.match(p, /pub fn switch_workspace\(app: AppHandle, workspace_id: String\)/);
-  assert.match(p, /pub fn load_workspace_by_id\(app: AppHandle, workspace_id: String\)/);
+  assert.match(p, /pub fn load_workspace_by_id\(\s*app: AppHandle,\s*workspace_id: String,?\s*\)/);
 });
 
 test("lib.rs registers all multi-workspace commands", () => {

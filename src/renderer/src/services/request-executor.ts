@@ -6,7 +6,8 @@ export async function prepareRequestForExecution(
   requestToSend: SavedRequest,
   workspace: WorkspaceSummary,
   variableMap: Map<string, string>,
-  inMemoryResponses?: Map<string, import("../types").ExecuteHttpResponse>
+  inMemoryResponses?: Map<string, import("../types").ExecuteHttpResponse>,
+  executeUpstream?: (reqId: string) => Promise<import("../types").ExecuteHttpResponse | undefined>
 ): Promise<{ request: ExecuteHttpRequest, updatedAuth?: Partial<import("../types").AuthConfig>, updatedAuthEntityId?: string, updatedAuthEntityType?: "request" | "folder" | "collection", historyUrl: string }> {
   let authToScan = requestToSend.authConfig;
   let authEntityId: string | null = requestToSend.id;
@@ -30,7 +31,7 @@ export async function prepareRequestForExecution(
     authToScan?.accessTokenUrl, authToScan?.scope, authToScan?.audience,
   ];
   
-  await injectAsyncVariables(variableMap, textsToScan, workspace, inMemoryResponses);
+  await injectAsyncVariables(variableMap, textsToScan, workspace, inMemoryResponses, executeUpstream);
 
   const resolved = resolveRequestFields(variableMap, requestToSend.url, requestToSend.headers, requestToSend.body || undefined);
   

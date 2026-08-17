@@ -430,7 +430,22 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
             folderId: request.folderId,
             request,
           });
-          const { request: execReq } = await prepareRequestForExecution(request, workspace, variableMap);
+          const executeUpstream = async (reqId: string) => {
+            const upstreamReq = workspace.requests.find(r => r.id === reqId);
+            if (!upstreamReq || !workspace) return undefined;
+            
+            const upMap = buildScopedVariableMap(workspace, {
+              collectionId: undefined, 
+              folderId: upstreamReq.folderId,
+              request: upstreamReq
+            });
+            
+            const { request: upExecReq } = await prepareRequestForExecution(upstreamReq, workspace, upMap, undefined, undefined);
+            const res = await executeHttpRequest(upExecReq);
+            return res;
+          };
+
+          const { request: execReq } = await prepareRequestForExecution(request, workspace, variableMap, undefined, executeUpstream);
           if (controller.signal.aborted) break;
           const res = await executeHttpRequest(execReq);
           if (controller.signal.aborted) break;

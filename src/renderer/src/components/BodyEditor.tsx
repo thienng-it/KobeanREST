@@ -176,6 +176,11 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
     const onClick = (e: MouseEvent, view: EditorView) => {
       const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
       if (pos === null) return;
+      const coords = view.coordsAtPos(pos);
+      if (!coords) return;
+      if (e.clientX < coords.left - 4 || e.clientX > coords.right + 4 || e.clientY < coords.top - 4 || e.clientY > coords.bottom + 4) {
+        return;
+      }
       const line = view.state.doc.lineAt(pos);
       const lineText = line.text;
       const regex = /\{\{([^{}]+)\}\}/g;
@@ -185,7 +190,16 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
         const end = start + match[0].length;
         if (pos >= start && pos <= end) {
           const varName = match[1].trim();
-          if (varName.startsWith("$response")) {
+          const variable = variablesRef.current.find(v => v.key === varName);
+          const isResolved = !!variable || varName.startsWith("$response");
+          if (isResolved && varName.startsWith("$response")) {
+            const startCoords = view.coordsAtPos(start);
+            const endCoords = view.coordsAtPos(end);
+            if (startCoords && endCoords) {
+              if (e.clientX < startCoords.left || e.clientX > endCoords.right) {
+                break;
+              }
+            }
             setActiveTooltip(null);
             window.dispatchEvent(
               new CustomEvent("open-chain-modal", {

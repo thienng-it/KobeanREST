@@ -444,7 +444,8 @@ export async function injectAsyncVariables(
   variableMap: Map<string, string>,
   texts: (string | undefined)[],
   workspace: WorkspaceSummary,
-  inMemoryResponses?: Map<string, import("../types").ExecuteHttpResponse>
+  inMemoryResponses?: Map<string, import("../types").ExecuteHttpResponse>,
+  executeUpstream?: (reqId: string) => Promise<import("../types").ExecuteHttpResponse | undefined>
 ): Promise<void> {
   for (const text of texts) {
     if (!text) continue;
@@ -476,8 +477,18 @@ export async function injectAsyncVariables(
               console.log(`$response: No in-memory response for "${requestRef}" (id: ${targetRequest.id}, name: ${targetRequest.name}). Map has ${inMemoryResponses.size} entries.`);
             }
           }
+
+          // If not found in memory and executeUpstream is provided, run the upstream request
+          if (!responseBody && executeUpstream) {
+            console.log(`$response: Executing upstream request "${requestRef}"`);
+            const upRes = await executeUpstream(targetRequest.id);
+            if (upRes?.bodyText) {
+              responseBody = upRes.bodyText;
+            }
+          }
           
-          // Fall back to database history if not found in memory
+          // Fall back to database history if not found in memory or executed
+
           if (!responseBody) {
             console.log(`$response: Checking database history for "${requestRef}"`);
             const history = await loadHistory();

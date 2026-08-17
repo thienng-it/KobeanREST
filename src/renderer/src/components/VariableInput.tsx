@@ -696,34 +696,31 @@ export function VariableInput({
           if (onMouseUp) onMouseUp(e);
           const input = inputRef.current;
           if (!input) return;
-          
-          setTimeout(() => {
-            const cursorPos = input.selectionStart ?? 0;
-            let match;
-            const regex = /\{\{([^{}]+)\}\}/g;
-            while ((match = regex.exec(strValue)) !== null) {
-              const start = match.index;
-              const end = start + match[0].length;
-              if (cursorPos >= start && cursorPos <= end) {
-                const varName = match[1].trim();
-                const isResolved = varName.startsWith("$response") || activeVariables.some((v) => v.key === varName);
-                if (isResolved && varName.startsWith("$response")) {
-                  setActiveTooltip(null);
-                  window.dispatchEvent(
-                    new CustomEvent("open-chain-modal", {
-                      detail: {
-                        initialValue: varName,
-                        onSave: (newKey: string) => {
-                          handleReplaceVariable(varName, newKey);
-                        },
-                      },
-                    })
-                  );
-                }
-                break;
-              }
+
+          input.style.pointerEvents = "none";
+          const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
+          input.style.pointerEvents = "";
+
+          if (
+            elemBelow &&
+            elemBelow.classList.contains("variable-highlight") &&
+            elemBelow.classList.contains("resolved")
+          ) {
+            const varName = (elemBelow as HTMLElement).dataset.varname;
+            if (varName && varName.startsWith("$response")) {
+              setActiveTooltip(null);
+              window.dispatchEvent(
+                new CustomEvent("open-chain-modal", {
+                  detail: {
+                    initialValue: varName,
+                    onSave: (newKey: string) => {
+                      handleReplaceVariable(varName, newKey);
+                    },
+                  },
+                })
+              );
             }
-          }, 10);
+          }
         }}
         onChange={(e) => {
           if (onChange) onChange(e);
@@ -1248,34 +1245,31 @@ export function VariableTextarea({
           if (onMouseUp) onMouseUp(e);
           const textarea = textareaRef.current;
           if (!textarea) return;
-          
-          setTimeout(() => {
-            const cursorPos = textarea.selectionStart ?? 0;
-            let match;
-            const regex = /\{\{([^{}]+)\}\}/g;
-            while ((match = regex.exec(strValue)) !== null) {
-              const start = match.index;
-              const end = start + match[0].length;
-              if (cursorPos >= start && cursorPos <= end) {
-                const varName = match[1].trim();
-                const isResolved = varName.startsWith("$response") || activeVariables.some((v) => v.key === varName);
-                if (isResolved && varName.startsWith("$response")) {
-                  setActiveTooltip(null);
-                  window.dispatchEvent(
-                    new CustomEvent("open-chain-modal", {
-                      detail: {
-                        initialValue: varName,
-                        onSave: (newKey: string) => {
-                          handleReplaceVariable(varName, newKey);
-                        },
-                      },
-                    })
-                  );
-                }
-                break;
-              }
+
+          textarea.style.pointerEvents = "none";
+          const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
+          textarea.style.pointerEvents = "";
+
+          if (
+            elemBelow &&
+            elemBelow.classList.contains("variable-highlight") &&
+            elemBelow.classList.contains("resolved")
+          ) {
+            const varName = (elemBelow as HTMLElement).dataset.varname;
+            if (varName && varName.startsWith("$response")) {
+              setActiveTooltip(null);
+              window.dispatchEvent(
+                new CustomEvent("open-chain-modal", {
+                  detail: {
+                    initialValue: varName,
+                    onSave: (newKey: string) => {
+                      handleReplaceVariable(varName, newKey);
+                    },
+                  },
+                })
+              );
             }
-          }, 10);
+          }
         }}
         onChange={(e) => {
           if (onChange) onChange(e);
