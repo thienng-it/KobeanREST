@@ -1,9 +1,9 @@
+import React from "react";
 import { X, Folder, Globe, Package, Plus, FolderTree } from "lucide-react";
 import type { Tab } from "../types";
-import type { HttpMethod } from "../types";
 import { methodClass } from "./MethodSelector";
 
-interface TabBarProps {
+export interface TabBarProps {
   tabs: Tab[];
   activeTabId: string | null;
   unsavedEntityIds?: Set<string>;
@@ -32,19 +32,9 @@ export function TabBar({
 
   return (
     <div
-      className="tab-bar"
+      className="tab-bar editor-tab-bar"
       role="tablist"
       aria-label="Open requests and folders"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "2px",
-        padding: "6px 8px",
-        backgroundColor: "transparent",
-        overflowX: "auto",
-        scrollbarWidth: "thin",
-        flexShrink: 0,
-      }}
     >
       {tabs.map((tab) => {
         const isUnsaved = Boolean(unsavedEntityIds?.has(tab.entityId) || tab.entityId.startsWith("temp_"));
@@ -55,12 +45,14 @@ export function TabBar({
           ? `${tab.name} — Unsaved changes. Press Cmd+S to save.`
           : tab.name;
 
+        const isActive = activeTabId === tab.id;
+
         return (
           <div
             key={tab.id}
             role="tab"
             tabIndex={0}
-            aria-selected={activeTabId === tab.id}
+            aria-selected={isActive}
             title={tooltip}
             onClick={() => onTabClick(tab)}
             onKeyDown={(e) => {
@@ -73,49 +65,7 @@ export function TabBar({
               e.preventDefault();
               onTabContextMenu?.(tab.id, e.clientX, e.clientY);
             }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 10px",
-              borderRadius: "6px",
-              border: "none",
-              backgroundColor:
-                activeTabId === tab.id
-                  ? "var(--color-surface-active)"
-                  : "var(--color-surface)",
-              color:
-                activeTabId === tab.id
-                  ? "var(--color-text-active)"
-                  : "var(--color-text)",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontWeight: activeTabId === tab.id ? 600 : 500,
-              maxWidth: "200px",
-              transition: "background-color 0.15s ease, color 0.15s ease",
-              position: "relative",
-              outline: "none",
-            }}
-            onFocus={(e) => {
-              if (activeTabId !== tab.id) {
-                e.currentTarget.style.backgroundColor = "var(--color-surface-hover)";
-              }
-            }}
-            onBlur={(e) => {
-              if (activeTabId !== tab.id) {
-                e.currentTarget.style.backgroundColor = "var(--color-surface)";
-              }
-            }}
-            onMouseEnter={(e) => {
-              if (activeTabId !== tab.id) {
-                e.currentTarget.style.backgroundColor = "var(--color-surface-hover)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTabId !== tab.id) {
-                e.currentTarget.style.backgroundColor = "var(--color-surface)";
-              }
-            }}
+            className={`editor-tab-item ${isActive ? "active" : ""}`}
           >
             {tab.type === "request" ? (
               <>
@@ -125,10 +75,8 @@ export function TabBar({
                   {tab.method || "GET"}
                 </span>
                 <span
+                  className="editor-tab-title"
                   style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                     fontStyle: isUnsaved ? "italic" : "normal",
                   }}
                 >
@@ -136,70 +84,40 @@ export function TabBar({
                 </span>
                 {isDirtyOrUnsaved && (
                   <span
+                    className="editor-tab-dirty-dot"
                     title={isUnsaved ? "Draft (Unsaved)" : "Unsaved changes"}
-                    style={{
-                      width: "6px",
-                      height: "6px",
-                      borderRadius: "50%",
-                      backgroundColor: "#f59e0b",
-                      flexShrink: 0,
-                    }}
+                    style={{ backgroundColor: "#f59e0b" }}
                   />
                 )}
               </>
             ) : (
-            <>
-              {tab.type === "environment" ? (
-                <Globe size={12} style={{ flexShrink: 0 }} />
-              ) : tab.type === "collections-overview" ? (
-                <FolderTree size={12} style={{ flexShrink: 0 }} />
-              ) : tab.type === "collection" ? (
-                <Package size={12} style={{ flexShrink: 0 }} />
-              ) : (
-                <Folder size={12} style={{ flexShrink: 0 }} />
-              )}
-              <span
-                style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {tab.name}
-              </span>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onTabClose(tab.id, e);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "2px",
-              borderRadius: "4px",
-              backgroundColor: "transparent",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--color-text-muted)",
-              marginLeft: "2px",
-              transition: "background-color 0.15s ease, color 0.15s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-surface-hover)";
-              e.currentTarget.style.color = "var(--color-text)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.color = "var(--color-text-muted)";
-            }}
-          >
-            <X size={12} />
-          </button>
-        </div>
+              <>
+                {tab.type === "environment" ? (
+                  <Globe size={12} style={{ flexShrink: 0 }} />
+                ) : tab.type === "collections-overview" ? (
+                  <FolderTree size={12} style={{ flexShrink: 0 }} />
+                ) : tab.type === "collection" ? (
+                  <Package size={12} style={{ flexShrink: 0 }} />
+                ) : (
+                  <Folder size={12} style={{ flexShrink: 0 }} />
+                )}
+                <span className="editor-tab-title">
+                  {tab.name}
+                </span>
+              </>
+            )}
+            <button
+              type="button"
+              className="editor-tab-close-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTabClose(tab.id, e);
+              }}
+              aria-label={`Close ${tab.name}`}
+            >
+              <X size={12} />
+            </button>
+          </div>
         );
       })}
       {handleNewTab && (
@@ -208,27 +126,7 @@ export function TabBar({
           aria-label="New tab"
           title="New Tab (Cmd+T)"
           onClick={handleNewTab}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "6px",
-            borderRadius: "6px",
-            border: "none",
-            backgroundColor: "transparent",
-            color: "var(--color-text-muted)",
-            cursor: "pointer",
-            flexShrink: 0,
-            transition: "background-color 0.15s ease, color 0.15s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-surface-hover)";
-            e.currentTarget.style.color = "var(--color-text)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "transparent";
-            e.currentTarget.style.color = "var(--color-text-muted)";
-          }}
+          className="editor-tab-add-btn"
         >
           <Plus size={14} />
         </button>

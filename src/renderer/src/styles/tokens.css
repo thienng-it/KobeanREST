@@ -20,7 +20,18 @@
   --radius-lg: 8px;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
-  --transition-fast: 150ms ease-in-out;
+
+  /* Motion & Easing Tokens */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-instant: 100ms;
+  --duration-fast: 160ms;
+  --duration-normal: 240ms;
+  --duration-slow: 360ms;
+  --transition-fast: var(--duration-fast) var(--ease-out-smooth);
+  --transition-normal: var(--duration-normal) var(--ease-spring);
 }
 
 [data-theme="light"] {

@@ -621,7 +621,7 @@ test("response panel behaves like a bottom dock manager with a persistent dock t
   assert.match(styles, /\.bottom-dock-tab\s*\{[\s\S]*border-radius:\s*0;/);
   assert.match(styles, /\.bottom-dock-tab\.active\s*\{/);
   assert.match(styles, /\.bottom-dock-tab\.active\s*\{[\s\S]*border-bottom-color:\s*var\(--color-text-active\);/);
-  assert.match(styles, /\.bottom-dock-collapse svg\s*\{[\s\S]*transition:\s*transform 180ms ease;/);
+  assert.match(styles, /\.bottom-dock-collapse svg\s*\{[\s\S]*transition:\s*transform/);
   assert.match(styles, /\.bottom-dock-collapse\.collapsed svg\s*\{[\s\S]*transform:\s*rotate\(180deg\);/);
   assert.match(styles, /\.bottom-dock \.response-viewer\s*\{[\s\S]*box-shadow:\s*none;/);
   assert.match(styles, /\.response-panel-resizer\s*\{/);

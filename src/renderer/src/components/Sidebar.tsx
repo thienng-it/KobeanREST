@@ -220,7 +220,7 @@ function DraggableCollectionRow({
         >
         </span>
         <span
-          className="sidebar-chevron"
+          className={`sidebar-chevron ${isCollapsed ? "collapsed" : ""}`}
           onClick={(e) => {
             e.stopPropagation();
             if (isLocked) {
@@ -230,7 +230,7 @@ function DraggableCollectionRow({
             }
           }}
         >
-          {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+          <ChevronDown size={14} className={`folder-chevron ${isCollapsed ? "collapsed" : ""}`} />
         </span>
         {isRenaming ? (
           <input

@@ -62,6 +62,18 @@
   --color-status-error: #991b1b;
   --color-status-success: #14532d;
   --color-status-muted: #667085;
+
+  /* Motion & Animation Tokens */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-instant: 100ms;
+  --duration-fast: 160ms;
+  --duration-normal: 240ms;
+  --duration-slow: 360ms;
+  --transition-fast: var(--duration-fast) var(--ease-out-smooth);
+  --transition-normal: var(--duration-normal) var(--ease-spring);
 }
 
 :root[data-theme="dark"] {
@@ -3530,6 +3542,10 @@ button:disabled {
   padding: 0 12px;
   border-radius: 0;
   border-bottom: 2px solid transparent;
+  transition:
+    color var(--duration-fast) var(--ease-out-smooth),
+    border-color var(--duration-fast) var(--ease-out-smooth),
+    background-color var(--duration-fast) var(--ease-out-smooth);
 }
 
 .bottom-dock-open-window-btn {
@@ -3548,22 +3564,35 @@ button:disabled {
   box-sizing: border-box;
   margin-left: auto;
   margin-right: 4px;
-  transition: all 0.16s ease;
+  transition:
+    color var(--duration-fast) var(--ease-out-smooth),
+    background-color var(--duration-fast) var(--ease-out-smooth),
+    border-color var(--duration-fast) var(--ease-out-smooth),
+    transform var(--duration-fast) var(--ease-spring);
 }
 
 .bottom-dock-open-window-btn:hover {
   color: var(--color-text-active, #ffffff);
   background: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
   border-color: var(--color-border-strong, rgba(255, 255, 255, 0.18));
+  transform: translateY(-1px);
+}
+
+.bottom-dock-open-window-btn:active {
+  transform: translateY(0);
 }
 
 .bottom-dock-collapse {
   width: 32px;
   padding: 0;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out-smooth),
+    background-color var(--duration-fast) var(--ease-out-smooth);
 }
 
 .bottom-dock-collapse svg {
-  transition: transform 180ms ease;
+  transition: transform var(--duration-fast) var(--ease-out-smooth);
 }
 
 .bottom-dock-collapse.collapsed svg {
@@ -6538,7 +6567,7 @@ button:active:not(:disabled),
 .context-menu,
 .method-selector-dropdown,
 .custom-select-options {
-  animation: dropdownSpringPop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) ease-out;
+  animation: dropdownSpringPop var(--duration-fast) var(--ease-spring);
   transform-origin: top center;
 }
 
@@ -6649,7 +6678,7 @@ select:focus-visible,
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--color-border-tint, rgba(255, 255, 255, 0.12));
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25);
-  animation: dropdownSpringPop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) ease-out;
+  animation: dropdownSpringPop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   transform-origin: top left;
   display: flex;
   flex-direction: column;
@@ -8261,4 +8290,191 @@ select:focus-visible,
   border-color: var(--color-accent);
   box-shadow: 0 0 0 2px var(--color-accent-glow);
 }
+
+/* ==========================================================================
+   Universal Motion & Micro-Interactions System
+   ========================================================================== */
+
+/* Editor Workspace Tab Bar */
+.editor-tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background-color: transparent;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  flex-shrink: 0;
+}
+
+.editor-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  max-width: 220px;
+  position: relative;
+  outline: none;
+  user-select: none;
+  transition:
+    background-color var(--duration-fast) var(--ease-out-smooth),
+    color var(--duration-fast) var(--ease-out-smooth),
+    border-color var(--duration-fast) var(--ease-out-smooth),
+    transform var(--duration-fast) var(--ease-spring),
+    box-shadow var(--duration-fast) var(--ease-out-smooth);
+}
+
+.editor-tab-item:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+  border-color: var(--color-border);
+  transform: translateY(-1px);
+}
+
+.editor-tab-item:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.editor-tab-item.active {
+  background-color: var(--color-surface-active);
+  color: var(--color-text-active);
+  font-weight: 600;
+  border-color: var(--color-border-tint, rgba(59, 130, 246, 0.3));
+  box-shadow: 0 2px 8px var(--color-shadow);
+  transform: translateY(0);
+}
+
+.editor-tab-item:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-glow, rgba(59, 130, 246, 0.25));
+}
+
+.editor-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-tab-dirty-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.editor-tab-close-btn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  margin-left: 2px;
+  transition:
+    background-color var(--duration-fast) var(--ease-out-smooth),
+    color var(--duration-fast) var(--ease-out-smooth),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.editor-tab-close-btn:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+  transform: scale(1.15) rotate(90deg);
+}
+
+.editor-tab-close-btn:active {
+  transform: scale(0.9) rotate(90deg);
+}
+
+.editor-tab-add-btn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color var(--duration-fast) var(--ease-out-smooth),
+    color var(--duration-fast) var(--ease-out-smooth),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.editor-tab-add-btn:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+  transform: translateY(-1px) scale(1.08);
+}
+
+.editor-tab-add-btn:active {
+  transform: translateY(0) scale(0.94);
+}
+
+/* Sidebar Chevron Smooth Rotation */
+.sidebar-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-muted);
+  transform: rotate(0deg);
+  transition:
+    transform var(--duration-fast) var(--ease-out-smooth),
+    color var(--duration-fast) var(--ease-out-smooth);
+}
+
+.sidebar-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.sidebar-chevron:hover {
+  color: var(--color-text-active);
+}
+
+/* Response Status Badge Pop */
+.response-status-badge {
+  animation: badgePop var(--duration-fast) var(--ease-bounce);
+}
+
+@keyframes badgePop {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+  70% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Global Reduced Motion Safety */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 

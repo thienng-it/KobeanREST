@@ -266,7 +266,7 @@ export function ResponsePanel({
                   {gqlSummary.hasErrors ? `GraphQL Errors (${gqlSummary.errorCount})` : "GraphQL OK"}
                 </span>
               )}
-              <span style={{ color: responseTitleColor, fontWeight: 600 }}>{responseTitle}</span>
+              <span className="response-status-badge" style={{ color: responseTitleColor, fontWeight: 600 }}>{responseTitle}</span>
               <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                 <Clock3 size={14} />
                 {currentResponse.durationMs} ms
