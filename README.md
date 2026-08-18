@@ -2,7 +2,7 @@
 
 # ⚡ KobeanREST
 
-**A fast, local-first desktop API client for REST & HTTP workflows.**
+**A fast, local-first desktop API client for REST, gRPC, WebSocket, Socket.IO, and GraphQL workflows.**
 
 *No account required. No cloud sync forced. 100% local workspace ownership.*
 
@@ -27,7 +27,7 @@
 
 ## 🌟 Overview
 
-**KobeanREST** is designed for software engineers, backend developers, and QA teams who need a high-performance REST API client without forced cloud lock-in or user registration. Download the app, launch it locally, and build, test, and save API requests directly on your machine.
+**KobeanREST** is designed for software engineers, backend developers, and QA teams who need a high-performance API client without forced cloud lock-in or user registration. Download the app, launch it locally, and build, test, and debug REST, gRPC, WebSocket, Socket.IO, and GraphQL endpoints directly on your machine.
 
 > **Local-First Contract:**
 > KobeanREST has **no user accounts, no login screens, no cloud telemetry, and no required backend service.** All workspace data is stored in local SQLite databases, and secret credentials remain safely secured in your operating system's native keychain.
@@ -38,28 +38,50 @@
 
 | Feature | Description |
 | :--- | :--- |
+| ⚡ **gRPC & Protobuf RPC Client** | Native gRPC execution engine supporting Unary and Streaming calls with `.proto` IDL loading, service/method selection, sample payload synthesis, custom metadata headers, and latency metrics. |
+| 🔌 **WebSocket & Socket.IO Streaming** | Real-time bidirectional message streaming with incoming/outgoing chronological timeline inspector, event emitters, JSON payload trees, and connection state indicators. |
+| 📐 **GraphQL Studio & Inspection** | Query and variables editor with syntax highlighting, schema introspection support, and strict GraphQL-over-HTTP error & data status reporting (`GraphQL OK`, `GraphQL Errors`). |
+| 🛠️ **Local Mock Server & Starter Templates** | Built-in multi-route HTTP/REST & gRPC mock server with 8 ready-to-use template presets (E-Commerce, OpenAI LLM, DevOps Health, Greeter, Echo Streaming) and Protobuf schema auto-generation. |
+| 📥 **Universal API Importer** | 1-click import from cURL, Postman Collections, OpenAPI/Swagger 3.x, Insomnia, HAR, and `.http` files with draft preservation. |
 | 🤖 **AI Assistant & Session Manager** | Built-in local/cloud AI Assistant supporting Ollama (Local), OpenAI, Anthropic, Gemini, Groq, OpenRouter, and custom endpoints. Features drag-to-resize sidebar (`28%–48%` window bounds), multi-session management, auto-titling, code copying, prompt suggestions, and automatic non-tool model fallbacks. |
-| 🚀 **Native Tauri 2 Core** | Blazing-fast desktop performance powered by Rust with lightweight memory usage. |
-| 🎨 **High-Density Desktop UI** | Modern, compact aesthetic with refined focus states, single-ring inputs, and crisp typography. |
-| 🗂️ **Tabbed Workspace** | Advanced unsaved draft tab workflow with visual indicators, auto-removal, and tab views for collections and folders. |
-| 🔄 **Bi-Directional Query Params** | Interactive `Params` tab with real-time bi-directional synchronization with the URL bar (`?key=value`). |
+| 🧩 **Extensible Plugin System** | Modular plugin runner with a rich built-in catalog (UUID Request ID, HMAC Signer, Response Time Logger, Rate Limit Checker, JSON Extractor, Status Asserters). |
 | 🔐 **Keychain Secret Protection** | Sensitive values (API keys, tokens) stay outside SQLite in OS keychain / encrypted vault storage. |
-| 📦 **Local Persistence** | SQLite-backed storage for workspaces, collections, folders, requests, environment variables, and history. |
 | 🏃 **Collection Runner** | Execute entire collections sequentially with comprehensive run history and results tracking. |
 | 📜 **Pre & Post Request Scripts** | Dynamic JavaScript execution environment with live logs, assertions, and variable injection. |
 | 📊 **QA Dashboard** | Real-time test analytics, flakiness governance, and daily telemetry drilldown for automated tests. |
 | 🌐 **Live Web Preview** | Try KobeanREST instantly in any modern web browser without installing local desktop binaries. |
-| 🤖 **Automated Nightly Releases** | GitHub Actions bot continuously verifies builds and publishes signed release installers & updater manifests. |
 
-<br/>
-<div align="center">
-  <img src="docs/images/qa-dashboard.png" alt="KobeanREST QA Dashboard" width="800"/>
-  <br/>
-  <i>The brand new QA Dashboard with real-time test analytics and telemetry drilldown.</i>
-</div>
 <br/>
 
 ## 📸 Feature Gallery
+
+<div align="center">
+  <img src="docs/images/grpc-panel.png" alt="KobeanREST gRPC Client" width="800"/>
+  <br/>
+  <i>gRPC & Protobuf Client: Interactive Proto loader, method selector, and decoded streaming response viewer.</i>
+</div>
+<br/>
+
+<div align="center">
+  <img src="docs/images/websocket-panel.png" alt="WebSocket and Socket.IO Streaming" width="800"/>
+  <br/>
+  <i>WebSocket & Socket.IO: Real-time bi-directional streaming inspector and interactive event emitter.</i>
+</div>
+<br/>
+
+<div align="center">
+  <img src="docs/images/mock-server.png" alt="Local Mock Server & Starter Templates" width="800"/>
+  <br/>
+  <i>Local Mock Server: Built-in multi-route REST & gRPC server with pre-configured starter templates.</i>
+</div>
+<br/>
+
+<div align="center">
+  <img src="docs/images/qa-dashboard.png" alt="KobeanREST QA Dashboard" width="800"/>
+  <br/>
+  <i>QA Dashboard: Real-time test analytics, suite metrics, and flakiness telemetry drilldown.</i>
+</div>
+<br/>
 
 <div align="center">
   <img src="docs/images/environment-editor.png" alt="Environment Editor" width="800"/>
@@ -67,18 +89,21 @@
   <i>Local Environment & Variables Editor: Keep secrets safe in your native OS keychain.</i>
 </div>
 <br/>
+
 <div align="center">
   <img src="docs/images/scripts-tab.png" alt="Pre & Post Request Scripts" width="800"/>
   <br/>
   <i>Pre & Post Request Scripts: Dynamic execution environment with tests, assertions, and live logs.</i>
 </div>
 <br/>
+
 <div align="center">
   <img src="docs/images/params-tab.png" alt="Interactive Query Params" width="800"/>
   <br/>
   <i>Interactive Query Params: Real-time bi-directional synchronization with the URL bar.</i>
 </div>
 <br/>
+
 <div align="center">
   <img src="docs/images/history-viewer.png" alt="Request History" width="800"/>
   <br/>

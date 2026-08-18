@@ -11,6 +11,7 @@
     "check:release": "node scripts/check-release-preflight.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:native": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "screenshots": "node scripts/capture-real-screenshots.mjs",
     "push:wiki": "node scripts/push-wiki.mjs",
     "dev": "vite",
     "build": "tsc && vite build",

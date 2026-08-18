@@ -2,24 +2,27 @@ import type { DocsPageContent } from "./shared";
 
 export const productContent: DocsPageContent = {
   eyebrow: "Product",
-  title: "A local-first desktop REST client.",
+  title: "A local-first desktop REST, gRPC, WebSocket & GraphQL client.",
   description:
-    "KobeanREST is built for standard HTTP workflows without a KobeanREST account, hosted workspace, or required backend service.",
+    "KobeanREST is a fast, local-first desktop REST client and multi-protocol workspace without a KobeanREST account, hosted workspace, or required backend service.",
   sections: [
     {
       id: "overview",
       title: "What KobeanREST is",
       intro:
-        "KobeanREST is a desktop API client for REST and HTTP workflows. Users download the app, launch it locally, and use it without creating an account.",
+        "KobeanREST is a high-performance desktop API client for REST, gRPC, WebSocket, Socket.IO, and GraphQL endpoints. Users download the app, launch it locally, and build, test, and debug APIs with complete privacy.",
       items: [
+        "Native gRPC & Protobuf client supporting Unary, Server-Streaming, Client-Streaming, and Duplex calls with interactive .proto IDL loading, service discovery, and decoded JSON streaming inspector.",
+        "Real-time WebSocket & Socket.IO client with bidirectional timeline message streaming, room/namespace handling, event emitters, and payload inspection.",
+        "GraphQL Studio with query editor, variable interpolation, schema introspection, and strict GraphQL-over-HTTP spec error detection.",
+        "Built-in Local Mock Server (REST & gRPC) with 8 instant starter templates (E-Commerce, OpenAI LLM, DevOps Health, Greeter, Catalog, Echo Streaming) and Protobuf mock generator.",
+        "Universal API Importer for cURL, Postman Collections, OpenAPI/Swagger 3.x, Insomnia, HAR, and .http files.",
         "Built-in AI Assistant with multi-session management, Ollama local model support (100% on-device), cloud model adapters (OpenAI, Anthropic, Gemini, Groq, OpenRouter), resizable sidebar, and automatic non-tool fallback retries.",
-        "Build, save, and replay HTTP requests from a local workspace with advanced tabbed UI and visual indicators.",
-        "Execute entire collections sequentially with comprehensive run history and results tracking.",
+        "Modular plugin architecture with built-in utilities (UUID injector, HMAC-SHA256 signer, response time logger, rate limit checker, JSON extractor).",
         "Manage URL query parameters (`Params`) with real-time bi-directional synchronization to the URL bar.",
-        "Use target API authentication such as Basic Auth, Bearer tokens, OAuth 2.0-style bearer tokens, API keys, cookies, and client certificates where supported by request configuration.",
-        "Refined high-density desktop UI with clean focus rings, sleek table inputs, and variable autocompletion.",
+        "Execute entire collections sequentially with comprehensive run history and results tracking.",
         "Monitor automated test results using the built-in QA Dashboard with real-time analytics and telemetry drilldown.",
-        "Keep workspace data local by default instead of requiring cloud sync.",
+        "Keep workspace data local by default with OS keychain secret encryption instead of requiring cloud sync.",
       ],
     },
     {
@@ -28,6 +31,18 @@ export const productContent: DocsPageContent = {
       intro: "Explore the core capabilities of KobeanREST.",
       body: (
         <div style={{ display: "flex", flexDirection: "column", gap: "2rem", marginTop: "1.5rem" }}>
+          <div>
+            <img src="images/grpc-panel.png" alt="gRPC & Protobuf Client" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>gRPC & Protobuf Client: Interactive Proto loader, method selector, and decoded streaming response viewer.</p>
+          </div>
+          <div>
+            <img src="images/websocket-panel.png" alt="WebSocket & Socket.IO Streaming" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>WebSocket & Socket.IO: Real-time bi-directional streaming inspector and interactive event emitter.</p>
+          </div>
+          <div>
+            <img src="images/mock-server.png" alt="Local Mock Server & Templates" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>Local Mock Server: Built-in multi-route REST & gRPC server with pre-configured starter templates.</p>
+          </div>
           <div>
             <img src="images/environment-editor.png" alt="Environment Editor" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
             <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>Local Environment & Variables Editor: Keep secrets safe in your native OS keychain.</p>
