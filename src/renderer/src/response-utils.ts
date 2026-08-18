@@ -25,12 +25,49 @@ export function statusColor(status: number): string {
 /** Muted status color (history rows, secondary status text). */
 export const statusColorMuted = 'var(--color-status-muted)';
 
-export type PreviewMode = "rendered" | "xml" | "html" | "json" | "raw";
+export type PreviewMode = "rendered" | "xml" | "html" | "json" | "graphql" | "raw";
+
+export interface GraphQLResponseSummary {
+  isGraphQL: boolean;
+  hasData: boolean;
+  hasErrors: boolean;
+  errorCount: number;
+  dataKeys: string[];
+  firstErrorMessage?: string;
+}
+
+export function analyzeGraphQLResponse(body?: string | null, contentType?: string | null): GraphQLResponseSummary | null {
+  if (!body || !body.trim()) return null;
+  const isGqlMime = (contentType || "").toLowerCase().includes("graphql");
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed === "object") {
+      const hasData = "data" in parsed && parsed.data !== null && parsed.data !== undefined;
+      const hasErrors = Array.isArray(parsed.errors) && parsed.errors.length > 0;
+      if (hasData || hasErrors || isGqlMime) {
+        const dataKeys = hasData && typeof parsed.data === "object" && parsed.data ? Object.keys(parsed.data) : [];
+        const errorCount = hasErrors ? parsed.errors.length : 0;
+        const firstErrorMessage = hasErrors ? (parsed.errors[0]?.message || String(parsed.errors[0])) : undefined;
+        return {
+          isGraphQL: true,
+          hasData,
+          hasErrors,
+          errorCount,
+          dataKeys,
+          firstErrorMessage,
+        };
+      }
+    }
+  } catch {
+    // Not valid JSON
+  }
+  return null;
+}
 
 export function formatResponseBody(body: string, mode: PreviewMode): string {
   if (!body) return body;
   
-  if (mode === "json") {
+  if (mode === "json" || mode === "graphql") {
     try {
       return JSON.stringify(JSON.parse(body), null, 2);
     } catch {

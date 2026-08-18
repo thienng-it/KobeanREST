@@ -4,7 +4,8 @@ import jq from "jq-web";
 import { JqHelpModal } from "./JqHelpModal";
 import { ResponseViewer } from "./ResponseViewer";
 import { CustomSelect } from "./CustomSelect";
-import { formatBytes, formatResponseBody, type ResponseState, type PreviewMode } from "../response-utils";
+import { GraphQLIcon } from "./GraphQLIcon";
+import { formatBytes, formatResponseBody, analyzeGraphQLResponse, type ResponseState, type PreviewMode } from "../response-utils";
 import type { ExecuteHttpResponse } from "../types";
 import type { ScriptOutputEntry } from "../hooks/useScripts";
 
@@ -58,8 +59,10 @@ export function ResponsePanel({
   const [isJqLoading, setIsJqLoading] = useState(false);
   const [isJqHelpOpen, setIsJqHelpOpen] = useState(false);
 
+  const gqlSummary = analyzeGraphQLResponse(currentResponse?.bodyText, currentResponse?.contentType);
+
   useEffect(() => {
-    if (previewMode !== "json" || !jqFilter.trim() || !currentResponse?.bodyText) {
+    if ((previewMode !== "json" && previewMode !== "graphql") || !jqFilter.trim() || !currentResponse?.bodyText) {
       setJqResult("");
       setJqError("");
       return;
@@ -104,6 +107,8 @@ export function ResponsePanel({
       return <pre className="response-body">{"// Send a request to see a response."}</pre>;
     }
 
+    const isJsonLike = previewMode === "json" || previewMode === "graphql";
+
     return (
       <div
         className={isResponseTabPending ? "response-body-container transitioning" : "response-body-container"}
@@ -119,13 +124,13 @@ export function ResponsePanel({
             ) : (
               <ResponseViewer
                 value={
-                  previewMode === "json" && jqFilter.trim()
+                  isJsonLike && jqFilter.trim()
                     ? (jqError ? `// jq error:\n${jqError}` : isJqLoading ? "// Filtering..." : jqResult)
                     : currentResponse.bodyText 
                       ? formatResponseBody(currentResponse.bodyText, previewMode) 
                       : (currentResponse.bodyBase64 ? `[binary response base64]\n${currentResponse.bodyBase64}` : "// Empty response body")
                 }
-                contentType={currentResponse.contentType ?? "text/plain"}
+                contentType={previewMode === "graphql" ? "application/graphql" : (currentResponse.contentType ?? "text/plain")}
                 height="100%"
               />
             )}
@@ -230,6 +235,7 @@ export function ResponsePanel({
                   options={[
                     { value: "rendered", label: "Rendered" },
                     { value: "json", label: "JSON" },
+                    { value: "graphql", label: "GraphQL", icon: <GraphQLIcon size={13} style={{ marginRight: 6 }} /> },
                     { value: "xml", label: "XML" },
                     { value: "html", label: "HTML" },
                     { value: "raw", label: "Raw" }
@@ -239,6 +245,26 @@ export function ResponsePanel({
             )}
 
             <div className="response-stats" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              {gqlSummary && (
+                <span
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: "10px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    background: gqlSummary.hasErrors ? "rgba(245, 158, 11, 0.12)" : "rgba(225, 0, 152, 0.1)",
+                    border: `1px solid ${gqlSummary.hasErrors ? "rgba(245, 158, 11, 0.3)" : "rgba(225, 0, 152, 0.3)"}`,
+                    color: gqlSummary.hasErrors ? "#f59e0b" : "#E10098",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                  title={gqlSummary.hasErrors ? `GraphQL Errors: ${gqlSummary.firstErrorMessage || gqlSummary.errorCount}` : "GraphQL response valid"}
+                >
+                  <GraphQLIcon size={12} color={gqlSummary.hasErrors ? "#f59e0b" : "#E10098"} />
+                  {gqlSummary.hasErrors ? `GraphQL Errors (${gqlSummary.errorCount})` : "GraphQL OK"}
+                </span>
+              )}
               <span style={{ color: responseTitleColor, fontWeight: 600 }}>{responseTitle}</span>
               <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                 <Clock3 size={14} />
@@ -301,7 +327,7 @@ export function ResponsePanel({
 
       {renderResponseBody()}
       
-      {currentResponse && responseState.kind !== "error" && responseTab === "preview" && previewMode === "json" && (
+      {currentResponse && responseState.kind !== "error" && responseTab === "preview" && (previewMode === "json" || previewMode === "graphql") && (
         <div className="tab-row" role="tablist" aria-label="Response views">
           <Search size={14} style={{ color: "var(--color-text-muted)" }} />
           <input

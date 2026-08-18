@@ -166,14 +166,15 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       }
     }
     setDraftRequest((prevDraft) => {
+      // If we already have a draft for the selected request, keep it
+      // (crucial for in-memory unsaved requests like temp_* that are not yet in workspace.requests,
+      // and to preserve active edits when workspace saves in the background)
+      if (prevDraft && prevDraft.id === selectedRequestId) {
+        return prevDraft;
+      }
       const req = workspace.requests.find((r) => r.id === selectedRequestId);
       if (!req) {
         return null;
-      }
-      // If we already have a draft for the selected request, keep it
-      // so we don't overwrite unsaved edits when workspace saves in the background
-      if (prevDraft && prevDraft.id === selectedRequestId) {
-        return prevDraft;
       }
       return JSON.parse(JSON.stringify(req));
     });

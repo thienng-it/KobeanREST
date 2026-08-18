@@ -94,6 +94,7 @@ fn is_text_response(content_type: Option<&str>) -> bool {
             let normalized = value.to_ascii_lowercase();
             normalized.starts_with("text/")
                 || normalized.contains("json")
+                || normalized.contains("graphql")
                 || normalized.contains("xml")
                 || normalized.contains("javascript")
                 || normalized.contains("x-www-form-urlencoded")
@@ -128,7 +129,12 @@ pub async fn execute_http_request(
     // If Content-Type not set and bodyMimeType is provided, add it
     if !has_content_type {
         if let Some(mime_type) = input.body_mime_type.as_ref().filter(|m| !m.is_empty()) {
-            request = request.header(reqwest::header::CONTENT_TYPE, mime_type.as_str());
+            let actual_mime = if mime_type == "application/graphql" {
+                "application/json"
+            } else {
+                mime_type.as_str()
+            };
+            request = request.header(reqwest::header::CONTENT_TYPE, actual_mime);
         }
     }
 

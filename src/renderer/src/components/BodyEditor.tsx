@@ -7,6 +7,7 @@ import { EditorView } from '@codemirror/view';
 import { VariablePopoverCard } from './VariableInput';
 import type { EnvironmentVariable } from '../types';
 import { DYNAMIC_VARIABLES } from '../services/variables';
+import { getGraphQLSchemaCompletionSource, type GraphQLType } from '../services/graphql-schema';
 
 interface TooltipState {
   key: string;
@@ -24,9 +25,10 @@ interface BodyEditorProps {
   mimeType: string;
   placeholder?: string;
   height?: string;
+  graphqlSchemaTypes?: GraphQLType[];
 }
 
-export function BodyEditor({ value, onChange, variables, mimeType, placeholder, height = '100%' }: BodyEditorProps) {
+export function BodyEditor({ value, onChange, variables, mimeType, placeholder, height = '100%', graphqlSchemaTypes }: BodyEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -230,12 +232,17 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
       languageExtension = javascript();
     }
 
+    const completionSources = [variableCompletion];
+    if (graphqlSchemaTypes && graphqlSchemaTypes.length > 0) {
+      completionSources.push(getGraphQLSchemaCompletionSource(graphqlSchemaTypes));
+    }
+
     const state = EditorState.create({
       doc: value,
       extensions: [
         basicSetup,
         languageConf.of(languageExtension),
-        autocompletion({ override: [variableCompletion] }),
+        autocompletion({ override: completionSources }),
         eventHandlers,
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {

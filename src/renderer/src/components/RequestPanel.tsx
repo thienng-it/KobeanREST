@@ -8,6 +8,8 @@ import { CodeSnippetViewer } from "./CodeSnippetViewer";
 import { VariableInput, VariableTextarea } from "./VariableInput";
 import { BodyEditor } from "./BodyEditor";
 import { BinaryBodyEditor } from "./BinaryBodyEditor";
+import { GraphQLBodyEditor } from "./GraphQLBodyEditor";
+import { GraphQLIcon } from "./GraphQLIcon";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
 import { AdvancedSendModal } from "./AdvancedSendModal";
 import { LoadTestModal } from "./LoadTestModal";
@@ -1041,6 +1043,7 @@ export function RequestPanel({
                 }}
                 options={[
                   { value: "application/json", label: "{ } JSON" },
+                  { value: "application/graphql", label: "GraphQL", icon: <GraphQLIcon size={13} style={{ marginRight: 6 }} /> },
                   { value: "application/xml", label: "</> XML" },
                   { value: "text/xml", label: "</> Text XML" },
                   { value: "application/x-www-form-urlencoded", label: "📝 Form URL Encoded" },
@@ -1232,6 +1235,16 @@ export function RequestPanel({
                     ))}
                   </div>
                 </div>
+              </div>
+            ) : draftRequest.bodyMimeType === "application/graphql" ? (
+              <div className="request-body-editor-shell" style={{ flex: 1, minHeight: 0 }}>
+                <GraphQLBodyEditor
+                  value={draftRequest.body ?? ""}
+                  onChange={(val) => updateDraft({ body: val })}
+                  variables={activeVars}
+                  draftRequest={draftRequest}
+                  workspace={workspace}
+                />
               </div>
             ) : draftRequest.bodyMimeType === "application/octet-stream" ? (
               <div className="request-body-editor-shell" style={{ flex: 1, minHeight: 0, padding: "8px 0" }}>

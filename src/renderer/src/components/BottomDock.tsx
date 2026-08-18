@@ -75,15 +75,13 @@ export function BottomDock({
       )}
       <div className="bottom-dock-strip">
         <div className="bottom-dock-tabs">
-          {hasResponse && (
-            <button
-              className={activeBottomDock === "response" ? "bottom-dock-tab active" : "bottom-dock-tab"}
-              type="button"
-              onClick={() => onActiveBottomDockChange(activeBottomDock === "response" ? null : "response")}
-            >
-              <Eye size={14} /> Response
-            </button>
-          )}
+          <button
+            className={activeBottomDock === "response" ? "bottom-dock-tab active" : "bottom-dock-tab"}
+            type="button"
+            onClick={() => onActiveBottomDockChange(activeBottomDock === "response" ? null : "response")}
+          >
+            <Eye size={14} /> Response
+          </button>
           <button
             className={activeBottomDock === "console" ? "bottom-dock-tab active" : "bottom-dock-tab"}
             type="button"
@@ -97,7 +95,7 @@ export function BottomDock({
         </div>
 
         <div className="bottom-dock-toolbar-right">
-          {activeBottomDock === "response" && hasResponse && (
+          {activeBottomDock === "response" && (
             <button
               className="bottom-dock-open-window-btn"
               type="button"
@@ -117,9 +115,7 @@ export function BottomDock({
             type="button"
             aria-label={open ? "Collapse bottom dock" : "Expand bottom dock"}
             onClick={() =>
-              onActiveBottomDockChange(
-                open ? null : hasResponse ? "response" : "console",
-              )
+              onActiveBottomDockChange(open ? null : "response")
             }
           >
             <ChevronDown size={14} />
@@ -127,7 +123,7 @@ export function BottomDock({
         </div>
       </div>
       <div className="bottom-dock-panels">
-        {activeBottomDock === "response" && hasResponse && (
+        {activeBottomDock === "response" && (
           <ResponsePanel
             variant="dock"
             responseState={responseState}

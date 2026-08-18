@@ -24,8 +24,8 @@ export function ResponseViewer({ value, contentType, readOnly = true, height = '
 
     // Determine language based on contentType
     let languageExtension: any = [];
-    if (contentType.includes('json')) {
-      languageExtension = javascript(); // JSON is a subset of JS
+    if (contentType.includes('json') || contentType.includes('graphql')) {
+      languageExtension = javascript(); // JSON / GraphQL
     } else if (contentType.includes('javascript')) {
       languageExtension = javascript();
     } else if (contentType.includes('xml') || contentType.includes('html')) {

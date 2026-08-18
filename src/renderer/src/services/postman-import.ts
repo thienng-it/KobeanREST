@@ -459,7 +459,7 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
                     query: req.body.graphql.query || "",
                     variables: req.body.graphql.variables || "",
                   }, null, 2);
-                  bodyMimeType = "application/json";
+                  bodyMimeType = "application/graphql";
                 }
                 break;
             }

@@ -2,7 +2,7 @@
 // Supports Postman (v2.0 & v2.1 Collection & Environment), Hapi.js Routes,
 // OpenAPI/Swagger (2.0/3.0/3.1), Insomnia, Hoppscotch, HAR, cURL, and KobeanREST Native exports.
 
-import { parseCurlCommand } from "./script-tools";
+import { parseCurlCommand, isGraphQLPayload } from "./script-tools";
 
 export type ImportFormatType =
   | "kobeanrest-native"
@@ -681,6 +681,11 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
         for (const res of parsed.resources) {
           if (res._type === "request") {
             const reqId = generateId("request");
+            const bodyText = typeof res.body === "object" ? res.body.text || "" : "";
+            let reqMimeType = res.body?.mimeType || "application/json";
+            if (isGraphQLPayload(bodyText, reqMimeType, res.url)) {
+              reqMimeType = "application/graphql";
+            }
             payload.requests.push({
               id: reqId,
               workspace_id: workspaceId,
@@ -690,8 +695,8 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
               url: res.url || "",
               auth_mode: "none",
               auth_config: "{}",
-              body: typeof res.body === "object" ? res.body.text || "" : "",
-              body_mime_type: res.body?.mimeType || "application/json",
+              body: bodyText,
+              body_mime_type: reqMimeType,
               body_form: "[]",
               query_params: "[]",
               timeout_ms: 30000,

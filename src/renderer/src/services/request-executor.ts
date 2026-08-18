@@ -110,13 +110,51 @@ export async function prepareRequestForExecution(
   
   const effectiveMethod = requestToSend.method === "CUSTOM" ? (requestToSend.customMethod?.trim().toUpperCase() || "CUSTOM") : requestToSend.method;
 
+  let finalBody = resolved.body;
+  let finalMimeType = requestToSend.bodyMimeType;
+  let finalHeaders = [...authHeaders];
+
+  if (requestToSend.bodyMimeType === "application/graphql") {
+    finalMimeType = "application/json";
+    if (!finalHeaders.some(h => h.key.toLowerCase() === 'content-type' && h.enabled)) {
+      finalHeaders.push({ key: "Content-Type", value: "application/json", enabled: true });
+    }
+    if (resolved.body) {
+      try {
+        const parsed = JSON.parse(resolved.body);
+        if (parsed && typeof parsed === "object" && ("query" in parsed || "variables" in parsed)) {
+          let vars = parsed.variables;
+          if (typeof vars === "string" && vars.trim()) {
+            try {
+              vars = JSON.parse(vars);
+            } catch {
+              // keep as string
+            }
+          }
+          const payload: any = { query: parsed.query || "" };
+          if (vars !== undefined && vars !== null && vars !== "") {
+            payload.variables = vars;
+          }
+          if (parsed.operationName) {
+            payload.operationName = parsed.operationName;
+          }
+          finalBody = JSON.stringify(payload, null, 2);
+        } else {
+          finalBody = JSON.stringify({ query: resolved.body }, null, 2);
+        }
+      } catch {
+        finalBody = JSON.stringify({ query: resolved.body }, null, 2);
+      }
+    }
+  }
+
   return {
     request: {
       method: effectiveMethod,
       url: authUrl,
-      headers: authHeaders,
-      body: resolved.body,
-      bodyMimeType: requestToSend.bodyMimeType,
+      headers: finalHeaders,
+      body: finalBody,
+      bodyMimeType: finalMimeType,
       bodyForm: requestToSend.bodyForm,
       timeoutMs: requestToSend.timeoutMs,
       followRedirects: requestToSend.followRedirects,

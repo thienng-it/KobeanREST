@@ -355,7 +355,41 @@ export function generateRequestCodeSnippet(
     finalHeaders = applied.headers;
   }
 
-  const resolvedRequest = { ...request, url: finalUrl, headers: finalHeaders };
+  let finalBody = request.body;
+  if (request.bodyMimeType === "application/graphql") {
+    if (!finalHeaders.some((h) => h.key.toLowerCase() === "content-type" && h.enabled)) {
+      finalHeaders = [...finalHeaders, { key: "Content-Type", value: "application/json", enabled: true }];
+    }
+    if (request.body) {
+      try {
+        const parsed = JSON.parse(request.body);
+        if (parsed && typeof parsed === "object" && ("query" in parsed || "variables" in parsed)) {
+          let vars = parsed.variables;
+          if (typeof vars === "string" && vars.trim()) {
+            try {
+              vars = JSON.parse(vars);
+            } catch {
+              // keep as string
+            }
+          }
+          const payload: any = { query: parsed.query || "" };
+          if (vars !== undefined && vars !== null && vars !== "") {
+            payload.variables = vars;
+          }
+          if (parsed.operationName) {
+            payload.operationName = parsed.operationName;
+          }
+          finalBody = JSON.stringify(payload, null, 2);
+        } else {
+          finalBody = JSON.stringify({ query: request.body }, null, 2);
+        }
+      } catch {
+        finalBody = JSON.stringify({ query: request.body }, null, 2);
+      }
+    }
+  }
+
+  const resolvedRequest = { ...request, url: finalUrl, headers: finalHeaders, body: finalBody };
 
   if (target === "curl") {
     return generateCurlSnippet(resolvedRequest);
@@ -527,6 +561,46 @@ export interface CurlImportResult {
 }
 
 /**
+ * Detects whether a request body, content-type, or URL corresponds to a GraphQL operation.
+ * Supports:
+ * - Content-Type headers containing "graphql" (e.g. application/graphql, application/graphql+json)
+ * - JSON bodies with top-level "query" property (e.g. { "query": "...", "variables": { ... } })
+ * - Raw GraphQL strings starting with query, mutation, subscription, fragment, or root selection { ... }
+ */
+export function isGraphQLPayload(body?: string, ctHeaderValue?: string, url?: string): boolean {
+  if (ctHeaderValue && ctHeaderValue.toLowerCase().includes("graphql")) {
+    return true;
+  }
+
+  if (!body || typeof body !== "string") return false;
+  const trimmed = body.trim();
+  if (!trimmed) return false;
+
+  // 1. JSON payload with top-level "query" property (standard GraphQL over HTTP POST payload)
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object" && typeof parsed.query === "string" && parsed.query.trim().length > 0) {
+        return true;
+      }
+    } catch {
+      // Ignore JSON parse errors
+    }
+  }
+
+  // 2. Raw GraphQL query, mutation, subscription, fragment document
+  const isGraphQLKeyword = /^\s*(query|mutation|subscription|fragment)\b/i.test(trimmed);
+  const isGraphQLSelection = /^\s*\{\s*[_A-Za-z]/i.test(trimmed);
+  const isGraphQLEndpoint = url ? /graphql(\/|\?|$)/i.test(url) : false;
+
+  if (isGraphQLKeyword || (isGraphQLSelection && (isGraphQLEndpoint || trimmed.includes("(") || trimmed.includes("}")))) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Parse a curl command string and return fields compatible with SavedRequest.
  * Supports common flags: -X, -H, -d/--data/--data-raw/--data-binary,
  * -u/--user, --url, and quoted arguments (single, double, ANSI-C $'...').
@@ -684,6 +758,11 @@ export function parseCurlCommand(raw: string): CurlImportResult {
     bodyMimeType = "application/x-www-form-urlencoded";
   } else if (dataFlagUsed === "--data-binary" || dataFlagUsed === "--data-raw") {
     bodyMimeType = "application/octet-stream";
+  }
+
+  // Auto-detect GraphQL body (e.g. JSON with top-level "query" property, raw GraphQL string, or graphql Content-Type)
+  if (isGraphQLPayload(body, ctHeader?.value, url)) {
+    bodyMimeType = "application/graphql";
   }
 
   // When body is form-urlencoded, parse into key/value form entries (decoded)

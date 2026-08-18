@@ -96,7 +96,7 @@ export function App() {
   const [responseTab, setResponseTab] = useState<ResponseTab>('preview');
   const [isResponseTabPending, startResponseTabTransition] = useTransition();
   const [responseWindowOpen, setResponseWindowOpen] = useState(false);
-  const [activeBottomDock, setActiveBottomDock] = useState<'response' | 'console' | null>(null);
+  const [activeBottomDock, setActiveBottomDock] = useState<'response' | 'console' | null>('response');
   const [bottomDockHeight, setBottomDockHeight] = useState(320);
   const [isResponsePanelResizing, setIsResponsePanelResizing] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
@@ -562,6 +562,7 @@ export function App() {
     setActiveTabId(newTab.id);
     setSelectedRequestId(tempId);
     setDraftRequest(tempReq);
+    setActiveBottomDock("response");
   }, []);
 
   function updateDraft(fields: Partial<SavedRequest> | ((prev: SavedRequest) => Partial<SavedRequest>)) {
@@ -602,6 +603,7 @@ export function App() {
       authMode: result.authMode,
       authConfig: result.authConfig,
     });
+    setActiveBottomDock("response");
     setCurlImportOpen(false);
   }
 
@@ -893,7 +895,9 @@ export function App() {
       // Auto-detect preview mode from content type
       if (response.contentType && typeof response.contentType === 'string') {
         const ct = response.contentType.toLowerCase();
-        if (ct.includes('json')) {
+        if (ct.includes('graphql') || (draftRequest && draftRequest.bodyMimeType === 'application/graphql')) {
+          setPreviewMode('graphql');
+        } else if (ct.includes('json')) {
           setPreviewMode('json');
         } else if (ct.includes('xml')) {
           setPreviewMode('xml');
@@ -1768,14 +1772,15 @@ export function App() {
               }
             }
 
-            if (currentTab?.type === "request" && !draftRequest) {
+            const activeRequest = draftRequest || (currentTab?.type === "request" && currentTab?.entityId ? unsavedRequests[currentTab.entityId] : null);
+            if (currentTab?.type === "request" && !activeRequest) {
               return null; // prevent ghosting while useWorkspace fetches the draftRequest
             }
 
-            return draftRequest ? (
+            return activeRequest ? (
             <RequestPanel
               workspace={workspace}
-              draftRequest={draftRequest}
+              draftRequest={activeRequest}
               activeVars={scopedVarsArray}
               activeEnvironmentName={workspace?.activeEnvironment}
               onSaveVariable={handleSaveVariable}
@@ -1803,7 +1808,7 @@ export function App() {
               headersPresetMenuOpen={headersPresetMenuOpen}
               setHeadersPresetMenuOpen={setHeadersPresetMenuOpen}
               isDirty={isDraftDirty}
-              isUnsaved={Boolean(draftRequest && unsavedRequests[draftRequest.id])}
+              isUnsaved={Boolean(activeRequest && unsavedRequests[activeRequest.id])}
               onUpdateDraft={updateDraft}
               onSaveRequest={promptSaveRequest}
               onSendRequest={sendSelectedRequest}
