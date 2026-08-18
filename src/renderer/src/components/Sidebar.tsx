@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle, Lock, Unlock } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
@@ -18,6 +18,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { CustomSelect } from "./CustomSelect";
 import type { AppSettings, SavedRequest, WorkspaceSummary, Script } from "../types";
 import { getAllScripts } from "../services/local-store";
+import { getCollectionLockConfig } from "../services/collection-security";
 
 interface ContextMenuTarget {
   id: string;
@@ -126,6 +127,10 @@ export interface SidebarProps {
   // Workspace switcher
   onOpenWorkspaceSwitcher?: () => void;
   onMoveItem?: (type: "folder" | "request" | "collection", draggedId: string, targetId: string, position: "top" | "bottom" | "inside") => Promise<void>;
+
+  // Collection locking
+  unlockedCollectionIds?: Set<string>;
+  onLockCollectionToggle?: (collectionId: string) => void;
 }
 
 // Draggable Collection Row
@@ -148,6 +153,9 @@ function DraggableCollectionRow({
   isCollapsed,
   onToggleCollapse,
   requestCount,
+  isProtected,
+  isLocked,
+  onLockToggle,
   children,
 }: {
   collection: { id: string; name: string };
@@ -168,6 +176,9 @@ function DraggableCollectionRow({
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   requestCount?: number;
+  isProtected?: boolean;
+  isLocked?: boolean;
+  onLockToggle?: () => void;
   children?: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -211,7 +222,11 @@ function DraggableCollectionRow({
           className="sidebar-chevron"
           onClick={(e) => {
             e.stopPropagation();
-            onToggleCollapse?.();
+            if (isLocked) {
+              onLockToggle?.();
+            } else {
+              onToggleCollapse?.();
+            }
           }}
         >
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
@@ -238,16 +253,45 @@ function DraggableCollectionRow({
           <strong 
             className="sidebar-item-name" 
             onDoubleClick={() => onStartSidebarRename("collection", collection.id, collection.name)}
-            onClick={() => onOpenCollection?.(collection.id)}
+            onClick={() => {
+              if (isLocked) {
+                onLockToggle?.();
+              } else {
+                onOpenCollection?.(collection.id);
+              }
+            }}
             style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
           >
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{collection.name}</span>
+            {isProtected && (
+              isLocked ? (
+                <span title="Collection is locked (click to unlock)" style={{ display: "inline-flex", alignItems: "center" }}>
+                  <Lock size={12} style={{ color: "var(--color-status-error)", flexShrink: 0 }} />
+                </span>
+              ) : (
+                <span title="Collection is unlocked for this session" style={{ display: "inline-flex", alignItems: "center" }}>
+                  <Unlock size={12} style={{ color: "var(--color-status-2xx)", opacity: 0.8, flexShrink: 0 }} />
+                </span>
+              )
+            )}
             {requestCount !== undefined && (
               <span style={{ fontSize: "11px", color: "var(--color-text-muted)", fontWeight: "normal", flexShrink: 0 }}>({requestCount})</span>
             )}
           </strong>
         )}
         <div className="sidebar-row-actions">
+          <button
+            type="button"
+            className="sidebar-icon-button"
+            aria-label={isProtected ? (isLocked ? `Unlock collection ${collection.name}` : `Lock collection ${collection.name}`) : `Set lock for ${collection.name}`}
+            title={isProtected ? (isLocked ? "Unlock collection" : "Lock collection") : "Set passcode lock"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onLockToggle?.();
+            }}
+          >
+            {isProtected ? (isLocked ? <Lock size={12} /> : <Unlock size={12} />) : <Lock size={12} style={{ opacity: 0.4 }} />}
+          </button>
           <button
             type="button"
             className="sidebar-icon-button"
@@ -656,6 +700,8 @@ export function Sidebar({
   onCurlImport,
   onOpenWorkspaceSwitcher,
   onMoveItem,
+  unlockedCollectionIds,
+  onLockCollectionToggle,
 }: SidebarProps) {
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const themeRef = useRef<HTMLDivElement>(null);
@@ -1272,6 +1318,10 @@ export function Sidebar({
             </h2>
             {visibleCollections.map((collection) => {
               const isCollectionCollapsed = !isCollectionSearchActive && collapsedFolders[collection.id];
+              const lockConfig = collection.lockConfig || getCollectionLockConfig(collection.id);
+              const isProtected = Boolean(lockConfig?.isLocked);
+              const isLocked = isProtected && !unlockedCollectionIds?.has(collection.id);
+
               return (
                 <DraggableCollectionRow
                   key={collection.id}
@@ -1293,12 +1343,38 @@ export function Sidebar({
                   isCollapsed={isCollectionCollapsed}
                   onToggleCollapse={() => onToggleFolder(collection.id)}
                   requestCount={countRequestsInCollection(collection.id)}
+                  isProtected={isProtected}
+                  isLocked={isLocked}
+                  onLockToggle={() => onLockCollectionToggle?.(collection.id)}
                 >
                   {!isCollectionCollapsed && (
-                    <>
-                      {renderCollectionRequests(collection.id, matchesCollectionSearch(collection.name) ?? false)}
-                      {renderFolders(undefined, 0, matchesCollectionSearch(collection.name) ?? false, collection.id)}
-                    </>
+                    isLocked ? (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onLockCollectionToggle?.(collection.id);
+                        }}
+                        style={{
+                          padding: "8px 16px 8px 32px",
+                          fontSize: "12px",
+                          color: "var(--color-text-muted)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          cursor: "pointer",
+                          fontStyle: "italic",
+                        }}
+                        title="Click to unlock collection"
+                      >
+                        <Lock size={12} style={{ color: "var(--color-status-error)" }} />
+                        <span>Locked collection — Click to unlock</span>
+                      </div>
+                    ) : (
+                      <>
+                        {renderCollectionRequests(collection.id, matchesCollectionSearch(collection.name) ?? false)}
+                        {renderFolders(undefined, 0, matchesCollectionSearch(collection.name) ?? false, collection.id)}
+                      </>
+                    )
                   )}
                 </DraggableCollectionRow>
               );

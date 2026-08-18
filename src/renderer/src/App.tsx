@@ -37,6 +37,17 @@ import { resolveAuthConfig, getEffectiveAuth } from "./services/auth";
 import { prepareRequestForExecution } from "./services/request-executor";
 import { CollectionRunner } from "./components/CollectionRunner";
 import { PluginsModal } from "./components/PluginsModal";
+import { LockCollectionModal, LockedCollectionGate, type LockModalMode } from "./components/LockCollectionModal";
+import {
+  getCollectionLockConfig,
+  setCollectionLock,
+  unlockCollectionInSession,
+  relockCollectionInSession,
+  removeCollectionLock,
+  isCollectionLocked,
+  findParentCollectionId,
+  isItemInLockedCollection,
+} from "./services/collection-security";
 
 import {
   SCRIPT_SNIPPETS,
@@ -228,6 +239,75 @@ export function App() {
 
   const [universalImportModalOpen, setUniversalImportModalOpen] = useState(false);
   const [universalImportInitialContent, setUniversalImportInitialContent] = useState("");
+
+  // Collection Lock / Security State
+  const [unlockedCollectionIds, setUnlockedCollectionIds] = useState<Set<string>>(() => new Set());
+  const [lockModalState, setLockModalState] = useState<{
+    open: boolean;
+    mode: LockModalMode;
+    collectionId: string;
+  } | null>(null);
+
+  const handleOpenLockModal = useCallback((collectionId: string, mode: LockModalMode) => {
+    setLockModalState({ open: true, mode, collectionId });
+  }, []);
+
+  const handleLockToggle = useCallback((collectionId: string) => {
+    const col = workspace?.collections?.find((c) => c.id === collectionId);
+    const lockConfig = col?.lockConfig || getCollectionLockConfig(collectionId);
+    const isProtected = Boolean(lockConfig?.isLocked);
+    if (!isProtected) {
+      handleOpenLockModal(collectionId, "lock");
+    } else if (unlockedCollectionIds.has(collectionId)) {
+      relockCollectionInSession(collectionId, unlockedCollectionIds);
+      setUnlockedCollectionIds(new Set(unlockedCollectionIds));
+      setAppToast({ message: `Locked collection "${col?.name || "Collection"}"`, tone: "info" });
+    } else {
+      handleOpenLockModal(collectionId, "unlock");
+    }
+  }, [workspace, unlockedCollectionIds, handleOpenLockModal]);
+
+  const handleSetCollectionLockAction = useCallback(async (collectionId: string, password: string, hint?: string) => {
+    const lockConfig = await setCollectionLock(collectionId, password, hint);
+    unlockedCollectionIds.add(collectionId);
+    setUnlockedCollectionIds(new Set(unlockedCollectionIds));
+    if (workspace) {
+      setWorkspace({
+        ...workspace,
+        collections: (workspace.collections || []).map((c) =>
+          c.id === collectionId ? { ...c, lockConfig } : c
+        ),
+      });
+    }
+    setAppToast({ message: "Collection passcode lock set successfully.", tone: "success" });
+  }, [workspace, setWorkspace, unlockedCollectionIds]);
+
+  const handleUnlockCollectionAction = useCallback(async (collectionId: string, password: string) => {
+    const res = await unlockCollectionInSession(collectionId, password, unlockedCollectionIds);
+    if (res.success) {
+      setUnlockedCollectionIds(new Set(unlockedCollectionIds));
+      setAppToast({ message: "Collection unlocked.", tone: "success" });
+    }
+    return res;
+  }, [unlockedCollectionIds]);
+
+  const handleRemoveCollectionLockAction = useCallback(async (collectionId: string, password: string) => {
+    const res = await removeCollectionLock(collectionId, password);
+    if (res.success) {
+      unlockedCollectionIds.delete(collectionId);
+      setUnlockedCollectionIds(new Set(unlockedCollectionIds));
+      if (workspace) {
+        setWorkspace({
+          ...workspace,
+          collections: (workspace.collections || []).map((c) =>
+            c.id === collectionId ? { ...c, lockConfig: undefined } : c
+          ),
+        });
+      }
+      setAppToast({ message: "Collection lock removed.", tone: "success" });
+    }
+    return res;
+  }, [workspace, setWorkspace, unlockedCollectionIds]);
 
   const handleSelectRequest = useCallback((id: string) => {
     const request = workspace?.requests.find((r) => r.id === id);
@@ -1587,6 +1667,8 @@ export function App() {
         }}
         onOpenWorkspaceSwitcher={() => setWorkspaceSwitcherOpen(true)}
         onMoveItem={handleMoveItem}
+        unlockedCollectionIds={unlockedCollectionIds}
+        onLockCollectionToggle={handleLockToggle}
       />
 
       <div
@@ -1746,6 +1828,20 @@ export function App() {
             if (currentTab?.type === "folder") {
               const folder = workspace?.folders.find(f => f.id === currentTab.entityId);
               if (!folder) return null;
+
+              if (isItemInLockedCollection(folder.id, workspace, unlockedCollectionIds)) {
+                const parentColId = findParentCollectionId(folder.id, workspace);
+                const col = workspace?.collections?.find((c) => c.id === parentColId);
+                const hint = col?.lockConfig?.hint || (parentColId ? getCollectionLockConfig(parentColId)?.hint : undefined);
+                return (
+                  <LockedCollectionGate
+                    collectionName={col?.name || "Collection"}
+                    hint={hint}
+                    onUnlock={(pw) => parentColId ? handleUnlockCollectionAction(parentColId, pw) : Promise.resolve({ success: false, error: "Not found" })}
+                  />
+                );
+              }
+
               return (
                 <FolderEditor
                   folder={folder}
@@ -1760,6 +1856,16 @@ export function App() {
             if (currentTab?.type === "collection") {
               const collection = workspace?.collections?.find(c => c.id === currentTab.entityId);
               if (collection) {
+                if (isCollectionLocked(collection, unlockedCollectionIds)) {
+                  const hint = collection.lockConfig?.hint || getCollectionLockConfig(collection.id)?.hint;
+                  return (
+                    <LockedCollectionGate
+                      collectionName={collection.name}
+                      hint={hint}
+                      onUnlock={(pw) => handleUnlockCollectionAction(collection.id, pw)}
+                    />
+                  );
+                }
                 return (
                   <CollectionEditor
                     collection={collection}
@@ -1775,6 +1881,19 @@ export function App() {
             const activeRequest = draftRequest || (currentTab?.type === "request" && currentTab?.entityId ? unsavedRequests[currentTab.entityId] : null);
             if (currentTab?.type === "request" && !activeRequest) {
               return null; // prevent ghosting while useWorkspace fetches the draftRequest
+            }
+
+            if (activeRequest && isItemInLockedCollection(activeRequest.id, workspace, unlockedCollectionIds)) {
+              const parentColId = findParentCollectionId(activeRequest.id, workspace);
+              const col = workspace?.collections?.find((c) => c.id === parentColId);
+              const hint = col?.lockConfig?.hint || (parentColId ? getCollectionLockConfig(parentColId)?.hint : undefined);
+              return (
+                <LockedCollectionGate
+                  collectionName={col?.name || "Collection"}
+                  hint={hint}
+                  onUnlock={(pw) => parentColId ? handleUnlockCollectionAction(parentColId, pw) : Promise.resolve({ success: false, error: "Not found" })}
+                />
+              );
             }
 
             return activeRequest ? (
@@ -2071,6 +2190,19 @@ export function App() {
           onCloseAllTabs={handleCloseAllTabs}
           onExpandCollectionFolders={expandCollectionFolders}
           onCollapseCollectionFolders={collapseCollectionFolders}
+          onLockCollection={(id) => handleOpenLockModal(id, "lock")}
+          onUnlockCollection={(id) => handleOpenLockModal(id, "unlock")}
+          onRelockCollection={(id) => {
+            relockCollectionInSession(id, unlockedCollectionIds);
+            setUnlockedCollectionIds(new Set(unlockedCollectionIds));
+            setAppToast({ message: "Collection locked", tone: "info" });
+          }}
+          onRemoveCollectionLock={(id) => handleOpenLockModal(id, "remove-lock")}
+          isCollectionProtected={(id) => {
+            const col = workspace?.collections?.find((c) => c.id === id);
+            return Boolean(col?.lockConfig?.isLocked || getCollectionLockConfig(id)?.isLocked);
+          }}
+          isCollectionUnlockedInSession={(id) => unlockedCollectionIds.has(id)}
         />
       )}
 
@@ -2267,6 +2399,26 @@ export function App() {
         open={pluginsOpen}
         onClose={() => setPluginsOpen(false)}
       />
+
+      {lockModalState && (
+        <LockCollectionModal
+          open={lockModalState.open}
+          mode={lockModalState.mode}
+          collectionId={lockModalState.collectionId}
+          collectionName={
+            workspace?.collections?.find((c) => c.id === lockModalState.collectionId)?.name ||
+            "Collection"
+          }
+          lockConfig={
+            workspace?.collections?.find((c) => c.id === lockModalState.collectionId)?.lockConfig ||
+            getCollectionLockConfig(lockModalState.collectionId)
+          }
+          onClose={() => setLockModalState(null)}
+          onSetLock={handleSetCollectionLockAction}
+          onUnlock={handleUnlockCollectionAction}
+          onRemoveLock={handleRemoveCollectionLockAction}
+        />
+      )}
     </main>
   );
 }

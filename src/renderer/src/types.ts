@@ -89,6 +89,14 @@ export interface FolderSummary {
   variables?: ScopedVariable[];
 }
 
+export interface CollectionLockConfig {
+  isLocked: boolean;
+  passwordHash?: string;
+  salt?: string;
+  hint?: string;
+  lockedAt?: number;
+}
+
 export interface CollectionSummary {
   id: string;
   name: string;
@@ -96,6 +104,7 @@ export interface CollectionSummary {
   authConfig?: AuthConfig;
   variables?: ScopedVariable[];
   defaultEnvironment?: string;
+  lockConfig?: CollectionLockConfig;
 }
 
 export interface WorkspaceListItem {

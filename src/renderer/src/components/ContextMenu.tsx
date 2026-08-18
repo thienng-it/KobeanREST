@@ -1,4 +1,4 @@
-import { Copy, Edit2, Eye, FolderTree, KeyRound, Play, Plus, Trash2, Variable, Terminal, Upload, Download, FileText, Settings } from "lucide-react";
+import { Copy, Edit2, Eye, FolderTree, KeyRound, Play, Plus, Trash2, Variable, Terminal, Upload, Download, FileText, Settings, Lock, Unlock } from "lucide-react";
 import type { SavedRequest } from "../types";
 
 export interface ContextMenuTarget {
@@ -72,6 +72,12 @@ export interface ContextMenuProps {
   onCloseAllTabs?: () => void;
   onExpandCollectionFolders?: (collectionId: string) => void;
   onCollapseCollectionFolders?: (collectionId: string) => void;
+  onLockCollection?: (collectionId: string) => void;
+  onUnlockCollection?: (collectionId: string) => void;
+  onRelockCollection?: (collectionId: string) => void;
+  onRemoveCollectionLock?: (collectionId: string) => void;
+  isCollectionProtected?: (collectionId: string) => boolean;
+  isCollectionUnlockedInSession?: (collectionId: string) => boolean;
 }
 
 export function ContextMenu({
@@ -101,6 +107,12 @@ export function ContextMenu({
   onCloseAllTabs,
   onExpandCollectionFolders,
   onCollapseCollectionFolders,
+  onLockCollection,
+  onUnlockCollection,
+  onRelockCollection,
+  onRemoveCollectionLock,
+  isCollectionProtected,
+  isCollectionUnlockedInSession,
 }: ContextMenuProps) {
   if (!menu) return null;
   const target = menu.target;
@@ -150,7 +162,7 @@ export function ContextMenu({
             style={itemStyle}
             {...hoverHandlers()}
           >
-            <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> New Folder
+            <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> New Subfolder
           </button>
           <button
             className="context-menu-item"
@@ -164,18 +176,7 @@ export function ContextMenu({
           >
             <Play size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Run Folder
           </button>
-          <button
-            className="context-menu-item"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (target.id && onMoveItemTo) onMoveItemTo(target.id, "folder");
-              onClose();
-            }}
-            style={itemStyle}
-            {...hoverHandlers()}
-          >
-            <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Move to...
-          </button>
+          <div style={{ height: "1px", backgroundColor: "var(--color-border)", margin: "4px 0" }} />
           <button
             className="context-menu-item"
             onClick={(e) => {
@@ -188,7 +189,20 @@ export function ContextMenu({
           >
             <Edit2 size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Edit Folder
           </button>
-          <div style={{ height: "1px", backgroundColor: "var(--color-border)", margin: "4px 0" }} />
+          {onMoveItemTo && (
+            <button
+              className="context-menu-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (target.id) onMoveItemTo(target.id, "folder");
+                onClose();
+              }}
+              style={itemStyle}
+              {...hoverHandlers()}
+            >
+              <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Move to…
+            </button>
+          )}
           <button
             className="context-menu-item"
             onClick={(e) => {
@@ -272,6 +286,68 @@ export function ContextMenu({
               {...hoverHandlers()}
             >
               <FolderTree size={14} style={{ marginRight: "8px", verticalAlign: "middle", transform: "rotate(180deg)" }} /> Collapse All
+            </button>
+          )}
+
+          <div style={{ height: "1px", backgroundColor: "var(--color-border)", margin: "4px 0" }} />
+          
+          {/* Lock / Unlock Options */}
+          {target.id && isCollectionProtected?.(target.id) ? (
+            <>
+              {isCollectionUnlockedInSession?.(target.id) ? (
+                <>
+                  <button
+                    className="context-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (target.id && onRelockCollection) onRelockCollection(target.id);
+                      onClose();
+                    }}
+                    style={itemStyle}
+                    {...hoverHandlers()}
+                  >
+                    <Lock size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Lock Collection
+                  </button>
+                  <button
+                    className="context-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (target.id && onRemoveCollectionLock) onRemoveCollectionLock(target.id);
+                      onClose();
+                    }}
+                    style={itemStyle}
+                    {...hoverHandlers()}
+                  >
+                    <Unlock size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Remove Lock Protection
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="context-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (target.id && onUnlockCollection) onUnlockCollection(target.id);
+                    onClose();
+                  }}
+                  style={itemStyle}
+                  {...hoverHandlers()}
+                >
+                  <Unlock size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Unlock Collection…
+                </button>
+              )}
+            </>
+          ) : (
+            <button
+              className="context-menu-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (target.id && onLockCollection) onLockCollection(target.id);
+                onClose();
+              }}
+              style={itemStyle}
+              {...hoverHandlers()}
+            >
+              <Lock size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Lock Collection…
             </button>
           )}
 
