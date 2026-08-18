@@ -1550,8 +1550,9 @@ export function Sidebar({
           <button
             type="button"
             className="sidebar-footer-icon-btn"
-            title="Product Documentation"
-            aria-label="Product Documentation"
+            data-tooltip="Documentation"
+            data-tooltip-align="start"
+            aria-label="Documentation"
             onClick={onOpenDocs}
           >
             <HelpCircle size={15} />
@@ -1559,7 +1560,7 @@ export function Sidebar({
           <button
             type="button"
             className="sidebar-footer-icon-btn"
-            title="Request History"
+            data-tooltip="Request History"
             aria-label="Request History"
             onClick={onOpenHistory}
           >
@@ -1568,7 +1569,7 @@ export function Sidebar({
           <button
             type="button"
             className="sidebar-footer-icon-btn"
-            title="Check for Updates"
+            data-tooltip="Check for Updates"
             aria-label="Check for Updates"
             onClick={onCheckForUpdates}
           >
@@ -1577,7 +1578,8 @@ export function Sidebar({
           <button
             type="button"
             className="sidebar-footer-icon-btn"
-            title="API Tools"
+            data-tooltip="API Tools"
+            data-tooltip-align="end"
             aria-label="API Tools"
             onClick={onOpenApiTools}
           >
@@ -1586,7 +1588,8 @@ export function Sidebar({
           <button
             type="button"
             className="sidebar-footer-icon-btn"
-            title="Plugins"
+            data-tooltip="Plugins"
+            data-tooltip-align="start"
             aria-label="Plugin Manager"
             onClick={onOpenPlugins}
           >
@@ -1595,7 +1598,7 @@ export function Sidebar({
           <button
             type="button"
             className="sidebar-footer-icon-btn"
-            title="Settings"
+            data-tooltip="Settings"
             aria-label="Settings"
             onClick={onOpenSettings}
           >

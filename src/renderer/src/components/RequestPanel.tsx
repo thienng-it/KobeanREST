@@ -1049,7 +1049,7 @@ export function RequestPanel({
         {activeTab === "body" && (
           <div className="request-tab-panel request-body-panel">
             <div className="request-body-toolbar">
-              <label>Content-Type</label>
+              <span className="request-body-toolbar-label">Content-Type</span>
               <CustomSelect
                 value={draftRequest.bodyMimeType}
                 onChange={(newMimeType) => {
@@ -1070,11 +1070,12 @@ export function RequestPanel({
                   { value: "application/octet-stream", label: "📦 Binary (Octet Stream)" }
                 ]}
                 variant="ghost"
+                className="request-body-content-type-select"
               />
               {draftRequest.bodyMimeType === "application/json" && (
                 <button
                   type="button"
-                  className="ghost-button"
+                  className="ghost-button request-body-beautify-btn"
                   onClick={() => {
                     if (!draftRequest.body) return;
                     try {
@@ -1085,10 +1086,9 @@ export function RequestPanel({
                       alert("Cannot beautify: Invalid JSON format");
                     }
                   }}
-                  style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}
                   title="Beautify JSON"
                 >
-                  <WandSparkles size={14} /> Beautify
+                  <WandSparkles size={13} /> Beautify
                 </button>
               )}
             </div>

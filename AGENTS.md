@@ -18,6 +18,9 @@ Recognize and immediately activate corresponding skills when the user executes s
 - `/tauri`: Activates `tauri-rust-bridge` skill for Tauri IPC, SQLite, and OS Keychain development.
 - `/ai-pipeline`: Activates `ai-pipeline-integration` skill for automated CI/CD pipeline management.
 
+# Plugin & Installed Skills Utilization Directive
+- **CRITICAL**: Always review and proactively leverage relevant installed skills and plugin skills (e.g. `design-taste-frontend`, `taste-skill`, `minimalist-skill`, `brutalist-skill`, `soft-skill`, `redesign-skill`, `stitch-skill`, `image-to-code-skill`, `brandkit`, `modern-web-guidance`, `a11y-debugging`, `chrome-devtools`, `firebase-firestore`, etc.) whenever performing UI/UX design, frontend development, accessibility auditing, debugging, or domain-specific tasks. Read the corresponding `SKILL.md` before executing complex design or domain-specific workflows.
+
 # Context & Memory Compaction Protocol
 - When handling `/compact`, extract all active architectural decisions, modified file paths, and pending verifications.
 - Persist structured state into project artifacts (`implementation_plan.md` or `walkthrough.md`) to maintain continuity across sessions.

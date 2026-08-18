@@ -176,14 +176,21 @@ export function ScriptEditor({ value, onChange, variables, placeholder, height =
             overflow: "auto",
           },
           ".cm-content": {
-            padding: "12px 0 20px",
+            padding: "10px 0 20px",
             caretColor: "var(--color-text-active)",
+          },
+          ".cm-line": {
+            padding: "0 14px 0 10px",
           },
           ".cm-gutters": {
             backgroundColor: "rgba(148, 163, 184, 0.07)",
             borderRight: "1px solid var(--color-border)",
             color: "var(--color-text-muted)",
-            paddingTop: "4px",
+          },
+          ".cm-lineNumbers .cm-gutterElement": {
+            padding: "0 8px 0 10px",
+            minWidth: "24px",
+            textAlign: "right",
           },
           ".cm-activeLine": {
             backgroundColor: "rgba(59, 130, 246, 0.055)",

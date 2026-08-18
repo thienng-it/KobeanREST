@@ -273,14 +273,21 @@ export function BodyEditor({ value, onChange, variables, mimeType, placeholder, 
             lineHeight: "1.65",
           },
           ".cm-content": {
-            padding: "12px 14px",
+            padding: "10px 0",
             caretColor: "var(--color-text-active)",
+          },
+          ".cm-line": {
+            padding: "0 14px 0 10px",
           },
           ".cm-gutters": {
             backgroundColor: "rgba(148, 163, 184, 0.07)",
             borderRight: "1px solid var(--color-border)",
             color: "var(--color-text-muted)",
-            paddingTop: "12px",
+          },
+          ".cm-lineNumbers .cm-gutterElement": {
+            padding: "0 8px 0 10px",
+            minWidth: "24px",
+            textAlign: "right",
           },
           ".cm-activeLine": {
             backgroundColor: "rgba(59, 130, 246, 0.055)",
