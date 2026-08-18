@@ -13,6 +13,7 @@ import { GraphQLIcon } from "./GraphQLIcon";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
 import { AdvancedSendModal } from "./AdvancedSendModal";
 import { LoadTestModal } from "./LoadTestModal";
+import { WebSocketPanel } from "./WebSocketPanel";
 import { redactDiagnosticError } from "../services/redaction";
 
 function safeDecode(val: string): string {
@@ -794,12 +795,21 @@ export function RequestPanel({
         </button>
       </div>
 
-      <div className="request-command-bar">
-        <MethodSelector
-          method={draftRequest.method}
-          customMethod={draftRequest.customMethod}
-          onChange={(m, cm) => updateDraft({ method: m, customMethod: cm })}
+      {draftRequest.method === "WS" || draftRequest.method === "SOCKET.IO" ? (
+        <WebSocketPanel
+          draftRequest={draftRequest}
+          activeVars={activeVars}
+          onUpdateDraft={onUpdateDraft}
+          onSaveRequest={onSaveRequest}
         />
+      ) : (
+        <>
+          <div className="request-command-bar">
+            <MethodSelector
+              method={draftRequest.method}
+              customMethod={draftRequest.customMethod}
+              onChange={(m, cm) => updateDraft({ method: m, customMethod: cm })}
+            />
         <VariableInput
           activeVariables={activeVars}
           activeEnvironmentName={activeEnvironmentName}
@@ -1839,9 +1849,11 @@ export function RequestPanel({
           <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--color-surface)" }}>
             <CodeSnippetViewer value={codeSnippet} language={codeTarget} />
           </div>
-        </div>
+          </div>
+        )}
+      </div>
+      </>
       )}
-    </div>
-  </section>
+    </section>
   );
 }

@@ -1797,6 +1797,34 @@ button:disabled {
   border: 1px solid rgba(217, 70, 239, 0.35);
 }
 
+/* WS - Violet */
+.method-ws {
+  background: rgba(147, 51, 234, 0.12);
+  color: #7e22ce;
+  border: 1px solid rgba(147, 51, 234, 0.25);
+}
+:root:not([data-theme="light"]):not([data-theme="warm"]) .method-ws,
+:root[data-theme="matrix"] .method-ws,
+:root[data-theme="cyberpunk"] .method-ws {
+  background: rgba(147, 51, 234, 0.18);
+  color: #c084fc;
+  border: 1px solid rgba(147, 51, 234, 0.35);
+}
+
+/* SOCKET.IO - Emerald */
+.method-socketio {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+:root:not([data-theme="light"]):not([data-theme="warm"]) .method-socketio,
+:root[data-theme="matrix"] .method-socketio,
+:root[data-theme="cyberpunk"] .method-socketio {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
 /* ── MethodSelector dropdown component ─────────────────────────────────── */
 .method-selector {
   position: relative;
@@ -1836,6 +1864,8 @@ button:disabled {
 .method-selector-btn.method-head   { background: rgba(6,182,212,0.12);   color:#0e7490; border:1px solid rgba(6,182,212,0.25); }
 .method-selector-btn.method-options{ background: rgba(245,158,11,0.12);  color:#b45309; border:1px solid rgba(245,158,11,0.25); }
 .method-selector-btn.method-custom { background: rgba(217,70,239,0.12);  color:#a21caf; border:1px solid rgba(217,70,239,0.25); }
+.method-selector-btn.method-ws     { background: rgba(147,51,234,0.12);  color:#7e22ce; border:1px solid rgba(147,51,234,0.25); }
+.method-selector-btn.method-socketio{ background: rgba(16,185,129,0.12); color:#047857; border:1px solid rgba(16,185,129,0.25); }
 
 :root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-btn.method-get    { background:rgba(20,184,166,0.18);  color:#2dd4bf; border-color:rgba(20,184,166,0.35); }
 :root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-btn.method-post   { background:rgba(249,115,22,0.18);  color:#fb923c; border-color:rgba(249,115,22,0.35); }
@@ -1845,6 +1875,8 @@ button:disabled {
 :root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-btn.method-head   { background:rgba(6,182,212,0.18);   color:#22d3ee; border-color:rgba(6,182,212,0.35); }
 :root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-btn.method-options{ background:rgba(245,158,11,0.18);  color:#fcd34d; border-color:rgba(245,158,11,0.35); }
 :root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-btn.method-custom { background:rgba(217,70,239,0.18);  color:#e879f9; border-color:rgba(217,70,239,0.35); }
+:root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-btn.method-ws     { background:rgba(147,51,234,0.18);  color:#c084fc; border-color:rgba(147,51,234,0.35); }
+:root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-btn.method-socketio{ background:rgba(16,185,129,0.18); color:#34d399; border-color:rgba(16,185,129,0.35); }
 
 .method-selector-btn:hover {
   filter: brightness(1.12);
@@ -2391,7 +2423,8 @@ button:disabled {
 }
 
 .request-command-bar .method-selector {
-  width: 104px;
+  min-width: 104px;
+  width: auto;
 }
 
 .request-command-bar .method-selector-btn {

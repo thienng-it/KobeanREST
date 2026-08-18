@@ -1,4 +1,4 @@
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "CUSTOM";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "WS" | "SOCKET.IO" | "CUSTOM";
 
 export interface Tab {
   id: string;
@@ -229,4 +229,28 @@ export interface KbPlugin {
   filePath?: string;
   fileContent?: string; // cached content of the file
 }
+
+export type WsConnectionStatus = "disconnected" | "connecting" | "connected" | "closing" | "error";
+
+export interface WsMessagePacket {
+  id: string;
+  timestamp: number;
+  direction: "incoming" | "outgoing" | "system";
+  data: string;
+  size: number;
+  format: "json" | "text" | "binary";
+  eventName?: string;
+  ackResponse?: any;
+}
+
+export interface WsConnectionConfig {
+  protocols?: string[];
+  headers?: Record<string, string>;
+  socketioPath?: string;
+  transports?: ("websocket" | "polling")[];
+  auth?: Record<string, any>;
+  query?: Record<string, string>;
+  reconnection?: boolean;
+}
+
 

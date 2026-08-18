@@ -744,6 +744,11 @@ export function Sidebar({
       case "PATCH": return "patch";
       case "HEAD": return "head";
       case "OPTIONS": return "options";
+      case "WS":
+      case "WSS": return "ws";
+      case "SOCKET.IO":
+      case "SOCKETIO":
+      case "SIO": return "socketio";
       default: return "custom";
     }
   };
