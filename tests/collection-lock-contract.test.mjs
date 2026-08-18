@@ -116,3 +116,21 @@ test("Cryptographic password hashing and verification unit test with Web Crypto 
   const invalid = await verifyPassword("wrong-pin", salt, hash);
   assert.equal(invalid, false);
 });
+
+test("CollectionEditor provides Security tab with Remove Passcode Lock action", () => {
+  const editor = read("src/renderer/src/components/CollectionEditor.tsx");
+
+  assert.match(editor, /Security/);
+  assert.match(editor, /Remove Passcode Lock/);
+  assert.match(editor, /onOpenLockModal/);
+});
+
+test("CollectionsManager and LockedCollectionGate provide direct Remove Passcode Lock actions", () => {
+  const manager = read("src/renderer/src/components/CollectionsManager.tsx");
+  assert.match(manager, /onRemoveLockCollection/);
+  assert.match(manager, /Remove collection passcode lock/);
+
+  const gate = read("src/renderer/src/components/LockCollectionModal.tsx");
+  assert.match(gate, /onRemoveLock/);
+  assert.match(gate, /Permanently remove passcode lock/);
+});

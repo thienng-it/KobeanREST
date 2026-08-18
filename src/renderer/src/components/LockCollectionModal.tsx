@@ -27,6 +27,7 @@ export function LockCollectionModal({
   onUnlock,
   onRemoveLock,
 }: LockCollectionModalProps) {
+  const [activeMode, setActiveMode] = useState<LockModalMode>(mode);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [hint, setHint] = useState('');
@@ -36,6 +37,7 @@ export function LockCollectionModal({
 
   useEffect(() => {
     if (open) {
+      setActiveMode(mode);
       setPassword('');
       setConfirmPassword('');
       setHint(lockConfig?.hint || '');
@@ -56,7 +58,7 @@ export function LockCollectionModal({
       return;
     }
 
-    if (mode === 'lock') {
+    if (activeMode === 'lock') {
       if (password !== confirmPassword) {
         setError('Passwords do not match. Please re-enter.');
         return;
@@ -75,7 +77,7 @@ export function LockCollectionModal({
       } finally {
         setIsSubmitting(false);
       }
-    } else if (mode === 'unlock') {
+    } else if (activeMode === 'unlock') {
       setIsSubmitting(true);
       try {
         const res = await onUnlock(collectionId, password);
@@ -89,7 +91,7 @@ export function LockCollectionModal({
       } finally {
         setIsSubmitting(false);
       }
-    } else if (mode === 'remove-lock') {
+    } else if (activeMode === 'remove-lock') {
       setIsSubmitting(true);
       try {
         const res = await onRemoveLock(collectionId, password);
@@ -111,7 +113,7 @@ export function LockCollectionModal({
       className="modal-overlay"
       role="dialog"
       aria-modal="true"
-      aria-label={`${mode === 'lock' ? 'Lock' : mode === 'unlock' ? 'Unlock' : 'Remove Lock'} ${collectionName}`}
+      aria-label={`${activeMode === 'lock' ? 'Lock' : activeMode === 'unlock' ? 'Unlock' : 'Remove Lock'} ${collectionName}`}
       onClick={onClose}
       style={{ zIndex: 10000 }}
     >
@@ -140,15 +142,15 @@ export function LockCollectionModal({
                 height: '36px',
                 borderRadius: '8px',
                 backgroundColor:
-                  mode === 'lock'
+                  activeMode === 'lock'
                     ? 'rgba(59, 130, 246, 0.12)'
-                    : mode === 'unlock'
+                    : activeMode === 'unlock'
                     ? 'rgba(16, 185, 129, 0.12)'
                     : 'rgba(239, 68, 68, 0.12)',
                 color:
-                  mode === 'lock'
+                  activeMode === 'lock'
                     ? 'var(--color-primary, #3b82f6)'
-                    : mode === 'unlock'
+                    : activeMode === 'unlock'
                     ? 'var(--color-status-2xx, #10b981)'
                     : 'var(--color-status-error, #ef4444)',
                 display: 'flex',
@@ -156,13 +158,13 @@ export function LockCollectionModal({
                 justifyContent: 'center',
               }}
             >
-              {mode === 'lock' ? <Lock size={18} /> : mode === 'unlock' ? <KeyRound size={18} /> : <Unlock size={18} />}
+              {activeMode === 'lock' ? <Lock size={18} /> : activeMode === 'unlock' ? <KeyRound size={18} /> : <Unlock size={18} />}
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--color-text)' }}>
-                {mode === 'lock'
+                {activeMode === 'lock'
                   ? 'Lock Collection'
-                  : mode === 'unlock'
+                  : activeMode === 'unlock'
                   ? 'Unlock Collection'
                   : 'Remove Collection Lock'}
               </h3>
@@ -185,15 +187,15 @@ export function LockCollectionModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-soft)', lineHeight: 1.4 }}>
-            {mode === 'lock'
+            {activeMode === 'lock'
               ? 'Protect this collection with a secret PIN or password. Requests and folders inside cannot be accessed without unlocking.'
-              : mode === 'unlock'
+              : activeMode === 'unlock'
               ? `Enter the PIN or password to unlock "${collectionName}" for this session.`
-              : `Enter the current PIN or password to remove lock protection from "${collectionName}".`}
+              : `Enter the current PIN or password to permanently remove passcode lock from "${collectionName}".`}
           </p>
 
           {/* Hint Notice */}
-          {mode === 'unlock' && lockConfig?.hint && (
+          {activeMode === 'unlock' && lockConfig?.hint && (
             <div
               style={{
                 display: 'flex',
@@ -278,7 +280,7 @@ export function LockCollectionModal({
           </div>
 
           {/* Confirm Password (Lock Mode Only) */}
-          {mode === 'lock' && (
+          {activeMode === 'lock' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-soft)' }}>
                 Confirm PIN / Passphrase
@@ -303,7 +305,7 @@ export function LockCollectionModal({
           )}
 
           {/* Optional Hint (Lock Mode Only) */}
-          {mode === 'lock' && (
+          {activeMode === 'lock' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-soft)' }}>
                 Password Hint (Optional)
@@ -327,6 +329,51 @@ export function LockCollectionModal({
             </div>
           )}
 
+          {/* Mode Switching Helper */}
+          {activeMode === 'unlock' && (
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', paddingTop: '4px' }}>
+              Want to remove PIN protection?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveMode('remove-lock');
+                  setError(null);
+                }}
+                style={{
+                  all: 'unset',
+                  color: 'var(--color-status-error, #ef4444)',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontWeight: 500,
+                }}
+              >
+                Remove passcode lock permanently
+              </button>
+            </div>
+          )}
+
+          {activeMode === 'remove-lock' && (
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', paddingTop: '4px' }}>
+              Just want temporary access?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveMode('unlock');
+                  setError(null);
+                }}
+                style={{
+                  all: 'unset',
+                  color: 'var(--color-primary, #3b82f6)',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontWeight: 500,
+                }}
+              >
+                Unlock for this session instead
+              </button>
+            </div>
+          )}
+
           {/* Actions */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
             <button
@@ -340,7 +387,7 @@ export function LockCollectionModal({
             </button>
             <button
               type="submit"
-              className={`send-button ${mode === 'remove-lock' ? 'danger-button' : ''}`}
+              className={`send-button ${activeMode === 'remove-lock' ? 'danger-button' : ''}`}
               disabled={isSubmitting || !password.trim()}
               style={{
                 padding: '6px 16px',
@@ -348,20 +395,20 @@ export function LockCollectionModal({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                ...(mode === 'remove-lock' ? { backgroundColor: 'var(--color-status-error)' } : {}),
+                ...(activeMode === 'remove-lock' ? { backgroundColor: 'var(--color-status-error)' } : {}),
               }}
             >
-              {mode === 'lock' ? (
+              {activeMode === 'lock' ? (
                 <>
                   <Lock size={14} /> Set Lock
                 </>
-              ) : mode === 'unlock' ? (
+              ) : activeMode === 'unlock' ? (
                 <>
                   <Unlock size={14} /> Unlock Collection
                 </>
               ) : (
                 <>
-                  <Unlock size={14} /> Remove Lock
+                  <Unlock size={14} /> Remove Passcode Lock
                 </>
               )}
             </button>
@@ -379,10 +426,12 @@ export function LockedCollectionGate({
   collectionName,
   hint,
   onUnlock,
+  onRemoveLock,
 }: {
   collectionName: string;
   hint?: string;
   onUnlock: (password: string) => Promise<{ success: boolean; error?: string }>;
+  onRemoveLock?: () => void;
 }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -526,6 +575,23 @@ export function LockedCollectionGate({
           <Unlock size={14} /> Unlock
         </button>
       </form>
+
+      {onRemoveLock && (
+        <button
+          type="button"
+          onClick={onRemoveLock}
+          style={{
+            all: 'unset',
+            marginTop: '16px',
+            fontSize: '12px',
+            color: 'var(--color-status-error, #ef4444)',
+            cursor: 'pointer',
+            textDecoration: 'underline',
+          }}
+        >
+          Permanently remove passcode lock…
+        </button>
+      )}
     </div>
   );
 }

@@ -80,11 +80,9 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
   const [workspaceList, setWorkspaceList] = useState<WorkspaceListItem[]>([]);
   const [importToast, setImportToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
 
-  function showImportToast(message: string, tone: "info" | "success" | "error", durationMs = 4000) {
+  function showImportToast(message: string, tone: "info" | "success" | "error", durationMs = 3500) {
     setImportToast({ message, tone });
-    if (tone !== "info") {
-      setTimeout(() => setImportToast(null), durationMs);
-    }
+    setTimeout(() => setImportToast(null), durationMs);
   }
 
   async function handleLoadScriptStatuses() {
@@ -1544,6 +1542,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     handleImportPostmanEnvironment,
     handleMoveItem,
     importToast,
+    setImportToast,
   };
 }
 

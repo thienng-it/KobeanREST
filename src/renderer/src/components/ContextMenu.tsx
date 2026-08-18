@@ -322,18 +322,32 @@ export function ContextMenu({
                   </button>
                 </>
               ) : (
-                <button
-                  className="context-menu-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (target.id && onUnlockCollection) onUnlockCollection(target.id);
-                    onClose();
-                  }}
-                  style={itemStyle}
-                  {...hoverHandlers()}
-                >
-                  <Unlock size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Unlock Collection…
-                </button>
+                <>
+                  <button
+                    className="context-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (target.id && onUnlockCollection) onUnlockCollection(target.id);
+                      onClose();
+                    }}
+                    style={itemStyle}
+                    {...hoverHandlers()}
+                  >
+                    <Unlock size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Unlock Collection…
+                  </button>
+                  <button
+                    className="context-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (target.id && onRemoveCollectionLock) onRemoveCollectionLock(target.id);
+                      onClose();
+                    }}
+                    style={itemStyle}
+                    {...hoverHandlers()}
+                  >
+                    <Unlock size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Remove Passcode Lock…
+                  </button>
+                </>
               )}
             </>
           ) : (

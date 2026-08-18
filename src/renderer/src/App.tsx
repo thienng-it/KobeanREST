@@ -31,6 +31,7 @@ import { AIChatSidebar } from "./components/AIChatSidebar";
 import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { FolderEditor } from "./components/FolderEditor";
 import { CollectionEditor } from "./components/CollectionEditor";
+import { CollectionsManager } from "./components/CollectionsManager";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { ApiToolsModal } from "./components/ApiToolsModal";
 import { resolveAuthConfig, getEffectiveAuth } from "./services/auth";
@@ -78,7 +79,7 @@ export function App() {
     updateDialogOpen, setUpdateDialogOpen,
     updateBusy,
     updateProgressLabel,
-    updateToast,
+    updateToast, setUpdateToast,
     handleCheckForUpdates, handleInstallUpdate
   } = useAppSettings();
 
@@ -133,9 +134,16 @@ export function App() {
   const [appToast, setAppToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
 
   useEffect(() => {
+    if (!appToast) return;
+    const timer = setTimeout(() => {
+      setAppToast(null);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [appToast]);
+
+  useEffect(() => {
     const handleAppToast = (e: any) => {
       setAppToast({ message: e.detail.message, tone: e.detail.tone });
-      setTimeout(() => setAppToast(null), e.detail.durationMs || 4000);
     };
     window.addEventListener("app-toast", handleAppToast);
     return () => window.removeEventListener("app-toast", handleAppToast);
@@ -234,6 +242,7 @@ export function App() {
     handleImportPostmanEnvironment,
     handleMoveItem,
     importToast,
+    setImportToast,
     loadWorkspace
   } = ws;
 
@@ -1238,6 +1247,28 @@ export function App() {
     setActiveTabId(newTab.id);
   }
 
+  function openCollectionsOverviewTab() {
+    setSelectedRequestId(null);
+    lastSelectedRequestIdRef.current = null;
+
+    const existingTab = tabs.find((tab) => tab.type === "collections-overview");
+    if (existingTab) {
+      setActiveTabId(existingTab.id);
+      return;
+    }
+
+    const newTab: Tab = {
+      id: `collections-overview-${Date.now()}`,
+      type: "collections-overview",
+      entityId: "collections-overview",
+      name: "Collections Hub",
+      isDirty: false,
+    };
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }
+
   function openEnvironmentTab(envName: string) {
     setSelectedRequestId(null);
     lastSelectedRequestIdRef.current = null;
@@ -1575,6 +1606,9 @@ export function App() {
           className={`update-toast import-toast import-toast-${appToast.tone}`} 
           role="status" 
           aria-live="polite"
+          onClick={() => setAppToast(null)}
+          title="Click to dismiss"
+          style={{ cursor: "pointer" }}
         >
           {appToast.message}
         </div>
@@ -1584,6 +1618,9 @@ export function App() {
           className={`update-toast update-toast-${updateToast.tone}`}
           role="status"
           aria-live="polite"
+          onClick={() => setUpdateToast(null)}
+          title="Click to dismiss"
+          style={{ cursor: "pointer" }}
         >
           {updateToast.message}
         </div>
@@ -1593,6 +1630,9 @@ export function App() {
           className={`update-toast import-toast import-toast-${importToast.tone}`}
           role="status"
           aria-live="polite"
+          onClick={() => setImportToast(null)}
+          title="Click to dismiss"
+          style={{ cursor: "pointer" }}
         >
           {importToast.message}
         </div>
@@ -1631,6 +1671,7 @@ export function App() {
         }}
         onOpenFolder={openFolderTab}
         onOpenCollection={openCollectionTab}
+        onOpenCollectionsOverview={openCollectionsOverviewTab}
         onStartSidebarRename={startSidebarRename}
         onCancelSidebarRename={cancelSidebarRename}
         onApplySidebarRename={applySidebarRename}
@@ -1726,6 +1767,9 @@ export function App() {
                 setSelectedRequestId(null);
                 lastSelectedRequestIdRef.current = null;
               } else if (tab.type === "environment") {
+                setSelectedRequestId(null);
+                lastSelectedRequestIdRef.current = null;
+              } else if (tab.type === "collections-overview") {
                 setSelectedRequestId(null);
                 lastSelectedRequestIdRef.current = null;
               }
@@ -1838,6 +1882,7 @@ export function App() {
                     collectionName={col?.name || "Collection"}
                     hint={hint}
                     onUnlock={(pw) => parentColId ? handleUnlockCollectionAction(parentColId, pw) : Promise.resolve({ success: false, error: "Not found" })}
+                    onRemoveLock={() => parentColId && handleOpenLockModal(parentColId, "remove-lock")}
                   />
                 );
               }
@@ -1863,6 +1908,7 @@ export function App() {
                       collectionName={collection.name}
                       hint={hint}
                       onUnlock={(pw) => handleUnlockCollectionAction(collection.id, pw)}
+                      onRemoveLock={() => handleOpenLockModal(collection.id, "remove-lock")}
                     />
                   );
                 }
@@ -1870,12 +1916,46 @@ export function App() {
                   <CollectionEditor
                     collection={collection}
                     activeVars={scopedVarsArray}
+                    unlockedCollectionIds={unlockedCollectionIds}
                     onUpdateCollection={handleUpdateCollection}
                     onSaveScopedVariable={handleSaveScopedVariable}
                     onDeleteScopedVariable={handleDeleteScopedVariable}
+                    onOpenLockModal={handleOpenLockModal}
+                    onRelockCollection={(id) => {
+                      relockCollectionInSession(id, unlockedCollectionIds);
+                      setUnlockedCollectionIds(new Set(unlockedCollectionIds));
+                      setAppToast({ message: `Locked collection "${collection.name}"`, tone: "info" });
+                    }}
                   />
                 );
               }
+            }
+
+            if (currentTab?.type === "collections-overview") {
+              return (
+                <CollectionsManager
+                  workspace={workspace}
+                  unlockedCollectionIds={unlockedCollectionIds}
+                  onOpenCollection={openCollectionTab}
+                  onOpenFolder={openFolderTab}
+                  onSelectRequest={handleSelectRequest}
+                  onCreateCollection={handleCreateCollection}
+                  onDeleteCollection={handleDeleteCollection}
+                  onCreateRequestInCollection={(collectionId) => {
+                    setCreateRequestInitialFolderId(collectionId);
+                    setCreateRequestModalOpen(true);
+                  }}
+                  onCreateFolderInCollection={(collectionId) => handleCreateFolder(collectionId)}
+                  onRunCollection={(collectionId) => setCollectionRunner({ scopeId: collectionId, scopeType: "collection" })}
+                  onLockCollectionToggle={handleLockToggle}
+                  onRemoveLockCollection={(collectionId) => handleOpenLockModal(collectionId, "remove-lock")}
+                  onOpenUniversalImport={() => {
+                    setUniversalImportInitialContent("");
+                    setUniversalImportModalOpen(true);
+                  }}
+                  onExportWorkspace={() => void handleExport()}
+                />
+              );
             }
 
             const activeRequest = draftRequest || (currentTab?.type === "request" && currentTab?.entityId ? unsavedRequests[currentTab.entityId] : null);
@@ -1892,6 +1972,7 @@ export function App() {
                   collectionName={col?.name || "Collection"}
                   hint={hint}
                   onUnlock={(pw) => parentColId ? handleUnlockCollectionAction(parentColId, pw) : Promise.resolve({ success: false, error: "Not found" })}
+                  onRemoveLock={() => parentColId && handleOpenLockModal(parentColId, "remove-lock")}
                 />
               );
             }
@@ -1972,13 +2053,20 @@ export function App() {
                   >
                     + New Collection
                   </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={openCollectionsOverviewTab}
+                  >
+                    Browse Collections
+                  </button>
                 </div>
               </div>
             </div>
             );
           })()}
 
-          {currentTab && currentTab.type !== "folder" && currentTab.type !== "collection" && currentTab.method !== "WS" && currentTab.method !== "SOCKET.IO" && currentTab.method !== "GRPC" && draftRequest?.method !== "WS" && draftRequest?.method !== "SOCKET.IO" && draftRequest?.method !== "GRPC" && (
+          {currentTab && currentTab.type !== "folder" && currentTab.type !== "collection" && currentTab.type !== "collections-overview" && currentTab.type !== "environment" && currentTab.method !== "WS" && currentTab.method !== "SOCKET.IO" && currentTab.method !== "GRPC" && draftRequest?.method !== "WS" && draftRequest?.method !== "SOCKET.IO" && draftRequest?.method !== "GRPC" && (
             <BottomDock
               activeBottomDock={activeBottomDock}
               bottomDockHeight={bottomDockHeight}

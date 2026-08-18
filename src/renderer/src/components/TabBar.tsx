@@ -1,4 +1,4 @@
-import { X, Folder, Globe, Package, Plus } from "lucide-react";
+import { X, Folder, Globe, Package, Plus, FolderTree } from "lucide-react";
 import type { Tab } from "../types";
 import type { HttpMethod } from "../types";
 import { methodClass } from "./MethodSelector";
@@ -151,6 +151,8 @@ export function TabBar({
             <>
               {tab.type === "environment" ? (
                 <Globe size={12} style={{ flexShrink: 0 }} />
+              ) : tab.type === "collections-overview" ? (
+                <FolderTree size={12} style={{ flexShrink: 0 }} />
               ) : tab.type === "collection" ? (
                 <Package size={12} style={{ flexShrink: 0 }} />
               ) : (

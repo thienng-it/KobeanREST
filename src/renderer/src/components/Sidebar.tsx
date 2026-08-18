@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle, Lock, Unlock } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle, Lock, Unlock, LayoutGrid } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
@@ -93,6 +93,7 @@ export interface SidebarProps {
   onCreateRequest: (folderId: string) => Promise<void>;
   onOpenFolder?: (folderId: string) => void;
   onOpenCollection?: (collectionId: string) => void;
+  onOpenCollectionsOverview?: () => void;
 
   // Rename callbacks
   onStartSidebarRename: (type: "folder" | "collection", id: string, name: string) => void;
@@ -667,6 +668,7 @@ export function Sidebar({
   onCreateRequest,
   onOpenFolder,
   onOpenCollection,
+  onOpenCollectionsOverview,
   onStartSidebarRename,
   onCancelSidebarRename,
   onApplySidebarRename,
@@ -1287,11 +1289,31 @@ export function Sidebar({
         >
           <section className="nav-section">
             <h2 style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: onOpenCollectionsOverview ? "pointer" : "default",
+                }}
+                onClick={onOpenCollectionsOverview}
+                title={onOpenCollectionsOverview ? "Click to view All Collections" : undefined}
+              >
                 <FolderTree size={15} />
                 Collections
               </div>
               <div style={{ display: "flex", gap: "2px" }}>
+                {onOpenCollectionsOverview && (
+                  <button
+                    className="sidebar-icon-button"
+                    type="button"
+                    onClick={onOpenCollectionsOverview}
+                    aria-label="View all collections"
+                    title="View all collections"
+                  >
+                    <LayoutGrid size={14} />
+                  </button>
+                )}
                 {onExpandAll && (
                   <button
                     className="sidebar-icon-button"
