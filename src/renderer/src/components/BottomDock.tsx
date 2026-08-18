@@ -1,3 +1,4 @@
+import React from "react";
 import { ChevronDown, ExternalLink, Eye, Terminal } from "lucide-react";
 import { ResponsePanel, type ResponseTab } from "./ResponsePanel";
 import { ConsolePanel } from "./ConsolePanel";
@@ -29,7 +30,7 @@ export interface BottomDockProps {
   onClearConsole?: () => void;
 }
 
-export function BottomDock({
+export const BottomDock = React.memo(function BottomDock({
   activeBottomDock,
   bottomDockHeight,
   bottomDockStripHeight,
@@ -153,4 +154,4 @@ export function BottomDock({
       </div>
     </section>
   );
-}
+});

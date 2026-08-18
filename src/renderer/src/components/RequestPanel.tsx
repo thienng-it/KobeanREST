@@ -1,5 +1,5 @@
+import React, { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type MutableRefObject } from "react";
 import { ChevronDown, Code2, Plus, Play, Save, Settings, Trash2, WandSparkles, Copy, Check, Clock, Repeat, Activity } from "lucide-react";
-import { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type MutableRefObject } from "react";
 import { createPortal } from "react-dom";
 import { CustomSelect } from "./CustomSelect";
 import { MethodSelector } from "./MethodSelector";
@@ -286,7 +286,7 @@ export interface RequestPanelProps {
   onSaveVariable?: (envName: string, key: string, value: string) => Promise<void> | void;
 }
 
-export function RequestPanel({
+export const RequestPanel = React.memo(function RequestPanel({
   workspace,
   draftRequest,
   activeVars,
@@ -1864,4 +1864,4 @@ export function RequestPanel({
       )}
     </section>
   );
-}
+});

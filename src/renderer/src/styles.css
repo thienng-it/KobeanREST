@@ -319,74 +319,35 @@ body {
   font-size: 13px;
 }
 
-/* Background Ambient Blobs */
+/* Background Ambient Mesh (GPU-Friendly Static Gradients) */
 body::before {
   content: "";
   position: fixed;
-  top: -10%;
+  top: -15%;
   left: -10%;
-  width: 50vw;
-  height: 50vw;
+  width: 60vw;
+  height: 60vw;
   border-radius: 50%;
-  background: var(--blob-color-1);
-  filter: blur(120px);
+  background: radial-gradient(circle, var(--blob-color-1) 0%, transparent 70%);
+  filter: blur(80px);
   z-index: -2;
   pointer-events: none;
-  animation: float-blob-1 25s infinite ease-in-out;
+  transform: translateZ(0);
 }
 
 body::after {
   content: "";
   position: fixed;
-  bottom: -10%;
+  bottom: -15%;
   right: -10%;
-  width: 55vw;
-  height: 55vw;
+  width: 65vw;
+  height: 65vw;
   border-radius: 50%;
-  background: var(--blob-color-2);
-  filter: blur(130px);
+  background: radial-gradient(circle, var(--blob-color-2) 0%, transparent 70%);
+  filter: blur(90px);
   z-index: -2;
   pointer-events: none;
-  animation: float-blob-2 30s infinite ease-in-out;
-}
-
-@keyframes float-blob-1 {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(8vw, 6vh) scale(1.08);
-  }
-  66% {
-    transform: translate(-4vw, 12vh) scale(0.96);
-  }
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-}
-
-@keyframes float-blob-2 {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(-10vw, -8vh) scale(0.92);
-  }
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-}
-
-@keyframes float-blob-3 {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(6vw, -10vh) scale(1.12);
-  }
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
+  transform: translateZ(0);
 }
 
 button,
@@ -785,16 +746,16 @@ button:disabled {
 .app-shell::before {
   content: "";
   position: fixed;
-  top: 35%;
+  top: 30%;
   left: 25%;
-  width: 40vw;
-  height: 40vw;
+  width: 45vw;
+  height: 45vw;
   border-radius: 50%;
-  background: var(--blob-color-3);
-  filter: blur(140px);
+  background: radial-gradient(circle, var(--blob-color-3) 0%, transparent 70%);
+  filter: blur(90px);
   z-index: -2;
   pointer-events: none;
-  animation: float-blob-3 28s infinite ease-in-out;
+  transform: translateZ(0);
 }
 
 .sidebar-resizing {
@@ -806,12 +767,12 @@ button:disabled {
   flex-direction: column;
   gap: 14px;
   min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px 4px 0 16px;
   border-right: 1px solid var(--color-border);
   background: var(--color-sidebar);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  overflow: hidden;
+  contain: layout style;
   opacity: 1;
   transform: translateX(0) scale(1);
   transform-origin: left center;

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   Terminal,
   Trash2,
@@ -254,7 +254,7 @@ function ResponseEntry({ entry }: { entry: Extract<ScriptOutputEntry, { type: "r
   );
 }
 
-export function ConsolePanel({ scriptOutputLog, onClearConsole }: ConsolePanelProps) {
+export const ConsolePanel = React.memo(function ConsolePanel({ scriptOutputLog, onClearConsole }: ConsolePanelProps) {
   const [filterTone, setFilterTone] = useState<FilterTone>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [copied, setCopied] = useState(false);
@@ -471,4 +471,4 @@ export function ConsolePanel({ scriptOutputLog, onClearConsole }: ConsolePanelPr
       </div>
     </div>
   );
-}
+});

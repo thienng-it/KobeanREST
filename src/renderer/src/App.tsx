@@ -454,28 +454,34 @@ export function App() {
   useEffect(() => {
     if (!isSidebarResizing) return;
 
+    let rafId: number | null = null;
     const handleMouseMove = (event: MouseEvent) => {
-      if (event.clientX < 140) {
-        setSidebarCollapsed(true);
-        localStorage.setItem("kr_sidebar_collapsed", "true");
-        setIsSidebarResizing(false);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        return;
-      }
-      setSidebarWidth(Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, event.clientX)));
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        if (event.clientX < 140) {
+          setSidebarCollapsed(true);
+          localStorage.setItem("kr_sidebar_collapsed", "true");
+          setIsSidebarResizing(false);
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
+          return;
+        }
+        setSidebarWidth(Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, event.clientX)));
+      });
     };
 
     const handleMouseUp = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       setIsSidebarResizing(false);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
     window.addEventListener("mouseup", handleMouseUp);
 
     return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
@@ -498,22 +504,28 @@ export function App() {
   useEffect(() => {
     if (!isResponsePanelResizing) return;
 
+    let rafId: number | null = null;
     const handleMouseMove = (e: MouseEvent) => {
-      const maxHeight = Math.max(160, window.innerHeight - 280);
-      const nextHeight = Math.min(maxHeight, Math.max(140, window.innerHeight - e.clientY - 24));
-      setBottomDockHeight(nextHeight);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const maxHeight = Math.max(160, window.innerHeight - 280);
+        const nextHeight = Math.min(maxHeight, Math.max(140, window.innerHeight - e.clientY - 24));
+        setBottomDockHeight(nextHeight);
+      });
     };
 
     const handleMouseUp = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       setIsResponsePanelResizing(false);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     window.addEventListener('mouseup', handleMouseUp);
 
     return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
@@ -617,6 +629,39 @@ export function App() {
     setActiveTabId(newTab.id);
     setSelectedRequestId(tempId);
     setDraftRequest(tempReq);
+  }, []);
+
+  const handleTabClick = useCallback((tab: Tab) => {
+    setActiveTabId(tab.id);
+    if (tab.type === "request") {
+      setUnsavedRequests((prev) => {
+        if (prev[tab.entityId]) {
+          setSelectedRequestId(tab.entityId);
+          setDraftRequest(prev[tab.entityId]);
+        } else {
+          handleSelectRequest(tab.entityId);
+        }
+        return prev;
+      });
+      lastSelectedRequestIdRef.current = tab.entityId;
+    } else {
+      setSelectedRequestId(null);
+      lastSelectedRequestIdRef.current = null;
+    }
+  }, [handleSelectRequest]);
+
+  const handleTabContextMenu = useCallback((tabId: string, x: number, y: number) => {
+    setContextMenu({ x, y, target: { id: tabId, type: "tab" } });
+  }, []);
+
+  const handleCreateRequestInFolder = useCallback((folderId: string) => {
+    setCreateRequestInitialFolderId(folderId);
+    setCreateRequestModalOpen(true);
+    return Promise.resolve();
+  }, []);
+
+  const handleSidebarContextMenu = useCallback((target: any, x: number, y: number) => {
+    setContextMenu({ x, y, target });
   }, []);
 
   const handleImportCurlAsDraft = useCallback((fields: Partial<SavedRequest>) => {
@@ -1664,11 +1709,7 @@ export function App() {
         onDeleteCollection={handleDeleteCollection}
         onSelectRequest={handleSelectRequest}
         onDeleteRequest={handleDeleteRequest}
-        onCreateRequest={(folderId) => {
-          setCreateRequestInitialFolderId(folderId);
-          setCreateRequestModalOpen(true);
-          return Promise.resolve();
-        }}
+        onCreateRequest={handleCreateRequestInFolder}
         onOpenFolder={openFolderTab}
         onOpenCollection={openCollectionTab}
         onOpenCollectionsOverview={openCollectionsOverviewTab}
@@ -1689,7 +1730,7 @@ export function App() {
         onToggleFolder={toggleFolder}
         onExpandAll={expandAllFolders}
         onCollapseAll={collapseAllFolders}
-        onContextMenu={(target, x, y) => setContextMenu({ x, y, target })}
+        onContextMenu={handleSidebarContextMenu}
         onDismissDeleteError={() => setDeleteError(null)}
         onOpenDocs={openProductDocs}
         onOpenHistory={() => void handleOpenHistory()}
@@ -1746,39 +1787,14 @@ export function App() {
             <div style={{ display: 'flex', borderBottom: "1px solid var(--color-border)", backgroundColor: "var(--color-sidebar)", alignItems: 'center' }}>
               <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                 <TabBar
-            tabs={tabs}
-            activeTabId={activeTabId}
-            unsavedEntityIds={unsavedEntityIds}
-            onNewTab={handleNewTab}
-            onTabClick={(tab) => {
-              setActiveTabId(tab.id);
-              if (tab.type === "request") {
-                if (unsavedRequests[tab.entityId]) {
-                  setSelectedRequestId(tab.entityId);
-                  setDraftRequest(unsavedRequests[tab.entityId]);
-                } else {
-                  handleSelectRequest(tab.entityId);
-                }
-                lastSelectedRequestIdRef.current = tab.entityId;
-              } else if (tab.type === "folder") {
-                setSelectedRequestId(null);
-                lastSelectedRequestIdRef.current = null;
-              } else if (tab.type === "collection") {
-                setSelectedRequestId(null);
-                lastSelectedRequestIdRef.current = null;
-              } else if (tab.type === "environment") {
-                setSelectedRequestId(null);
-                lastSelectedRequestIdRef.current = null;
-              } else if (tab.type === "collections-overview") {
-                setSelectedRequestId(null);
-                lastSelectedRequestIdRef.current = null;
-              }
-            }}
-            onTabClose={closeTab}
-            onTabContextMenu={(tabId, x, y) => {
-              setContextMenu({ x, y, target: { id: tabId, type: "tab" } });
-            }}
-          />
+                  tabs={tabs}
+                  activeTabId={activeTabId}
+                  unsavedEntityIds={unsavedEntityIds}
+                  onNewTab={handleNewTab}
+                  onTabClick={handleTabClick}
+                  onTabClose={closeTab}
+                  onTabContextMenu={handleTabContextMenu}
+                />
               </div>
               <button
                 onClick={() => setAiChatOpen(prev => !prev)}

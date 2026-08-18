@@ -14,7 +14,7 @@ export interface TabBarProps {
   onNewRequest?: () => void;
 }
 
-export function TabBar({
+export const TabBar = React.memo(function TabBar({
   tabs,
   activeTabId,
   unsavedEntityIds,
@@ -133,4 +133,4 @@ export function TabBar({
       )}
     </div>
   );
-}
+});

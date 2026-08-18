@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle, Lock, Unlock, LayoutGrid } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import React, { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
   closestCenter,
@@ -135,7 +135,7 @@ export interface SidebarProps {
 }
 
 // Draggable Collection Row
-function DraggableCollectionRow({
+const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
   collection,
   dragId,
   isDragOver,
@@ -330,10 +330,10 @@ function DraggableCollectionRow({
       {children}
     </div>
   );
-}
+});
 
 // Draggable Folder Row
-function DraggableFolderRow({
+const DraggableFolderRow = React.memo(function DraggableFolderRow({
   folder,
   dragId,
   isDragOver,
@@ -489,10 +489,10 @@ function DraggableFolderRow({
       {children}
     </div>
   );
-}
+});
 
 // Draggable Request Row
-function DraggableRequestRow({
+const DraggableRequestRow = React.memo(function DraggableRequestRow({
   request,
   dragId,
   isSelected,
@@ -639,9 +639,9 @@ function DraggableRequestRow({
       </div>
     </div>
   );
-}
+});
 
-export function Sidebar({
+export const Sidebar = React.memo(function Sidebar({
   workspace,
   selectedRequestId,
   selectedEnvironmentTab,
@@ -1636,4 +1636,4 @@ export function Sidebar({
       </div>
     </aside>
   );
-}
+});

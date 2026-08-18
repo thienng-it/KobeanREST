@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Clock3, Download, Eye, Search, HelpCircle, History } from "lucide-react";
 import jq from "jq-web";
 import { JqHelpModal } from "./JqHelpModal";
@@ -32,7 +32,7 @@ interface ResponsePanelProps {
   onResizerMouseDown: () => void;
 }
 
-export function ResponsePanel({
+export const ResponsePanel = React.memo(function ResponsePanel({
   variant,
   responseState,
   currentResponse,
@@ -378,4 +378,4 @@ export function ResponsePanel({
       {shell}
     </section>
   );
-}
+});
