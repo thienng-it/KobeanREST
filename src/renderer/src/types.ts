@@ -1,4 +1,4 @@
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "WS" | "SOCKET.IO" | "CUSTOM";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "WS" | "SOCKET.IO" | "GRPC" | "CUSTOM";
 
 export interface Tab {
   id: string;
@@ -252,5 +252,83 @@ export interface WsConnectionConfig {
   query?: Record<string, string>;
   reconnection?: boolean;
 }
+
+export type GrpcRpcType = "unary" | "server-streaming" | "client-streaming" | "bidi-streaming";
+
+export interface GrpcMethodDefinition {
+  name: string;
+  requestType: string;
+  responseType: string;
+  requestStream: boolean;
+  responseStream: boolean;
+  rpcType: GrpcRpcType;
+}
+
+export interface GrpcServiceDefinition {
+  name: string;
+  package?: string;
+  methods: GrpcMethodDefinition[];
+}
+
+export interface GrpcMessageField {
+  name: string;
+  type: string;
+  number: number;
+  repeated?: boolean;
+  optional?: boolean;
+}
+
+export interface GrpcMessageType {
+  name: string;
+  fields: GrpcMessageField[];
+}
+
+export interface GrpcProtoSchema {
+  services: GrpcServiceDefinition[];
+  messages: Record<string, GrpcMessageType>;
+  rawProto?: string;
+}
+
+export interface GrpcStreamMessage {
+  id: string;
+  timestamp: number;
+  direction: "incoming" | "outgoing" | "system";
+  data: string;
+  size: number;
+}
+
+export interface GrpcCallResult {
+  status: number;
+  statusText: string;
+  durationMs: number;
+  responseBody?: string;
+  responseHeaders?: Array<{ key: string; value: string }>;
+  responseTrailers?: Array<{ key: string; value: string }>;
+  streamMessages?: GrpcStreamMessage[];
+  error?: string;
+}
+
+export interface MockRoute {
+  id: string;
+  method: string;
+  path: string;
+  status_code: number;
+  response_body: string;
+  content_type: string;
+  delay_ms: number;
+  enabled: boolean;
+}
+
+export interface MockRequestLog {
+  id: number;
+  timestamp: number;
+  method: string;
+  path: string;
+  status_code: number;
+  duration_ms: number;
+  matched_route_id?: string;
+  client_ip: string;
+}
+
 
 

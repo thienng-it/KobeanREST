@@ -14,6 +14,7 @@ import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
 import { AdvancedSendModal } from "./AdvancedSendModal";
 import { LoadTestModal } from "./LoadTestModal";
 import { WebSocketPanel } from "./WebSocketPanel";
+import { GrpcPanel } from "./GrpcPanel";
 import { redactDiagnosticError } from "../services/redaction";
 
 function safeDecode(val: string): string {
@@ -797,6 +798,13 @@ export function RequestPanel({
 
       {draftRequest.method === "WS" || draftRequest.method === "SOCKET.IO" ? (
         <WebSocketPanel
+          draftRequest={draftRequest}
+          activeVars={activeVars}
+          onUpdateDraft={onUpdateDraft}
+          onSaveRequest={onSaveRequest}
+        />
+      ) : draftRequest.method === "GRPC" ? (
+        <GrpcPanel
           draftRequest={draftRequest}
           activeVars={activeVars}
           onUpdateDraft={onUpdateDraft}

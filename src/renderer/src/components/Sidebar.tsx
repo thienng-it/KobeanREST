@@ -749,6 +749,7 @@ export function Sidebar({
       case "SOCKET.IO":
       case "SOCKETIO":
       case "SIO": return "socketio";
+      case "GRPC": return "grpc";
       default: return "custom";
     }
   };

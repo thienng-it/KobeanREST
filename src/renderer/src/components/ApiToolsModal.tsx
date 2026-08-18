@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { X, Key, ClipboardPaste, Trash2, Code, Braces, Lock, Copy, Check } from "lucide-react";
+import { X, Key, ClipboardPaste, Trash2, Code, Braces, Lock, Copy, Check, WandSparkles, FileCode2, Sparkles, Plus, Layers } from "lucide-react";
 import type { MockRoute, MockRequestLog } from "../services/local-store";
 import { CustomSelect } from "./CustomSelect";
+import { parseProtoSchema, generateSampleMessageJson, SAMPLE_PROTO_DEFINITIONS } from "../services/proto-parser";
+import { MOCK_SERVER_TEMPLATES, createRoutesFromTemplate, type MockServerTemplate } from "../services/mock-templates";
 
 interface ApiToolsModalProps {
   open: boolean;
@@ -350,23 +352,71 @@ function StatPill({ label, value, color }: { label: string; value: string; color
 function RouteEditor({ route, onSave, onCancel }: { route: MockRoute; onSave: (r: MockRoute) => void; onCancel: () => void }) {
   const [draft, setDraft] = useState<MockRoute>({ ...route });
   const update = (fields: Partial<MockRoute>) => setDraft(prev => ({ ...prev, ...fields }));
-  const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "*"];
-  const CONTENT_TYPES = ["application/json", "text/plain", "text/html", "text/xml", "application/xml"];
+  const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "GRPC", "*"];
+  const CONTENT_TYPES = ["application/json", "application/grpc-web+proto", "text/plain", "text/html", "text/xml", "application/xml"];
   const COMMON_STATUSES = [200, 201, 204, 301, 400, 401, 403, 404, 409, 422, 429, 500, 502, 503];
+
+  const handlePrettifyJson = () => {
+    try {
+      const parsed = JSON.parse(draft.response_body);
+      update({ response_body: JSON.stringify(parsed, null, 2) });
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "16px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-        <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>Edit Route</h3>
+        <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>
+          {draft.method === "GRPC" ? "Edit gRPC Mock Route" : "Edit Route"}
+        </h3>
         <div style={{ display: "flex", gap: "8px" }}>
           <button onClick={onCancel} style={{ padding: "7px 16px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "13px" }}>Cancel</button>
           <button onClick={() => onSave(draft)} style={{ padding: "7px 16px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}>Save Route</button>
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 110px", gap: "12px", flexShrink: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 110px", gap: "12px", flexShrink: 0 }}>
         {[
-          { label: "Method", el: <select value={draft.method} onChange={e => update({ method: e.target.value })} style={{ width: "100%", padding: "7px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px" }}>{METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select> },
-          { label: "Path", el: <input type="text" value={draft.path} onChange={e => update({ path: e.target.value })} placeholder="/users/:id" style={{ width: "100%", padding: "7px 10px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px", fontFamily: "monospace", boxSizing: "border-box" }} /> },
-          { label: "Status", el: <select value={draft.status_code} onChange={e => update({ status_code: Number(e.target.value) })} style={{ width: "100%", padding: "7px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px" }}>{COMMON_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select> },
+          { label: "Method / Protocol", el: (
+            <select
+              value={draft.method}
+              onChange={e => {
+                const nextMethod = e.target.value;
+                const isGrpc = nextMethod === "GRPC";
+                update({
+                  method: nextMethod,
+                  content_type: isGrpc ? "application/grpc-web+proto" : draft.content_type === "application/grpc-web+proto" ? "application/json" : draft.content_type,
+                  path: isGrpc && !draft.path.includes(".") ? "/helloworld.Greeter/SayHello" : draft.path
+                });
+              }}
+              style={{ width: "100%", padding: "7px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px", fontWeight: draft.method === "GRPC" ? 700 : 500 }}
+            >
+              {METHODS.map(m => <option key={m} value={m}>{m === "GRPC" ? "gRPC" : m}</option>)}
+            </select>
+          )},
+          { label: draft.method === "GRPC" ? "RPC Path (/<Service>/<Method>)" : "Path", el: (
+            <input
+              type="text"
+              value={draft.path}
+              onChange={e => update({ path: e.target.value })}
+              placeholder={draft.method === "GRPC" ? "/helloworld.Greeter/SayHello" : "/users/:id"}
+              style={{ width: "100%", padding: "7px 10px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px", fontFamily: "monospace", boxSizing: "border-box" }}
+            />
+          )},
+          { label: draft.method === "GRPC" ? "Status (HTTP / gRPC)" : "Status", el: (
+            <select
+              value={draft.status_code}
+              onChange={e => update({ status_code: Number(e.target.value) })}
+              style={{ width: "100%", padding: "7px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px" }}
+            >
+              {COMMON_STATUSES.map(s => (
+                <option key={s} value={s}>
+                  {s} {s === 200 && draft.method === "GRPC" ? "(0 OK)" : s === 400 && draft.method === "GRPC" ? "(3 INVALID_ARG)" : s === 404 && draft.method === "GRPC" ? "(5 NOT_FOUND)" : s === 503 && draft.method === "GRPC" ? "(14 UNAVAIL)" : ""}
+                </option>
+              ))}
+            </select>
+          )},
         ].map(({ label, el }) => (
           <div key={label} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>{label}</label>
@@ -387,8 +437,186 @@ function RouteEditor({ route, onSave, onCancel }: { route: MockRoute; onSave: (r
         </div>
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
-        <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>Response Body</label>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>
+            {draft.method === "GRPC" ? "gRPC Response JSON Payload" : "Response Body"}
+          </label>
+          <button
+            type="button"
+            onClick={handlePrettifyJson}
+            className="ghost-button"
+            style={{ fontSize: "11px", padding: "2px 8px", display: "flex", alignItems: "center", gap: "4px" }}
+          >
+            <Sparkles size={11} /> Format JSON
+          </button>
+        </div>
         <textarea className="api-tools-textarea" style={{ flex: 1 }} value={draft.response_body} onChange={e => update({ response_body: e.target.value })} placeholder='{"message": "Hello!"}' />
+      </div>
+    </div>
+  );
+}
+
+function MockTemplatesDrawer({
+  onLoadTemplate,
+  onAppendTemplate,
+  onClose,
+}: {
+  onLoadTemplate: (template: MockServerTemplate) => void;
+  onAppendTemplate: (template: MockServerTemplate) => void;
+  onClose: () => void;
+}) {
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
+  const categories = [
+    { id: "all", label: "All Templates" },
+    { id: "rest", label: "REST / HTTP" },
+    { id: "grpc", label: "gRPC & Proto" },
+    { id: "ai", label: "AI & LLM" },
+    { id: "infra", label: "DevOps & Health" },
+  ];
+
+  const filtered = useMemo(() => {
+    if (selectedCategory === "all") return MOCK_SERVER_TEMPLATES;
+    return MOCK_SERVER_TEMPLATES.filter((t) => t.category === selectedCategory);
+  }, [selectedCategory]);
+
+  const categoryColor = (cat: string) => {
+    switch (cat) {
+      case "grpc":
+        return { bg: "rgba(99, 102, 241, 0.15)", text: "#818cf8" };
+      case "ai":
+        return { bg: "rgba(168, 85, 247, 0.15)", text: "#c084fc" };
+      case "infra":
+        return { bg: "rgba(234, 179, 8, 0.15)", text: "#facc15" };
+      default:
+        return { bg: "rgba(16, 185, 129, 0.15)", text: "#34d399" };
+    }
+  };
+
+  return (
+    <div style={{ padding: "16px", backgroundColor: "var(--color-surface-muted)", border: "1px solid var(--color-border)", borderRadius: "10px", display: "flex", flexDirection: "column", gap: "12px", flexShrink: 0 }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Layers size={16} color="var(--color-accent)" />
+          <strong style={{ fontSize: "14px", color: "var(--color-text)" }}>Mock Server Starter Templates</strong>
+          <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", backgroundColor: "rgba(99, 102, 241, 0.15)", color: "#818cf8", fontWeight: 600 }}>
+            {MOCK_SERVER_TEMPLATES.length} presets
+          </span>
+        </div>
+        <button type="button" onClick={onClose} className="ghost-button" style={{ fontSize: "12px", padding: "4px 8px" }}>
+          Close
+        </button>
+      </div>
+
+      {/* Category Pills */}
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+        {categories.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setSelectedCategory(c.id)}
+            style={{
+              padding: "4px 12px",
+              borderRadius: "14px",
+              border: "1px solid var(--color-border)",
+              fontSize: "11px",
+              fontWeight: selectedCategory === c.id ? 700 : 500,
+              backgroundColor: selectedCategory === c.id ? "var(--color-accent)" : "transparent",
+              color: selectedCategory === c.id ? "#fff" : "var(--color-text-muted)",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Template Cards Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px", maxHeight: "280px", overflowY: "auto", paddingRight: "4px" }}>
+        {filtered.map((tpl) => {
+          const colors = categoryColor(tpl.category);
+          return (
+            <div
+              key={tpl.id}
+              style={{
+                padding: "12px",
+                borderRadius: "8px",
+                border: "1px solid var(--color-border)",
+                backgroundColor: "var(--color-surface)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "16px" }}>{tpl.icon}</span>
+                    <strong style={{ fontSize: "13px", color: "var(--color-text)" }}>{tpl.name}</strong>
+                  </div>
+                  <span style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "4px", backgroundColor: colors.bg, color: colors.text, fontWeight: 700, textTransform: "uppercase" }}>
+                    {tpl.category}
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: "11px", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
+                  {tpl.description}
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "8px" }}>
+                  {tpl.routes.slice(0, 3).map((r, idx) => (
+                    <span key={idx} style={{ fontSize: "10px", fontFamily: "monospace", padding: "1px 5px", borderRadius: "3px", backgroundColor: "var(--color-surface-hover)", color: "var(--color-text)" }}>
+                      <strong style={{ color: r.method === "GRPC" ? "#818cf8" : "var(--color-accent)" }}>{r.method}</strong> {r.path}
+                    </span>
+                  ))}
+                  {tpl.routes.length > 3 && (
+                    <span style={{ fontSize: "10px", color: "var(--color-text-muted)", padding: "1px 4px" }}>
+                      +{tpl.routes.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", marginTop: "4px" }}>
+                <button
+                  type="button"
+                  onClick={() => onAppendTemplate(tpl)}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: "5px",
+                    border: "1px solid var(--color-border)",
+                    backgroundColor: "transparent",
+                    color: "var(--color-text)",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                  title="Add routes without overwriting existing ones"
+                >
+                  + Append
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLoadTemplate(tpl)}
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: "5px",
+                    border: "none",
+                    backgroundColor: "var(--color-accent)",
+                    color: "#fff",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                  title="Replace all routes with this template"
+                >
+                  Load Template
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -401,20 +629,46 @@ function LocalMockServerView() {
   const [routes, setRoutes] = useState<MockRoute[]>([]);
   const [requestLog, setRequestLog] = useState<MockRequestLog[]>([]);
   const [activeView, setActiveView] = useState<"routes" | "log">("routes");
+  const [protocolFilter, setProtocolFilter] = useState<"all" | "http" | "grpc">("all");
   const [editingRoute, setEditingRoute] = useState<MockRoute | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showProtoGenerator, setShowProtoGenerator] = useState<boolean>(false);
+  const [showTemplatesDrawer, setShowTemplatesDrawer] = useState<boolean>(false);
+  const [protoText, setProtoText] = useState<string>(SAMPLE_PROTO_DEFINITIONS[0].proto);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const newRoute = (): MockRoute => ({
-    id: `route-${Date.now()}`,
-    method: "GET",
-    path: "/",
-    status_code: 200,
-    response_body: JSON.stringify({ message: "Hello from KobeanREST mock server!" }, null, 2),
-    content_type: "application/json",
-    delay_ms: 0,
-    enabled: true,
-  });
+  const handleLoadTemplate = async (template: MockServerTemplate) => {
+    const newRoutes = createRoutesFromTemplate(template);
+    await syncRoutes(newRoutes);
+    setShowTemplatesDrawer(false);
+  };
+
+  const handleAppendTemplate = async (template: MockServerTemplate) => {
+    const newRoutes = createRoutesFromTemplate(template);
+    const existingKeys = new Set(routes.map(r => `${r.method}:${r.path}`));
+    const merged = [
+      ...routes,
+      ...newRoutes.filter(r => !existingKeys.has(`${r.method}:${r.path}`))
+    ];
+    await syncRoutes(merged);
+    setShowTemplatesDrawer(false);
+  };
+
+  const newRoute = (method: string = "GET"): MockRoute => {
+    const isGrpc = method === "GRPC";
+    return {
+      id: `route-${Date.now()}`,
+      method: isGrpc ? "GRPC" : method,
+      path: isGrpc ? "/helloworld.Greeter/SayHello" : "/",
+      status_code: 200,
+      response_body: isGrpc
+        ? JSON.stringify({ message: "Hello from mock gRPC Greeter!" }, null, 2)
+        : JSON.stringify({ message: "Hello from KobeanREST mock server!" }, null, 2),
+      content_type: isGrpc ? "application/grpc-web+proto" : "application/json",
+      delay_ms: 0,
+      enabled: true,
+    };
+  };
 
   useEffect(() => {
     import("../services/local-store").then(({ getMockRoutes, getMockServerStatus }) => {
@@ -469,8 +723,61 @@ function LocalMockServerView() {
     setRequestLog([]);
   };
 
+  // Generate Mock gRPC Endpoints from Protobuf schema
+  const handleGenerateFromProto = async () => {
+    try {
+      const parsed = parseProtoSchema(protoText);
+      const newGrpcRoutes: MockRoute[] = [];
+
+      for (const service of parsed.services) {
+        for (const method of service.methods) {
+          const sampleResponse = generateSampleMessageJson(method.responseType, parsed);
+          newGrpcRoutes.push({
+            id: `grpc-mock-${service.name}-${method.name}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            method: "GRPC",
+            path: `/${service.name}/${method.name}`,
+            status_code: 200,
+            response_body: sampleResponse,
+            content_type: "application/grpc-web+proto",
+            delay_ms: 0,
+            enabled: true,
+          });
+        }
+      }
+
+      if (newGrpcRoutes.length > 0) {
+        // Keep non-duplicate routes
+        const existingPaths = new Set(routes.map(r => `${r.method}:${r.path}`));
+        const merged = [
+          ...routes,
+          ...newGrpcRoutes.filter(r => !existingPaths.has(`${r.method}:${r.path}`))
+        ];
+        await syncRoutes(merged);
+      }
+      setShowProtoGenerator(false);
+    } catch {
+      // ignore
+    }
+  };
+
   const statusColor = (code: number) => code < 300 ? "#10b981" : code < 400 ? "#f59e0b" : "#ef4444";
-  const methodColor = (m: string) => ({ GET: "#10b981", POST: "#3b82f6", PUT: "#f59e0b", PATCH: "#8b5cf6", DELETE: "#ef4444" }[m] ?? "#6b7280");
+  const methodColor = (m: string) => ({
+    GET: "#10b981",
+    POST: "#3b82f6",
+    PUT: "#f59e0b",
+    PATCH: "#8b5cf6",
+    DELETE: "#ef4444",
+    GRPC: "#6366f1"
+  }[m.toUpperCase()] ?? "#6b7280");
+
+  const displayedRoutes = useMemo(() => {
+    if (protocolFilter === "http") return routes.filter(r => r.method.toUpperCase() !== "GRPC");
+    if (protocolFilter === "grpc") return routes.filter(r => r.method.toUpperCase() === "GRPC");
+    return routes;
+  }, [routes, protocolFilter]);
+
+  const httpCount = useMemo(() => routes.filter(r => r.method.toUpperCase() !== "GRPC").length, [routes]);
+  const grpcCount = useMemo(() => routes.filter(r => r.method.toUpperCase() === "GRPC").length, [routes]);
 
   if (editingRoute) {
     return (
@@ -491,9 +798,9 @@ function LocalMockServerView() {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>Local Mock Server</h3>
+          <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>Local Mock Server (HTTP &amp; gRPC)</h3>
           <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--color-text-muted)" }}>
-            Define routes with custom responses, status codes, and simulated delays.
+            Mock REST endpoints and gRPC RPC methods with custom payloads, status codes, and latency simulation.
           </p>
         </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -523,18 +830,170 @@ function LocalMockServerView() {
           <StatPill label="Port" value={String(port)} color="var(--color-text)" />
           <StatPill label="Total Requests" value={String(requestCount)} color="var(--color-accent)" />
           <StatPill label="Active Routes" value={`${routes.filter(r => r.enabled).length} / ${routes.length}`} color="var(--color-text-muted)" />
+          <StatPill label="gRPC Mocks" value={String(grpcCount)} color="#818cf8" />
         </div>
       )}
 
-      {/* Tab bar */}
+      {/* Mock Templates Drawer */}
+      {showTemplatesDrawer && (
+        <MockTemplatesDrawer
+          onLoadTemplate={handleLoadTemplate}
+          onAppendTemplate={handleAppendTemplate}
+          onClose={() => setShowTemplatesDrawer(false)}
+        />
+      )}
+
+      {/* Proto Schema Generator Drawer / Section */}
+      {showProtoGenerator && (
+        <div style={{ padding: "14px", backgroundColor: "var(--color-surface-muted)", border: "1px solid var(--color-border)", borderRadius: "10px", display: "flex", flexDirection: "column", gap: "10px", flexShrink: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <WandSparkles size={16} color="var(--color-accent)" />
+              <strong style={{ fontSize: "13px", color: "var(--color-text)" }}>Generate gRPC Mock Server from Protobuf Schema</strong>
+            </div>
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <select
+                onChange={(e) => {
+                  const preset = SAMPLE_PROTO_DEFINITIONS.find(p => p.label === e.target.value);
+                  if (preset) setProtoText(preset.proto);
+                }}
+                style={{ fontSize: "11px", padding: "4px 8px", borderRadius: "4px", backgroundColor: "var(--color-input-bg)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
+              >
+                {SAMPLE_PROTO_DEFINITIONS.map(p => (
+                  <option key={p.label} value={p.label}>{p.label}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowProtoGenerator(false)}
+                className="ghost-button"
+                style={{ fontSize: "12px", padding: "4px 8px" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          <textarea
+            value={protoText}
+            onChange={e => setProtoText(e.target.value)}
+            placeholder="Paste .proto IDL syntax definition here..."
+            style={{
+              fontFamily: "monospace",
+              fontSize: "11px",
+              padding: "10px",
+              borderRadius: "6px",
+              border: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-input-bg)",
+              color: "var(--color-text)",
+              minHeight: "130px",
+              resize: "vertical"
+            }}
+          />
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={handleGenerateFromProto}
+              style={{
+                padding: "6px 16px",
+                borderRadius: "6px",
+                border: "none",
+                background: "var(--color-accent)",
+                color: "#fff",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+            >
+              <WandSparkles size={13} /> Generate Mock RPC Routes
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tab bar and Protocol Filter */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--color-border)", flexShrink: 0, alignItems: "center" }}>
         {(["routes", "log"] as const).map(v => (
           <button key={v} onClick={() => setActiveView(v)} style={{ padding: "8px 16px", border: "none", borderBottom: `2px solid ${activeView === v ? "var(--color-accent)" : "transparent"}`, background: "none", color: activeView === v ? "var(--color-text)" : "var(--color-text-muted)", cursor: "pointer", fontSize: "13px", fontWeight: activeView === v ? 600 : 400 }}>
             {v === "log" ? `Request Log${requestLog.length > 0 ? ` (${requestLog.length})` : ""}` : "Routes"}
           </button>
         ))}
-        <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
-          {activeView === "routes" && <button onClick={() => setEditingRoute(newRoute())} style={{ padding: "4px 14px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}>+ Add Route</button>}
+
+        {activeView === "routes" && (
+          <div style={{ display: "flex", gap: "4px", marginLeft: "16px" }}>
+            {(["all", "http", "grpc"] as const).map(f => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setProtocolFilter(f)}
+                style={{
+                  padding: "3px 10px",
+                  borderRadius: "12px",
+                  border: "1px solid var(--color-border)",
+                  fontSize: "11px",
+                  fontWeight: protocolFilter === f ? 700 : 500,
+                  backgroundColor: protocolFilter === f ? "var(--color-surface-hover)" : "transparent",
+                  color: protocolFilter === f ? "var(--color-text)" : "var(--color-text-muted)",
+                  cursor: "pointer"
+                }}
+              >
+                {f === "all" ? `All (${routes.length})` : f === "http" ? `HTTP (${httpCount})` : `gRPC (${grpcCount})`}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+          {activeView === "routes" && (
+            <>
+              <button
+                onClick={() => setShowTemplatesDrawer(prev => !prev)}
+                style={{
+                  padding: "4px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--color-border)",
+                  background: showTemplatesDrawer ? "var(--color-accent)" : "var(--color-surface-hover)",
+                  color: showTemplatesDrawer ? "#fff" : "var(--color-text)",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px"
+                }}
+              >
+                <Layers size={12} color={showTemplatesDrawer ? "#fff" : "var(--color-accent)"} /> Templates
+              </button>
+              <button
+                onClick={() => setShowProtoGenerator(prev => !prev)}
+                style={{
+                  padding: "4px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--color-border)",
+                  background: showProtoGenerator ? "#6366f1" : "var(--color-surface-hover)",
+                  color: showProtoGenerator ? "#fff" : "var(--color-text)",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px"
+                }}
+              >
+                <WandSparkles size={12} color={showProtoGenerator ? "#fff" : "#818cf8"} /> Generate from Proto
+              </button>
+              <button onClick={() => setEditingRoute(newRoute("GRPC"))} style={{ padding: "4px 12px", borderRadius: "6px", border: "1px solid rgba(99,102,241,0.4)", background: "rgba(99,102,241,0.12)", color: "#818cf8", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}>
+                + Add gRPC
+              </button>
+              <button onClick={() => setEditingRoute(newRoute("GET"))} style={{ padding: "4px 12px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}>
+                + Add Route
+              </button>
+            </>
+          )}
           {activeView === "log" && requestLog.length > 0 && <button onClick={clearLog} style={{ padding: "4px 12px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "12px" }}>Clear</button>}
         </div>
       </div>
@@ -542,12 +1001,24 @@ function LocalMockServerView() {
       {/* Routes */}
       {activeView === "routes" && (
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
-          {routes.length === 0 ? (
+          {displayedRoutes.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 16px", color: "var(--color-text-muted)", border: "2px dashed var(--color-border)", borderRadius: "8px" }}>
-              <p style={{ marginBottom: "12px", fontSize: "14px" }}>No routes defined yet.</p>
-              <button onClick={() => setEditingRoute(newRoute())} style={{ padding: "8px 20px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: "13px" }}>+ Add your first route</button>
+              <p style={{ marginBottom: "12px", fontSize: "14px" }}>
+                {protocolFilter === "grpc" ? "No gRPC mock routes defined yet." : "No routes defined yet."}
+              </p>
+              <div style={{ display: "flex", justifyContent: "center", gap: "8px", flexWrap: "wrap" }}>
+                <button onClick={() => setShowTemplatesDrawer(true)} style={{ padding: "8px 18px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "var(--color-surface-hover)", color: "var(--color-text)", cursor: "pointer", fontWeight: 600, fontSize: "13px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <Layers size={14} color="var(--color-accent)" /> Browse Starter Templates
+                </button>
+                <button onClick={() => setShowProtoGenerator(true)} style={{ padding: "8px 18px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "var(--color-surface-hover)", color: "var(--color-text)", cursor: "pointer", fontWeight: 600, fontSize: "13px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <WandSparkles size={14} color="#818cf8" /> Generate from Proto Schema
+                </button>
+                <button onClick={() => setEditingRoute(newRoute(protocolFilter === "grpc" ? "GRPC" : "GET"))} style={{ padding: "8px 20px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: "13px" }}>
+                  + Add {protocolFilter === "grpc" ? "gRPC Route" : "Route"}
+                </button>
+              </div>
             </div>
-          ) : routes.map(r => (
+          ) : displayedRoutes.map(r => (
             <div key={r.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 14px", borderRadius: "8px", border: "1px solid var(--color-border)", background: r.enabled ? "var(--color-surface)" : "transparent", opacity: r.enabled ? 1 : 0.5 }}>
               <span style={{ fontSize: "11px", fontWeight: 700, color: methodColor(r.method), minWidth: "52px", textAlign: "center", padding: "2px 6px", borderRadius: "4px", background: `${methodColor(r.method)}18` }}>{r.method}</span>
               <span style={{ flex: 1, fontFamily: "monospace", fontSize: "13px", color: "var(--color-text)" }}>{r.path}</span>

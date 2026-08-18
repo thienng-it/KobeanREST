@@ -3,7 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { createPortal } from "react-dom";
 import { HttpMethod } from "../types";
 
-const PRESET_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "WS", "SOCKET.IO", "CUSTOM"];
+const PRESET_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "WS", "SOCKET.IO", "GRPC", "CUSTOM"];
 const DROPDOWN_GAP = 6;
 const VIEWPORT_PADDING = 16;
 const DROPDOWN_MIN_HEIGHT = 120;
@@ -14,6 +14,7 @@ export function methodClass(method: string): string {
   const upper = method.toUpperCase();
   if (upper === "WS" || upper === "WSS") return "ws";
   if (upper === "SOCKET.IO" || upper === "SOCKETIO" || upper === "SIO") return "socketio";
+  if (upper === "GRPC") return "grpc";
   const known = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
   if (known.includes(upper)) return upper.toLowerCase();
   return "custom";

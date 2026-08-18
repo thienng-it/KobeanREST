@@ -262,8 +262,8 @@ export function CreateRequestModal({
             </label>
             <div style={{ width: "160px" }}>
               <MethodSelector
-                method={(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "WS", "SOCKET.IO", "CUSTOM"].includes(method.toUpperCase()) ? method.toUpperCase() : "CUSTOM") as HttpMethod}
-                customMethod={["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "WS", "SOCKET.IO"].includes(method.toUpperCase()) ? undefined : method}
+                method={(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "WS", "SOCKET.IO", "GRPC", "CUSTOM"].includes(method.toUpperCase()) ? method.toUpperCase() : "CUSTOM") as HttpMethod}
+                customMethod={["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "WS", "SOCKET.IO", "GRPC"].includes(method.toUpperCase()) ? undefined : method}
                 onChange={(nextMethod, customVal) => {
                   setMethod(nextMethod === "CUSTOM" ? (customVal || "CUSTOM") : nextMethod);
                 }}

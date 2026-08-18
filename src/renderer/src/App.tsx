@@ -1859,7 +1859,7 @@ export function App() {
             );
           })()}
 
-          {currentTab && currentTab.type !== "folder" && currentTab.type !== "collection" && currentTab.method !== "WS" && currentTab.method !== "SOCKET.IO" && draftRequest?.method !== "WS" && draftRequest?.method !== "SOCKET.IO" && (
+          {currentTab && currentTab.type !== "folder" && currentTab.type !== "collection" && currentTab.method !== "WS" && currentTab.method !== "SOCKET.IO" && currentTab.method !== "GRPC" && draftRequest?.method !== "WS" && draftRequest?.method !== "SOCKET.IO" && draftRequest?.method !== "GRPC" && (
             <BottomDock
               activeBottomDock={activeBottomDock}
               bottomDockHeight={bottomDockHeight}

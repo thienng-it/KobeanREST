@@ -93,9 +93,12 @@ fn path_matches(pattern: &str, path: &str) -> bool {
 }
 
 fn find_matching_route(routes: &[MockRoute], method: &str, path: &str) -> Option<MockRoute> {
-    // First pass: exact method match
+    // First pass: exact method or gRPC POST matching
     for route in routes.iter().filter(|r| r.enabled) {
-        if (route.method == method || route.method == "*") && path_matches(&route.path, path) {
+        let method_matches = route.method == method
+            || route.method == "*"
+            || (route.method.eq_ignore_ascii_case("GRPC") && (method == "POST" || method == "GRPC"));
+        if method_matches && path_matches(&route.path, path) {
             return Some(route.clone());
         }
     }
@@ -165,21 +168,29 @@ pub async fn start_local_mock_server(
                 let matched = find_matching_route(&routes_guard, &method, &path);
                 drop(routes_guard);
 
-                let (status_code, body, content_type, delay_ms, matched_id) =
+                // Handle CORS preflight for browser/WebKit callers
+                if method == "OPTIONS" && matched.is_none() {
+                    let preflight = "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, GRPC\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Expose-Headers: *\r\nAccess-Control-Max-Age: 86400\r\nContent-Length: 0\r\n\r\n";
+                    let _ = socket.write_all(preflight.as_bytes());
+                    continue;
+                }
+
+                let (status_code, body, content_type, delay_ms, matched_id, is_grpc) =
                     if let Some(route) = matched {
                         let id = route.id.clone();
                         let delay = route.delay_ms;
                         let sc = route.status_code;
                         let ct = route.content_type.clone();
                         let b = route.response_body.clone();
-                        (sc, b, ct, delay, Some(id))
+                        let grpc_flag = route.method.eq_ignore_ascii_case("GRPC") || ct.contains("grpc");
+                        (sc, b, ct, delay, Some(id), grpc_flag)
                     } else {
                         // Default 404 for unmatched routes
                         let body = format!(
                             r#"{{"error":"No mock route matched","method":"{}","path":"{}"}}"#,
                             method, path
                         );
-                        (404u16, body, "application/json".to_string(), 0u32, None)
+                        (404u16, body, "application/json".to_string(), 0u32, None, false)
                     };
 
                 // Apply delay
@@ -208,12 +219,20 @@ pub async fn start_local_mock_server(
                     _ => "Unknown",
                 };
 
+                let grpc_status_header = if is_grpc {
+                    let grpc_code = if status_code == 200 { 0 } else if status_code == 400 { 3 } else if status_code == 404 { 5 } else { 14 };
+                    format!("grpc-status: {}\r\ngrpc-message: {}\r\n", grpc_code, status_text)
+                } else {
+                    String::new()
+                };
+
                 let response = format!(
-                    "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\nAccess-Control-Allow-Headers: *\r\nX-Powered-By: KobeanREST-MockServer\r\n\r\n{}",
+                    "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Expose-Headers: grpc-status, grpc-message, x-grpc-web, content-type\r\nX-Powered-By: KobeanREST-MockServer\r\n{}\r\n{}",
                     status_code,
                     status_text,
                     content_type,
                     body.len(),
+                    grpc_status_header,
                     body
                 );
                 let _ = socket.write_all(response.as_bytes());

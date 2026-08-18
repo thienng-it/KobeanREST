@@ -59,7 +59,8 @@ export function ResponsePanel({
   const [isJqLoading, setIsJqLoading] = useState(false);
   const [isJqHelpOpen, setIsJqHelpOpen] = useState(false);
 
-  const gqlSummary = analyzeGraphQLResponse(currentResponse?.bodyText, currentResponse?.contentType);
+  const isExplicitGraphQL = previewMode === "graphql" || Boolean(currentResponse?.contentType?.toLowerCase().includes("graphql"));
+  const gqlSummary = analyzeGraphQLResponse(currentResponse?.bodyText, currentResponse?.contentType, isExplicitGraphQL);
 
   useEffect(() => {
     if ((previewMode !== "json" && previewMode !== "graphql") || !jqFilter.trim() || !currentResponse?.bodyText) {

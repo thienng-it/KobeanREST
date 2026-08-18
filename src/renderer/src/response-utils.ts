@@ -36,18 +36,55 @@ export interface GraphQLResponseSummary {
   firstErrorMessage?: string;
 }
 
-export function analyzeGraphQLResponse(body?: string | null, contentType?: string | null): GraphQLResponseSummary | null {
+export function analyzeGraphQLResponse(
+  body?: string | null,
+  contentType?: string | null,
+  isExplicitGraphQLRequest?: boolean
+): GraphQLResponseSummary | null {
   if (!body || !body.trim()) return null;
   const isGqlMime = (contentType || "").toLowerCase().includes("graphql");
+
   try {
     const parsed = JSON.parse(body);
-    if (parsed && typeof parsed === "object") {
-      const hasData = "data" in parsed && parsed.data !== null && parsed.data !== undefined;
-      const hasErrors = Array.isArray(parsed.errors) && parsed.errors.length > 0;
-      if (hasData || hasErrors || isGqlMime) {
-        const dataKeys = hasData && typeof parsed.data === "object" && parsed.data ? Object.keys(parsed.data) : [];
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const keys = Object.keys(parsed);
+      const isSpecCompliantGqlKeys =
+        keys.length > 0 &&
+        keys.every((k) => k === "data" || k === "errors" || k === "extensions");
+
+      const hasDataKey = "data" in parsed;
+      // In GraphQL spec, 'data' is always a map/object (e.g. { user: ... }) or null. It is NEVER a JSON array like [ ... ].
+      const isGqlDataStructure =
+        hasDataKey &&
+        (parsed.data === null ||
+          (typeof parsed.data === "object" && !Array.isArray(parsed.data)));
+
+      const hasErrorsKey = "errors" in parsed;
+      // In GraphQL spec, 'errors' is an array of error objects.
+      const isGqlErrorsStructure =
+        hasErrorsKey &&
+        Array.isArray(parsed.errors) &&
+        (parsed.errors.length === 0 ||
+          typeof parsed.errors[0] === "object" ||
+          typeof parsed.errors[0] === "string");
+
+      const isGraphQL =
+        isExplicitGraphQLRequest ||
+        isGqlMime ||
+        (isSpecCompliantGqlKeys && (isGqlDataStructure || isGqlErrorsStructure));
+
+      if (isGraphQL && (hasDataKey || hasErrorsKey || isGqlMime || isExplicitGraphQLRequest)) {
+        const hasData = hasDataKey && parsed.data !== null && parsed.data !== undefined;
+        const hasErrors = isGqlErrorsStructure && parsed.errors.length > 0;
+        const dataKeys =
+          hasData && typeof parsed.data === "object" && !Array.isArray(parsed.data) && parsed.data
+            ? Object.keys(parsed.data)
+            : [];
         const errorCount = hasErrors ? parsed.errors.length : 0;
-        const firstErrorMessage = hasErrors ? (parsed.errors[0]?.message || String(parsed.errors[0])) : undefined;
+        const firstErrorMessage = hasErrors
+          ? parsed.errors[0]?.message || String(parsed.errors[0])
+          : undefined;
+
         return {
           isGraphQL: true,
           hasData,
