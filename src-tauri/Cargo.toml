@@ -1,6 +1,6 @@
 [package]
 name = "kobeanrest"
-version = "0.1.30"
+version = "0.1.31"
 description = "Local-first desktop API client for REST and HTTP workflows."
 authors = ["Nguyen Thai Minh Thien (Joseph)"]
 license = "MIT"
