@@ -1,11 +1,40 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { X, Key, ClipboardPaste, Trash2, Code, Braces, Lock, Copy, Check, WandSparkles, FileCode2, Sparkles, Plus, Layers } from "lucide-react";
+import {
+  X,
+  ShieldCheck,
+  Binary,
+  Braces,
+  Hash,
+  Server,
+  FileCode2,
+  Bot,
+  Copy,
+  Check,
+  WandSparkles,
+  Layers,
+  Plus,
+  Play,
+  Square,
+  Trash2,
+  Sparkles,
+  Clock,
+  ClipboardPaste,
+  Edit2,
+  Code,
+  Lock,
+  Radio,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  Zap,
+  ArrowLeftRight
+} from "lucide-react";
 import type { MockRoute, MockRequestLog } from "../services/local-store";
 import { CustomSelect } from "./CustomSelect";
 import { parseProtoSchema, generateSampleMessageJson, SAMPLE_PROTO_DEFINITIONS } from "../services/proto-parser";
 import { MOCK_SERVER_TEMPLATES, createRoutesFromTemplate, type MockServerTemplate } from "../services/mock-templates";
 
-interface ApiToolsModalProps {
+export interface ApiToolsModalProps {
   open: boolean;
   onClose: () => void;
   collections?: { id: string; name: string }[];
@@ -27,12 +56,13 @@ function b64DecodeUnicode(str: string) {
 
 function JwtDecoder() {
   const [token, setToken] = useState("");
+  const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
   const decoded = useMemo(() => {
     if (!token.trim()) return null;
     try {
       const parts = token.trim().split(".");
-      if (parts.length !== 3) return { error: "Invalid JWT format (must have 3 parts separated by dots)." };
+      if (parts.length !== 3) return { error: "Invalid JWT format (must contain 3 base64 segments separated by dots)." };
       
       const headerStr = b64DecodeUnicode(parts[0]);
       const payloadStr = b64DecodeUnicode(parts[1]);
@@ -40,90 +70,152 @@ function JwtDecoder() {
       const header = JSON.parse(headerStr);
       const payload = JSON.parse(payloadStr);
       
+      let expDate = null;
+      let isExpired = false;
+      if (payload.exp && typeof payload.exp === "number") {
+        expDate = new Date(payload.exp * 1000);
+        isExpired = Date.now() > payload.exp * 1000;
+      }
+
       return {
         header: JSON.stringify(header, null, 2),
         payload: JSON.stringify(payload, null, 2),
-        signature: parts[2]
+        signature: parts[2],
+        expDate: expDate ? expDate.toLocaleString() : null,
+        isExpired,
+        algo: header.alg || "Unknown"
       };
     } catch (e: any) {
       return { error: `Failed to decode: ${e.message}` };
     }
   }, [token]);
 
+  const copyText = (text: string | undefined, section: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedSection(section);
+    setTimeout(() => setCopiedSection(null), 1500);
+  };
+
   return (
-    <div style={{ display: "flex", gap: "24px", height: "100%", width: "100%" }}>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", gap: "8px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <label style={{ fontWeight: "600", color: "var(--color-text)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0 }}>
-            Encoded JWT
-          </label>
-          <div style={{ display: "flex", gap: "4px" }}>
-            <button type="button" className="icon-button" onClick={async () => {
-              try {
-                const text = await navigator.clipboard.readText();
-                setToken(text);
-              } catch (e) {
-                console.error("Failed to read clipboard", e);
-              }
-            }} title="Paste from Clipboard" aria-label="Paste Token">
-              <ClipboardPaste size={14} />
+    <div className="api-tools-pane-split">
+      <div className="api-tools-pane-col">
+        <div className="api-tools-pane-header">
+          <div className="api-tools-section-title">Encoded JWT Token</div>
+          <div className="api-tools-action-group">
+            <button
+              type="button"
+              className="ghost-button api-tools-mini-btn"
+              onClick={async () => {
+                try {
+                  const text = await navigator.clipboard.readText();
+                  setToken(text);
+                } catch (e) {
+                  console.error("Failed to read clipboard", e);
+                }
+              }}
+              title="Paste from Clipboard"
+            >
+              <ClipboardPaste size={13} /> Paste
             </button>
-            <button type="button" className="icon-button" onClick={() => setToken("")} title="Clear Token" aria-label="Clear Token">
-              <Trash2 size={14} />
-            </button>
+            {token && (
+              <button
+                type="button"
+                className="ghost-button api-tools-mini-btn danger"
+                onClick={() => setToken("")}
+                title="Clear Token"
+              >
+                <Trash2 size={13} /> Clear
+              </button>
+            )}
           </div>
         </div>
         <textarea
           className="api-tools-textarea"
           style={{ flex: 1, wordBreak: "break-all" }}
-          placeholder="Paste your JWT here... (e.g. eyJhbGci...)"
+          placeholder="Paste your Bearer token / JWT here (e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...)"
           value={token}
           onChange={e => setToken(e.target.value)}
           autoFocus
         />
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "20px", overflowY: "auto", paddingRight: "8px" }}>
-        <label style={{ fontWeight: "600", color: "var(--color-text)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-          Decoded
-        </label>
+      <div className="api-tools-pane-col api-tools-pane-results">
+        <div className="api-tools-pane-header">
+          <div className="api-tools-section-title">Decoded Claims &amp; Payload</div>
+          {decoded && !decoded.error && (
+            <div className="api-tools-jwt-meta-pill">
+              <span>Alg: <strong>{decoded.algo}</strong></span>
+              {decoded.expDate && (
+                <span className={decoded.isExpired ? "api-tools-badge-expired" : "api-tools-badge-valid"}>
+                  {decoded.isExpired ? "⚠️ Expired" : "✓ Active"}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         
         {decoded?.error ? (
-          <div style={{ color: "#ef4444", padding: "16px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "8px", fontSize: "14px" }}>
-            {decoded.error}
+          <div className="api-tools-alert-box error">
+            <AlertCircle size={16} />
+            <span>{decoded.error}</span>
           </div>
         ) : decoded ? (
-          <>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--color-text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                Header <span style={{ textTransform: "none", opacity: 0.7, fontWeight: "normal" }}>(Algorithm & Token Type)</span>
+          <div className="api-tools-jwt-cards">
+            <div className="api-tools-card-block">
+              <div className="api-tools-card-header">
+                <span className="api-tools-card-tag tag-pink">Header</span>
+                <span className="api-tools-card-hint">Algorithm &amp; Token Type</span>
+                <button
+                  type="button"
+                  className="ghost-button api-tools-card-copy-btn"
+                  onClick={() => copyText(decoded.header, "header")}
+                >
+                  {copiedSection === "header" ? <Check size={12} /> : <Copy size={12} />}
+                  {copiedSection === "header" ? "Copied" : "Copy"}
+                </button>
               </div>
-              <pre className="api-tools-pre" style={{ color: "#ec4899" }}>
-                {decoded.header}
-              </pre>
+              <pre className="api-tools-code-display code-pink">{decoded.header}</pre>
             </div>
             
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--color-text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                Payload <span style={{ textTransform: "none", opacity: 0.7, fontWeight: "normal" }}>(Data)</span>
+            <div className="api-tools-card-block">
+              <div className="api-tools-card-header">
+                <span className="api-tools-card-tag tag-purple">Payload</span>
+                <span className="api-tools-card-hint">Subject, Roles &amp; Claims</span>
+                <button
+                  type="button"
+                  className="ghost-button api-tools-card-copy-btn"
+                  onClick={() => copyText(decoded.payload, "payload")}
+                >
+                  {copiedSection === "payload" ? <Check size={12} /> : <Copy size={12} />}
+                  {copiedSection === "payload" ? "Copied" : "Copy"}
+                </button>
               </div>
-              <pre className="api-tools-pre" style={{ color: "#8b5cf6" }}>
-                {decoded.payload}
-              </pre>
+              <pre className="api-tools-code-display code-purple">{decoded.payload}</pre>
             </div>
             
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--color-text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                Signature
+            <div className="api-tools-card-block">
+              <div className="api-tools-card-header">
+                <span className="api-tools-card-tag tag-blue">Signature</span>
+                <span className="api-tools-card-hint">HMAC / RSA Cryptographic Hash</span>
+                <button
+                  type="button"
+                  className="ghost-button api-tools-card-copy-btn"
+                  onClick={() => copyText(decoded.signature, "signature")}
+                >
+                  {copiedSection === "signature" ? <Check size={12} /> : <Copy size={12} />}
+                  {copiedSection === "signature" ? "Copied" : "Copy"}
+                </button>
               </div>
-              <pre className="api-tools-pre" style={{ color: "#0ea5e9", wordBreak: "break-all", whiteSpace: "pre-wrap" }}>
+              <pre className="api-tools-code-display code-blue" style={{ wordBreak: "break-all", whiteSpace: "pre-wrap" }}>
                 {decoded.signature}
               </pre>
             </div>
-          </>
+          </div>
         ) : (
-          <div style={{ color: "var(--color-text-muted)", fontStyle: "italic", padding: "32px 16px", textAlign: "center", border: "1px dashed var(--color-border-tint)", borderRadius: "8px", fontSize: "14px", background: "var(--color-surface-hover)" }}>
-            Paste a token to see the decoded data
+          <div className="api-tools-empty-placeholder">
+            <ShieldCheck size={36} className="api-tools-empty-icon" />
+            <p>Paste a JWT token on the left to inspect its headers, payload claims, and signature validity.</p>
           </div>
         )}
       </div>
@@ -133,73 +225,131 @@ function JwtDecoder() {
 
 function EncoderDecoder() {
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<"base64" | "url">("base64");
+  const [mode, setMode] = useState<"base64" | "url" | "hex">("base64");
   const [action, setAction] = useState<"encode" | "decode">("encode");
+  const [copied, setCopied] = useState(false);
 
   const result = useMemo(() => {
     if (!input) return "";
     try {
       if (mode === "base64") {
         return action === "encode" ? btoa(input) : atob(input);
-      } else {
+      } else if (mode === "url") {
         return action === "encode" ? encodeURIComponent(input) : decodeURIComponent(input);
+      } else if (mode === "hex") {
+        if (action === "encode") {
+          const encoder = new TextEncoder();
+          const bytes = encoder.encode(input);
+          return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+        } else {
+          const cleanHex = input.replace(/\s+/g, "");
+          const bytes = new Uint8Array(cleanHex.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
+          const decoder = new TextDecoder();
+          return decoder.decode(bytes);
+        }
       }
+      return "";
     } catch (e: any) {
       return `Error: ${e.message}`;
     }
   }, [input, mode, action]);
 
+  const handleCopy = () => {
+    if (!result || result.startsWith("Error")) return;
+    navigator.clipboard.writeText(result);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const handleSwap = () => {
+    if (result && !result.startsWith("Error")) {
+      setInput(result);
+      setAction(action === "encode" ? "decode" : "encode");
+    }
+  };
+
   return (
-    <div style={{ display: "flex", gap: "24px", height: "100%", width: "100%" }}>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", gap: "8px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <label style={{ fontWeight: "600", color: "var(--color-text)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0 }}>
-            Input String
-          </label>
+    <div className="api-tools-pane-split">
+      <div className="api-tools-pane-col">
+        <div className="api-tools-pane-header">
+          <div className="api-tools-section-title">Input Text</div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button
+              type="button"
+              className="ghost-button api-tools-mini-btn"
+              onClick={handleSwap}
+              disabled={!result || result.startsWith("Error")}
+              title="Swap input and output"
+            >
+              <ArrowLeftRight size={13} /> Swap
+            </button>
+            {input && (
+              <button
+                type="button"
+                className="ghost-button api-tools-mini-btn danger"
+                onClick={() => setInput("")}
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
         <textarea
           className="api-tools-textarea"
           style={{ flex: 1 }}
-          placeholder="Enter text here..."
+          placeholder="Enter text string to transform..."
           value={input}
           onChange={e => setInput(e.target.value)}
           autoFocus
         />
         
-        <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
-          <CustomSelect
-            value={mode}
-            onChange={(val) => setMode(val as any)}
-            options={[
-              { value: "base64", label: "Base64" },
-              { value: "url", label: "URL Encoding" }
-            ]}
-          />
+        <div className="api-tools-selector-bar">
+          <div className="api-tools-segmented-group">
+            {(["base64", "url", "hex"] as const).map(m => (
+              <button
+                key={m}
+                type="button"
+                className={`api-tools-seg-btn ${mode === m ? "active" : ""}`}
+                onClick={() => setMode(m)}
+              >
+                {m === "base64" ? "Base64" : m === "url" ? "URL Encode" : "Hex String"}
+              </button>
+            ))}
+          </div>
 
-          <CustomSelect
-            value={action}
-            onChange={(val) => setAction(val as any)}
-            options={[
-              { value: "encode", label: "Encode" },
-              { value: "decode", label: "Decode" }
-            ]}
-          />
+          <div className="api-tools-segmented-group" style={{ marginLeft: "auto" }}>
+            {(["encode", "decode"] as const).map(a => (
+              <button
+                key={a}
+                type="button"
+                className={`api-tools-seg-btn ${action === a ? "active" : ""}`}
+                onClick={() => setAction(a)}
+              >
+                {a === "encode" ? "Encode ↗" : "Decode ↘"}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", gap: "8px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <label style={{ fontWeight: "600", color: "var(--color-text)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0 }}>
-            Output
-          </label>
-          <button type="button" className="icon-button" onClick={() => navigator.clipboard.writeText(result)} title="Copy" aria-label="Copy">
-            <ClipboardPaste size={14} />
+      <div className="api-tools-pane-col">
+        <div className="api-tools-pane-header">
+          <div className="api-tools-section-title">Result</div>
+          <button
+            type="button"
+            className="ghost-button api-tools-mini-btn"
+            onClick={handleCopy}
+            disabled={!result || result.startsWith("Error")}
+          >
+            {copied ? <Check size={13} /> : <Copy size={13} />}
+            {copied ? "Copied" : "Copy Output"}
           </button>
         </div>
         <textarea
-          className="api-tools-textarea"
+          className="api-tools-textarea api-tools-output-textarea"
           style={{ flex: 1, color: result.startsWith("Error") ? "var(--color-status-error, #ef4444)" : "var(--color-text)" }}
           readOnly
+          placeholder="Transformed output will appear here..."
           value={result}
         />
       </div>
@@ -210,6 +360,7 @@ function EncoderDecoder() {
 function JsonFormatter() {
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const formatted = useMemo(() => {
     if (!input.trim()) {
@@ -226,29 +377,93 @@ function JsonFormatter() {
     }
   }, [input]);
 
+  const handleMinify = () => {
+    if (!input.trim()) return;
+    try {
+      const parsed = JSON.parse(input);
+      setInput(JSON.stringify(parsed));
+      setError("");
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handlePrettify = () => {
+    if (!input.trim()) return;
+    try {
+      const parsed = JSON.parse(input);
+      setInput(JSON.stringify(parsed, null, 2));
+      setError("");
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleCopy = () => {
+    if (!input.trim()) return;
+    navigator.clipboard.writeText(input);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "8px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <label style={{ fontWeight: "600", color: "var(--color-text)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0 }}>
-          JSON Formatter / Validator
-        </label>
-        <div style={{ display: "flex", gap: "4px" }}>
-          <button type="button" className="icon-button" onClick={() => setInput(formatted)} title="Format" aria-label="Format JSON">
-            <Code size={14} />
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "10px" }}>
+      <div className="api-tools-pane-header">
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="api-tools-section-title">JSON Formatter &amp; Validator</div>
+          {input.trim() && !error && (
+            <span className="api-tools-badge-valid">✓ Valid JSON</span>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: "6px" }}>
+          <button
+            type="button"
+            className="ghost-button api-tools-mini-btn"
+            onClick={handlePrettify}
+            disabled={!input.trim()}
+          >
+            <Sparkles size={13} /> Prettify
           </button>
+          <button
+            type="button"
+            className="ghost-button api-tools-mini-btn"
+            onClick={handleMinify}
+            disabled={!input.trim()}
+          >
+            Minify
+          </button>
+          <button
+            type="button"
+            className="ghost-button api-tools-mini-btn"
+            onClick={handleCopy}
+            disabled={!input.trim()}
+          >
+            {copied ? <Check size={13} /> : <Copy size={13} />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+          {input && (
+            <button
+              type="button"
+              className="ghost-button api-tools-mini-btn danger"
+              onClick={() => setInput("")}
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
       
       {error && (
-        <div style={{ color: "#ef4444", padding: "8px 12px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "6px", fontSize: "12px" }}>
-          Invalid JSON: {error}
+        <div className="api-tools-alert-box error">
+          <AlertCircle size={16} />
+          <span>Invalid JSON Syntax: {error}</span>
         </div>
       )}
 
       <textarea
         className="api-tools-textarea"
-        style={{ flex: 1, whiteSpace: "pre" }}
-        placeholder='{"key": "value"}'
+        style={{ flex: 1, whiteSpace: "pre", fontFamily: "var(--font-mono, monospace)" }}
+        placeholder='Paste JSON here (e.g. {"status": "ok", "items": [1, 2, 3]})...'
         value={input}
         onChange={e => setInput(e.target.value)}
         autoFocus
@@ -260,6 +475,7 @@ function JsonFormatter() {
 function HashGenerator() {
   const [input, setInput] = useState("");
   const [hashes, setHashes] = useState<Record<string, string>>({});
+  const [copiedAlgo, setCopiedAlgo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!input) {
@@ -291,60 +507,83 @@ function HashGenerator() {
     computeHashes();
   }, [input]);
 
+  const copyHash = (hash: string, algo: string) => {
+    navigator.clipboard.writeText(hash);
+    setCopiedAlgo(algo);
+    setTimeout(() => setCopiedAlgo(null), 1500);
+  };
+
   return (
-    <div style={{ display: "flex", gap: "24px", height: "100%", width: "100%" }}>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", gap: "8px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <label style={{ fontWeight: "600", color: "var(--color-text)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0 }}>
-            Input String
-          </label>
+    <div className="api-tools-pane-split">
+      <div className="api-tools-pane-col">
+        <div className="api-tools-pane-header">
+          <div className="api-tools-section-title">Source Plaintext</div>
+          {input && (
+            <button
+              type="button"
+              className="ghost-button api-tools-mini-btn danger"
+              onClick={() => setInput("")}
+            >
+              Clear
+            </button>
+          )}
         </div>
         <textarea
           className="api-tools-textarea"
           style={{ flex: 1 }}
-          placeholder="Enter text to hash..."
+          placeholder="Enter text to generate cryptographic hashes..."
           value={input}
           onChange={e => setInput(e.target.value)}
           autoFocus
         />
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "20px", overflowY: "auto" }}>
-        <label style={{ fontWeight: "600", color: "var(--color-text)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-          Generated Hashes
-        </label>
+      <div className="api-tools-pane-col api-tools-pane-results">
+        <div className="api-tools-pane-header">
+          <div className="api-tools-section-title">Cryptographic Digests</div>
+        </div>
         
         {Object.entries(hashes).length === 0 ? (
-          <div style={{ color: "var(--color-text-muted)", fontStyle: "italic", padding: "32px 16px", textAlign: "center", border: "1px dashed var(--color-border-tint)", borderRadius: "8px", fontSize: "14px", background: "var(--color-surface-hover)" }}>
-            Enter text to generate hashes
+          <div className="api-tools-empty-placeholder">
+            <Hash size={36} className="api-tools-empty-icon" />
+            <p>Type text on the left to calculate SHA-1, SHA-256, SHA-384, and SHA-512 digests in real-time.</p>
           </div>
         ) : (
-          Object.entries(hashes).map(([algo, hash]) => (
-            <div key={algo} style={{ display: "flex", flexDirection: "column" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  {algo}
-                </span>
-                <button type="button" className="icon-button" onClick={() => navigator.clipboard.writeText(hash)} title="Copy" aria-label="Copy" style={{ padding: "2px" }}>
-                  <ClipboardPaste size={12} />
-                </button>
+          <div className="api-tools-hash-list">
+            {Object.entries(hashes).map(([algo, hash]) => (
+              <div key={algo} className="api-tools-card-block">
+                <div className="api-tools-card-header">
+                  <span className="api-tools-card-tag tag-indigo">{algo}</span>
+                  <span className="api-tools-card-hint">{hash.length * 4} bits</span>
+                  <button
+                    type="button"
+                    className="ghost-button api-tools-card-copy-btn"
+                    onClick={() => copyHash(hash, algo)}
+                  >
+                    {copiedAlgo === algo ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedAlgo === algo ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <pre className="api-tools-code-display" style={{ wordBreak: "break-all", whiteSpace: "pre-wrap", color: "var(--color-text)" }}>
+                  {hash}
+                </pre>
               </div>
-              <pre className="api-tools-pre" style={{ wordBreak: "break-all", whiteSpace: "pre-wrap" }}>
-                {hash}
-              </pre>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-function StatPill({ label, value, color }: { label: string; value: string; color: string }) {
+function StatCard({ label, value, color, icon }: { label: string; value: string; color: string; icon?: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-      <span style={{ fontSize: "10px", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</span>
-      <span style={{ fontSize: "13px", fontWeight: 700, color }}>{value}</span>
+    <div className="api-tools-stat-card">
+      <div className="api-tools-stat-label">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className="api-tools-stat-value" style={{ color }}>{value}</div>
     </div>
   );
 }
@@ -366,91 +605,120 @@ function RouteEditor({ route, onSave, onCancel }: { route: MockRoute; onSave: (r
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-        <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>
-          {draft.method === "GRPC" ? "Edit gRPC Mock Route" : "Edit Route"}
-        </h3>
+    <div className="api-tools-route-editor">
+      <div className="api-tools-editor-header">
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="api-tools-icon-badge">
+            <Edit2 size={15} color="var(--color-accent)" />
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)", fontWeight: 600 }}>
+              {draft.method === "GRPC" ? "Configure gRPC RPC Method" : "Configure Mock Route"}
+            </h3>
+            <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--color-text-muted)" }}>
+              Customize method, path matching, status codes, and mock response body.
+            </p>
+          </div>
+        </div>
         <div style={{ display: "flex", gap: "8px" }}>
-          <button onClick={onCancel} style={{ padding: "7px 16px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "13px" }}>Cancel</button>
-          <button onClick={() => onSave(draft)} style={{ padding: "7px 16px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}>Save Route</button>
+          <button type="button" onClick={onCancel} className="ghost-button">Cancel</button>
+          <button type="button" onClick={() => onSave(draft)} className="primary-button" style={{ padding: "6px 16px" }}>Save Route</button>
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 110px", gap: "12px", flexShrink: 0 }}>
-        {[
-          { label: "Method / Protocol", el: (
-            <select
-              value={draft.method}
-              onChange={e => {
-                const nextMethod = e.target.value;
-                const isGrpc = nextMethod === "GRPC";
-                update({
-                  method: nextMethod,
-                  content_type: isGrpc ? "application/grpc-web+proto" : draft.content_type === "application/grpc-web+proto" ? "application/json" : draft.content_type,
-                  path: isGrpc && !draft.path.includes(".") ? "/helloworld.Greeter/SayHello" : draft.path
-                });
-              }}
-              style={{ width: "100%", padding: "7px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px", fontWeight: draft.method === "GRPC" ? 700 : 500 }}
-            >
-              {METHODS.map(m => <option key={m} value={m}>{m === "GRPC" ? "gRPC" : m}</option>)}
-            </select>
-          )},
-          { label: draft.method === "GRPC" ? "RPC Path (/<Service>/<Method>)" : "Path", el: (
-            <input
-              type="text"
-              value={draft.path}
-              onChange={e => update({ path: e.target.value })}
-              placeholder={draft.method === "GRPC" ? "/helloworld.Greeter/SayHello" : "/users/:id"}
-              style={{ width: "100%", padding: "7px 10px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px", fontFamily: "monospace", boxSizing: "border-box" }}
-            />
-          )},
-          { label: draft.method === "GRPC" ? "Status (HTTP / gRPC)" : "Status", el: (
-            <select
-              value={draft.status_code}
-              onChange={e => update({ status_code: Number(e.target.value) })}
-              style={{ width: "100%", padding: "7px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px" }}
-            >
-              {COMMON_STATUSES.map(s => (
-                <option key={s} value={s}>
-                  {s} {s === 200 && draft.method === "GRPC" ? "(0 OK)" : s === 400 && draft.method === "GRPC" ? "(3 INVALID_ARG)" : s === 404 && draft.method === "GRPC" ? "(5 NOT_FOUND)" : s === 503 && draft.method === "GRPC" ? "(14 UNAVAIL)" : ""}
-                </option>
-              ))}
-            </select>
-          )},
-        ].map(({ label, el }) => (
-          <div key={label} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>{label}</label>
-            {el}
-          </div>
-        ))}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 130px", gap: "12px", flexShrink: 0 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>Content-Type</label>
-          <select value={draft.content_type} onChange={e => update({ content_type: e.target.value })} style={{ padding: "7px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px" }}>
+
+      <div className="api-tools-editor-grid">
+        <div className="api-tools-form-field">
+          <label>Protocol / Method</label>
+          <select
+            value={draft.method}
+            onChange={e => {
+              const nextMethod = e.target.value;
+              const isGrpc = nextMethod === "GRPC";
+              update({
+                method: nextMethod,
+                content_type: isGrpc ? "application/grpc-web+proto" : draft.content_type === "application/grpc-web+proto" ? "application/json" : draft.content_type,
+                path: isGrpc && !draft.path.includes(".") ? "/helloworld.Greeter/SayHello" : draft.path
+              });
+            }}
+            className="api-tools-select"
+            style={{ fontWeight: draft.method === "GRPC" ? 700 : 500 }}
+          >
+            {METHODS.map(m => <option key={m} value={m}>{m === "GRPC" ? "gRPC-Web (Proto)" : m}</option>)}
+          </select>
+        </div>
+
+        <div className="api-tools-form-field">
+          <label>{draft.method === "GRPC" ? "RPC Path (/<Service>/<Method>)" : "Route Path"}</label>
+          <input
+            type="text"
+            value={draft.path}
+            onChange={e => update({ path: e.target.value })}
+            placeholder={draft.method === "GRPC" ? "/helloworld.Greeter/SayHello" : "/api/v1/users/:id"}
+            className="api-tools-input"
+            style={{ fontFamily: "var(--font-mono, monospace)" }}
+          />
+        </div>
+
+        <div className="api-tools-form-field">
+          <label>Status Code</label>
+          <select
+            value={draft.status_code}
+            onChange={e => update({ status_code: Number(e.target.value) })}
+            className="api-tools-select"
+          >
+            {COMMON_STATUSES.map(s => (
+              <option key={s} value={s}>
+                {s} {s === 200 && draft.method === "GRPC" ? "(0 OK)" : s === 400 && draft.method === "GRPC" ? "(3 INVALID_ARG)" : s === 404 && draft.method === "GRPC" ? "(5 NOT_FOUND)" : s === 503 && draft.method === "GRPC" ? "(14 UNAVAIL)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="api-tools-form-field">
+          <label>Content-Type</label>
+          <select
+            value={draft.content_type}
+            onChange={e => update({ content_type: e.target.value })}
+            className="api-tools-select"
+          >
             {CONTENT_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
           </select>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>Delay (ms)</label>
-          <input type="number" value={draft.delay_ms} min={0} max={30000} onChange={e => update({ delay_ms: Number(e.target.value) })} style={{ padding: "7px 10px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "13px" }} />
+
+        <div className="api-tools-form-field">
+          <label>Simulated Latency (ms)</label>
+          <input
+            type="number"
+            value={draft.delay_ms}
+            min={0}
+            max={30000}
+            onChange={e => update({ delay_ms: Number(e.target.value) })}
+            className="api-tools-input"
+            placeholder="0"
+          />
         </div>
       </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase" }}>
-            {draft.method === "GRPC" ? "gRPC Response JSON Payload" : "Response Body"}
+          <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {draft.method === "GRPC" ? "gRPC Response JSON Payload" : "Response Payload Body"}
           </label>
           <button
             type="button"
             onClick={handlePrettifyJson}
-            className="ghost-button"
-            style={{ fontSize: "11px", padding: "2px 8px", display: "flex", alignItems: "center", gap: "4px" }}
+            className="ghost-button api-tools-mini-btn"
           >
-            <Sparkles size={11} /> Format JSON
+            <Sparkles size={12} /> Format JSON
           </button>
         </div>
-        <textarea className="api-tools-textarea" style={{ flex: 1 }} value={draft.response_body} onChange={e => update({ response_body: e.target.value })} placeholder='{"message": "Hello!"}' />
+        <textarea
+          className="api-tools-textarea"
+          style={{ flex: 1, fontFamily: "var(--font-mono, monospace)", fontSize: "12.5px" }}
+          value={draft.response_body}
+          onChange={e => update({ response_body: e.target.value })}
+          placeholder='{"message": "Hello from mock server!"}'
+        />
       </div>
     </div>
   );
@@ -471,7 +739,7 @@ function MockTemplatesDrawer({
     { id: "all", label: "All Templates" },
     { id: "rest", label: "REST / HTTP" },
     { id: "grpc", label: "gRPC & Proto" },
-    { id: "ai", label: "AI & LLM" },
+    { id: "ai", label: "AI & Streaming" },
     { id: "infra", label: "DevOps & Health" },
   ];
 
@@ -480,143 +748,82 @@ function MockTemplatesDrawer({
     return MOCK_SERVER_TEMPLATES.filter((t) => t.category === selectedCategory);
   }, [selectedCategory]);
 
-  const categoryColor = (cat: string) => {
-    switch (cat) {
-      case "grpc":
-        return { bg: "rgba(99, 102, 241, 0.15)", text: "#818cf8" };
-      case "ai":
-        return { bg: "rgba(168, 85, 247, 0.15)", text: "#c084fc" };
-      case "infra":
-        return { bg: "rgba(234, 179, 8, 0.15)", text: "#facc15" };
-      default:
-        return { bg: "rgba(16, 185, 129, 0.15)", text: "#34d399" };
-    }
-  };
-
   return (
-    <div style={{ padding: "16px", backgroundColor: "var(--color-surface-muted)", border: "1px solid var(--color-border)", borderRadius: "10px", display: "flex", flexDirection: "column", gap: "12px", flexShrink: 0 }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="api-tools-drawer">
+      <div className="api-tools-drawer-header">
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <Layers size={16} color="var(--color-accent)" />
           <strong style={{ fontSize: "14px", color: "var(--color-text)" }}>Mock Server Starter Templates</strong>
-          <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", backgroundColor: "rgba(99, 102, 241, 0.15)", color: "#818cf8", fontWeight: 600 }}>
-            {MOCK_SERVER_TEMPLATES.length} presets
-          </span>
+          <span className="api-tools-pill-counter">{MOCK_SERVER_TEMPLATES.length} presets</span>
         </div>
-        <button type="button" onClick={onClose} className="ghost-button" style={{ fontSize: "12px", padding: "4px 8px" }}>
-          Close
+        <button type="button" onClick={onClose} className="ghost-button api-tools-mini-btn">
+          <X size={14} /> Close
         </button>
       </div>
 
-      {/* Category Pills */}
-      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+      <div className="api-tools-category-chips">
         {categories.map((c) => (
           <button
             key={c.id}
             type="button"
             onClick={() => setSelectedCategory(c.id)}
-            style={{
-              padding: "4px 12px",
-              borderRadius: "14px",
-              border: "1px solid var(--color-border)",
-              fontSize: "11px",
-              fontWeight: selectedCategory === c.id ? 700 : 500,
-              backgroundColor: selectedCategory === c.id ? "var(--color-accent)" : "transparent",
-              color: selectedCategory === c.id ? "#fff" : "var(--color-text-muted)",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
+            className={`api-tools-category-chip ${selectedCategory === c.id ? "active" : ""}`}
           >
             {c.label}
           </button>
         ))}
       </div>
 
-      {/* Template Cards Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px", maxHeight: "280px", overflowY: "auto", paddingRight: "4px" }}>
-        {filtered.map((tpl) => {
-          const colors = categoryColor(tpl.category);
-          return (
-            <div
-              key={tpl.id}
-              style={{
-                padding: "12px",
-                borderRadius: "8px",
-                border: "1px solid var(--color-border)",
-                backgroundColor: "var(--color-surface)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span style={{ fontSize: "16px" }}>{tpl.icon}</span>
-                    <strong style={{ fontSize: "13px", color: "var(--color-text)" }}>{tpl.name}</strong>
-                  </div>
-                  <span style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "4px", backgroundColor: colors.bg, color: colors.text, fontWeight: 700, textTransform: "uppercase" }}>
-                    {tpl.category}
-                  </span>
+      <div className="api-tools-templates-grid">
+        {filtered.map((tpl) => (
+          <div key={tpl.id} className="api-tools-template-card">
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "16px" }}>{tpl.icon}</span>
+                  <strong style={{ fontSize: "13px", color: "var(--color-text)" }}>{tpl.name}</strong>
                 </div>
-                <p style={{ margin: 0, fontSize: "11px", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
-                  {tpl.description}
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "8px" }}>
-                  {tpl.routes.slice(0, 3).map((r, idx) => (
-                    <span key={idx} style={{ fontSize: "10px", fontFamily: "monospace", padding: "1px 5px", borderRadius: "3px", backgroundColor: "var(--color-surface-hover)", color: "var(--color-text)" }}>
-                      <strong style={{ color: r.method === "GRPC" ? "#818cf8" : "var(--color-accent)" }}>{r.method}</strong> {r.path}
-                    </span>
-                  ))}
-                  {tpl.routes.length > 3 && (
-                    <span style={{ fontSize: "10px", color: "var(--color-text-muted)", padding: "1px 4px" }}>
-                      +{tpl.routes.length - 3} more
-                    </span>
-                  )}
-                </div>
+                <span className={`api-tools-tag-cat cat-${tpl.category}`}>
+                  {tpl.category}
+                </span>
               </div>
-
-              <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", marginTop: "4px" }}>
-                <button
-                  type="button"
-                  onClick={() => onAppendTemplate(tpl)}
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: "5px",
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "transparent",
-                    color: "var(--color-text)",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                  title="Add routes without overwriting existing ones"
-                >
-                  + Append
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onLoadTemplate(tpl)}
-                  style={{
-                    padding: "4px 12px",
-                    borderRadius: "5px",
-                    border: "none",
-                    backgroundColor: "var(--color-accent)",
-                    color: "#fff",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                  title="Replace all routes with this template"
-                >
-                  Load Template
-                </button>
+              <p className="api-tools-template-desc">
+                {tpl.description}
+              </p>
+              <div className="api-tools-template-routes">
+                {tpl.routes.slice(0, 3).map((r, idx) => (
+                  <span key={idx} className="api-tools-template-route-chip">
+                    <strong className={`method-text method-${r.method.toLowerCase()}`}>{r.method}</strong> {r.path}
+                  </span>
+                ))}
+                {tpl.routes.length > 3 && (
+                  <span className="api-tools-template-more-chip">
+                    +{tpl.routes.length - 3} more
+                  </span>
+                )}
               </div>
             </div>
-          );
-        })}
+
+            <div className="api-tools-template-actions">
+              <button
+                type="button"
+                onClick={() => onAppendTemplate(tpl)}
+                className="ghost-button api-tools-mini-btn"
+                title="Add routes without overwriting existing ones"
+              >
+                + Append
+              </button>
+              <button
+                type="button"
+                onClick={() => onLoadTemplate(tpl)}
+                className="primary-button api-tools-mini-btn"
+                title="Replace all routes with this template"
+              >
+                Load Template
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -723,7 +930,6 @@ function LocalMockServerView() {
     setRequestLog([]);
   };
 
-  // Generate Mock gRPC Endpoints from Protobuf schema
   const handleGenerateFromProto = async () => {
     try {
       const parsed = parseProtoSchema(protoText);
@@ -746,7 +952,6 @@ function LocalMockServerView() {
       }
 
       if (newGrpcRoutes.length > 0) {
-        // Keep non-duplicate routes
         const existingPaths = new Set(routes.map(r => `${r.method}:${r.path}`));
         const merged = [
           ...routes,
@@ -795,42 +1000,66 @@ function LocalMockServerView() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "14px" }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
+      {/* Top Banner & Control Station */}
+      <div className="api-tools-server-header">
         <div>
-          <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>Local Mock Server (HTTP &amp; gRPC)</h3>
-          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--color-text-muted)" }}>
-            Mock REST endpoints and gRPC RPC methods with custom payloads, status codes, and latency simulation.
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <h3 className="api-tools-title">Local Mock Server</h3>
+            <span className="api-tools-subtitle-badge">HTTP &amp; gRPC</span>
+            {running ? (
+              <button
+                type="button"
+                className="api-tools-live-badge live"
+                onClick={() => copyUrl("__base", "/")}
+                title="Click to copy mock base URL"
+              >
+                <span className="api-tools-dot-pulse" />
+                <span>ONLINE: http://127.0.0.1:{port}</span>
+                {copiedId === "__base" ? <Check size={11} /> : <Copy size={11} />}
+              </button>
+            ) : (
+              <span className="api-tools-live-badge offline">
+                <span className="api-tools-dot-idle" />
+                <span>OFFLINE</span>
+              </span>
+            )}
+          </div>
+          <p className="api-tools-desc">
+            Simulate REST endpoints &amp; gRPC-Web RPC methods with custom payloads, status codes, and latency.
           </p>
         </div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+
+        <div className="api-tools-server-controls">
           {!running && (
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>Port</span>
-              <input type="number" value={port} onChange={e => setPort(Number(e.target.value))} style={{ width: "80px", padding: "5px 8px", borderRadius: "4px", border: "1px solid var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-text)", fontSize: "12px" }} />
+            <div className="api-tools-port-pill">
+              <span className="api-tools-port-label">Port</span>
+              <input
+                type="number"
+                value={port}
+                onChange={e => setPort(Number(e.target.value))}
+                className="api-tools-port-input"
+              />
             </div>
           )}
-          {running && (
-            <button onClick={() => copyUrl("__base", "/")} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "var(--color-surface-hover)", color: "var(--color-text)", fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontFamily: "monospace" }}>
-              {copiedId === "__base" ? <Check size={12} /> : <Copy size={12} />}
-              http://127.0.0.1:{port}
-            </button>
-          )}
-          <button type="button" onClick={handleToggle} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer", backgroundColor: running ? "#ef4444" : "#10b981", color: "#fff", display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.7)", display: "inline-block", animation: running ? "pulse-dot 1.5s ease-in-out infinite" : "none" }} />
-            {running ? "Stop Server" : "Start Server"}
+          
+          <button
+            type="button"
+            onClick={handleToggle}
+            className={`api-tools-power-btn ${running ? "btn-stop" : "btn-start"}`}
+          >
+            {running ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+            <span>{running ? "Stop Server" : "Start Server"}</span>
           </button>
         </div>
       </div>
 
-      {/* Stats bar */}
+      {/* Telemetry Stats bar (When running) */}
       {running && (
-        <div style={{ display: "flex", gap: "24px", padding: "10px 16px", borderRadius: "8px", backgroundColor: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)", flexShrink: 0 }}>
-          <StatPill label="Status" value="RUNNING" color="#10b981" />
-          <StatPill label="Port" value={String(port)} color="var(--color-text)" />
-          <StatPill label="Total Requests" value={String(requestCount)} color="var(--color-accent)" />
-          <StatPill label="Active Routes" value={`${routes.filter(r => r.enabled).length} / ${routes.length}`} color="var(--color-text-muted)" />
-          <StatPill label="gRPC Mocks" value={String(grpcCount)} color="#818cf8" />
+        <div className="api-tools-stats-grid">
+          <StatCard label="Port" value={String(port)} color="var(--color-text)" icon={<Radio size={12} />} />
+          <StatCard label="Requests Handled" value={String(requestCount)} color="var(--color-accent)" icon={<Zap size={12} />} />
+          <StatCard label="Active Routes" value={`${routes.filter(r => r.enabled).length} / ${routes.length}`} color="#10b981" icon={<CheckCircle2 size={12} />} />
+          <StatCard label="gRPC Methods" value={String(grpcCount)} color="#818cf8" icon={<Layers size={12} />} />
         </div>
       )}
 
@@ -843,13 +1072,13 @@ function LocalMockServerView() {
         />
       )}
 
-      {/* Proto Schema Generator Drawer / Section */}
+      {/* Proto Schema Generator Drawer */}
       {showProtoGenerator && (
-        <div style={{ padding: "14px", backgroundColor: "var(--color-surface-muted)", border: "1px solid var(--color-border)", borderRadius: "10px", display: "flex", flexDirection: "column", gap: "10px", flexShrink: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="api-tools-drawer">
+          <div className="api-tools-drawer-header">
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <WandSparkles size={16} color="var(--color-accent)" />
-              <strong style={{ fontSize: "13px", color: "var(--color-text)" }}>Generate gRPC Mock Server from Protobuf Schema</strong>
+              <WandSparkles size={16} color="#818cf8" />
+              <strong style={{ fontSize: "14px", color: "var(--color-text)" }}>Generate gRPC Mock Server from Protobuf Schema</strong>
             </div>
             <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
               <select
@@ -857,7 +1086,8 @@ function LocalMockServerView() {
                   const preset = SAMPLE_PROTO_DEFINITIONS.find(p => p.label === e.target.value);
                   if (preset) setProtoText(preset.proto);
                 }}
-                style={{ fontSize: "11px", padding: "4px 8px", borderRadius: "4px", backgroundColor: "var(--color-input-bg)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
+                className="api-tools-select"
+                style={{ fontSize: "11px", padding: "4px 8px" }}
               >
                 {SAMPLE_PROTO_DEFINITIONS.map(p => (
                   <option key={p.label} value={p.label}>{p.label}</option>
@@ -866,10 +1096,9 @@ function LocalMockServerView() {
               <button
                 type="button"
                 onClick={() => setShowProtoGenerator(false)}
-                className="ghost-button"
-                style={{ fontSize: "12px", padding: "4px 8px" }}
+                className="ghost-button api-tools-mini-btn"
               >
-                Cancel
+                <X size={14} /> Cancel
               </button>
             </div>
           </div>
@@ -878,36 +1107,16 @@ function LocalMockServerView() {
             value={protoText}
             onChange={e => setProtoText(e.target.value)}
             placeholder="Paste .proto IDL syntax definition here..."
-            style={{
-              fontFamily: "monospace",
-              fontSize: "11px",
-              padding: "10px",
-              borderRadius: "6px",
-              border: "1px solid var(--color-border)",
-              backgroundColor: "var(--color-input-bg)",
-              color: "var(--color-text)",
-              minHeight: "130px",
-              resize: "vertical"
-            }}
+            className="api-tools-textarea"
+            style={{ minHeight: "140px", fontSize: "12px", fontFamily: "var(--font-mono, monospace)" }}
           />
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
             <button
               type="button"
               onClick={handleGenerateFromProto}
-              style={{
-                padding: "6px 16px",
-                borderRadius: "6px",
-                border: "none",
-                background: "var(--color-accent)",
-                color: "#fff",
-                fontSize: "12px",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px"
-              }}
+              className="primary-button api-tools-mini-btn"
+              style={{ background: "#6366f1" }}
             >
               <WandSparkles size={13} /> Generate Mock RPC Routes
             </button>
@@ -915,31 +1124,29 @@ function LocalMockServerView() {
         </div>
       )}
 
-      {/* Tab bar and Protocol Filter */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--color-border)", flexShrink: 0, alignItems: "center" }}>
-        {(["routes", "log"] as const).map(v => (
-          <button key={v} onClick={() => setActiveView(v)} style={{ padding: "8px 16px", border: "none", borderBottom: `2px solid ${activeView === v ? "var(--color-accent)" : "transparent"}`, background: "none", color: activeView === v ? "var(--color-text)" : "var(--color-text-muted)", cursor: "pointer", fontSize: "13px", fontWeight: activeView === v ? 600 : 400 }}>
-            {v === "log" ? `Request Log${requestLog.length > 0 ? ` (${requestLog.length})` : ""}` : "Routes"}
-          </button>
-        ))}
+      {/* Modern Main Toolbar */}
+      <div className="api-tools-main-toolbar">
+        <div className="api-tools-segmented-group">
+          {(["routes", "log"] as const).map(v => (
+            <button
+              key={v}
+              type="button"
+              className={`api-tools-seg-btn ${activeView === v ? "active" : ""}`}
+              onClick={() => setActiveView(v)}
+            >
+              {v === "log" ? `Live Logs ${requestLog.length > 0 ? `(${requestLog.length})` : ""}` : `Routes (${routes.length})`}
+            </button>
+          ))}
+        </div>
 
         {activeView === "routes" && (
-          <div style={{ display: "flex", gap: "4px", marginLeft: "16px" }}>
+          <div className="api-tools-filter-chips">
             {(["all", "http", "grpc"] as const).map(f => (
               <button
                 key={f}
                 type="button"
+                className={`api-tools-filter-chip ${protocolFilter === f ? "active" : ""}`}
                 onClick={() => setProtocolFilter(f)}
-                style={{
-                  padding: "3px 10px",
-                  borderRadius: "12px",
-                  border: "1px solid var(--color-border)",
-                  fontSize: "11px",
-                  fontWeight: protocolFilter === f ? 700 : 500,
-                  backgroundColor: protocolFilter === f ? "var(--color-surface-hover)" : "transparent",
-                  color: protocolFilter === f ? "var(--color-text)" : "var(--color-text-muted)",
-                  cursor: "pointer"
-                }}
               >
                 {f === "all" ? `All (${routes.length})` : f === "http" ? `HTTP (${httpCount})` : `gRPC (${grpcCount})`}
               </button>
@@ -947,113 +1154,205 @@ function LocalMockServerView() {
           </div>
         )}
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+        <div className="api-tools-toolbar-actions">
           {activeView === "routes" && (
             <>
               <button
+                type="button"
                 onClick={() => setShowTemplatesDrawer(prev => !prev)}
-                style={{
-                  padding: "4px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--color-border)",
-                  background: showTemplatesDrawer ? "var(--color-accent)" : "var(--color-surface-hover)",
-                  color: showTemplatesDrawer ? "#fff" : "var(--color-text)",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "5px"
-                }}
+                className={`ghost-button api-tools-action-btn ${showTemplatesDrawer ? "active-accent" : ""}`}
               >
-                <Layers size={12} color={showTemplatesDrawer ? "#fff" : "var(--color-accent)"} /> Templates
+                <Layers size={13} /> Templates
               </button>
               <button
+                type="button"
                 onClick={() => setShowProtoGenerator(prev => !prev)}
-                style={{
-                  padding: "4px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--color-border)",
-                  background: showProtoGenerator ? "#6366f1" : "var(--color-surface-hover)",
-                  color: showProtoGenerator ? "#fff" : "var(--color-text)",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "5px"
-                }}
+                className={`ghost-button api-tools-action-btn ${showProtoGenerator ? "active-indigo" : ""}`}
               >
-                <WandSparkles size={12} color={showProtoGenerator ? "#fff" : "#818cf8"} /> Generate from Proto
+                <WandSparkles size={13} /> Import Proto
               </button>
-              <button onClick={() => setEditingRoute(newRoute("GRPC"))} style={{ padding: "4px 12px", borderRadius: "6px", border: "1px solid rgba(99,102,241,0.4)", background: "rgba(99,102,241,0.12)", color: "#818cf8", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}>
-                + Add gRPC
+              <button
+                type="button"
+                onClick={() => setEditingRoute(newRoute("GRPC"))}
+                className="ghost-button api-tools-action-btn grpc-btn"
+              >
+                + gRPC Method
               </button>
-              <button onClick={() => setEditingRoute(newRoute("GET"))} style={{ padding: "4px 12px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}>
-                + Add Route
+              <button
+                type="button"
+                onClick={() => setEditingRoute(newRoute("GET"))}
+                className="primary-button api-tools-action-btn"
+              >
+                <Plus size={14} /> Add Route
               </button>
             </>
           )}
-          {activeView === "log" && requestLog.length > 0 && <button onClick={clearLog} style={{ padding: "4px 12px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "12px" }}>Clear</button>}
+          {activeView === "log" && requestLog.length > 0 && (
+            <button
+              type="button"
+              onClick={clearLog}
+              className="ghost-button api-tools-mini-btn danger"
+            >
+              <Trash2 size={13} /> Clear Logs
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Routes */}
+      {/* Routes List */}
       {activeView === "routes" && (
-        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div className="api-tools-routes-container">
           {displayedRoutes.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "48px 16px", color: "var(--color-text-muted)", border: "2px dashed var(--color-border)", borderRadius: "8px" }}>
-              <p style={{ marginBottom: "12px", fontSize: "14px" }}>
-                {protocolFilter === "grpc" ? "No gRPC mock routes defined yet." : "No routes defined yet."}
+            <div className="api-tools-hero-empty-state">
+              <div className="api-tools-empty-circle">
+                <Server size={32} className="api-tools-pulse-icon" />
+              </div>
+              <h4 className="api-tools-empty-title">
+                {protocolFilter === "grpc" ? "No gRPC mock routes defined" : "No mock routes configured"}
+              </h4>
+              <p className="api-tools-empty-desc">
+                Simulate backend endpoints instantly. Load starter templates, import from Protobuf schemas, or define custom routes.
               </p>
-              <div style={{ display: "flex", justifyContent: "center", gap: "8px", flexWrap: "wrap" }}>
-                <button onClick={() => setShowTemplatesDrawer(true)} style={{ padding: "8px 18px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "var(--color-surface-hover)", color: "var(--color-text)", cursor: "pointer", fontWeight: 600, fontSize: "13px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                  <Layers size={14} color="var(--color-accent)" /> Browse Starter Templates
+
+              <div className="api-tools-empty-action-cards">
+                <button
+                  type="button"
+                  onClick={() => setShowTemplatesDrawer(true)}
+                  className="api-tools-empty-card"
+                >
+                  <div className="api-tools-empty-card-icon tag-purple">
+                    <Layers size={18} />
+                  </div>
+                  <div className="api-tools-empty-card-body">
+                    <strong>Starter Templates</strong>
+                    <span>Load eCommerce, Auth, or AI routes</span>
+                  </div>
                 </button>
-                <button onClick={() => setShowProtoGenerator(true)} style={{ padding: "8px 18px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "var(--color-surface-hover)", color: "var(--color-text)", cursor: "pointer", fontWeight: 600, fontSize: "13px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                  <WandSparkles size={14} color="#818cf8" /> Generate from Proto Schema
+
+                <button
+                  type="button"
+                  onClick={() => setShowProtoGenerator(true)}
+                  className="api-tools-empty-card"
+                >
+                  <div className="api-tools-empty-card-icon tag-indigo">
+                    <WandSparkles size={18} />
+                  </div>
+                  <div className="api-tools-empty-card-body">
+                    <strong>Import Proto Schema</strong>
+                    <span>Scaffold mock gRPC RPC methods</span>
+                  </div>
                 </button>
-                <button onClick={() => setEditingRoute(newRoute(protocolFilter === "grpc" ? "GRPC" : "GET"))} style={{ padding: "8px 20px", borderRadius: "6px", border: "none", background: "var(--color-accent)", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: "13px" }}>
-                  + Add {protocolFilter === "grpc" ? "gRPC Route" : "Route"}
+
+                <button
+                  type="button"
+                  onClick={() => setEditingRoute(newRoute(protocolFilter === "grpc" ? "GRPC" : "GET"))}
+                  className="api-tools-empty-card"
+                >
+                  <div className="api-tools-empty-card-icon tag-blue">
+                    <Plus size={18} />
+                  </div>
+                  <div className="api-tools-empty-card-body">
+                    <strong>Custom Route</strong>
+                    <span>Define path, status, and payload</span>
+                  </div>
                 </button>
               </div>
             </div>
-          ) : displayedRoutes.map(r => (
-            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 14px", borderRadius: "8px", border: "1px solid var(--color-border)", background: r.enabled ? "var(--color-surface)" : "transparent", opacity: r.enabled ? 1 : 0.5 }}>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: methodColor(r.method), minWidth: "52px", textAlign: "center", padding: "2px 6px", borderRadius: "4px", background: `${methodColor(r.method)}18` }}>{r.method}</span>
-              <span style={{ flex: 1, fontFamily: "monospace", fontSize: "13px", color: "var(--color-text)" }}>{r.path}</span>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: statusColor(r.status_code), minWidth: "38px" }}>{r.status_code}</span>
-              {r.delay_ms > 0 && <span style={{ fontSize: "11px", color: "var(--color-text-muted)", minWidth: "40px" }}>{r.delay_ms}ms</span>}
-              {running && <button onClick={() => copyUrl(r.id, r.path)} title="Copy URL" style={{ padding: "3px 6px", background: "none", border: "1px solid var(--color-border)", borderRadius: "4px", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", alignItems: "center" }}>{copiedId === r.id ? <Check size={11} /> : <Copy size={11} />}</button>}
-              <button onClick={() => syncRoutes(routes.map(x => x.id === r.id ? { ...x, enabled: !x.enabled } : x))} style={{ padding: "3px 8px", background: "none", border: "1px solid var(--color-border)", borderRadius: "4px", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "11px" }}>{r.enabled ? "Disable" : "Enable"}</button>
-              <button onClick={() => setEditingRoute(r)} style={{ padding: "3px 8px", background: "none", border: "1px solid var(--color-border)", borderRadius: "4px", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "11px" }}>Edit</button>
-              <button onClick={() => syncRoutes(routes.filter(x => x.id !== r.id))} style={{ padding: "3px 6px", background: "none", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "4px", cursor: "pointer", color: "#ef4444", display: "flex", alignItems: "center" }}><Trash2 size={12} /></button>
+          ) : (
+            <div className="api-tools-routes-list">
+              {displayedRoutes.map(r => (
+                <div key={r.id} className={`api-tools-route-row ${!r.enabled ? "disabled" : ""}`}>
+                  <span className={`method method-${r.method.toLowerCase()} api-tools-method-pill`}>
+                    {r.method}
+                  </span>
+                  
+                  <span className="api-tools-route-path" title={r.path}>
+                    {r.path}
+                  </span>
+
+                  <span className="api-tools-status-pill" style={{ color: statusColor(r.status_code), borderColor: `${statusColor(r.status_code)}40`, background: `${statusColor(r.status_code)}14` }}>
+                    {r.status_code}
+                  </span>
+
+                  {r.delay_ms > 0 && (
+                    <span className="api-tools-delay-pill">
+                      <Clock size={10} /> {r.delay_ms}ms
+                    </span>
+                  )}
+
+                  <div className="api-tools-row-actions">
+                    {running && (
+                      <button
+                        type="button"
+                        onClick={() => copyUrl(r.id, r.path)}
+                        className="ghost-button api-tools-row-btn"
+                        title="Copy Mock Endpoint URL"
+                      >
+                        {copiedId === r.id ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => syncRoutes(routes.map(x => x.id === r.id ? { ...x, enabled: !x.enabled } : x))}
+                      className="ghost-button api-tools-row-btn"
+                      title={r.enabled ? "Disable route" : "Enable route"}
+                    >
+                      {r.enabled ? "Enabled" : "Disabled"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingRoute(r)}
+                      className="ghost-button api-tools-row-btn"
+                      title="Edit Route"
+                    >
+                      <Edit2 size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => syncRoutes(routes.filter(x => x.id !== r.id))}
+                      className="ghost-button api-tools-row-btn danger"
+                      title="Delete Route"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
 
-      {/* Request Log */}
+      {/* Live Request Logs */}
       {activeView === "log" && (
-        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "4px" }}>
+        <div className="api-tools-log-container">
           {requestLog.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "48px 16px", color: "var(--color-text-muted)", border: "2px dashed var(--color-border)", borderRadius: "8px", fontSize: "13px" }}>
-              {running ? "Waiting for incoming requests…" : "Start the server and send requests to see the log."}
+            <div className="api-tools-empty-placeholder">
+              <Radio size={36} className="api-tools-empty-icon" />
+              <p>{running ? "Waiting for incoming mock requests…" : "Start the mock server to stream request telemetry in real-time."}</p>
             </div>
-          ) : requestLog.map(entry => (
-            <div key={entry.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "7px 12px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "var(--color-surface)", fontSize: "12px" }}>
-              <span style={{ fontWeight: 700, color: methodColor(entry.method), minWidth: "45px", textAlign: "center", fontSize: "11px" }}>{entry.method}</span>
-              <span style={{ flex: 1, fontFamily: "monospace", color: "var(--color-text)" }}>{entry.path}</span>
-              <span style={{ fontWeight: 700, color: statusColor(entry.status_code), minWidth: "35px", textAlign: "right" }}>{entry.status_code}</span>
-              <span style={{ color: "var(--color-text-muted)", minWidth: "55px", textAlign: "right" }}>{entry.duration_ms}ms</span>
-              <span style={{ color: "var(--color-text-muted)", fontSize: "10px", minWidth: "72px", textAlign: "right" }}>{new Date(entry.timestamp).toLocaleTimeString()}</span>
-              {!entry.matched_route_id && <span style={{ fontSize: "10px", color: "#ef4444", padding: "1px 5px", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "3px" }}>no match</span>}
+          ) : (
+            <div className="api-tools-log-list">
+              {requestLog.map(entry => (
+                <div key={entry.id} className="api-tools-log-row">
+                  <span className={`method method-${entry.method.toLowerCase()} api-tools-method-pill mini`}>
+                    {entry.method}
+                  </span>
+                  <span className="api-tools-log-path">{entry.path}</span>
+                  <span className="api-tools-log-status" style={{ color: statusColor(entry.status_code) }}>
+                    {entry.status_code}
+                  </span>
+                  <span className="api-tools-log-duration">{entry.duration_ms}ms</span>
+                  <span className="api-tools-log-time">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                  {!entry.matched_route_id && (
+                    <span className="api-tools-badge-nomatch">No Match (404)</span>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
-
-      <style>{`@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
     </div>
   );
 }
@@ -1061,6 +1360,7 @@ function LocalMockServerView() {
 function OpenApiEngineView({ collections }: { collections: { id: string; name: string }[] }) {
   const [spec, setSpec] = useState("");
   const [selectedCollection, setSelectedCollection] = useState<string>(collections[0]?.id || "");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!selectedCollection && collections.length > 0) {
@@ -1075,17 +1375,24 @@ function OpenApiEngineView({ collections }: { collections: { id: string; name: s
     setSpec(result.spec_json);
   };
 
+  const handleCopy = () => {
+    if (!spec) return;
+    navigator.clipboard.writeText(spec);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "14px" }}>
+      <div className="api-tools-server-header">
         <div>
-          <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>OpenAPI 3.0 Spec Engine</h3>
-          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--color-text-muted)" }}>
-            Generate compliant OpenAPI 3.0.3 specification documents from your collections.
+          <h3 className="api-tools-title">OpenAPI 3.0.3 Spec Generator</h3>
+          <p className="api-tools-desc">
+            Export standards-compliant OpenAPI 3.0 specification documents from your request collections.
           </p>
         </div>
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          <div style={{ width: "200px" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <div style={{ width: "220px" }}>
             <CustomSelect
               options={collections.map(c => ({ label: c.name, value: c.id }))}
               value={selectedCollection}
@@ -1096,36 +1403,42 @@ function OpenApiEngineView({ collections }: { collections: { id: string; name: s
           <button
             type="button"
             onClick={handleExport}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "6px",
-              border: "1px solid var(--color-border)",
-              backgroundColor: "var(--color-surface-hover)",
-              color: "var(--color-text)",
-              fontWeight: "600",
-              fontSize: "13px",
-              cursor: "pointer",
-              whiteSpace: "nowrap"
-            }}
+            className="primary-button api-tools-action-btn"
           >
-            Generate OpenAPI 3.0 Spec
+            <Sparkles size={13} /> Generate Spec
           </button>
         </div>
       </div>
 
-      <textarea
-        className="api-tools-textarea"
-        style={{ flex: 1 }}
-        readOnly
-        placeholder="Click Generate to produce OpenAPI 3.0.3 JSON specification..."
-        value={spec}
-      />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px", minHeight: 0 }}>
+        <div className="api-tools-pane-header">
+          <div className="api-tools-section-title">OpenAPI 3.0 Specification (JSON)</div>
+          {spec && (
+            <button
+              type="button"
+              className="ghost-button api-tools-mini-btn"
+              onClick={handleCopy}
+            >
+              {copied ? <Check size={13} /> : <Copy size={13} />}
+              {copied ? "Copied" : "Copy Spec"}
+            </button>
+          )}
+        </div>
+        <textarea
+          className="api-tools-textarea"
+          style={{ flex: 1, fontFamily: "var(--font-mono, monospace)", fontSize: "12.5px" }}
+          readOnly
+          placeholder="Click 'Generate Spec' above to produce OpenAPI 3.0.3 JSON definitions..."
+          value={spec}
+        />
+      </div>
     </div>
   );
 }
 
 function McpServerView() {
   const [manifest, setManifest] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const handleExportManifest = async () => {
     const { exportMcpManifest } = await import("../services/local-store");
@@ -1133,58 +1446,81 @@ function McpServerView() {
     setManifest(result.manifest_json);
   };
 
+  const handleCopy = () => {
+    if (!manifest) return;
+    navigator.clipboard.writeText(manifest);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "14px" }}>
+      <div className="api-tools-server-header">
         <div>
-          <h3 style={{ margin: 0, fontSize: "15px", color: "var(--color-text)" }}>AI Assistant MCP Server</h3>
-          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--color-text-muted)" }}>
-            Expose KobeanREST requests & environments to LLMs / AI assistants via Model Context Protocol.
+          <h3 className="api-tools-title">Model Context Protocol (MCP) Server</h3>
+          <p className="api-tools-desc">
+            Expose KobeanREST workspace collections, requests, and environments to AI coding agents and LLMs.
           </p>
         </div>
         <button
           type="button"
           onClick={handleExportManifest}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "6px",
-            border: "1px solid var(--color-border)",
-            backgroundColor: "var(--color-surface-hover)",
-            color: "var(--color-text)",
-            fontWeight: "600",
-            fontSize: "13px",
-            cursor: "pointer"
-          }}
+          className="primary-button api-tools-action-btn"
         >
-          Get MCP Manifest
+          <Bot size={14} /> Get MCP Tool Manifest
         </button>
       </div>
 
-      <textarea
-        className="api-tools-textarea"
-        style={{ flex: 1 }}
-        readOnly
-        placeholder="Click Get MCP Manifest to view tool declarations..."
-        value={manifest}
-      />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px", minHeight: 0 }}>
+        <div className="api-tools-pane-header">
+          <div className="api-tools-section-title">MCP Tools &amp; Resources Schema</div>
+          {manifest && (
+            <button
+              type="button"
+              className="ghost-button api-tools-mini-btn"
+              onClick={handleCopy}
+            >
+              {copied ? <Check size={13} /> : <Copy size={13} />}
+              {copied ? "Copied" : "Copy Manifest"}
+            </button>
+          )}
+        </div>
+        <textarea
+          className="api-tools-textarea"
+          style={{ flex: 1, fontFamily: "var(--font-mono, monospace)", fontSize: "12.5px" }}
+          readOnly
+          placeholder="Click 'Get MCP Tool Manifest' to export declared tool definitions for LLMs..."
+          value={manifest}
+        />
+      </div>
     </div>
   );
 }
 
 export function ApiToolsModal({ open, onClose, collections = [] }: ApiToolsModalProps) {
-  const [activeTab, setActiveTab] = useState<"jwt" | "encode" | "json" | "hash" | "mock" | "openapi" | "mcp">("openapi");
+  const [activeTab, setActiveTab] = useState<"jwt" | "encode" | "json" | "hash" | "mock" | "openapi" | "mcp">("mock");
 
   if (!open) return null;
 
-  const tabs = [
-    { id: "jwt", label: "JWT Decoder", icon: <Key size={14} /> },
-    { id: "encode", label: "Encode / Decode", icon: <Code size={14} /> },
-    { id: "json", label: "JSON Formatter", icon: <Braces size={14} /> },
-    { id: "hash", label: "Hash Generator", icon: <Lock size={14} /> },
-    { id: "mock", label: "Mock Server", icon: <Code size={14} /> },
-    { id: "openapi", label: "OpenAPI 3.0", icon: <Braces size={14} /> },
-    { id: "mcp", label: "MCP Protocol", icon: <Key size={14} /> },
-  ] as const;
+  const tabCategories = [
+    {
+      category: "Transformers & Security",
+      tabs: [
+        { id: "jwt", label: "JWT Decoder", icon: <ShieldCheck size={15} /> },
+        { id: "encode", label: "Encode / Decode", icon: <Binary size={15} /> },
+        { id: "json", label: "JSON Formatter", icon: <Braces size={15} /> },
+        { id: "hash", label: "Hash Generator", icon: <Hash size={15} /> },
+      ] as const
+    },
+    {
+      category: "Servers & Protocols",
+      tabs: [
+        { id: "mock", label: "Mock Server", icon: <Server size={15} />, isHero: true },
+        { id: "openapi", label: "OpenAPI 3.0", icon: <FileCode2 size={15} /> },
+        { id: "mcp", label: "MCP Protocol", icon: <Bot size={15} /> },
+      ] as const
+    }
+  ];
 
   return (
     <div
@@ -1194,45 +1530,58 @@ export function ApiToolsModal({ open, onClose, collections = [] }: ApiToolsModal
       aria-label="API Tools"
       onClick={onClose}
     >
-      <div className="modal settings-modal" onClick={(e) => e.stopPropagation()} style={{ width: "1000px", maxWidth: "95vw", height: "85vh", display: "flex", flexDirection: "column" }}>
-        <div className="settings-header" style={{ flexShrink: 0 }}>
-          <div>
-            <span className="settings-kicker">Developer Utilities</span>
-            <h2>API Tools</h2>
-            <p>Helpful utilities for debugging and building APIs.</p>
+      <div
+        className="modal settings-modal api-tools-modal-container"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="api-tools-modal-header">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div className="api-tools-icon-banner">
+              <Sparkles size={16} />
+            </div>
+            <div>
+              <div className="api-tools-eyebrow">Developer Utilities</div>
+              <h2 className="api-tools-main-title">API Tools &amp; Local Mock Servers</h2>
+            </div>
           </div>
-          <button className="settings-close" type="button" aria-label="Close API Tools" onClick={onClose}>
+          <button
+            className="settings-close"
+            type="button"
+            aria-label="Close API Tools"
+            onClick={onClose}
+          >
             <X size={18} />
           </button>
         </div>
         
-        <div className="settings-content" style={{ display: "flex", overflow: "hidden", flex: 1 }}>
-          <div style={{ width: "200px", borderRight: "1px solid var(--color-border)", display: "flex", flexDirection: "column", padding: "16px 0" }}>
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id as any)}
-                style={{
-                  all: "unset",
-                  display: "flex", alignItems: "center", gap: "10px",
-                  padding: "10px 20px",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                  fontWeight: activeTab === tab.id ? 600 : 500,
-                  color: activeTab === tab.id ? "var(--color-text)" : "var(--color-text-muted)",
-                  background: activeTab === tab.id ? "var(--color-surface-hover)" : "transparent",
-                  borderLeft: `3px solid ${activeTab === tab.id ? "var(--color-text-active)" : "transparent"}`,
-                  transition: "all 150ms",
-                }}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
+        {/* Body Layout */}
+        <div className="api-tools-modal-body">
+          {/* Navigation Sidebar */}
+          <div className="api-tools-sidebar">
+            {tabCategories.map((group, gIdx) => (
+              <div key={gIdx} className="api-tools-nav-group">
+                <div className="api-tools-group-label">{group.category}</div>
+                {group.tabs.map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`api-tools-nav-item ${activeTab === tab.id ? "active" : ""}`}
+                  >
+                    <div className="api-tools-nav-icon">{tab.icon}</div>
+                    <span className="api-tools-nav-label">{tab.label}</span>
+                    {tab.id === "mock" && (
+                      <span className="api-tools-mock-dot-live" title="Mock Server Ready" />
+                    )}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
 
-          <div style={{ flex: 1, padding: "24px", overflow: "hidden" }}>
+          {/* Main Workspace Pane */}
+          <div className="api-tools-workspace">
             {activeTab === "jwt" && <JwtDecoder />}
             {activeTab === "encode" && <EncoderDecoder />}
             {activeTab === "json" && <JsonFormatter />}
