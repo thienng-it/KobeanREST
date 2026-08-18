@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Play, Square, Activity, Download, BarChart3, Clock, TrendingUp, AlertTriangle, CheckCircle2, RefreshCw, History, SlidersHorizontal, Users, Repeat, Zap, PauseCircle, Check } from "lucide-react";
+import { X, Play, Square, Activity, Download, BarChart3, Clock, TrendingUp, AlertTriangle, CheckCircle2, RefreshCw, History, SlidersHorizontal, Users, Repeat, Zap, PauseCircle, Check, Sparkles } from "lucide-react";
 import type { SavedRequest, WorkspaceSummary } from "../types";
 import { prepareRequestForExecution } from "../services/request-executor";
 import { executeHttpRequest } from "../services/http-client";
@@ -44,6 +44,112 @@ interface RawResult {
   status: number;
   error?: string;
 }
+
+export interface ScenarioPreset {
+  id: string;
+  name: string;
+  badge: string;
+  summary: string;
+  description: string;
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+  accentColor: string;
+  config: {
+    mode: "iterations" | "duration";
+    concurrency: number;
+    iterations: number;
+    durationSecs: number;
+    rampUpSecs: number;
+    thinkTimeMs: number;
+  };
+}
+
+export const REAL_WORLD_SCENARIOS: ScenarioPreset[] = [
+  {
+    id: "smoke",
+    name: "Smoke Test",
+    badge: "Sanity Check",
+    summary: "2 VUs • 25 reqs",
+    description: "Minimal concurrency to verify API health, auth validity, and contract integrity before heavy load runs.",
+    icon: CheckCircle2,
+    accentColor: "#10b981",
+    config: {
+      mode: "iterations",
+      concurrency: 2,
+      iterations: 25,
+      durationSecs: 15,
+      rampUpSecs: 0,
+      thinkTimeMs: 100,
+    },
+  },
+  {
+    id: "average_load",
+    name: "Average Load",
+    badge: "Day-to-Day",
+    summary: "15 VUs • 30s • 5s ramp",
+    description: "Simulates typical production traffic volume to establish baseline latency percentiles (p50/p95) and throughput.",
+    icon: TrendingUp,
+    accentColor: "#3b82f6",
+    config: {
+      mode: "duration",
+      concurrency: 15,
+      iterations: 200,
+      durationSecs: 30,
+      rampUpSecs: 5,
+      thinkTimeMs: 200,
+    },
+  },
+  {
+    id: "stress",
+    name: "Stress Test",
+    badge: "Peak Capacity",
+    summary: "50 VUs • 60s • 10s ramp",
+    description: "Pushes system beyond expected peak load to uncover memory pressure, concurrency bottlenecks, and breaking points.",
+    icon: AlertTriangle,
+    accentColor: "#f59e0b",
+    config: {
+      mode: "duration",
+      concurrency: 50,
+      iterations: 500,
+      durationSecs: 60,
+      rampUpSecs: 10,
+      thinkTimeMs: 50,
+    },
+  },
+  {
+    id: "spike",
+    name: "Spike / Surge",
+    badge: "Flash Crowd",
+    summary: "40 VUs • 300 reqs • Burst",
+    description: "Instant 0s ramp-up burst simulating sudden traffic surges from marketing campaigns, push alerts, or sales events.",
+    icon: Zap,
+    accentColor: "#ec4899",
+    config: {
+      mode: "iterations",
+      concurrency: 40,
+      iterations: 300,
+      durationSecs: 20,
+      rampUpSecs: 0,
+      thinkTimeMs: 0,
+    },
+  },
+  {
+    id: "soak",
+    name: "Soak / Endurance",
+    badge: "Stability & Leaks",
+    summary: "10 VUs • 120s • 500ms delay",
+    description: "Sustained moderate load over an extended time window to detect memory leaks, connection pool leaks, and degradation.",
+    icon: Clock,
+    accentColor: "#8b5cf6",
+    config: {
+      mode: "duration",
+      concurrency: 10,
+      iterations: 500,
+      durationSecs: 120,
+      rampUpSecs: 10,
+      thinkTimeMs: 500,
+    },
+  },
+];
 
 // ── Chart Data Builder ────────────────────────────────────────────────────────
 
@@ -304,6 +410,35 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
   const [durationSecs, setDurationSecs] = useState(30);
   const [rampUpSecs, setRampUpSecs] = useState(0);
   const [thinkTimeMs, setThinkTimeMs] = useState(0);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+
+  // Auto-detect if current config matches any real-world scenario preset
+  useEffect(() => {
+    const matched = REAL_WORLD_SCENARIOS.find((s) => {
+      const c = s.config;
+      if (c.mode !== mode) return false;
+      if (c.concurrency !== concurrency) return false;
+      if (c.rampUpSecs !== rampUpSecs) return false;
+      if (c.thinkTimeMs !== thinkTimeMs) return false;
+      if (mode === "iterations" && c.iterations !== iterations) return false;
+      if (mode === "duration" && c.durationSecs !== durationSecs) return false;
+      return true;
+    });
+    setSelectedScenarioId(matched ? matched.id : null);
+  }, [mode, concurrency, iterations, durationSecs, rampUpSecs, thinkTimeMs]);
+
+  const applyScenario = (preset: ScenarioPreset) => {
+    setSelectedScenarioId(preset.id);
+    setMode(preset.config.mode);
+    setConcurrency(preset.config.concurrency);
+    if (preset.config.mode === "iterations") {
+      setIterations(preset.config.iterations);
+    } else {
+      setDurationSecs(preset.config.durationSecs);
+    }
+    setRampUpSecs(preset.config.rampUpSecs);
+    setThinkTimeMs(preset.config.thinkTimeMs);
+  };
 
   // Run state
   const [status, setStatus] = useState<"configuring" | "running" | "completed">("configuring");
@@ -366,6 +501,7 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
   const maxD = sorted.length > 0 ? sorted[sorted.length - 1].toFixed(0) : "0";
   const rps = elapsedMs > 0 ? (completedCount / (elapsedMs / 1000)).toFixed(1) : "0.0";
   const successRate = completedCount > 0 ? (successCount / completedCount) * 100 : 0;
+  const activePreset = REAL_WORLD_SCENARIOS.find((s) => s.id === selectedScenarioId);
 
   const chartData = useCallback(
     () => generateChartData(results, 80),
@@ -617,6 +753,113 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
                   Choose a <strong>Strategy</strong> (a fixed number of requests vs. a set duration). 
                   <strong>Virtual Users (VUs)</strong> represent parallel clients hitting the endpoint simultaneously. 
                   Use <strong>Ramp-up</strong> to gradually increase load, and <strong>Think Time</strong> to simulate realistic user pauses between requests.
+                </div>
+              </div>
+
+              {/* Real-World Scenario Presets */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+                    <Sparkles size={13} style={{ color: "var(--color-accent)" }} />
+                    Recommended Real-World Scenarios
+                  </div>
+                  <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+                    1-Click Industry Benchmark Profiles
+                  </span>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+                  {REAL_WORLD_SCENARIOS.map((scenario) => {
+                    const isSelected = selectedScenarioId === scenario.id;
+                    const IconComp = scenario.icon;
+                    return (
+                      <button
+                        key={scenario.id}
+                        type="button"
+                        onClick={() => applyScenario(scenario)}
+                        title={scenario.description}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: 6,
+                          padding: "12px 14px",
+                          borderRadius: 10,
+                          border: `1.5px solid ${isSelected ? scenario.accentColor : "var(--color-border)"}`,
+                          background: isSelected
+                            ? "var(--color-surface-solid)"
+                            : "var(--color-surface-hover)",
+                          color: isSelected ? "var(--color-text)" : "var(--color-text-muted)",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+                          boxShadow: isSelected ? `0 4px 14px ${scenario.accentColor}25` : "none",
+                          position: "relative",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div
+                              style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: 6,
+                                background: `${scenario.accentColor}20`,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: scenario.accentColor,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <IconComp size={13} />
+                            </div>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: "var(--color-text)" }}>
+                              {scenario.name}
+                            </span>
+                          </div>
+                          {isSelected && (
+                            <span
+                              style={{
+                                width: 14,
+                                height: 14,
+                                borderRadius: "50%",
+                                background: scenario.accentColor,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Check size={9} color="#ffffff" strokeWidth={3} />
+                            </span>
+                          )}
+                        </div>
+
+                        <span
+                          style={{
+                            fontSize: 10.5,
+                            fontWeight: 600,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            background: `${scenario.accentColor}18`,
+                            color: scenario.accentColor,
+                            display: "inline-block",
+                          }}
+                        >
+                          {scenario.badge}
+                        </span>
+
+                        <div style={{ fontSize: 11, fontWeight: 600, color: isSelected ? "var(--color-accent-light)" : "var(--color-text-muted)" }}>
+                          {scenario.summary}
+                        </div>
+
+                        <span style={{ fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                          {scenario.description}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -902,22 +1145,43 @@ export function LoadTestModal({ isOpen, request, workspace, onClose }: LoadTestM
                     </div>
                   )}
                 </div>
-                <div
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 12,
-                    background: "rgba(16, 185, 129, 0.12)",
-                    border: "1px solid rgba(16, 185, 129, 0.3)",
-                    color: "#10b981",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
-                  Ready to Benchmark
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  {activePreset && (
+                    <span
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 12,
+                        background: `${activePreset.accentColor}18`,
+                        border: `1px solid ${activePreset.accentColor}40`,
+                        color: activePreset.accentColor,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: activePreset.accentColor }} />
+                      Preset: {activePreset.name}
+                    </span>
+                  )}
+                  <div
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 12,
+                      background: "rgba(16, 185, 129, 0.12)",
+                      border: "1px solid rgba(16, 185, 129, 0.3)",
+                      color: "#10b981",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
+                    Ready to Benchmark
+                  </div>
                 </div>
               </div>
             </section>
