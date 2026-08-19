@@ -32,6 +32,26 @@ export const productContent: DocsPageContent = {
       body: (
         <div style={{ display: "flex", flexDirection: "column", gap: "2rem", marginTop: "1.5rem" }}>
           <div>
+            <img src="images/workspaces-hub.png" alt="Workspaces Hub" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>Workspaces Hub: Centralized multi-workspace overview with aggregate KPI analytics, fast switcher, and search filtering.</p>
+          </div>
+          <div>
+            <img src="images/collections-hub.png" alt="Collections Hub" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>Collections Hub: Visual card catalog with folder breakdowns, request totals, and quick access.</p>
+          </div>
+          <div>
+            <img src="images/ai-chat-sidebar.png" alt="AI Chat Assistant" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>AI Assistant: Multi-session coding and API debugging assistant supporting Ollama local models and cloud providers.</p>
+          </div>
+          <div>
+            <img src="images/plugins-catalog.png" alt="Plugins Catalog" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>Plugins Catalog: Extensible sandbox hooks for HMAC signing, UUID injection, and automated assertions.</p>
+          </div>
+          <div>
+            <img src="images/collection-runner.png" alt="Collection Test Runner" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
+            <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>Collection Runner: Automated multi-request batch test runner with latency telemetry and pass/fail reporting.</p>
+          </div>
+          <div>
             <img src="images/grpc-panel.png" alt="gRPC & Protobuf Client" style={{ width: "100%", borderRadius: "8px", border: "1px solid var(--color-border-subtle)" }} />
             <p style={{ marginTop: "0.5rem", fontSize: "14px", color: "var(--color-text-muted)", fontStyle: "italic" }}>gRPC & Protobuf Client: Interactive Proto loader, method selector, and decoded streaming response viewer.</p>
           </div>
