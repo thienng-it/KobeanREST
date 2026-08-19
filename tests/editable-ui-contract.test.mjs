@@ -650,3 +650,12 @@ test("method selector dropdown uses a viewport-aware portal overlay", () => {
   assert.match(styles, /\.method-selector-caret\s*\{[\s\S]*transition:\s*transform 180ms cubic-bezier\(0\.22, 1, 0\.36, 1\), opacity 180ms ease;/);
   assert.match(styles, /\.method-selector-btn\.open \.method-selector-caret,/);
 });
+
+test("ResponsePanel Tests tab strictly filters test results and excludes console logs", () => {
+  const panel = read("src/renderer/src/components/ResponsePanel.tsx");
+
+  assert.match(panel, /responseTab === "tests"/);
+  assert.match(panel, /scriptOutputLog\.filter[\s\S]*?log\.type === "test_pass" \|\| log\.type === "test_fail"/);
+  assert.match(panel, /No tests ran for this request\./);
+});
+

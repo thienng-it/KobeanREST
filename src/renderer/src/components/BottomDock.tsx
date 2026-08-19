@@ -19,6 +19,7 @@ export interface BottomDockProps {
   responseTab: ResponseTab;
   previewMode: PreviewMode;
   scriptOutputLog: ScriptOutputEntry[];
+  isRequestTabsCollapsed?: boolean;
   onActiveBottomDockChange: (dock: "response" | "console" | null) => void;
   onTabChange: (tab: ResponseTab) => void;
   onPreviewModeChange: (mode: PreviewMode) => void;
@@ -42,6 +43,7 @@ export const BottomDock = React.memo(function BottomDock({
   responseTab,
   previewMode,
   scriptOutputLog,
+  isRequestTabsCollapsed,
   onActiveBottomDockChange,
   onTabChange,
   onPreviewModeChange,
@@ -58,12 +60,18 @@ export const BottomDock = React.memo(function BottomDock({
     (e) => e.tone === "error" || e.type === "test_fail",
   );
 
+  const dockStyle: React.CSSProperties = open
+    ? isRequestTabsCollapsed
+      ? { flex: 1, minHeight: "260px", height: "100%" }
+      : { height: `${bottomDockHeight + bottomDockStripHeight}px` }
+    : { height: `${bottomDockStripHeight}px` };
+
   // If no response and no console logs and dock closed, still keep strip accessible
   return (
     <section
-      className="bottom-dock"
+      className={`bottom-dock ${isRequestTabsCollapsed ? "expanded-view" : ""}`}
       aria-label="Bottom dock"
-      style={{ height: open ? `${bottomDockHeight + bottomDockStripHeight}px` : `${bottomDockStripHeight}px` }}
+      style={dockStyle}
     >
       {open && (
         <div

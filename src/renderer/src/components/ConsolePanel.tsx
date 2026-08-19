@@ -23,7 +23,7 @@ export interface ConsolePanelProps {
   onClearConsole?: () => void;
 }
 
-type FilterTone = "all" | "logs" | "tests" | "errors" | "network";
+type FilterTone = "all" | "logs" | "errors" | "network";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -262,20 +262,17 @@ export const ConsolePanel = React.memo(function ConsolePanel({ scriptOutputLog, 
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   const counts = useMemo(() => {
-    let logsCount = 0, testsCount = 0, errorsCount = 0, networkCount = 0;
+    let logsCount = 0, errorsCount = 0, networkCount = 0;
     scriptOutputLog.forEach((entry) => {
       if (entry.type === "request" || entry.type === "response") {
         networkCount++;
         if (entry.type === "response" && entry.response.status >= 400) errorsCount++;
-      } else if (entry.type === "test_pass" || entry.type === "test_fail") {
-        testsCount++;
-        if (entry.type === "test_fail") errorsCount++;
       } else {
         logsCount++;
         if (entry.tone === "error") errorsCount++;
       }
     });
-    return { all: scriptOutputLog.length, logs: logsCount, tests: testsCount, errors: errorsCount, network: networkCount };
+    return { all: scriptOutputLog.length, logs: logsCount, errors: errorsCount, network: networkCount };
   }, [scriptOutputLog]);
 
   const filteredLogs = useMemo(() => {
@@ -286,7 +283,6 @@ export const ConsolePanel = React.memo(function ConsolePanel({ scriptOutputLog, 
 
       if (filterTone === "network" && !isNetwork) return false;
       if (filterTone === "logs" && (isNetwork || isTest)) return false;
-      if (filterTone === "tests" && !isTest) return false;
       if (filterTone === "errors" && !isError) return false;
 
       if (searchQuery.trim()) {
@@ -331,8 +327,6 @@ export const ConsolePanel = React.memo(function ConsolePanel({ scriptOutputLog, 
     const text = scriptOutputLog.map((entry) => {
       if (entry.type === "request") return `[REQ] ${entry.request.method} ${entry.request.url}`;
       if (entry.type === "response") return `[RES] ${entry.response.status} ${entry.response.statusText} (${entry.response.durationMs}ms)`;
-      if (entry.type === "test_pass") return `[PASSED] ${entry.name}`;
-      if (entry.type === "test_fail") return `[FAILED] ${entry.name}${entry.errMessage ? ` - ${entry.errMessage}` : ""}`;
       return `[${entry.tone.toUpperCase()}] ${entry.message}`;
     }).join("\n");
     void navigator.clipboard.writeText(text);
@@ -345,7 +339,7 @@ export const ConsolePanel = React.memo(function ConsolePanel({ scriptOutputLog, 
       {/* Toolbar */}
       <div className="console-toolbar">
         <div className="console-filter-group">
-          {(["all", "network", "logs", "tests", "errors"] as FilterTone[]).map((f) => (
+          {(["all", "network", "logs", "errors"] as FilterTone[]).map((f) => (
             <button
               key={f}
               type="button"
@@ -431,26 +425,6 @@ export const ConsolePanel = React.memo(function ConsolePanel({ scriptOutputLog, 
             }
             if (entry.type === "response") {
               return <ResponseEntry key={`res-${index}`} entry={entry} />;
-            }
-
-            if (entry.type === "test_pass" || entry.type === "test_fail") {
-              const passed = entry.type === "test_pass";
-              return (
-                <div key={`${entry.name}-${index}`} className={`console-log-row test-entry ${passed ? "passed" : "failed"}`}>
-                  <div className="console-row-header">
-                    <span className={`console-badge ${passed ? "badge-success" : "badge-error"}`}>
-                      {passed ? <><CheckCircle2 size={11} /> PASSED</> : <><XCircle size={11} /> FAILED</>}
-                    </span>
-                    <span className="console-test-name">{entry.name}</span>
-                  </div>
-                  {!passed && entry.errMessage && (
-                    <div className="console-error-box">
-                      <AlertTriangle size={12} className="error-box-icon" />
-                      <span>{entry.errMessage}</span>
-                    </div>
-                  )}
-                </div>
-              );
             }
 
             const isError = entry.tone === "error";

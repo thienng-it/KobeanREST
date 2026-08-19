@@ -1,4 +1,4 @@
-import type { ApiAuthMode, AuthConfig, ScopedVariable } from "../types";
+import type { ApiAuthMode, AuthConfig, ScopedVariable, ResponseExample } from "../types";
 
 // ---------------------------------------------------------------------------
 // Postman Collection v2.0/v2.1 Types
@@ -8,6 +8,7 @@ interface PostmanInfo {
   name: string;
   postmanId?: string;
   schema?: string;
+  description?: string | { content?: string };
 }
 
 interface PostmanVariable {
@@ -80,6 +81,7 @@ interface PostmanItem {
   variable?: PostmanVariable[];
   item?: PostmanItem[];
   auth?: PostmanAuth;
+  description?: string | { content?: string };
 }
 
 interface PostmanRequest {
@@ -88,6 +90,7 @@ interface PostmanRequest {
   header?: PostmanHeader[];
   body?: PostmanBody;
   auth?: PostmanAuth;
+  description?: string | { content?: string };
 }
 
 interface PostmanCollection {
@@ -121,6 +124,7 @@ interface PostmanEnvironment {
 
 export interface PostmanCollectionImportResult {
   collectionName: string;
+  collectionDescription?: string;
   collectionVariables: ScopedVariable[];
   collectionPreScript?: string;
   collectionPostScript?: string;
@@ -135,6 +139,7 @@ export interface PostmanCollectionImportResult {
     authConfig?: AuthConfig;
     preScript?: string;
     postScript?: string;
+    description?: string;
   }>;
   requests: Array<{
     id: string;
@@ -152,6 +157,8 @@ export interface PostmanCollectionImportResult {
     variables: ScopedVariable[];
     preScript?: string;
     postScript?: string;
+    description?: string;
+    examples?: ResponseExample[];
   }>;
 }
 
@@ -475,6 +482,56 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
         // Variables
         const variables = convertVariables(item.variable);
 
+        // Documentation / description from request or item
+        const reqDesc = typeof item.request === "object" && typeof item.request.description === "string"
+          ? item.request.description
+          : typeof (item.request as any)?.description?.content === "string"
+          ? (item.request as any).description.content
+          : typeof (item as any)?.description === "string"
+          ? (item as any).description
+          : typeof (item as any)?.description?.content === "string"
+          ? (item as any).description.content
+          : undefined;
+
+        // Saved response examples / sample responses
+        let examples: ResponseExample[] | undefined = undefined;
+        if (Array.isArray(item.response) && item.response.length > 0) {
+          examples = item.response.map((res: any, idx: number) => {
+            let resHeaders: Array<{ key: string; value: string }> = [];
+            if (Array.isArray(res.header)) {
+              resHeaders = res.header
+                .map((h: any) => ({
+                  key: typeof h === "string" ? h.split(":")[0]?.trim() || "" : h.key || "",
+                  value: typeof h === "string" ? h.split(":").slice(1).join(":")?.trim() || "" : h.value || "",
+                }))
+                .filter((h: any) => h.key);
+            }
+            const rawBody = typeof res.body === "string"
+              ? res.body
+              : typeof res._postman_exported_body === "string"
+              ? res._postman_exported_body
+              : "";
+            const isJson = res._postman_previewlanguage === "json" ||
+              rawBody.trim().startsWith("{") ||
+              rawBody.trim().startsWith("[");
+            const mime = isJson
+              ? "application/json"
+              : res._postman_previewlanguage === "xml" || rawBody.trim().startsWith("<")
+              ? "application/xml"
+              : (res._postman_previewlanguage || "text/plain");
+
+            return {
+              id: res.id || `example-${generateId("ex")}-${idx}`,
+              name: res.name || `${res.code || 200} ${res.status || "Response"}`,
+              code: typeof res.code === "number" ? res.code : 200,
+              status: res.status || "OK",
+              headers: resHeaders,
+              body: rawBody,
+              bodyMimeType: mime,
+            };
+          });
+        }
+
         requests.push({
           id: reqId,
           name: item.name || "Unnamed Request",
@@ -491,12 +548,19 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
           variables,
           preScript: scripts.pre,
           postScript: scripts.post,
+          description: reqDesc,
+          examples,
         });
       } else {
         // This is a folder
         const folderId = generateId("folder");
         const folderScripts = extractEvents(item.event);
         const folderVariables = convertVariables(item.variable);
+        const folderDesc = typeof item.description === "string"
+          ? item.description
+          : typeof (item as any)?.description?.content === "string"
+          ? (item as any).description.content
+          : undefined;
 
         folders.push({
           id: folderId,
@@ -507,6 +571,7 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
           authConfig: itemAuth.config,
           preScript: folderScripts.pre,
           postScript: folderScripts.post,
+          description: folderDesc,
         });
 
         // Process nested items
@@ -519,8 +584,15 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
 
   processItems(collection.item, undefined);
 
+  const collectionDesc = typeof collection.info.description === "string"
+    ? collection.info.description
+    : typeof (collection.info as any)?.description?.content === "string"
+    ? (collection.info as any).description.content
+    : undefined;
+
   return {
     collectionName: collection.info.name || "Imported Collection",
+    collectionDescription: collectionDesc,
     collectionVariables: convertVariables(collection.variable),
     collectionPreScript: collectionScripts.pre,
     collectionPostScript: collectionScripts.post,

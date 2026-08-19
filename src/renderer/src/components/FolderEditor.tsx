@@ -4,7 +4,8 @@ import type { FolderSummary, EnvironmentVariable, ScopedVariable, ScopedVariable
 import { AuthEditorForm } from "./AuthEditorForm";
 import { ScriptEditor } from "./ScriptEditor";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
-import { getScripts, saveScript, saveFolderAuth } from "../services/local-store";
+import { DocsEditor } from "./DocsEditor";
+import { getScripts, saveScript, saveFolderAuth, saveFolderDescription } from "../services/local-store";
 
 export interface FolderEditorProps {
   folder: FolderSummary;
@@ -21,9 +22,12 @@ export function FolderEditor({
   onSaveScopedVariable,
   onDeleteScopedVariable,
 }: FolderEditorProps) {
-  const [activeTab, setActiveTab] = useState<"auth" | "pre-script" | "post-script" | "variables">("auth");
+  const [activeTab, setActiveTab] = useState<"docs" | "auth" | "pre-script" | "post-script" | "variables">(
+    folder.description && folder.description.trim() !== "" ? "docs" : "auth"
+  );
   const [preScript, setPreScript] = useState("");
   const [postScript, setPostScript] = useState("");
+  const [draftDescription, setDraftDescription] = useState(folder.description || "");
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -38,6 +42,7 @@ export function FolderEditor({
       const post = scripts.find((s) => s.scriptType === "post")?.content || "";
       setPreScript(pre);
       setPostScript(post);
+      setDraftDescription(folder.description || "");
       setScriptsLoaded(true);
       setIsDirty(false);
       setDraftAuthMode(folder.authMode || "none");
@@ -45,15 +50,18 @@ export function FolderEditor({
     }
     setScriptsLoaded(false);
     loadScripts();
-  }, [folder.id]);
+  }, [folder.id, folder.description]);
 
   const handleSave = async () => {
     await saveScript(folder.id, "folder", "pre", preScript);
     await saveScript(folder.id, "folder", "post", postScript);
+    await saveFolderAuth(folder.id, draftAuthMode, draftAuthConfig);
+    await saveFolderDescription(folder.id, draftDescription);
     onUpdateFolder({
       ...folder,
       authMode: draftAuthMode,
       authConfig: draftAuthConfig,
+      description: draftDescription,
     });
     setIsDirty(false);
   };
@@ -68,10 +76,12 @@ export function FolderEditor({
     await saveScript(folder.id, "folder", "pre", preScript);
     await saveScript(folder.id, "folder", "post", postScript);
     await saveFolderAuth(folder.id, draftAuthMode, newConfig);
+    await saveFolderDescription(folder.id, draftDescription);
     onUpdateFolder({
       ...folder,
       authMode: draftAuthMode,
       authConfig: newConfig,
+      description: draftDescription,
     });
     setDraftAuthConfig(newConfig);
     setIsDirty(false);
@@ -80,6 +90,7 @@ export function FolderEditor({
   if (!scriptsLoaded) return null;
 
   const tabs = [
+    { id: "docs", label: "Docs" },
     { id: "auth", label: "Auth" },
     { id: "pre-script", label: "Pre-request Script" },
     { id: "post-script", label: "Post-request Script" },
@@ -111,7 +122,10 @@ export function FolderEditor({
             let count = 0;
             let isTabDirty = false;
 
-            if (tab.id === "variables") {
+            if (tab.id === "docs") {
+              hasData = Boolean(draftDescription && draftDescription.trim() !== "");
+              isTabDirty = draftDescription !== (folder.description || "");
+            } else if (tab.id === "variables") {
               const items = folder.variables || [];
               hasData = items.length > 0;
               count = items.length;
@@ -148,6 +162,19 @@ export function FolderEditor({
             );
           })}
         </div>
+
+        {activeTab === "docs" && (
+          <div className="request-tab-panel docs-tab-panel" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+            <DocsEditor
+              description={draftDescription}
+              onChange={(val) => {
+                setDraftDescription(val);
+                setIsDirty(true);
+              }}
+              requestName={folder.name}
+            />
+          </div>
+        )}
         
         {activeTab === "auth" && (
           <div className="request-tab-panel auth-panel">

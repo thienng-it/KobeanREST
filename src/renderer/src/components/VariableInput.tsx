@@ -18,6 +18,9 @@ interface TooltipState {
   value: string;
   isSecret: boolean;
   isResolved: boolean;
+  isPathVariable?: boolean;
+  syntaxPrefix?: string;
+  syntaxSuffix?: string;
   x: number;
   y: number;
   placement?: "top" | "bottom";
@@ -54,11 +57,15 @@ export interface VariablePopoverCardProps {
   tooltipKey: string;
   tooltipValue: string;
   isResolved: boolean;
+  isPathVariable?: boolean;
+  syntaxPrefix?: string;
+  syntaxSuffix?: string;
   x: number;
   y: number;
   placement?: "top" | "bottom";
   activeEnvironmentName?: string;
   onSaveVariable?: (envName: string, key: string, value: string) => Promise<void> | void;
+  onSavePathVariable?: (key: string, value: string) => void;
   onReplaceVariable?: (oldKey: string, newKey: string) => void;
   onClose: () => void;
   onMouseEnter: () => void;
@@ -70,11 +77,15 @@ export function VariablePopoverCard({
   tooltipKey,
   tooltipValue,
   isResolved,
+  isPathVariable,
+  syntaxPrefix,
+  syntaxSuffix,
   x,
   y,
   placement = "top",
   activeEnvironmentName,
   onSaveVariable,
+  onSavePathVariable,
   onReplaceVariable,
   onClose,
   onMouseEnter,
@@ -97,6 +108,16 @@ export function VariablePopoverCard({
     if (isSaving) return;
     setIsSaving(true);
     try {
+      if (isPathVariable) {
+        if (onSavePathVariable) {
+          onSavePathVariable(tooltipKey, editValue);
+        }
+        setSavedSuccess(true);
+        setTimeout(() => {
+          onClose();
+        }, 250);
+        return;
+      }
       const targetEnv = activeEnvironmentName || "Environment";
       if (onSaveVariable) {
         await onSaveVariable(targetEnv, tooltipKey, editValue);
@@ -149,15 +170,17 @@ export function VariablePopoverCard({
     >
       <div className="variable-popover-header">
         <div className="variable-popover-title">
-          <span className="variable-popover-braces">{"{{"}</span>
+          <span className="variable-popover-braces">{syntaxPrefix ?? (isPathVariable ? ":" : "{{")}</span>
           <span className="variable-popover-name">
             {tooltipKey.startsWith("$response ") ? "$response" : tooltipKey}
           </span>
-          <span className="variable-popover-braces">{"}}"}</span>
+          <span className="variable-popover-braces">{syntaxSuffix ?? (isPathVariable ? "" : "}}")}</span>
         </div>
         <div className="variable-popover-header-right">
           <span className={`variable-popover-badge ${isResolved ? "resolved" : "unresolved"}`}>
-            {isResolved ? activeEnvironmentName || "Environment" : "Unresolved"}
+            {isPathVariable
+              ? (isResolved ? "Path Variable" : "Path Variable (Unset)")
+              : (isResolved ? activeEnvironmentName || "Environment" : "Unresolved")}
           </span>
           <button
             type="button"
@@ -180,7 +203,11 @@ export function VariablePopoverCard({
               onChange={(e) => setEditValue(e.target.value)}
               onFocus={onInputFocus}
               onKeyDown={handleKeyDown}
-              placeholder={isResolved ? "Enter variable value..." : "Set variable value..."}
+              placeholder={
+                isPathVariable
+                  ? (isResolved ? "Enter path variable value..." : "Set path variable value...")
+                  : (isResolved ? "Enter variable value..." : "Set variable value...")
+              }
             />
             {editValue && (
               <button
@@ -228,6 +255,8 @@ export function VariablePopoverCard({
                 <>
                   <Check size={12} /> Saved!
                 </>
+              ) : isPathVariable ? (
+                isResolved ? "Update Path Variable" : "Set Path Variable"
               ) : isResolved ? (
                 "Update Variable"
               ) : (
@@ -248,6 +277,8 @@ export function VariablePopoverCard({
 
 export interface VariableInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   activeVariables: EnvironmentVariable[];
+  pathVariables?: Array<{ key: string; value: string; enabled?: boolean; description?: string }>;
+  onUpdatePathVariable?: (key: string, value: string) => void;
   activeEnvironmentName?: string;
   onSaveVariable?: (envName: string, key: string, value: string) => Promise<void> | void;
   containerStyle?: React.CSSProperties;
@@ -258,6 +289,8 @@ export interface VariableInputProps extends React.InputHTMLAttributes<HTMLInputE
 
 export function VariableInput({
   activeVariables,
+  pathVariables,
+  onUpdatePathVariable,
   activeEnvironmentName,
   onSaveVariable,
   value = "",
@@ -311,7 +344,12 @@ export function VariableInput({
   const actualType = isPasswordProp && !showPassword ? "password" : isPasswordProp ? "text" : rest.type;
 
   const strValue = String(value);
-  const hasVariables = actualType !== "password" && /\{\{[^{}]+\}\}/.test(strValue);
+  const hasVariables = actualType !== "password" && (
+    /\{\{[^{}]+\}\}/.test(strValue) ||
+    (pathVariables && pathVariables.length > 0) ||
+    /(?:^|[/?#\s]):[a-zA-Z0-9_]+/.test(strValue) ||
+    /\{[a-zA-Z0-9_]+\}/.test(strValue)
+  );
 
   const filteredSuggestions = useCallback(() => {
     if (!suggestions || suggestions.length === 0) return [];
@@ -458,7 +496,7 @@ export function VariableInput({
     }, 0);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (suggestions && suggestions.length > 0 && isFocused && filteredSuggestions.length > 0 && suggestionState.open !== false) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -565,14 +603,24 @@ export function VariableInput({
     (span: Element) => {
       const varName = (span as HTMLElement).dataset.varname;
       if (!varName) return;
+      const isPathVar = (span as HTMLElement).dataset.isPathVar === "true";
+      const syntaxPrefix = (span as HTMLElement).dataset.prefix || (isPathVar ? ":" : "{{");
+      const syntaxSuffix = (span as HTMLElement).dataset.suffix || (isPathVar ? "" : "}}");
 
-      const variable = activeVariables.find((v) => v.key === varName);
-      const isResolved = !!variable || varName.startsWith("$response");
-      const val = variable ? variable.value : (varName.startsWith("$response") ? "(Extract from response)" : "");
+      let val = "";
+      let isResolved = false;
 
-      const parentRect = containerRef.current!.getBoundingClientRect();
+      if (isPathVar) {
+        const pathVar = pathVariables?.find((p) => p.key === varName || p.key === `:${varName}`);
+        isResolved = Boolean(pathVar && pathVar.enabled !== false && pathVar.value !== undefined && pathVar.value !== "");
+        val = pathVar ? pathVar.value : "";
+      } else {
+        const variable = activeVariables.find((v) => v.key === varName);
+        isResolved = !!variable || varName.startsWith("$response");
+        val = variable ? variable.value : (varName.startsWith("$response") ? "(Extract from response)" : "");
+      }
+
       const spanRect = span.getBoundingClientRect();
-
       const spaceAbove = spanRect.top;
       const placement: "top" | "bottom" = spaceAbove < 180 ? "bottom" : "top";
 
@@ -585,12 +633,15 @@ export function VariableInput({
         value: val,
         isSecret: false,
         isResolved,
+        isPathVariable: isPathVar,
+        syntaxPrefix,
+        syntaxSuffix,
         x: spanRect.left + spanRect.width / 2,
         y,
         placement,
       });
     },
-    [activeVariables]
+    [activeVariables, pathVariables]
   );
 
   const lastMoveTimeRef = useRef(0);
@@ -609,7 +660,7 @@ export function VariableInput({
       const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
       input.style.pointerEvents = "";
 
-      if (elemBelow && elemBelow.classList.contains("variable-highlight") && elemBelow.classList.contains("resolved")) {
+      if (elemBelow && elemBelow.classList.contains("variable-highlight")) {
         cancelCloseTimer();
         const varName = (elemBelow as HTMLElement).dataset.varname;
         if (activeTooltip?.key === varName) return; // already showing
@@ -623,16 +674,28 @@ export function VariableInput({
 
   const buildBackdropHTML = () => {
     if (!strValue) return "";
-    const parts = strValue.split(VARIABLE_PATTERN);
-    return parts.map((part) => {
-      if (part.startsWith("{{") && part.endsWith("}}")) {
-        const varName = part.slice(2, -2).trim();
+
+    const regex = /(\{\{[^{}]+\}\})|(\{([a-zA-Z0-9_]+)\})|((?:^|[/?#\s]):([a-zA-Z0-9_]+))/g;
+    const parts: string[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(strValue)) !== null) {
+      if (match.index > lastIndex) {
+        const plain = strValue.slice(lastIndex, match.index);
+        parts.push(plain.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+      }
+
+      if (match[1]) {
+        // {{envVar}}
+        const full = match[1];
+        const varName = full.slice(2, -2).trim();
         const exists = varName.startsWith("$response") || activeVariables.some((v) => v.key === varName);
-        const isActivePopover = activeTooltip?.key === varName;
+        const isActivePopover = activeTooltip?.key === varName && !activeTooltip?.isPathVariable;
         const cls = exists
           ? `variable-highlight resolved${isActivePopover ? " active-popover" : ""}`
           : `variable-highlight unresolved${isActivePopover ? " active-popover" : ""}`;
-        const safePart = part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safePart = full.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const safeVarName = varName.replace(/"/g, "&quot;");
         let displayPart = safePart;
         if (varName.startsWith("$response ")) {
@@ -643,11 +706,46 @@ export function VariableInput({
         const colorStyle = varColor
           ? ` style="background-color:${varColor}22;color:${varColor};box-shadow:inset 0 0 0 1px ${varColor}44;"`
           : "";
-        return `<span class="${cls}" data-varname="${safeVarName}"${colorStyle}>${displayPart}</span>`;
+        parts.push(`<span class="${cls}" data-varname="${safeVarName}" data-prefix="{{" data-suffix="}}"${colorStyle}>${displayPart}</span>`);
+        lastIndex = match.index + full.length;
+      } else if (match[2]) {
+        // {pathVar}
+        const full = match[2];
+        const varName = match[3];
+        const pathVar = pathVariables?.find((p) => p.key === varName || p.key === `:${varName}`);
+        const hasVal = Boolean(pathVar && pathVar.enabled !== false && pathVar.value !== undefined && pathVar.value !== "");
+        const isActivePopover = activeTooltip?.key === varName && activeTooltip?.isPathVariable;
+        const cls = `variable-highlight path-variable-highlight ${hasVal ? "resolved" : "unresolved"}${isActivePopover ? " active-popover" : ""}`;
+        const safePart = full.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeVarName = varName.replace(/"/g, "&quot;");
+        parts.push(`<span class="${cls}" data-varname="${safeVarName}" data-is-path-var="true" data-prefix="{" data-suffix="}">${safePart}</span>`);
+        lastIndex = match.index + full.length;
+      } else if (match[4]) {
+        // :pathVar
+        const full = match[4];
+        const varName = match[5];
+        const prefixChar = full.length > (varName.length + 1) ? full[0] : "";
+        if (prefixChar) {
+          parts.push(prefixChar.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+        }
+        const tokenText = `:${varName}`;
+        const pathVar = pathVariables?.find((p) => p.key === varName || p.key === `:${varName}`);
+        const hasVal = Boolean(pathVar && pathVar.enabled !== false && pathVar.value !== undefined && pathVar.value !== "");
+        const isActivePopover = activeTooltip?.key === varName && activeTooltip?.isPathVariable;
+        const cls = `variable-highlight path-variable-highlight ${hasVal ? "resolved" : "unresolved"}${isActivePopover ? " active-popover" : ""}`;
+        const safePart = tokenText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeVarName = varName.replace(/"/g, "&quot;");
+        parts.push(`<span class="${cls}" data-varname="${safeVarName}" data-is-path-var="true" data-prefix=":" data-suffix="">${safePart}</span>`);
+        lastIndex = match.index + full.length;
       }
-      // Plain text — no wrapping span so no inter-span kerning gaps
-      return part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }).join("");
+    }
+
+    if (lastIndex < strValue.length) {
+      const tail = strValue.slice(lastIndex);
+      parts.push(tail.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+    }
+
+    return parts.join("");
   };
 
 
@@ -809,11 +907,15 @@ export function VariableInput({
           tooltipKey={activeTooltip.key}
           tooltipValue={activeTooltip.value}
           isResolved={activeTooltip.isResolved}
+          isPathVariable={activeTooltip.isPathVariable}
+          syntaxPrefix={activeTooltip.syntaxPrefix}
+          syntaxSuffix={activeTooltip.syntaxSuffix}
           x={activeTooltip.x}
           y={activeTooltip.y}
           placement={activeTooltip.placement}
           activeEnvironmentName={activeEnvironmentName}
           onSaveVariable={onSaveVariable}
+          onSavePathVariable={onUpdatePathVariable}
           onReplaceVariable={handleReplaceVariable}
           onClose={closePopoverImmediately}
           onMouseEnter={() => {

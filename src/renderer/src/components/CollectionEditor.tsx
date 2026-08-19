@@ -4,7 +4,8 @@ import type { CollectionSummary, EnvironmentVariable, ScopedVariableEntityType, 
 import { AuthEditorForm } from "./AuthEditorForm";
 import { ScriptEditor } from "./ScriptEditor";
 import { ScopedVariablesEditor } from "./ScopedVariablesEditor";
-import { getScripts, saveScript, saveCollectionAuth } from "../services/local-store";
+import { DocsEditor } from "./DocsEditor";
+import { getScripts, saveScript, saveCollectionAuth, saveCollectionDescription } from "../services/local-store";
 import { getCollectionLockConfig } from "../services/collection-security";
 
 export interface CollectionEditorProps {
@@ -28,9 +29,12 @@ export function CollectionEditor({
   onOpenLockModal,
   onRelockCollection,
 }: CollectionEditorProps) {
-  const [activeTab, setActiveTab] = useState<"auth" | "pre-script" | "post-script" | "variables" | "security">("auth");
+  const [activeTab, setActiveTab] = useState<"docs" | "auth" | "pre-script" | "post-script" | "variables" | "security">(
+    collection.description && collection.description.trim() !== "" ? "docs" : "auth"
+  );
   const [preScript, setPreScript] = useState("");
   const [postScript, setPostScript] = useState("");
+  const [draftDescription, setDraftDescription] = useState(collection.description || "");
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -44,6 +48,7 @@ export function CollectionEditor({
       const post = scripts.find((s) => s.scriptType === "post")?.content || "";
       setPreScript(pre);
       setPostScript(post);
+      setDraftDescription(collection.description || "");
       setScriptsLoaded(true);
       setIsDirty(false);
       setDraftAuthMode(collection.authMode || "none");
@@ -51,16 +56,18 @@ export function CollectionEditor({
     }
     setScriptsLoaded(false);
     loadScripts();
-  }, [collection.id]);
+  }, [collection.id, collection.description]);
 
   const handleSave = async () => {
     await saveScript(collection.id, "collection", "pre", preScript);
     await saveScript(collection.id, "collection", "post", postScript);
     await saveCollectionAuth(collection.id, draftAuthMode, draftAuthConfig);
+    await saveCollectionDescription(collection.id, draftDescription);
     onUpdateCollection({
       ...collection,
       authMode: draftAuthMode,
       authConfig: draftAuthConfig,
+      description: draftDescription,
     });
     setIsDirty(false);
   };
@@ -75,16 +82,16 @@ export function CollectionEditor({
     await saveScript(collection.id, "collection", "pre", preScript);
     await saveScript(collection.id, "collection", "post", postScript);
     await saveCollectionAuth(collection.id, draftAuthMode, newConfig);
+    await saveCollectionDescription(collection.id, draftDescription);
     onUpdateCollection({
       ...collection,
       authMode: draftAuthMode,
       authConfig: newConfig,
+      description: draftDescription,
     });
     setDraftAuthConfig(newConfig);
     setIsDirty(false);
   };
-
-
 
   if (!scriptsLoaded) return null;
 
@@ -93,6 +100,7 @@ export function CollectionEditor({
   const isUnlockedInSession = unlockedCollectionIds?.has(collection.id);
 
   const tabs = [
+    { id: "docs", label: "Docs" },
     { id: "auth", label: "Auth" },
     { id: "pre-script", label: "Pre-request Script" },
     { id: "post-script", label: "Post-request Script" },
@@ -125,7 +133,10 @@ export function CollectionEditor({
             let count = 0;
             let isTabDirty = false;
 
-            if (tab.id === "variables") {
+            if (tab.id === "docs") {
+              hasData = Boolean(draftDescription && draftDescription.trim() !== "");
+              isTabDirty = draftDescription !== (collection.description || "");
+            } else if (tab.id === "variables") {
               const items = collection.variables || [];
               hasData = items.length > 0;
               count = items.length;
@@ -165,6 +176,19 @@ export function CollectionEditor({
           })}
         </div>
         
+        {activeTab === "docs" && (
+          <div className="request-tab-panel docs-tab-panel" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+            <DocsEditor
+              description={draftDescription}
+              onChange={(val) => {
+                setDraftDescription(val);
+                setIsDirty(true);
+              }}
+              requestName={collection.name}
+            />
+          </div>
+        )}
+
         {activeTab === "auth" && (
           <div className="request-tab-panel auth-panel">
             <div style={{ padding: "16px", maxWidth: "1200px" }}>

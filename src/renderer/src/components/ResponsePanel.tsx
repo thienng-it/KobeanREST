@@ -170,52 +170,41 @@ export const ResponsePanel = React.memo(function ResponsePanel({
         )}
         {responseTab === "tests" && (
           <div className="response-body" style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "13px", color: "var(--color-text)", padding: "12px" }}>
-            {scriptOutputLog.length === 0 ? (
-              <span style={{ color: "var(--color-text-muted)" }}>No script output or tests.</span>
-            ) : (
-              scriptOutputLog.map((log, i) => {
-                if (log.type === "test_pass" || log.type === "test_fail") {
-                  const passed = log.type === "test_pass";
-                  return (
-                    <div key={i} style={{ 
-                      display: "flex", flexDirection: "column", gap: "4px",
-                      backgroundColor: passed ? "color-mix(in srgb, var(--color-status-2xx) 5%, transparent)" : "color-mix(in srgb, var(--color-status-error) 5%, transparent)",
-                      padding: "8px 12px",
-                      borderRadius: "6px",
-                      borderLeft: passed ? "3px solid var(--color-status-2xx)" : "3px solid var(--color-status-error)",
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ 
-                          fontWeight: 800, fontSize: "10px", padding: "2px 6px", borderRadius: "4px",
-                          backgroundColor: passed ? "color-mix(in srgb, var(--color-status-2xx) 15%, transparent)" : "color-mix(in srgb, var(--color-status-error) 15%, transparent)",
-                          color: passed ? "var(--color-status-2xx)" : "var(--color-status-error)",
-                          border: `1px solid ${passed ? "color-mix(in srgb, var(--color-status-2xx) 40%, transparent)" : "color-mix(in srgb, var(--color-status-error) 40%, transparent)"}`
-                        }}>{passed ? "PASSED" : "FAILED"}</span>
-                        <span style={{ fontWeight: 600, color: "var(--color-text)" }}>{log.name}</span>
-                      </div>
-                      {!passed && log.errMessage && (
-                        <div style={{ fontFamily: "monospace", color: "var(--color-danger)", marginTop: "4px", fontSize: "12px" }}>
-                          {log.errMessage}
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
+            {(() => {
+              const testEntries = scriptOutputLog.filter((log): log is Extract<ScriptOutputEntry, { type?: "test_pass" | "test_fail" | "log" }> =>
+                log.type === "test_pass" || log.type === "test_fail"
+              );
+              if (testEntries.length === 0) {
+                return <span style={{ color: "var(--color-text-muted)" }}>No tests ran for this request.</span>;
+              }
+              return testEntries.map((log, i) => {
+                const passed = log.type === "test_pass";
                 return (
                   <div key={i} style={{ 
-                    color: log.tone === "error" ? "var(--color-status-error)" : "var(--color-text)",
-                    backgroundColor: log.tone === "error" ? "color-mix(in srgb, var(--color-status-error) 10%, transparent)" : "var(--color-surface-muted)",
-                    padding: "8px",
-                    borderRadius: "4px",
-                    borderLeft: log.tone === "error" ? "3px solid var(--color-status-error)" : "3px solid var(--color-accent)",
-                    fontFamily: "monospace",
-                    whiteSpace: "pre-wrap"
+                    display: "flex", flexDirection: "column", gap: "4px",
+                    backgroundColor: passed ? "color-mix(in srgb, var(--color-status-2xx) 5%, transparent)" : "color-mix(in srgb, var(--color-status-error) 5%, transparent)",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    borderLeft: passed ? "3px solid var(--color-status-2xx)" : "3px solid var(--color-status-error)",
                   }}>
-                    {log.message}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ 
+                        fontWeight: 800, fontSize: "10px", padding: "2px 6px", borderRadius: "4px",
+                        backgroundColor: passed ? "color-mix(in srgb, var(--color-status-2xx) 15%, transparent)" : "color-mix(in srgb, var(--color-status-error) 15%, transparent)",
+                        color: passed ? "var(--color-status-2xx)" : "var(--color-status-error)",
+                        border: `1px solid ${passed ? "color-mix(in srgb, var(--color-status-2xx) 40%, transparent)" : "color-mix(in srgb, var(--color-status-error) 40%, transparent)"}`
+                      }}>{passed ? "PASSED" : "FAILED"}</span>
+                      <span style={{ fontWeight: 600, color: "var(--color-text)" }}>{log.name || log.message}</span>
+                    </div>
+                    {!passed && log.errMessage && (
+                      <div style={{ fontFamily: "monospace", color: "var(--color-danger)", marginTop: "4px", fontSize: "12px" }}>
+                        {log.errMessage}
+                      </div>
+                    )}
                   </div>
                 );
-              })
-            )}
+              });
+            })()}
           </div>
         )}
       </div>
@@ -291,7 +280,6 @@ export const ResponsePanel = React.memo(function ResponsePanel({
 
       <div className="tab-row" role="tablist" aria-label="Response views">
         {(["preview", "headers", "timeline", "tests"] as const).map((tab) => {
-          const hasErrors = tab === "tests" && scriptOutputLog.some(e => e.tone === "error");
           const totalTests = tab === "tests" ? scriptOutputLog.filter(e => e.type === "test_pass" || e.type === "test_fail").length : 0;
           const passedTests = tab === "tests" ? scriptOutputLog.filter(e => e.type === "test_pass").length : 0;
           

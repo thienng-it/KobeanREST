@@ -1,6 +1,7 @@
 import type { SavedRequest, WorkspaceSummary, ExecuteHttpRequest } from "../types";
-import { resolveRequestFields, injectAsyncVariables } from "./variables";
+import { resolveRequestFields, injectAsyncVariables, resolveStringSafe } from "./variables";
 import { getEffectiveAuth, applyAuth, resolveAuthConfig, redactAuthFromUrl, obtainOAuth2Token, refreshOAuth2Token } from "./auth";
+import { resolvePathVariablesInUrl } from "./path-variables";
 
 export async function prepareRequestForExecution(
   requestToSend: SavedRequest,
@@ -26,6 +27,7 @@ export async function prepareRequestForExecution(
     requestToSend.url, 
     requestToSend.body || "", 
     ...requestToSend.headers.map((h: any) => h.value),
+    ...(requestToSend.pathVariables || []).map((p: any) => p.value),
     authToScan?.token, authToScan?.username, authToScan?.password,
     authToScan?.keyValue, authToScan?.clientId, authToScan?.clientSecret,
     authToScan?.accessTokenUrl, authToScan?.scope, authToScan?.audience,
@@ -34,6 +36,15 @@ export async function prepareRequestForExecution(
   await injectAsyncVariables(variableMap, textsToScan, workspace, inMemoryResponses, executeUpstream);
 
   const resolved = resolveRequestFields(variableMap, requestToSend.url, requestToSend.headers, requestToSend.body || undefined);
+
+  let finalUrl = resolved.url;
+  if (requestToSend.pathVariables && requestToSend.pathVariables.length > 0) {
+    const resolvedPathVars = requestToSend.pathVariables.map((p) => ({
+      ...p,
+      value: p.enabled ? resolveStringSafe(p.value, variableMap) : p.value,
+    }));
+    finalUrl = resolvePathVariablesInUrl(finalUrl, resolvedPathVars);
+  }
   
   let finalAuthMode = requestToSend.authMode;
   let finalAuthConfig = requestToSend.authConfig;
@@ -104,7 +115,7 @@ export async function prepareRequestForExecution(
     }
   }
 
-  const { url: authUrl, headers: authHeaders } = applyAuth(finalAuthMode, resolvedAuth, resolved.url, resolved.headers);
+  const { url: authUrl, headers: authHeaders } = applyAuth(finalAuthMode, resolvedAuth, finalUrl, resolved.headers);
   
   const historyUrl = redactAuthFromUrl(authUrl, finalAuthMode, resolvedAuth);
   

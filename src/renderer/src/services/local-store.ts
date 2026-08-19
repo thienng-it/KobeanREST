@@ -82,6 +82,13 @@ const parseWorkspaceFields = (workspace: WorkspaceSummary) => {
         (entity as any).queryParams = [];
       }
     }
+    if (typeof (entity as any).pathVariables === "string") {
+      try {
+        (entity as any).pathVariables = JSON.parse((entity as any).pathVariables);
+      } catch {
+        (entity as any).pathVariables = [];
+      }
+    }
   };
 
   workspace.requests?.forEach(parseFields);
@@ -140,7 +147,8 @@ const DEFAULT_PREVIEW_WORKSPACE: WorkspaceSummary = {
       authConfig: {},
       timeoutMs: 30000,
       followRedirects: true,
-      variables: []
+      variables: [],
+      description: `# GET Users List\n\nRetrieves a paginated list of user accounts from JSONPlaceholder.\n\n### Query Parameters\n| Parameter | Type | Required | Description |\n| :--- | :--- | :--- | :--- |\n| \`_limit\` | integer | No | Maximum number of records to return |\n\n### Example Response\n\`\`\`json\n[\n  {\n    "id": 1,\n    "name": "Leanne Graham",\n    "username": "Bret",\n    "email": "Sincere@april.biz"\n  }\n]\n\`\`\``
     },
     {
       id: "req-2",
@@ -159,7 +167,8 @@ const DEFAULT_PREVIEW_WORKSPACE: WorkspaceSummary = {
       authConfig: {},
       timeoutMs: 30000,
       followRedirects: true,
-      variables: []
+      variables: [],
+      description: `# Create Post Endpoint\n\nCreates a new post resource on the remote backend.\n\n> [!NOTE]\n> Server returns an echo of the created payload with an assigned unique \`id\`.\n\n### Request Body Schema\n- \`title\` (string, required): Title of the post.\n- \`body\` (string, required): Content body.\n- \`userId\` (number, optional): Author identifier.`
     },
     {
       id: "req-3",
@@ -637,6 +646,16 @@ export async function saveFolderAuth(folderId: string, authMode: import("../type
 export async function saveCollectionAuth(collectionId: string, authMode: import("../types").ApiAuthMode, authConfig: import("../types").AuthConfig): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke<void>("save_collection_auth", { collectionId, authMode, authConfig });
+}
+
+export async function saveFolderDescription(folderId: string, description: string): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("save_folder_description", { folderId, description });
+}
+
+export async function saveCollectionDescription(collectionId: string, description: string): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke<void>("save_collection_description", { collectionId, description });
 }
 
 export interface MockServerStatus {

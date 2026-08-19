@@ -3,6 +3,7 @@
 // OpenAPI/Swagger (2.0/3.0/3.1), Insomnia, Hoppscotch, HAR, cURL, and KobeanREST Native exports.
 
 import { parseCurlCommand, isGraphQLPayload } from "./script-tools";
+import type { ResponseExample } from "../types";
 
 export type ImportFormatType =
   | "kobeanrest-native"
@@ -27,6 +28,7 @@ export interface CollectionRowExport {
   workspace_id: string;
   name: string;
   position: number;
+  description?: string;
 }
 
 export interface FolderRowExport {
@@ -34,6 +36,7 @@ export interface FolderRowExport {
   collection_id: string;
   name: string;
   position: number;
+  description?: string;
 }
 
 export interface RequestRowExport {
@@ -52,6 +55,8 @@ export interface RequestRowExport {
   timeout_ms: number;
   follow_redirects: number;
   position: number;
+  description?: string;
+  examples?: ResponseExample[];
 }
 
 export interface RequestHeaderRowExport {
@@ -235,6 +240,11 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
       formatLabel = "Postman Collection (v2.0/v2.1)";
       const parsed = JSON.parse(content.trim());
       title = parsed.info?.name || "Postman Collection";
+      const colDesc = typeof parsed.info?.description === "string"
+        ? parsed.info.description
+        : typeof parsed.info?.description?.content === "string"
+        ? parsed.info.description.content
+        : undefined;
 
       const collectionId = generateId("collection");
       payload.collections.push({
@@ -242,6 +252,7 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
         workspace_id: workspaceId,
         name: title,
         position: 0,
+        description: colDesc,
       });
 
       let reqPos = 0;
@@ -348,6 +359,56 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
               queryParamsStr = JSON.stringify(qArr);
             }
 
+            // Documentation / description
+            const reqDesc = typeof req.description === "string"
+              ? req.description
+              : typeof req.description?.content === "string"
+              ? req.description.content
+              : typeof item.description === "string"
+              ? item.description
+              : typeof item.description?.content === "string"
+              ? item.description.content
+              : "";
+
+            // Saved response examples
+            let postmanExamples: ResponseExample[] | undefined = undefined;
+            if (Array.isArray(item.response) && item.response.length > 0) {
+              postmanExamples = item.response.map((res: any, idx: number) => {
+                let resHeaders: Array<{ key: string; value: string }> = [];
+                if (Array.isArray(res.header)) {
+                  resHeaders = res.header
+                    .map((h: any) => ({
+                      key: typeof h === "string" ? h.split(":")[0]?.trim() || "" : h.key || "",
+                      value: typeof h === "string" ? h.split(":").slice(1).join(":")?.trim() || "" : h.value || "",
+                    }))
+                    .filter((h: any) => h.key);
+                }
+                const rawBody = typeof res.body === "string"
+                  ? res.body
+                  : typeof res._postman_exported_body === "string"
+                  ? res._postman_exported_body
+                  : "";
+                const isJson = res._postman_previewlanguage === "json" ||
+                  rawBody.trim().startsWith("{") ||
+                  rawBody.trim().startsWith("[");
+                const mime = isJson
+                  ? "application/json"
+                  : res._postman_previewlanguage === "xml" || rawBody.trim().startsWith("<")
+                  ? "application/xml"
+                  : (res._postman_previewlanguage || "text/plain");
+
+                return {
+                  id: res.id || `example-${generateId("ex")}-${idx}`,
+                  name: res.name || `${res.code || 200} ${res.status || "Response"}`,
+                  code: typeof res.code === "number" ? res.code : 200,
+                  status: res.status || "OK",
+                  headers: resHeaders,
+                  body: rawBody,
+                  bodyMimeType: mime,
+                };
+              });
+            }
+
             payload.requests.push({
               id: reqId,
               workspace_id: workspaceId,
@@ -364,6 +425,8 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
               timeout_ms: 30000,
               follow_redirects: 1,
               position: reqPos++,
+              description: reqDesc,
+              examples: postmanExamples,
             });
 
             // Headers
@@ -383,11 +446,18 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
           } else if (Array.isArray(item.item)) {
             // It's a Folder
             const folderId = generateId("folder");
+            const folderDesc = typeof item.description === "string"
+              ? item.description
+              : typeof item.description?.content === "string"
+              ? item.description.content
+              : undefined;
+
             payload.folders.push({
               id: folderId,
               collection_id: collectionId,
               name: item.name || "Folder",
               position: folderPos++,
+              description: folderDesc,
             });
             walkPostmanItems(item.item, folderId);
           }
@@ -550,6 +620,7 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
       }
 
       title = parsed.info?.title || title || "OpenAPI Spec";
+      const openApiCollectionDesc = typeof parsed.info?.description === "string" ? parsed.info.description : undefined;
 
       const collectionId = generateId("collection");
       payload.collections.push({
@@ -557,6 +628,7 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
         workspace_id: workspaceId,
         name: title,
         position: 0,
+        description: openApiCollectionDesc,
       });
 
       let baseUrl = "http://localhost:8080";
@@ -595,6 +667,8 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
               }
             }
 
+            const openApiDesc = [op.summary && op.description ? `### ${op.summary}` : "", op.description || op.summary || ""].filter(Boolean).join("\n\n");
+
             payload.requests.push({
               id: reqId,
               workspace_id: workspaceId,
@@ -611,6 +685,7 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
               timeout_ms: 30000,
               follow_redirects: 1,
               position: rPos++,
+              description: openApiDesc,
             });
           }
         }
@@ -702,6 +777,7 @@ export function parseUniversalImport(content: string, defaultWorkspaceName = "Im
               timeout_ms: 30000,
               follow_redirects: 1,
               position: rPos++,
+              description: res.description || "",
             });
           }
         }

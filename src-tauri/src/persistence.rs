@@ -34,6 +34,27 @@ pub struct HeaderEntry {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct HeaderEntrySimple {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseExample {
+    pub id: String,
+    pub name: String,
+    pub code: i64,
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub headers: Option<Vec<HeaderEntrySimple>>,
+    pub body: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body_mime_type: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SavedRequest {
     pub id: String,
     pub name: String,
@@ -51,6 +72,10 @@ pub struct SavedRequest {
     pub follow_redirects: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<Vec<ScopedVariable>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub examples: Option<Vec<ResponseExample>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -96,6 +121,8 @@ pub struct FolderSummary {
     pub parent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<Vec<ScopedVariable>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -111,6 +138,8 @@ pub struct CollectionSummary {
     pub variables: Option<Vec<ScopedVariable>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_environment: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -213,6 +242,8 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     ensure_request_history_test_stats_columns(&connection)?;
     ensure_requests_fk_removed(&connection)?;
     ensure_collection_default_environment_column(&connection)?;
+    ensure_description_columns(&connection)?;
+    ensure_request_examples_column(&connection)?;
     seed_default_workspace(&mut connection)?;
     sync_request_workspace_ids(&connection)?;
 
@@ -220,6 +251,92 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
         database_path: path.to_string_lossy().to_string(),
         migrated: true,
     })
+}
+
+fn ensure_request_examples_column(connection: &Connection) -> Result<(), String> {
+    let mut stmt = connection
+        .prepare("PRAGMA table_info(requests)")
+        .map_err(|e| format!("failed to inspect requests table: {e}"))?;
+    let cols = stmt
+        .query_map([], |r| r.get::<_, String>(1))
+        .map_err(|e| format!("failed to query requests columns: {e}"))?;
+    let mut has_col = false;
+    for col in cols {
+        if col.map_err(|e| e.to_string())? == "examples" {
+            has_col = true;
+            break;
+        }
+    }
+    if !has_col {
+        connection
+            .execute("ALTER TABLE requests ADD COLUMN examples TEXT", [])
+            .map_err(|e| format!("failed to add requests.examples column: {e}"))?;
+    }
+    Ok(())
+}
+
+fn ensure_description_columns(connection: &Connection) -> Result<(), String> {
+    // 1. collections.description
+    let mut stmt = connection
+        .prepare("PRAGMA table_info(collections)")
+        .map_err(|e| format!("failed to inspect collections table: {e}"))?;
+    let cols = stmt
+        .query_map([], |r| r.get::<_, String>(1))
+        .map_err(|e| format!("failed to query collections columns: {e}"))?;
+    let mut has_col_desc = false;
+    for col in cols {
+        if col.map_err(|e| e.to_string())? == "description" {
+            has_col_desc = true;
+            break;
+        }
+    }
+    if !has_col_desc {
+        connection
+            .execute("ALTER TABLE collections ADD COLUMN description TEXT", [])
+            .map_err(|e| format!("failed to add collections.description column: {e}"))?;
+    }
+
+    // 2. folders.description
+    let mut stmt = connection
+        .prepare("PRAGMA table_info(folders)")
+        .map_err(|e| format!("failed to inspect folders table: {e}"))?;
+    let cols = stmt
+        .query_map([], |r| r.get::<_, String>(1))
+        .map_err(|e| format!("failed to query folders columns: {e}"))?;
+    let mut has_folder_desc = false;
+    for col in cols {
+        if col.map_err(|e| e.to_string())? == "description" {
+            has_folder_desc = true;
+            break;
+        }
+    }
+    if !has_folder_desc {
+        connection
+            .execute("ALTER TABLE folders ADD COLUMN description TEXT", [])
+            .map_err(|e| format!("failed to add folders.description column: {e}"))?;
+    }
+
+    // 3. requests.description
+    let mut stmt = connection
+        .prepare("PRAGMA table_info(requests)")
+        .map_err(|e| format!("failed to inspect requests table: {e}"))?;
+    let cols = stmt
+        .query_map([], |r| r.get::<_, String>(1))
+        .map_err(|e| format!("failed to query requests columns: {e}"))?;
+    let mut has_req_desc = false;
+    for col in cols {
+        if col.map_err(|e| e.to_string())? == "description" {
+            has_req_desc = true;
+            break;
+        }
+    }
+    if !has_req_desc {
+        connection
+            .execute("ALTER TABLE requests ADD COLUMN description TEXT", [])
+            .map_err(|e| format!("failed to add requests.description column: {e}"))?;
+    }
+
+    Ok(())
 }
 
 fn sync_request_workspace_ids(connection: &Connection) -> Result<(), String> {
@@ -1537,9 +1654,53 @@ fn load_scoped_variables(
 fn load_folders(connection: &Connection, workspace_id: &str) -> Result<Vec<FolderSummary>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT folders.id, folders.name, folders.auth_mode, folders.auth_config, folders.collection_id, folders.parent_id FROM folders
+            "SELECT folders.id, folders.name, folders.auth_mode, folders.auth_config, folders.collection_id, folders.parent_id, folders.description FROM folders
          JOIN collections ON collections.id = folders.collection_id
          WHERE collections.workspace_id = ?1 ORDER BY folders.position",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let rows = statement
+        .query_map(rusqlite::params![workspace_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, Option<String>>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, Option<String>>(6)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut folders = Vec::new();
+    for row in rows {
+        let (id, name, auth_mode, auth_config, collection_id, parent_id, description) =
+            row.map_err(|e| format!("failed to read folder: {e}"))?;
+        folders.push(FolderSummary {
+            id: id.clone(),
+            name,
+            auth_mode,
+            auth_config,
+            collection_id,
+            parent_id,
+            variables: Some(load_scoped_variables(connection, &id, "folder")?),
+            description,
+        });
+    }
+
+    Ok(folders)
+}
+
+fn load_collections(
+    connection: &Connection,
+    workspace_id: &str,
+) -> Result<Vec<CollectionSummary>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, name, auth_mode, auth_config, default_environment, description FROM collections
+             WHERE workspace_id = ?1 ORDER BY position",
         )
         .map_err(|e| e.to_string())?;
 
@@ -1556,50 +1717,9 @@ fn load_folders(connection: &Connection, workspace_id: &str) -> Result<Vec<Folde
         })
         .map_err(|e| e.to_string())?;
 
-    let mut folders = Vec::new();
-    for row in rows {
-        let (id, name, auth_mode, auth_config, collection_id, parent_id) =
-            row.map_err(|e| format!("failed to read folder: {e}"))?;
-        folders.push(FolderSummary {
-            id: id.clone(),
-            name,
-            auth_mode,
-            auth_config,
-            collection_id,
-            parent_id,
-            variables: Some(load_scoped_variables(connection, &id, "folder")?),
-        });
-    }
-
-    Ok(folders)
-}
-
-fn load_collections(
-    connection: &Connection,
-    workspace_id: &str,
-) -> Result<Vec<CollectionSummary>, String> {
-    let mut statement = connection
-        .prepare(
-            "SELECT id, name, auth_mode, auth_config, default_environment FROM collections
-             WHERE workspace_id = ?1 ORDER BY position",
-        )
-        .map_err(|e| e.to_string())?;
-
-    let rows = statement
-        .query_map(rusqlite::params![workspace_id], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, Option<String>>(3)?,
-                row.get::<_, Option<String>>(4)?,
-            ))
-        })
-        .map_err(|e| e.to_string())?;
-
     let mut collections = Vec::new();
     for row in rows {
-        let (id, name, auth_mode, auth_config, default_environment) =
+        let (id, name, auth_mode, auth_config, default_environment, description) =
             row.map_err(|e| format!("failed to read collection: {e}"))?;
         collections.push(CollectionSummary {
             id: id.clone(),
@@ -1608,6 +1728,7 @@ fn load_collections(
             auth_config,
             variables: Some(load_scoped_variables(connection, &id, "collection")?),
             default_environment,
+            description,
         });
     }
 
@@ -1630,7 +1751,9 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
                 requests.auth_config,
                 requests.body_mime_type,
                 requests.body_form,
-                requests.query_params
+                requests.query_params,
+                requests.description,
+                requests.examples
              FROM requests
              LEFT JOIN folders ON folders.id = requests.folder_id
              WHERE requests.workspace_id = ?1
@@ -1653,6 +1776,8 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
                 row.get::<_, String>(10)?,
                 row.get::<_, String>(11)?,
                 row.get::<_, String>(12)?,
+                row.get::<_, Option<String>>(13)?,
+                row.get::<_, Option<String>>(14)?,
             ))
         })
         .map_err(|error| format!("failed to query requests: {error}"))?;
@@ -1660,6 +1785,13 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
     let mut requests = Vec::new();
     for row in rows {
         let row = row.map_err(|error| format!("failed to read request: {error}"))?;
+        let examples = row.14.and_then(|json_str| {
+            if json_str.trim().is_empty() {
+                None
+            } else {
+                serde_json::from_str::<Vec<ResponseExample>>(&json_str).ok()
+            }
+        });
         requests.push(SavedRequest {
             id: row.0.clone(),
             name: row.1,
@@ -1676,6 +1808,8 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
             body_form: row.11,
             query_params: row.12,
             variables: Some(load_scoped_variables(connection, &row.0, "request")?),
+            description: row.13,
+            examples,
         });
     }
 
@@ -1842,6 +1976,8 @@ pub struct CollectionRow {
     pub workspace_id: String,
     pub name: String,
     pub position: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1850,6 +1986,8 @@ pub struct FolderRow {
     pub collection_id: String,
     pub name: String,
     pub position: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 fn default_body_mime_type() -> String {
@@ -1879,6 +2017,10 @@ pub struct RequestRow {
     pub timeout_ms: i64,
     pub follow_redirects: i64,
     pub position: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub examples: Option<Vec<ResponseExample>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1931,7 +2073,7 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
 
     let collections = collect_rows(
         connection
-            .prepare("SELECT id, workspace_id, name, position FROM collections")
+            .prepare("SELECT id, workspace_id, name, position, description FROM collections")
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
                 Ok(CollectionRow {
@@ -1939,6 +2081,7 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
                     workspace_id: row.get(1)?,
                     name: row.get(2)?,
                     position: row.get(3)?,
+                    description: row.get(4)?,
                 })
             })
             .map_err(|e| e.to_string())?,
@@ -1947,7 +2090,7 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
 
     let folders = collect_rows(
         connection
-            .prepare("SELECT id, collection_id, name, position FROM folders")
+            .prepare("SELECT id, collection_id, name, position, description FROM folders")
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
                 Ok(FolderRow {
@@ -1955,6 +2098,7 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
                     collection_id: row.get(1)?,
                     name: row.get(2)?,
                     position: row.get(3)?,
+                    description: row.get(4)?,
                 })
             })
             .map_err(|e| e.to_string())?,
@@ -1962,9 +2106,13 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
     )?;
 
     let requests = collect_rows(
-        connection.prepare("SELECT id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position FROM requests ORDER BY position")
+        connection.prepare("SELECT id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position, description, examples FROM requests ORDER BY position")
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
+                let examples_json: Option<String> = row.get(16)?;
+                let examples = examples_json.and_then(|j| {
+                    if j.trim().is_empty() { None } else { serde_json::from_str::<Vec<ResponseExample>>(&j).ok() }
+                });
                 Ok(RequestRow {
                     id: row.get(0)?,
                     workspace_id: row.get(1)?,
@@ -1981,6 +2129,8 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
                     timeout_ms: row.get(12)?,
                     follow_redirects: row.get(13)?,
                     position: row.get(14)?,
+                    description: row.get(15)?,
+                    examples,
                 })
             })
             .map_err(|e| e.to_string())?,
@@ -2105,8 +2255,8 @@ pub fn import_workspace_data(app: AppHandle, json: String) -> Result<(), String>
             .get(&collection.workspace_id)
             .ok_or("invalid workspace reference in collection")?;
         transaction.execute(
-            "INSERT INTO collections (id, workspace_id, name, position) VALUES (?1, ?2, ?3, ?4)",
-            params![new_id, workspace_id, collection.name, collection.position],
+            "INSERT INTO collections (id, workspace_id, name, position, description) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![new_id, workspace_id, collection.name, collection.position, collection.description],
         ).map_err(|e| format!("failed to import collection: {e}"))?;
     }
 
@@ -2118,8 +2268,8 @@ pub fn import_workspace_data(app: AppHandle, json: String) -> Result<(), String>
             .ok_or("invalid collection reference in folder")?;
         transaction
             .execute(
-                "INSERT INTO folders (id, collection_id, name, position) VALUES (?1, ?2, ?3, ?4)",
-                params![new_id, collection_id, folder.name, folder.position],
+                "INSERT INTO folders (id, collection_id, name, position, description) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![new_id, collection_id, folder.name, folder.position, folder.description],
             )
             .map_err(|e| format!("failed to import folder: {e}"))?;
     }
@@ -2133,9 +2283,10 @@ pub fn import_workspace_data(app: AppHandle, json: String) -> Result<(), String>
         let folder_id = folder_id_map
             .get(&request.folder_id)
             .ok_or("invalid folder reference in request")?;
+        let examples_json = request.examples.and_then(|ex| serde_json::to_string(&ex).ok());
         transaction.execute(
-            "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
-            params![new_id, workspace_id, folder_id, request.name, request.method, request.url, request.auth_mode, request.auth_config, request.body, request.body_mime_type, request.body_form, request.query_params, request.timeout_ms, request.follow_redirects, request.position],
+            "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position, description, examples) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+            params![new_id, workspace_id, folder_id, request.name, request.method, request.url, request.auth_mode, request.auth_config, request.body, request.body_mime_type, request.body_form, request.query_params, request.timeout_ms, request.follow_redirects, request.position, request.description, examples_json],
         ).map_err(|e| format!("failed to import request: {e}"))?;
     }
 
@@ -2246,9 +2397,11 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
         })
         .unwrap_or_else(|_| first_workspace_id(&transaction).unwrap_or_default());
 
+    let examples_json = request.examples.and_then(|ex| serde_json::to_string(&ex).ok());
+
     transaction.execute(
-        "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, (SELECT COALESCE(MAX(position), -1) + 1 FROM requests WHERE folder_id = ?3))
+        "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, description, examples, position)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, (SELECT COALESCE(MAX(position), -1) + 1 FROM requests WHERE folder_id = ?3))
          ON CONFLICT(id) DO UPDATE SET
             workspace_id = excluded.workspace_id,
             folder_id = excluded.folder_id,
@@ -2262,7 +2415,9 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
             body_form = excluded.body_form,
             query_params = excluded.query_params,
             timeout_ms = excluded.timeout_ms,
-            follow_redirects = excluded.follow_redirects",
+            follow_redirects = excluded.follow_redirects,
+            description = excluded.description,
+            examples = excluded.examples",
         rusqlite::params![
             request.id,
             workspace_id,
@@ -2277,7 +2432,9 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
             request.body_form,
             request.query_params,
             request.timeout_ms,
-            request.follow_redirects
+            request.follow_redirects,
+            request.description,
+            examples_json
         ]
     ).map_err(|e| e.to_string())?;
 
@@ -2353,6 +2510,7 @@ pub fn create_folder(
         collection_id: Some(final_collection_id),
         parent_id: parent_id,
         variables: Some(Vec::new()),
+        description: None,
     })
 }
 
@@ -2584,6 +2742,8 @@ pub fn create_request(app: AppHandle, folder_id: String) -> Result<SavedRequest,
         timeout_ms: 30000,
         follow_redirects: true,
         variables: Some(Vec::new()),
+        description: None,
+        examples: None,
     };
     save_request(app, req.clone())?;
     Ok(req)
@@ -3021,6 +3181,40 @@ pub fn save_collection_auth(
         .execute(
             "UPDATE collections SET auth_mode = ?2, auth_config = ?3, updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
             rusqlite::params![collection_id, auth_mode, config_str],
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_folder_description(
+    app: AppHandle,
+    folder_id: String,
+    description: String,
+) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    connection
+        .execute(
+            "UPDATE folders SET description = ?2, updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
+            rusqlite::params![folder_id, description],
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_collection_description(
+    app: AppHandle,
+    collection_id: String,
+    description: String,
+) -> Result<(), String> {
+    ensure_database(&app)?;
+    let connection = open_database(&app)?;
+    connection
+        .execute(
+            "UPDATE collections SET description = ?2, updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
+            rusqlite::params![collection_id, description],
         )
         .map_err(|e| e.to_string())?;
     Ok(())

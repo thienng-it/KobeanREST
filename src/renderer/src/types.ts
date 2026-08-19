@@ -39,6 +39,16 @@ export interface Script {
   position: number;
 }
 
+export interface ResponseExample {
+  id: string;
+  name: string;
+  code: number;
+  status: string;
+  headers?: Array<{ key: string; value: string }>;
+  body: string;
+  bodyMimeType?: string;
+}
+
 export interface SavedRequest {
   id: string;
   name: string;
@@ -51,6 +61,7 @@ export interface SavedRequest {
   authConfig: AuthConfig;
   headers: Array<{ key: string; value: string; enabled: boolean }>;
   queryParams: Array<{ key: string; value: string; enabled: boolean }>;
+  pathVariables?: Array<{ key: string; value: string; enabled: boolean; description?: string }>;
   body: string;
   bodyMimeType: string;
   bodyForm: Array<{ key: string; value: string; enabled: boolean; type?: "text" | "file" }>;
@@ -58,6 +69,8 @@ export interface SavedRequest {
   followRedirects: boolean;
   variables?: ScopedVariable[];
   position?: number;
+  description?: string;
+  examples?: ResponseExample[];
 }
 
 export interface EnvironmentVariable {
@@ -87,6 +100,7 @@ export interface FolderSummary {
   timeoutMs?: number;
   followRedirects?: boolean;
   variables?: ScopedVariable[];
+  description?: string;
 }
 
 export interface CollectionLockConfig {
@@ -105,6 +119,7 @@ export interface CollectionSummary {
   variables?: ScopedVariable[];
   defaultEnvironment?: string;
   lockConfig?: CollectionLockConfig;
+  description?: string;
 }
 
 export interface WorkspaceListItem {

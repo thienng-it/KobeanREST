@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type MutableRefObject } from "react";
-import { ChevronDown, Code2, Plus, Play, Save, Settings, Trash2, WandSparkles, Copy, Check, Clock, Repeat, Activity } from "lucide-react";
+import { AlignLeft, List, ChevronDown, ChevronUp, Code2, Plus, Play, Save, Settings, Trash2, WandSparkles, Copy, Check, Clock, Repeat, Activity } from "lucide-react";
 import { createPortal } from "react-dom";
 import { CustomSelect } from "./CustomSelect";
 import { MethodSelector } from "./MethodSelector";
@@ -15,7 +15,10 @@ import { AdvancedSendModal } from "./AdvancedSendModal";
 import { LoadTestModal } from "./LoadTestModal";
 import { WebSocketPanel } from "./WebSocketPanel";
 import { GrpcPanel } from "./GrpcPanel";
+import { DocsEditor } from "./DocsEditor";
 import { redactDiagnosticError } from "../services/redaction";
+import { paramsToBulkText, parseBulkParams, headersToBulkText, parseBulkHeaders } from "../services/bulk-param-utils";
+import { syncPathVariablesWithUrl, extractPathVariablesFromUrl } from "../services/path-variables";
 
 function safeDecode(val: string): string {
   try {
@@ -80,7 +83,7 @@ import {
   type RequestCodeSnippetTarget,
   type ScriptEditorMode,
 } from "../services/script-tools";
-import type { ApiAuthMode, AuthConfig, EnvironmentVariable, SavedRequest, ScopedVariableEntityType, WorkspaceSummary } from "../types";
+import type { ApiAuthMode, AuthConfig, EnvironmentVariable, ExecuteHttpResponse, SavedRequest, ScopedVariableEntityType, WorkspaceSummary } from "../types";
 
 type RequestHeader = SavedRequest["headers"][number];
 import type { ScriptOutputEntry } from "../hooks/useScripts";
@@ -234,8 +237,8 @@ export interface RequestPanelProps {
   folderPath?: string;
   effectiveAuth: any;
   // request-panel local UI state (owned by App)
-  activeTab: "params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code";
-  setActiveTab: (tab: "params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code") => void;
+  activeTab: "params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code" | "docs";
+  setActiveTab: (tab: "params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code" | "docs") => void;
 
   // Scoped variable handlers
   onSaveScopedVariable: (entityId: string, entityType: ScopedVariableEntityType, key: string, value: string) => Promise<void>;
@@ -284,6 +287,9 @@ export interface RequestPanelProps {
 
   activeEnvironmentName?: string;
   onSaveVariable?: (envName: string, key: string, value: string) => Promise<void> | void;
+  isTabsCollapsed?: boolean;
+  onToggleTabsCollapsed?: (collapsed: boolean) => void;
+  currentResponse?: ExecuteHttpResponse | null;
 }
 
 export const RequestPanel = React.memo(function RequestPanel({
@@ -295,6 +301,7 @@ export const RequestPanel = React.memo(function RequestPanel({
   isSending,
   folderPath,
   effectiveAuth,
+  currentResponse,
   activeTab,
   setActiveTab,
   preScript,
@@ -332,6 +339,8 @@ export const RequestPanel = React.memo(function RequestPanel({
   diagnosticMessage,
   onSaveScopedVariable,
   onDeleteScopedVariable,
+  isTabsCollapsed,
+  onToggleTabsCollapsed,
 }: RequestPanelProps) {
   const currentScriptValue = activeRequestScript === "pre" ? preScript : postScript;
   const selectedScriptSnippet = SCRIPT_SNIPPETS.find((snippet) => snippet.id === activeSnippetId) ?? SCRIPT_SNIPPETS[0];
@@ -352,13 +361,67 @@ export const RequestPanel = React.memo(function RequestPanel({
   }, [draftRequest.method, activeTab, setActiveTab]);
 
   useEffect(() => {
-    if (draftRequest.url && (!draftRequest.queryParams || draftRequest.queryParams.length === 0)) {
-      const parsed = parseQueryParamsFromUrl(draftRequest.url);
-      if (parsed.length > 0) {
-        updateDraft({ queryParams: parsed });
+    if (draftRequest.url) {
+      if (!draftRequest.queryParams || draftRequest.queryParams.length === 0) {
+        const parsed = parseQueryParamsFromUrl(draftRequest.url);
+        if (parsed.length > 0) {
+          updateDraft({ queryParams: parsed });
+        }
+      }
+      const synced = syncPathVariablesWithUrl(draftRequest.url, draftRequest.pathVariables);
+      const currentKeys = (draftRequest.pathVariables || []).map((p) => p.key).join(",");
+      const syncedKeys = synced.map((p) => p.key).join(",");
+      if (currentKeys !== syncedKeys && (synced.length > 0 || (draftRequest.pathVariables && draftRequest.pathVariables.length > 0))) {
+        updateDraft({ pathVariables: synced });
       }
     }
   }, [draftRequest.id, draftRequest.url]);
+
+  const [paramsBulkMode, setParamsBulkMode] = useState(false);
+  const [headersBulkMode, setHeadersBulkMode] = useState(false);
+  const [paramsBulkText, setParamsBulkText] = useState("");
+  const [headersBulkText, setHeadersBulkText] = useState("");
+
+  // Sync bulk text whenever request or bulk mode changes
+  useEffect(() => {
+    setParamsBulkText(paramsToBulkText(draftRequest.queryParams));
+  }, [draftRequest.id, paramsBulkMode]);
+
+  useEffect(() => {
+    setHeadersBulkText(headersToBulkText(draftRequest.headers));
+  }, [draftRequest.id, headersBulkMode]);
+
+  function handleParamsBulkChange(newText: string) {
+    setParamsBulkText(newText);
+    const parsed = parseBulkParams(newText);
+    const newUrl = syncParamsToUrl(draftRequest.url, parsed);
+    updateDraft({ queryParams: parsed, url: newUrl });
+  }
+
+  function handleHeadersBulkChange(newText: string) {
+    setHeadersBulkText(newText);
+    const parsed = parseBulkHeaders(newText);
+    updateDraft({ headers: parsed });
+  }
+
+  function toggleParamsBulkMode() {
+    if (!paramsBulkMode) {
+      setParamsBulkText(paramsToBulkText(draftRequest.queryParams));
+      setParamsBulkMode(true);
+    } else {
+      setParamsBulkMode(false);
+    }
+  }
+
+  function toggleHeadersBulkMode() {
+    if (!headersBulkMode) {
+      setHeadersBulkText(headersToBulkText(draftRequest.headers));
+      setHeadersBulkMode(true);
+    } else {
+      setHeadersBulkMode(false);
+    }
+  }
+
   const scriptVariableTokens = activeVars.map((variable) => `{{${variable.key}}}`);
   const currentScriptTitle = activeRequestScript === "pre" ? "Pre-request Script" : "Post-request Script";
 
@@ -490,9 +553,48 @@ export const RequestPanel = React.memo(function RequestPanel({
       }
     }
     const parsedParams = parseQueryParamsFromUrl(val);
+    const syncedPathVars = syncPathVariablesWithUrl(val, draftRequest.pathVariables);
     updateDraft({
       url: val,
       queryParams: parsedParams.length > 0 ? parsedParams : draftRequest.queryParams,
+      pathVariables: syncedPathVars,
+    });
+  }
+
+  function updatePathVariableField(index: number, field: "key" | "value" | "description", value: string) {
+    updateDraft((prev: SavedRequest) => {
+      const pathVariables = [...(prev.pathVariables ?? [])];
+      pathVariables[index] = { ...pathVariables[index], [field]: value };
+      return { pathVariables };
+    });
+  }
+
+  function togglePathVariableEnabled(index: number, enabled: boolean) {
+    updateDraft((prev: SavedRequest) => {
+      const pathVariables = [...(prev.pathVariables ?? [])];
+      pathVariables[index] = { ...pathVariables[index], enabled };
+      return { pathVariables };
+    });
+  }
+
+  function removePathVariable(index: number) {
+    updateDraft((prev: SavedRequest) => {
+      const pathVariables = (prev.pathVariables ?? []).filter((_, i) => i !== index);
+      return { pathVariables };
+    });
+  }
+
+  function updatePathVariableValue(key: string, value: string) {
+    updateDraft((prev: SavedRequest) => {
+      const pathVariables = [...(prev.pathVariables ?? [])];
+      const cleanKey = key.startsWith(":") ? key.slice(1) : key;
+      const idx = pathVariables.findIndex(p => p.key === cleanKey || p.key === key || p.key === `:${cleanKey}`);
+      if (idx >= 0) {
+        pathVariables[idx] = { ...pathVariables[idx], value };
+      } else {
+        pathVariables.push({ key: cleanKey, value, enabled: true, description: "" });
+      }
+      return { pathVariables };
     });
   }
 
@@ -671,7 +773,7 @@ export const RequestPanel = React.memo(function RequestPanel({
   };
 
   return (
-    <section className="request-panel" aria-label="Request builder">
+    <section className={isTabsCollapsed ? "request-panel collapsed" : "request-panel"} aria-label="Request builder">
       <div className="request-header">
         <div className="request-identity">
           <div className="request-single-line-header">
@@ -751,49 +853,61 @@ export const RequestPanel = React.memo(function RequestPanel({
             )}
           </div>
         </div>
-        <button
-          className={`request-save-button ${isDirty || isUnsaved ? "is-dirty" : "ghost-button"}`}
-          type="button"
-          onClick={onSaveRequest}
-          title={isUnsaved ? "Save to Collection (Cmd/Ctrl + S)" : "Save (Cmd/Ctrl + S)"}
-          style={{
-            padding: "6px 14px",
-            height: "32px",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            borderRadius: "6px",
-            fontSize: "13px",
-            fontWeight: 600,
-            cursor: "pointer",
-            ...(isUnsaved || isDirty
-              ? {
-                  background: "var(--color-accent-surface, rgba(59, 130, 246, 0.15))",
-                  color: "var(--color-accent, #3b82f6)",
-                  border: "1px solid var(--color-accent, #3b82f6)",
-                }
-              : {
-                  background: "transparent",
-                  color: "var(--color-text)",
-                  border: "1px solid var(--color-border)",
-                }),
-          }}
-        >
-          <Save size={14} />
-          {isUnsaved ? "Save to Collection..." : isDirty ? "Save Changes" : "Saved"}
-          {(isDirty || isUnsaved) && (
-            <span
-              className="save-dirty-dot"
-              style={{
-                width: "6px",
-                height: "6px",
-                borderRadius: "50%",
-                backgroundColor: "#f59e0b",
-                marginLeft: "2px",
-              }}
-            />
-          )}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <button
+            className={`request-tabs-toggle-btn ${isTabsCollapsed ? "is-collapsed" : ""}`}
+            type="button"
+            onClick={() => onToggleTabsCollapsed?.(!isTabsCollapsed)}
+            title={isTabsCollapsed ? "Expand Request Configuration (Params, Headers, Body, Scripts)" : "Collapse Request Configuration"}
+            aria-label={isTabsCollapsed ? "Expand Request Configuration" : "Collapse Request Configuration"}
+          >
+            {isTabsCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            <span>{isTabsCollapsed ? "Show Request" : "Hide Request"}</span>
+          </button>
+          <button
+            className={`request-save-button ${isDirty || isUnsaved ? "is-dirty" : "ghost-button"}`}
+            type="button"
+            onClick={onSaveRequest}
+            title={isUnsaved ? "Save to Collection (Cmd/Ctrl + S)" : "Save (Cmd/Ctrl + S)"}
+            style={{
+              padding: "6px 14px",
+              height: "32px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              borderRadius: "6px",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              ...(isUnsaved || isDirty
+                ? {
+                    background: "var(--color-accent-surface, rgba(59, 130, 246, 0.15))",
+                    color: "var(--color-accent, #3b82f6)",
+                    border: "1px solid var(--color-accent, #3b82f6)",
+                  }
+                : {
+                    background: "transparent",
+                    color: "var(--color-text)",
+                    border: "1px solid var(--color-border)",
+                  }),
+            }}
+          >
+            <Save size={14} />
+            {isUnsaved ? "Save to Collection..." : isDirty ? "Save Changes" : "Saved"}
+            {(isDirty || isUnsaved) && (
+              <span
+                className="save-dirty-dot"
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  backgroundColor: "#f59e0b",
+                  marginLeft: "2px",
+                }}
+              />
+            )}
+          </button>
+        </div>
       </div>
 
       {draftRequest.method === "WS" || draftRequest.method === "SOCKET.IO" ? (
@@ -820,6 +934,8 @@ export const RequestPanel = React.memo(function RequestPanel({
             />
         <VariableInput
           activeVariables={activeVars}
+          pathVariables={draftRequest.pathVariables}
+          onUpdatePathVariable={updatePathVariableValue}
           activeEnvironmentName={activeEnvironmentName}
           onSaveVariable={onSaveVariable}
           value={draftRequest.url}
@@ -924,9 +1040,39 @@ export const RequestPanel = React.memo(function RequestPanel({
         )}
       </div>
 
-      <div className="request-workspace">
+      {isTabsCollapsed ? (
+        <div
+          className="request-workspace-collapsed-bar"
+          onClick={() => onToggleTabsCollapsed?.(false)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onToggleTabsCollapsed?.(false);
+            }
+          }}
+          title="Click to expand request configuration"
+        >
+          <div className="request-workspace-collapsed-left">
+            <span className="request-workspace-collapsed-badge">Request Panel Hidden</span>
+            <span className="request-workspace-collapsed-text">Response data view expanded • Click to show params, body, headers, auth & scripts</span>
+          </div>
+          <button
+            type="button"
+            className="request-workspace-expand-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleTabsCollapsed?.(false);
+            }}
+          >
+            <ChevronDown size={14} /> Expand Request
+          </button>
+        </div>
+      ) : (
+        <div className="request-workspace">
         <div className="tab-row" role="tablist" aria-label="Request configuration">
-          {(["params", "body", "headers", "auth", "scripts", "variables", "settings", "code"] as const)
+          {(["params", "body", "headers", "auth", "scripts", "variables", "docs", "settings", "code"] as const)
             .filter((tab) => !(tab === "body" && draftRequest.method === "GET"))
             .map((tab) => {
               let hasData = false;
@@ -934,9 +1080,11 @@ export const RequestPanel = React.memo(function RequestPanel({
               let count = 0;
 
               if (tab === "params") {
-                const items = draftRequest.queryParams?.filter(p => p.key.trim() !== '' || p.value.trim() !== '') || [];
-                hasData = items.length > 0;
-                count = items.length;
+                const queryItems = draftRequest.queryParams?.filter(p => p.key.trim() !== '' || p.value.trim() !== '') || [];
+                const pathItems = draftRequest.pathVariables?.filter(p => p.key.trim() !== '' || p.value.trim() !== '') || [];
+                const totalCount = queryItems.length + pathItems.length;
+                hasData = totalCount > 0;
+                count = totalCount;
               } else if (tab === "body") {
                 hasData = !!(draftRequest.body && draftRequest.body.trim() !== '') || 
                           !!(draftRequest.bodyForm && draftRequest.bodyForm.some(f => f.key.trim() !== '' || f.value.trim() !== ''));
@@ -953,9 +1101,18 @@ export const RequestPanel = React.memo(function RequestPanel({
                 const items = draftRequest.variables || [];
                 hasData = items.length > 0;
                 count = items.length;
+              } else if (tab === "docs") {
+                const hasDesc = Boolean(draftRequest.description && draftRequest.description.trim() !== "");
+                const exCount = draftRequest.examples?.length || 0;
+                hasData = hasDesc || exCount > 0;
+                count = exCount;
               }
 
-              const tabLabel = (tab === "headers" || tab === "params") && count > 0 ? `${tab} (${count})` : tab;
+              const tabLabel = (tab === "headers" || tab === "params") && count > 0 
+                ? `${tab} (${count})` 
+                : tab === "docs" && count > 0 
+                ? `docs (${count})` 
+                : tab;
 
               return (
                 <button
@@ -980,67 +1137,189 @@ export const RequestPanel = React.memo(function RequestPanel({
 
         {activeTab === "params" && (
           <div className="request-tab-panel">
-            <div className="headers-editor" aria-label="URL query parameters">
-              <div className="headers-table">
-                <div className="headers-table-toolbar">
-                  <div className="headers-toolbar-actions">
-                    <button
-                      type="button"
-                      className="ghost-button headers-add-button"
-                      onClick={() => addQueryParam()}
-                    >
-                      <Plus size={14} /> Add Parameter
-                    </button>
-                  </div>
+            <div className="params-sections-wrapper">
+              {/* Section 1: Query Parameters */}
+              <div className="params-section" aria-label="URL query parameters">
+                <div className="params-section-header">
+                  <span className="params-section-title">
+                    Query Parameters
+                    {draftRequest.queryParams && draftRequest.queryParams.filter(p => p.key || p.value).length > 0 && (
+                      <span className="params-section-badge">{draftRequest.queryParams.filter(p => p.key || p.value).length}</span>
+                    )}
+                  </span>
                 </div>
+                <div className="headers-table">
+                  <div className="headers-table-toolbar">
+                    <div className="headers-toolbar-actions">
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={toggleParamsBulkMode}
+                        title={paramsBulkMode ? "Switch to key-value grid" : "Edit parameters as bulk text"}
+                      >
+                        {paramsBulkMode ? <List size={14} /> : <AlignLeft size={14} />}
+                        {paramsBulkMode ? "Key-Value Edit" : "Bulk Edit"}
+                      </button>
+                      {!paramsBulkMode && (
+                        <button
+                          type="button"
+                          className="ghost-button headers-add-button"
+                          onClick={() => addQueryParam()}
+                        >
+                          <Plus size={14} /> Add Parameter
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="headers-grid-body">
-                  <div className="headers-rows">
-                    {(draftRequest.queryParams && draftRequest.queryParams.length > 0
-                      ? draftRequest.queryParams
-                      : [{ key: "", value: "", enabled: true }]
-                    ).map((param, idx) => (
-                      <div className={param.enabled ? "headers-row" : "headers-row headers-row-disabled"} key={idx}>
-                        <label className="headers-toggle">
-                          <input
-                            type="checkbox"
-                            checked={param.enabled}
-                            onChange={(e) => toggleQueryParamEnabled(idx, e.target.checked)}
-                          />
-                        </label>
-
-                        <VariableInput
-                          activeVariables={activeVars}
-                          value={param.key}
-                          placeholder="Parameter key"
-                          onChange={(e) => updateQueryParamField(idx, "key", e.target.value)}
-                          className="headers-row-input-field"
-                          containerClassName="headers-row-input"
-                        />
-
-                        <VariableInput
-                          activeVariables={activeVars}
-                          value={param.value}
-                          placeholder="Parameter value"
-                          onChange={(e) => updateQueryParamField(idx, "value", e.target.value)}
-                          className="headers-row-input-field"
-                          containerClassName="headers-row-input"
-                        />
-
-                        <div className="headers-actions">
-                          <button
-                            type="button"
-                            className="icon-button headers-delete-button"
-                            aria-label={`Delete parameter ${param.key || idx + 1}`}
-                            onClick={() => removeQueryParam(idx)}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                  {paramsBulkMode ? (
+                    <div className="headers-bulk-editor">
+                      <VariableTextarea
+                        activeVariables={activeVars}
+                        containerClassName="headers-bulk-textarea-wrap"
+                        value={paramsBulkText}
+                        onChange={(e) => handleParamsBulkChange(e.target.value)}
+                        placeholder={`// Enter parameters as key:value or key=value\n// Prefix with // or # to disable\npage: 1\nlimit: 50\n//sort: desc`}
+                        spellCheck={false}
+                        aria-label="Bulk edit query parameters"
+                      />
+                      <p className="headers-bulk-hint">
+                        One parameter per line as <code>key: value</code> or <code>key=value</code>. Prefix with <code>//</code> to disable.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="headers-grid-body">
+                      <div className="headers-grid-header">
+                        <span className="col-center"></span>
+                        <span>Key</span>
+                        <span>Value</span>
+                        <span className="col-center"></span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="headers-rows">
+                        {(draftRequest.queryParams && draftRequest.queryParams.length > 0
+                          ? draftRequest.queryParams
+                          : [{ key: "", value: "", enabled: true }]
+                        ).map((param, idx) => (
+                          <div className={param.enabled ? "headers-row" : "headers-row headers-row-disabled"} key={idx}>
+                            <label className="headers-toggle">
+                              <input
+                                type="checkbox"
+                                checked={param.enabled}
+                                onChange={(e) => toggleQueryParamEnabled(idx, e.target.checked)}
+                              />
+                            </label>
+
+                            <VariableInput
+                              activeVariables={activeVars}
+                              value={param.key}
+                              placeholder="Parameter key"
+                              onChange={(e) => updateQueryParamField(idx, "key", e.target.value)}
+                              className="headers-row-input-field"
+                              containerClassName="headers-row-input"
+                            />
+
+                            <VariableInput
+                              activeVariables={activeVars}
+                              value={param.value}
+                              placeholder="Parameter value"
+                              onChange={(e) => updateQueryParamField(idx, "value", e.target.value)}
+                              className="headers-row-input-field"
+                              containerClassName="headers-row-input"
+                            />
+
+                            <div className="headers-actions">
+                              <button
+                                type="button"
+                                className="icon-button headers-delete-button"
+                                aria-label={`Delete parameter ${param.key || idx + 1}`}
+                                onClick={() => removeQueryParam(idx)}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
+              </div>
+
+              {/* Section 2: Path Variables */}
+              <div className="params-section" aria-label="Path variables">
+                <div className="params-section-header">
+                  <span className="params-section-title">
+                    Path Variables
+                    {draftRequest.pathVariables && draftRequest.pathVariables.length > 0 && (
+                      <span className="params-section-badge">{draftRequest.pathVariables.length}</span>
+                    )}
+                  </span>
+                </div>
+
+                {!draftRequest.pathVariables || draftRequest.pathVariables.length === 0 ? (
+                  <div className="path-vars-empty-hint">
+                    <span>
+                      No path variables detected in URL. Use <code>:variable</code> or <code>{"{variable}"}</code> in the request URL path (e.g. <code>/users/:id</code>) to define path variables here.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="headers-table">
+                    <div className="headers-grid-body">
+                      <div className="headers-grid-header path-vars-grid-header">
+                        <span className="col-center"></span>
+                        <span>Variable</span>
+                        <span>Value</span>
+                        <span>Description</span>
+                        <span className="col-center"></span>
+                      </div>
+                      <div className="headers-rows">
+                        {draftRequest.pathVariables.map((param, idx) => (
+                          <div className={param.enabled !== false ? "path-vars-row" : "path-vars-row headers-row-disabled"} key={param.key || idx}>
+                            <label className="headers-toggle">
+                              <input
+                                type="checkbox"
+                                checked={param.enabled !== false}
+                                onChange={(e) => togglePathVariableEnabled(idx, e.target.checked)}
+                              />
+                            </label>
+
+                            <div className="headers-row-input" style={{ display: "flex", alignItems: "center" }}>
+                              <span className="path-vars-row-key">{param.key.startsWith(":") ? param.key : `:${param.key}`}</span>
+                            </div>
+
+                            <VariableInput
+                              activeVariables={activeVars}
+                              value={param.value}
+                              placeholder="Value (e.g. 123 or {{userId}})"
+                              onChange={(e) => updatePathVariableField(idx, "value", e.target.value)}
+                              className="headers-row-input-field"
+                              containerClassName="headers-row-input"
+                            />
+
+                            <input
+                              type="text"
+                              className="headers-row-input headers-row-input-field"
+                              placeholder="Description (optional)"
+                              value={param.description || ""}
+                              onChange={(e) => updatePathVariableField(idx, "description", e.target.value)}
+                            />
+
+                            <div className="headers-actions">
+                              <button
+                                type="button"
+                                className="icon-button headers-delete-button"
+                                aria-label={`Remove path variable ${param.key}`}
+                                onClick={() => removePathVariable(idx)}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1292,113 +1571,142 @@ export const RequestPanel = React.memo(function RequestPanel({
             <div className="headers-table">
               <div className="headers-table-toolbar">
                 <div className="headers-toolbar-actions">
-                  <div className="headers-common-menu-wrap" ref={headersPresetMenuRef}>
-                    <button
-                      ref={headersPresetTriggerRef}
-                      type="button"
-                      className="ghost-button"
-                      aria-label="Common header presets"
-                      aria-haspopup="listbox"
-                      aria-expanded={headersPresetMenuOpen}
-                      onClick={() => setHeadersPresetMenuOpen((open) => !open)}
-                    >
-                      Common
-                      <ChevronDown size={14} />
-                    </button>
-                    {headersPresetMenuOpen && createPortal(
-                      <div
-                        ref={headersPresetDropdownRef}
-                        className="headers-common-menu"
-                        role="listbox"
-                        aria-label="Common header presets"
-                        data-placement={headersPresetMenuLayout?.placement ?? "bottom"}
-                        style={{
-                          top: headersPresetMenuLayout?.top ?? 0,
-                          left: headersPresetMenuLayout?.left ?? 0,
-                          width: headersPresetMenuLayout?.width,
-                          maxHeight: headersPresetMenuLayout?.maxHeight,
-                          visibility: headersPresetMenuLayout ? "visible" : "hidden",
-                        } as CSSProperties}
-                      >
-                        {commonHeaderPresets.map((preset) => (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            className="headers-common-option"
-                            onClick={() => insertCommonHeader(preset.key, preset.value)}
-                          >
-                            <span>{preset.label}</span>
-                            <small>{preset.value || "Custom value"}</small>
-                          </button>
-                        ))}
-                      </div>,
-                      document.body,
-                    )}
-                  </div>
                   <button
                     type="button"
-                    className="ghost-button headers-add-button"
-                    onClick={() => addHeader()}
+                    className="ghost-button"
+                    onClick={toggleHeadersBulkMode}
+                    title={headersBulkMode ? "Switch to key-value grid" : "Edit headers as bulk text"}
                   >
-                    <Plus size={14} /> Add Header
+                    {headersBulkMode ? <List size={14} /> : <AlignLeft size={14} />}
+                    {headersBulkMode ? "Key-Value Edit" : "Bulk Edit"}
                   </button>
-                </div>
-              </div>
-
-              <div className="headers-grid-body">
-
-                <div className="headers-rows">
-                  {draftRequest.headers.map((header, idx) => {
-                    return (
-                      <div className={header.enabled ? "headers-row" : "headers-row headers-row-disabled"} key={idx}>
-                        <label className="headers-toggle">
-                          <input
-                            type="checkbox"
-                            checked={header.enabled}
-                            onChange={(e) => toggleHeaderEnabled(idx, e.target.checked)}
-                          />
-                        </label>
-
-                        <VariableInput
-                          activeVariables={activeVars}
-                          value={header.key}
-                          placeholder="Header key"
-                          onChange={(e) => updateHeaderField(idx, "key", e.target.value)}
-                          onPaste={(e) => handleHeaderPaste(idx, e)}
-                          className="headers-row-input-field"
-                          containerClassName="headers-row-input"
-                          suggestions={HEADER_KEY_SUGGESTIONS}
-                          suggestionBadge="HEADER"
-                        />
-
-                        <VariableInput
-                          type={isSensitiveKey(header.key) ? "password" : "text"}
-                          activeVariables={activeVars}
-                          value={header.value}
-                          placeholder="Header value"
-                          onChange={(e) => updateHeaderField(idx, "value", e.target.value)}
-                          onPaste={(e) => handleHeaderPaste(idx, e)}
-                          className="headers-row-input-field"
-                          containerClassName="headers-row-input"
-                          suggestions={header.key.toLowerCase() === "content-type" ? CONTENT_TYPE_SUGGESTIONS : undefined}
-                          suggestionBadge="MIME"
-                        />
-
-                        <div className="headers-actions">
-                          <button
-                            type="button"
-                            className="icon-button headers-delete-button"
-                            aria-label={`Delete header ${header.key || idx + 1}`}
-                            onClick={() => removeHeader(idx)}
+                  {!headersBulkMode && (
+                    <>
+                      <div className="headers-common-menu-wrap" ref={headersPresetMenuRef}>
+                        <button
+                          ref={headersPresetTriggerRef}
+                          type="button"
+                          className="ghost-button"
+                          aria-label="Common header presets"
+                          aria-haspopup="listbox"
+                          aria-expanded={headersPresetMenuOpen}
+                          onClick={() => setHeadersPresetMenuOpen((open) => !open)}
+                        >
+                          Common
+                          <ChevronDown size={14} />
+                        </button>
+                        {headersPresetMenuOpen && createPortal(
+                          <div
+                            ref={headersPresetDropdownRef}
+                            className="headers-common-menu"
+                            role="listbox"
+                            aria-label="Common header presets"
+                            data-placement={headersPresetMenuLayout?.placement ?? "bottom"}
+                            style={{
+                              top: headersPresetMenuLayout?.top ?? 0,
+                              left: headersPresetMenuLayout?.left ?? 0,
+                              width: headersPresetMenuLayout?.width,
+                              maxHeight: headersPresetMenuLayout?.maxHeight,
+                              visibility: headersPresetMenuLayout ? "visible" : "hidden",
+                            } as CSSProperties}
                           >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                            {commonHeaderPresets.map((preset) => (
+                              <button
+                                key={preset.label}
+                                type="button"
+                                className="headers-common-option"
+                                onClick={() => insertCommonHeader(preset.key, preset.value)}
+                              >
+                                <span>{preset.label}</span>
+                                <small>{preset.value || "Custom value"}</small>
+                              </button>
+                            ))}
+                          </div>,
+                          document.body,
+                        )}
                       </div>
-                    );
-                  })}
+                      <button
+                        type="button"
+                        className="ghost-button headers-add-button"
+                        onClick={() => addHeader()}
+                      >
+                        <Plus size={14} /> Add Header
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
+
+              {headersBulkMode ? (
+                <div className="headers-bulk-editor">
+                  <VariableTextarea
+                    activeVariables={activeVars}
+                    containerClassName="headers-bulk-textarea-wrap"
+                    value={headersBulkText}
+                    onChange={(e) => handleHeadersBulkChange(e.target.value)}
+                    placeholder={`// Enter headers as Header-Name: Value\n// Prefix with // or # to disable\nAccept: application/json\nAuthorization: Bearer {{token}}\n//X-Debug-Mode: true`}
+                    spellCheck={false}
+                    aria-label="Bulk edit request headers"
+                  />
+                  <p className="headers-bulk-hint">
+                    One header per line as <code>Header-Name: Value</code>. Prefix with <code>//</code> to disable.
+                  </p>
+                </div>
+              ) : (
+                <div className="headers-grid-body">
+                  <div className="headers-rows">
+                    {draftRequest.headers.map((header, idx) => {
+                      return (
+                        <div className={header.enabled ? "headers-row" : "headers-row headers-row-disabled"} key={idx}>
+                          <label className="headers-toggle">
+                            <input
+                              type="checkbox"
+                              checked={header.enabled}
+                              onChange={(e) => toggleHeaderEnabled(idx, e.target.checked)}
+                            />
+                          </label>
+
+                          <VariableInput
+                            activeVariables={activeVars}
+                            value={header.key}
+                            placeholder="Header key"
+                            onChange={(e) => updateHeaderField(idx, "key", e.target.value)}
+                            onPaste={(e) => handleHeaderPaste(idx, e)}
+                            className="headers-row-input-field"
+                            containerClassName="headers-row-input"
+                            suggestions={HEADER_KEY_SUGGESTIONS}
+                            suggestionBadge="HEADER"
+                          />
+
+                          <VariableInput
+                            type={isSensitiveKey(header.key) ? "password" : "text"}
+                            activeVariables={activeVars}
+                            value={header.value}
+                            placeholder="Header value"
+                            onChange={(e) => updateHeaderField(idx, "value", e.target.value)}
+                            onPaste={(e) => handleHeaderPaste(idx, e)}
+                            className="headers-row-input-field"
+                            containerClassName="headers-row-input"
+                            suggestions={header.key.toLowerCase() === "content-type" ? CONTENT_TYPE_SUGGESTIONS : undefined}
+                            suggestionBadge="MIME"
+                          />
+
+                          <div className="headers-actions">
+                            <button
+                              type="button"
+                              className="icon-button headers-delete-button"
+                              aria-label={`Delete header ${header.key || idx + 1}`}
+                              onClick={() => removeHeader(idx)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1741,6 +2049,27 @@ export const RequestPanel = React.memo(function RequestPanel({
         </div>
       )}
 
+      {activeTab === "docs" && (
+        <div className="request-tab-panel docs-tab-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+          <DocsEditor
+            description={draftRequest.description || ""}
+            onChange={(val) => onUpdateDraft({ ...draftRequest, description: val })}
+            requestName={draftRequest.name}
+            method={draftRequest.method}
+            url={draftRequest.url}
+            examples={draftRequest.examples || []}
+            onSaveExamples={(examples) => onUpdateDraft({ ...draftRequest, examples })}
+            activeResponse={currentResponse ? {
+              status: currentResponse.status,
+              statusText: currentResponse.statusText,
+              headers: currentResponse.headers,
+              bodyText: currentResponse.bodyText,
+              contentType: currentResponse.contentType,
+            } : null}
+          />
+        </div>
+      )}
+
       <AdvancedSendModal
         open={advancedSendMode !== null}
         mode={advancedSendMode}
@@ -1860,6 +2189,7 @@ export const RequestPanel = React.memo(function RequestPanel({
           </div>
         )}
       </div>
+      )}
       </>
       )}
     </section>

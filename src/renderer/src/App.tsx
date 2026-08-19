@@ -101,7 +101,7 @@ export function App() {
       return next;
     });
   };
-  const [activeTab, setActiveTab] = useState<"params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code">("params");
+  const [activeTab, setActiveTab] = useState<"params" | "body" | "headers" | "auth" | "scripts" | "settings" | "variables" | "code" | "docs">("params");
   const [responseState, setResponseState] = useState<ResponseState>({
     kind: "idle",
   });
@@ -112,6 +112,7 @@ export function App() {
   const [activeBottomDock, setActiveBottomDock] = useState<'response' | 'console' | null>('response');
   const [bottomDockHeight, setBottomDockHeight] = useState(320);
   const [isResponsePanelResizing, setIsResponsePanelResizing] = useState(false);
+  const [isRequestTabsCollapsed, setIsRequestTabsCollapsed] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -421,6 +422,14 @@ export function App() {
         setScriptOutputLog(newCacheEntry.log);
       } else {
         setSelectedRequestId(entry.requestId);
+      }
+
+      const isLargeHistoryResponse = Boolean(
+        (entry.sizeBytes && entry.sizeBytes > 1000) ||
+        (payload.responseBodyText && payload.responseBodyText.length > 800)
+      );
+      if (isLargeHistoryResponse) {
+        setIsRequestTabsCollapsed(true);
       }
       
       setHistoryOpen(false);
@@ -1047,6 +1056,16 @@ export function App() {
 
       setResponseState({ kind: "success", response });
       setAbortController(null);
+
+      // Auto-hide request tab panel when the response panel has too much data
+      const isLargeResponse = Boolean(
+        (response.sizeBytes && response.sizeBytes > 1000) ||
+        (response.bodyText && response.bodyText.length > 800) ||
+        (response.bodyText && response.bodyText.split('\n').length > 25)
+      );
+      if (isLargeResponse) {
+        setIsRequestTabsCollapsed(true);
+      }
 
       // Log the full response
       scriptOutputEntries.push({
@@ -2105,6 +2124,9 @@ export function App() {
               diagnosticMessage={diagnosticMessage}
               onSaveScopedVariable={handleSaveScopedVariable}
               onDeleteScopedVariable={handleDeleteScopedVariable}
+              isTabsCollapsed={isRequestTabsCollapsed}
+              onToggleTabsCollapsed={setIsRequestTabsCollapsed}
+              currentResponse={currentResponse}
             />
             ) : (
             <div className="workspace-empty-hero">
@@ -2167,6 +2189,7 @@ export function App() {
               responseTab={responseTab}
               previewMode={previewMode}
               scriptOutputLog={scriptOutputLog}
+              isRequestTabsCollapsed={isRequestTabsCollapsed}
               onActiveBottomDockChange={setActiveBottomDock}
               onTabChange={handleResponseTabChange}
               onPreviewModeChange={setPreviewMode}

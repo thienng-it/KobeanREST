@@ -8,8 +8,10 @@ import {
   createFolder,
   updateFolder,
   saveFolderAuth,
+  saveFolderDescription,
   updateCollection,
   saveCollectionAuth,
+  saveCollectionDescription,
   updateCollectionDefaultEnvironment,
   deleteCollection,
   deleteFolder,
@@ -1092,6 +1094,9 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
 
           // Create collection
           const collectionId = await createCollection(finalCollectionName);
+          if (result.collectionDescription) {
+            await saveCollectionDescription(collectionId, result.collectionDescription);
+          }
           if (result.collectionAuthMode) {
             await saveCollectionAuth(collectionId, result.collectionAuthMode, result.collectionAuthConfig || {});
           }
@@ -1108,6 +1113,9 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
             for (const folder of immediateChildren) {
               const newFolder = await createFolder(folder.name, collectionId, folderIdMap[folder.parentId!] ?? undefined);
               folderIdMap[folder.id] = newFolder.id;
+              if (folder.description) {
+                await saveFolderDescription(newFolder.id, folder.description);
+              }
               if (folder.authMode) {
                 await saveFolderAuth(newFolder.id, folder.authMode, folder.authConfig || {});
               }
@@ -1164,6 +1172,8 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
               authMode: req.authMode,
               authConfig: req.authConfig,
               variables: req.variables,
+              description: req.description,
+              examples: req.examples,
             };
             await saveRequest(updatedReq);
             if (!stripScripts) {
@@ -1499,6 +1509,9 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     handleUpdateFolder: async (folder: import('../types').FolderSummary) => {
       if (!workspace) return;
       await saveFolderAuth(folder.id, folder.authMode || "none", folder.authConfig || {});
+      if (folder.description !== undefined) {
+        await saveFolderDescription(folder.id, folder.description || "");
+      }
       setWorkspace(prev => {
         if (!prev) return null;
         return {
@@ -1510,7 +1523,10 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
 
     handleUpdateCollection: async (collection: import('../types').CollectionSummary) => {
       if (!workspace) return;
-      await import('../services/local-store').then(m => m.saveCollectionAuth(collection.id, collection.authMode || "none", collection.authConfig || {}));
+      await saveCollectionAuth(collection.id, collection.authMode || "none", collection.authConfig || {});
+      if (collection.description !== undefined) {
+        await saveCollectionDescription(collection.id, collection.description || "");
+      }
       setWorkspace(prev => {
         if (!prev) return null;
         return {

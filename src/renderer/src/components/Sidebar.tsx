@@ -814,6 +814,7 @@ export const Sidebar = React.memo(function Sidebar({
     if (matchesCollectionSearch(resolvedMethodLabel(request.method, request.customMethod))) return true;
     
     // Deep search in request data
+    if (request.description && matchesCollectionSearch(request.description)) return true;
     if (request.body && matchesCollectionSearch(request.body)) return true;
     
     if (request.headers?.some(h => matchesCollectionSearch(h.key) || matchesCollectionSearch(h.value))) return true;
@@ -957,6 +958,7 @@ export const Sidebar = React.memo(function Sidebar({
     const folder = workspace?.folders.find((item) => item.id === folderId);
     if (!folder) return false;
     if (matchesCollectionSearch(folder.name)) return true;
+    if (folder.description && matchesCollectionSearch(folder.description)) return true;
     if (folder.variables?.some(v => matchesCollectionSearch(v.key) || matchesCollectionSearch(v.value))) return true;
     
     // Search within associated scripts
@@ -974,6 +976,7 @@ export const Sidebar = React.memo(function Sidebar({
 
   const visibleCollections = (workspace?.collections ?? []).filter((collection) => {
     if (matchesCollectionSearch(collection.name)) return true;
+    if (collection.description && matchesCollectionSearch(collection.description)) return true;
     if (collection.variables?.some(v => matchesCollectionSearch(v.key) || matchesCollectionSearch(v.value))) return true;
     
     // Search within associated scripts
