@@ -98,6 +98,7 @@ test("App.tsx implements editable state management", () => {
   assert.match(styles, /\.folder-children\s*\{[\s\S]*grid-template-rows:\s*1fr;/);
   assert.match(styles, /\.folder-children\.collapsed\s*\{[\s\S]*grid-template-rows:\s*0fr;/);
   assert.match(styles, /\.folder-chevron\.collapsed\s*\{[\s\S]*rotate\(-90deg\)/);
+  assert.doesNotMatch(styles, /\.folder-group:hover\s*>\s*\.folder-children/);
 });
 
 test.skip("preview workspace matches collection sidebar creation paths", () => {

@@ -1626,24 +1626,6 @@ button:disabled {
   position: relative;
 }
 
-.collection-children {
-  position: relative;
-}
-
-.folder-group:hover > .folder-children > .folder-children-inner::before,
-.collection-group:hover > .collection-children::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 29px;
-  width: 1px;
-  background-color: var(--color-border-tint);
-  opacity: 0.8;
-  z-index: 1;
-  pointer-events: none;
-}
-
 .collection-title {
   opacity: 0.88;
 }
