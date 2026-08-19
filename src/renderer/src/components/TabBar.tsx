@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Folder, Globe, Package, Plus, FolderTree } from "lucide-react";
+import { X, Folder, Globe, Package, Plus, FolderTree, Boxes } from "lucide-react";
 import type { Tab } from "../types";
 import { methodClass } from "./MethodSelector";
 
@@ -94,6 +94,8 @@ export const TabBar = React.memo(function TabBar({
               <>
                 {tab.type === "environment" ? (
                   <Globe size={12} style={{ flexShrink: 0 }} />
+                ) : tab.type === "workspaces-overview" ? (
+                  <Boxes size={12} style={{ flexShrink: 0 }} />
                 ) : tab.type === "collections-overview" ? (
                   <FolderTree size={12} style={{ flexShrink: 0 }} />
                 ) : tab.type === "collection" ? (

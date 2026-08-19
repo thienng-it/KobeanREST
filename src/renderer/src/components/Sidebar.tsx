@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle, Lock, Unlock, LayoutGrid } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle, Lock, Unlock, LayoutGrid, Boxes } from "lucide-react";
 import React, { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   DndContext,
@@ -127,6 +127,7 @@ export interface SidebarProps {
 
   // Workspace switcher
   onOpenWorkspaceSwitcher?: () => void;
+  onOpenWorkspacesOverview?: () => void;
   onMoveItem?: (type: "folder" | "request" | "collection", draggedId: string, targetId: string, position: "top" | "bottom" | "inside") => Promise<void>;
 
   // Collection locking
@@ -701,6 +702,7 @@ export const Sidebar = React.memo(function Sidebar({
   onImport,
   onCurlImport,
   onOpenWorkspaceSwitcher,
+  onOpenWorkspacesOverview,
   onMoveItem,
   unlockedCollectionIds,
   onLockCollectionToggle,
@@ -1173,8 +1175,26 @@ export const Sidebar = React.memo(function Sidebar({
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
     >
       <div className="brand-row">
-        <div className="brand-mark">KR</div>
+        <div
+          className="brand-mark"
+          onClick={onOpenWorkspacesOverview}
+          style={{ cursor: onOpenWorkspacesOverview ? "pointer" : "default" }}
+          title={onOpenWorkspacesOverview ? "Open Workspaces Hub" : undefined}
+        >
+          KR
+        </div>
         <div className="brand-actions">
+          {onOpenWorkspacesOverview && (
+            <button
+              type="button"
+              className="sidebar-icon-button"
+              aria-label="Workspaces Hub"
+              title="Open Workspaces Hub"
+              onClick={onOpenWorkspacesOverview}
+            >
+              <Boxes size={14} />
+            </button>
+          )}
           <button
             type="button"
             className="sidebar-icon-button"

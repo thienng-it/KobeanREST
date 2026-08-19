@@ -2,7 +2,7 @@ export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | 
 
 export interface Tab {
   id: string;
-  type: "request" | "folder" | "environment" | "collection" | "collections-overview";
+  type: "request" | "folder" | "environment" | "collection" | "collections-overview" | "workspaces-overview";
   entityId: string;
   name: string;
   method?: HttpMethod;

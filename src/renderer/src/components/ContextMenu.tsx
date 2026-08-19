@@ -1,4 +1,4 @@
-import { Copy, Edit2, Eye, FolderTree, KeyRound, Play, Plus, Trash2, Variable, Terminal, Upload, Download, FileText, Settings, Lock, Unlock } from "lucide-react";
+import { Copy, Edit2, Eye, FolderTree, KeyRound, Play, Plus, Trash2, Variable, Terminal, Upload, Download, FileText, Settings, Lock, Unlock, Boxes } from "lucide-react";
 import type { SavedRequest } from "../types";
 
 export interface ContextMenuTarget {
@@ -63,6 +63,7 @@ export interface ContextMenuProps {
   onCurlImport: () => void;
   onImport: () => void;
   onExport: () => void;
+  onOpenWorkspacesOverview?: () => void;
   onSetSelectionAsVariable?: (text: string) => void;
   onMoveItemTo?: (reqId: string, itemType: "request" | "folder") => void;
   onRunFolder?: (folderId: string) => void;
@@ -98,6 +99,7 @@ export function ContextMenu({
   onCurlImport,
   onImport,
   onExport,
+  onOpenWorkspacesOverview,
   onSetSelectionAsVariable,
   onMoveItemTo,
   onRunFolder,
@@ -447,6 +449,19 @@ export function ContextMenu({
       )}
       {target?.type === "workspace" && (
         <>
+          {onOpenWorkspacesOverview && (
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                onOpenWorkspacesOverview();
+                onClose();
+              }}
+              style={requestItemStyle}
+              {...hoverHandlers()}
+            >
+              <Boxes size={14} style={{ marginRight: "8px", verticalAlign: "middle" }} /> Workspaces Hub
+            </button>
+          )}
           <button
             className="context-menu-item"
             onClick={() => {

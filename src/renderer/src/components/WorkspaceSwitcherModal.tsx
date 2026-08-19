@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Check, Edit2, Plus, Trash2 } from "lucide-react";
+import { Check, Edit2, Plus, Trash2, Boxes } from "lucide-react";
 import type { WorkspaceListItem } from "../types";
 import "./modals/WorkspaceSwitcherModal.css";
 
@@ -12,6 +12,7 @@ export interface WorkspaceSwitcherModalProps {
   onSwitch: (workspaceId: string) => void;
   onRename: (workspaceId: string, name: string) => void;
   onDelete: (id: string, name: string) => void;
+  onOpenWorkspacesOverview?: () => void;
   onClose: () => void;
 }
 
@@ -24,6 +25,7 @@ export function WorkspaceSwitcherModal({
   onSwitch,
   onRename,
   onDelete,
+  onOpenWorkspacesOverview,
   onClose,
 }: WorkspaceSwitcherModalProps) {
   const isModalOpen = open ?? isOpen ?? false;
@@ -178,6 +180,21 @@ export function WorkspaceSwitcherModal({
               <Plus size={14} /> Create
             </button>
           </form>
+          {onOpenWorkspacesOverview && (
+            <div style={{ marginTop: "12px", textAlign: "center" }}>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => {
+                  onClose();
+                  onOpenWorkspacesOverview();
+                }}
+                style={{ fontSize: "12px", width: "100%", justifyContent: "center", gap: "6px" }}
+              >
+                <Boxes size={13} /> Open Workspaces Hub
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

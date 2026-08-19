@@ -32,6 +32,7 @@ import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { FolderEditor } from "./components/FolderEditor";
 import { CollectionEditor } from "./components/CollectionEditor";
 import { CollectionsManager } from "./components/CollectionsManager";
+import { WorkspacesManager } from "./components/WorkspacesManager";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { ApiToolsModal } from "./components/ApiToolsModal";
 import { resolveAuthConfig, getEffectiveAuth } from "./services/auth";
@@ -1314,6 +1315,25 @@ export function App() {
     setActiveTabId(newTab.id);
   }
 
+  function openWorkspacesOverviewTab() {
+    const existingTab = tabs.find((tab) => tab.type === "workspaces-overview");
+    if (existingTab) {
+      setActiveTabId(existingTab.id);
+      return;
+    }
+
+    const newTab: Tab = {
+      id: `workspaces-overview-${Date.now()}`,
+      type: "workspaces-overview",
+      entityId: "workspaces-overview",
+      name: "Workspaces Hub",
+      isDirty: false,
+    };
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }
+
   function openEnvironmentTab(envName: string) {
     setSelectedRequestId(null);
     lastSelectedRequestIdRef.current = null;
@@ -1748,6 +1768,7 @@ export function App() {
           setUniversalImportModalOpen(true);
         }}
         onOpenWorkspaceSwitcher={() => setWorkspaceSwitcherOpen(true)}
+        onOpenWorkspacesOverview={openWorkspacesOverviewTab}
         onMoveItem={handleMoveItem}
         unlockedCollectionIds={unlockedCollectionIds}
         onLockCollectionToggle={handleLockToggle}
@@ -1767,7 +1788,7 @@ export function App() {
       />
 
       <section className="workspace">
-        {sidebarCollapsed && (
+        {sidebarCollapsed && currentTab?.type !== "workspaces-overview" && (
           <div className="workspace-collapsed-bar">
             <button
               type="button"
@@ -1784,40 +1805,42 @@ export function App() {
 
         <div className="workspace-main" style={{ display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', borderBottom: "1px solid var(--color-border)", backgroundColor: "var(--color-sidebar)", alignItems: 'center' }}>
-              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                <TabBar
-                  tabs={tabs}
-                  activeTabId={activeTabId}
-                  unsavedEntityIds={unsavedEntityIds}
-                  onNewTab={handleNewTab}
-                  onTabClick={handleTabClick}
-                  onTabClose={closeTab}
-                  onTabContextMenu={handleTabContextMenu}
-                />
+            {currentTab?.type !== "workspaces-overview" && (
+              <div style={{ display: 'flex', borderBottom: "1px solid var(--color-border)", backgroundColor: "var(--color-sidebar)", alignItems: 'center' }}>
+                <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                  <TabBar
+                    tabs={tabs}
+                    activeTabId={activeTabId}
+                    unsavedEntityIds={unsavedEntityIds}
+                    onNewTab={handleNewTab}
+                    onTabClick={handleTabClick}
+                    onTabClose={closeTab}
+                    onTabContextMenu={handleTabContextMenu}
+                  />
+                </div>
+                <button
+                  onClick={() => setAiChatOpen(prev => !prev)}
+                  className="icon-btn"
+                  title="Toggle AI Chat"
+                  style={{
+                     margin: '0 8px',
+                     padding: '4px 8px',
+                     display: 'flex',
+                     alignItems: 'center',
+                     gap: '6px',
+                     background: aiChatOpen ? 'var(--color-surface-active)' : 'transparent',
+                     border: 'none',
+                     borderRadius: '6px',
+                     color: aiChatOpen ? 'var(--color-text-active)' : 'var(--color-text-muted)',
+                     cursor: 'pointer',
+                     flexShrink: 0
+                  }}
+                >
+                  <Sparkles size={14} />
+                  <span style={{ fontSize: '12px', fontWeight: 500 }}>AI Chat</span>
+                </button>
               </div>
-              <button
-                onClick={() => setAiChatOpen(prev => !prev)}
-                className="icon-btn"
-                title="Toggle AI Chat"
-                style={{
-                   margin: '0 8px',
-                   padding: '4px 8px',
-                   display: 'flex',
-                   alignItems: 'center',
-                   gap: '6px',
-                   background: aiChatOpen ? 'var(--color-surface-active)' : 'transparent',
-                   border: 'none',
-                   borderRadius: '6px',
-                   color: aiChatOpen ? 'var(--color-text-active)' : 'var(--color-text-muted)',
-                   cursor: 'pointer',
-                   flexShrink: 0
-                }}
-              >
-                <Sparkles size={14} />
-                <span style={{ fontSize: '12px', fontWeight: 500 }}>AI Chat</span>
-              </button>
-            </div>
+            )}
           {(() => {
             let scopedVarsArray = activeVars;
             if (workspace) {
@@ -1974,6 +1997,48 @@ export function App() {
               );
             }
 
+            if (currentTab?.type === "workspaces-overview") {
+              return (
+                <div className="workspaces-hub-layer">
+                  <WorkspacesManager
+                    workspace={workspace}
+                    workspaceList={workspaceList}
+                    activeWorkspaceId={workspace?.id || "local-workspace"}
+                    onSwitchWorkspace={async (id) => {
+                      await handleSwitchWorkspace(id);
+                      const wsTab = tabs.find((t) => t.type === "workspaces-overview");
+                      if (wsTab) closeTab(wsTab.id);
+                    }}
+                    onCreateWorkspace={handleCreateWorkspace}
+                    onRenameWorkspace={handleRenameWorkspace}
+                    onDeleteWorkspace={(id, name) => {
+                      setConfirmDialog({
+                        title: "Delete Workspace",
+                        message: `Are you sure you want to delete workspace "${name}"? All its collections and requests will be permanently removed.`,
+                        confirmVariant: "danger",
+                        confirmLabel: "Delete",
+                        onConfirm: () => void handleDeleteWorkspace(id),
+                      });
+                    }}
+                    onExportWorkspace={() => void handleExport()}
+                    onOpenUniversalImport={() => {
+                      setUniversalImportInitialContent("");
+                      setUniversalImportModalOpen(true);
+                    }}
+                    onOpenCollectionsOverview={() => {
+                      const wsTab = tabs.find((t) => t.type === "workspaces-overview");
+                      if (wsTab) closeTab(wsTab.id);
+                      openCollectionsOverviewTab();
+                    }}
+                    onCloseHub={() => {
+                      const wsTab = tabs.find((t) => t.type === "workspaces-overview");
+                      if (wsTab) closeTab(wsTab.id);
+                    }}
+                  />
+                </div>
+              );
+            }
+
             const activeRequest = draftRequest || (currentTab?.type === "request" && currentTab?.entityId ? unsavedRequests[currentTab.entityId] : null);
             if (currentTab?.type === "request" && !activeRequest) {
               return null; // prevent ghosting while useWorkspace fetches the draftRequest
@@ -2076,13 +2141,20 @@ export function App() {
                   >
                     Browse Collections
                   </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={openWorkspacesOverviewTab}
+                  >
+                    Manage Workspaces
+                  </button>
                 </div>
               </div>
             </div>
             );
           })()}
 
-          {currentTab && currentTab.type !== "folder" && currentTab.type !== "collection" && currentTab.type !== "collections-overview" && currentTab.type !== "environment" && currentTab.method !== "WS" && currentTab.method !== "SOCKET.IO" && currentTab.method !== "GRPC" && draftRequest?.method !== "WS" && draftRequest?.method !== "SOCKET.IO" && draftRequest?.method !== "GRPC" && (
+          {currentTab && currentTab.type !== "folder" && currentTab.type !== "collection" && currentTab.type !== "collections-overview" && currentTab.type !== "workspaces-overview" && currentTab.type !== "environment" && currentTab.method !== "WS" && currentTab.method !== "SOCKET.IO" && currentTab.method !== "GRPC" && draftRequest?.method !== "WS" && draftRequest?.method !== "SOCKET.IO" && draftRequest?.method !== "GRPC" && (
             <BottomDock
               activeBottomDock={activeBottomDock}
               bottomDockHeight={bottomDockHeight}
@@ -2279,6 +2351,7 @@ export function App() {
             setUniversalImportModalOpen(true);
           }}
           onExport={() => void handleExport()}
+          onOpenWorkspacesOverview={openWorkspacesOverviewTab}
           onSetSelectionAsVariable={(text) => {
             if (!workspace?.activeEnvironment) {
               alert("No active environment. Please set one first.");
@@ -2465,6 +2538,7 @@ export function App() {
               onConfirm: () => void handleDeleteWorkspace(id),
             });
           }}
+        onOpenWorkspacesOverview={openWorkspacesOverviewTab}
         onClose={() => setWorkspaceSwitcherOpen(false)}
       />
 
