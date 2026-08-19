@@ -39,7 +39,7 @@ invoke<void>("update_folder", { folderId: string, name: string });
 invoke<void>("delete_folder", { folderId: string });
 ```
 
-### 4. Request & History Operations
+### 4. Request, Path Variables & History Operations
 
 ```typescript
 invoke<SavedRequest>("create_request", { folderId?: string, collectionId?: string });

@@ -1,6 +1,6 @@
 # 🧪 Testing & Quality Assurance (SDET Engineering Specification)
 
-Quality assurance in KobeanREST follows a rigorous multi-tier test pyramid. Every pull request and release build must pass 127 automated contract tests, end-to-end GUI flows, and automated secret leak audits prior to release artifact generation.
+Quality assurance in KobeanREST follows a rigorous multi-tier test pyramid. Every pull request and release build must pass automated contract tests, end-to-end GUI flows, and automated secret leak audits prior to release artifact generation.
 
 ---
 
@@ -14,12 +14,13 @@ Quality assurance in KobeanREST follows a rigorous multi-tier test pyramid. Ever
                                       │
               ┌───────────────────────┴───────────────────────┐
               │      Node.js Native Contract Test Suite       │  Native Node Test Runner
-              │   (127 Invariant Asserts Across 20 Suited)   │  (tests/*.test.mjs)
+              │      (37 Specialized Test Modules)            │  (tests/*.test.mjs)
               └───────────────┬───────────────────────────────┘
                               │
     ┌─────────────────────────┴─────────────────────────┐
     │     Native Rust Compilation & Security Scans      │  Cargo Check & Betterleak
     │  (http_client, persistence, check-secrets script) │  (src-tauri & scripts/)
+    │  (tests/persistence-contract.test.mjs)            │
     └───────────────────────────────────────────────────┘
 ```
 
@@ -29,11 +30,21 @@ Quality assurance in KobeanREST follows a rigorous multi-tier test pyramid. Ever
 
 Executed natively via Node.js test runner (`npm test`):
 
-| Test Suite Module | Target Component | Core Verified Invariants |
+| Test Suite Module | Target Subsystem | Core Verified Invariants |
 | :--- | :--- | :--- |
-| `api-auth-contract.test.mjs` | `services/auth.ts` | Bearer, Basic, API Key, and OAuth PKCE browser injection formats. |
-| `auto-update-contract.test.mjs` | `services/updater.ts` | Ed25519 signature validation & universal macOS manifest parsing. |
-| `docs-site-contract.test.mjs` | `docs-site/` | Documentation site build, routing integrity, and static assets. |
+| `workspaces-manager-contract.test.mjs` | Workspaces Hub | Workspace CRUD, switching, metric calculation, import/export. |
+| `collections-manager-contract.test.mjs` | Collections Hub | Visual collection grid, overview state, duplicate/export flow. |
+| `collection-lock-contract.test.mjs` | Collection Security | Passcode encryption, session unlocking, and locked UI state. |
+| `docs-tab-and-import-contract.test.mjs` | Docs Editor | Integrated Markdown editor, live API documentation generator. |
+| `path-variables-contract.test.mjs` | Path Variables | `:param` and `{param}` extraction, table editing, URL interpolation. |
+| `bulk-edit-contract.test.mjs` | Bulk Params | Bi-directional toggle between raw text block and structured table. |
+| `grpc-contract.test.mjs` | gRPC Client | Protobuf file parsing, service reflection, streaming UI modes. |
+| `websocket-socketio-contract.test.mjs` | WebSockets / Socket.IO | Real-time connection management, custom event emitter, streaming log. |
+| `universal-import-contract.test.mjs` | Universal Import | Postman v2.1, OpenAPI/Swagger 2/3, Insomnia v4, and cURL parsers. |
+| `ai-chat-session-manager-contract.test.mjs` | AI Copilot | Local Ollama streaming, chat session management, prompt generation. |
+| `api-auth-contract.test.mjs` | Auth Engine | Bearer, Basic, API Key, and OAuth PKCE browser injection formats. |
+| `auto-update-contract.test.mjs` | Updater Engine | Ed25519 signature validation & universal macOS manifest parsing. |
+| `docs-site-contract.test.mjs` | Docs Portal | Documentation site build, routing integrity, and static assets. |
 | `editable-ui-contract.test.mjs` | UI Components | Keyboard shortcuts, tab focus states, bi-directional query param sync. |
 | `environment-editor-contract.test.mjs` | Env Manager | Active environment state persistence, color badge tags & scope mutations. |
 | `history-viewer-contract.test.mjs` | History Panel | Automatic masking of sensitive query params & auth tokens in logs. |
@@ -87,7 +98,7 @@ Driven by **CodeceptJS** and **Playwright** (`npm run test:e2e`):
 ## 🛠️ Verification Execution Toolkit
 
 ```bash
-# 1. Execute all 127 Node.js contract tests
+# 1. Execute all Node.js contract tests
 npm test
 
 # 2. Run CodeceptJS / Playwright E2E GUI test suite
@@ -99,6 +110,6 @@ npm run check:secrets
 # 4. Execute release preflight verification audit
 npm run check:release
 
-# 5. Verify Rust native core compilation
-npm run check:native
+# 5. Push updated documentation to GitHub Wiki
+npm run push:wiki
 ```

@@ -16,18 +16,19 @@
 
 > [!IMPORTANT]
 > **The Local-First API Client Manifesto**  
-> KobeanREST is engineered to deliver enterprise-grade REST and HTTP workflow management with **zero forced cloud synchronizations, zero user account barriers, 100% offline data ownership, and private Local AI Assistance**. All secrets stay locked inside native OS keychains and AI chats never leave your local machine.
+> KobeanREST is engineered to deliver enterprise-grade REST, gRPC, and WebSocket workflow management with **zero forced cloud synchronizations, zero user account barriers, 100% offline data ownership, and private Local AI Assistance**. All secrets stay locked inside native OS keychains and AI chats never leave your local machine.
 
 ---
 
 ## 🏛️ Executive Summary & Engineering Architecture
 
-KobeanREST decouples network execution, AI processing, and storage from browser renderer constraints by executing asynchronous HTTP operations natively through a Rust core and communicating with local LLMs (Ollama) on host loopback.
+KobeanREST decouples network execution, AI processing, and storage from browser renderer constraints by executing asynchronous network operations (HTTP/REST, gRPC, WebSockets) natively through a Rust core and communicating with local LLMs (Ollama) on host loopback.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                     React 18 Renderer (Vite UI)                                 │
-│  Request Builder ──► Params Sync ──► Header Presets ──► WASM JQ Engine ──► AI Copilot (Ollama)  │
+│  Request Builder ──► Params/Path Vars ──► Docs Tab ──► WASM JQ Engine ──► AI Copilot (Ollama)   │
+│  gRPC Client     ──► WebSocket/Socket.IO ──► Workspaces Hub ──► Collection Security Lock        │
 └────────────────────────────────────────────────┬────────────────────────────────────────────────┘
                                                  │ Tauri IPC Bridge (JSON-RPC)
 ┌────────────────────────────────────────────────▼────────────────────────────────────────────────┐
@@ -40,11 +41,16 @@ KobeanREST decouples network execution, AI processing, and storage from browser 
 
 ## 🚀 Key Feature Highlights
 
+- 🏢 **Workspaces Hub & Management:** Centralized workspace manager to create, switch, configure, export, and import multi-tenant workspaces with isolated collections and environments.
+- 📂 **Collections Hub & Security Locks:** Visual grid overview for all collections with per-collection passcode protection to lock sensitive API collections.
+- 🌐 **Multi-Protocol Power:** Comprehensive REST, **gRPC** (Protobuf loading & streaming), and **WebSocket / Socket.IO** real-time testing suites.
+- 📝 **Interactive Docs Tab & Markdown Notes:** Dedicated documentation editor for requests and collections with auto-generated documentation previews and Markdown export.
+- ⚡ **Path Variables & Bulk Editing:** Dynamic path parameter extraction (`:param` / `{param}`) and seamless one-click toggle between structured tables and bulk raw text editing.
 - 🤖 **Offline AI Copilot (Ollama Integration):** Built-in AI chat sidebar powered by local Ollama models (`llama3`, `mistral`, `codellama`). Generate requests, debug errors, transform JSON payloads, and generate `pm.*` test assertions with zero data leaving your machine.
 - 🎨 **Environment Coloration & Guardrails:** Visual color badges (Red/Amber for Production, Yellow for Staging, Blue/Green for Dev) to prevent accidental execution against production endpoints.
 - 🌈 **10+ High-Contrast Desktop Themes:** Customizable UI styling including *Tokyo Night*, *Catppuccin Mocha*, *Dracula*, *Cyberpunk*, *Nord*, *One Dark*, *Solarized Dark*, and *GitHub Dark*.
 - 🔑 **OAuth 2.0 Authorization Code & PKCE:** Built-in OAuth 2.0 Authorization Code browser flow and PKCE token exchange.
-- 🏃 **Advanced Collection Runner:** Batch execute requests with iteration support, failure reporting, and detailed execution timelines.
+- 🏃 **Advanced Collection Runner & History Analytics:** Batch execute requests with iteration support, failure reporting, response time metrics, and detailed execution timelines.
 - 🔒 **OS Keychain Vault:** Native OS Keychain integration for sensitive credentials (macOS Keychain, Windows Credential Manager, Linux Secret Service API).
 
 ---
@@ -57,7 +63,7 @@ Select your domain below to navigate the technical specification:
 > Architectural blueprints, Tauri IPC dispatcher, SQLite migration schemas, secret keychain isolation, dynamic variable resolution, AI local copilot architecture, and WebAssembly execution engines.
 
 - ⚙️ **Core Tech:** Tauri 2.0 shell, Rust (Tokio, Reqwest, Rusqlite), React 18, CodeMirror 6.
-- 🔒 **Security Infrastructure:** OS Keychain API integration, Stronghold Argon2 encryption, and log redaction filters.
+- 🔒 **Security Infrastructure:** OS Keychain API integration, Stronghold Argon2 encryption, Collection Passcode Lock, and log redaction filters.
 - ⚡ **Performance:** Client-side `jq.wasm` WebAssembly engine for instant zero-latency response queries.
 
 ---
@@ -65,18 +71,20 @@ Select your domain below to navigate the technical specification:
 ### 🎯 [Product Vision & Requirements (PO Specification)](Product-Vision-and-Features)
 > Product manifesto, feature matrix, competitive benchmarks against legacy tools, and release lifecycle management.
 
-- 📦 **Workspaces:** Multi-tenant workspace isolation with independent environment scopes.
-- 🔄 **Query Synchronization:** Bi-directional real-time sync between URL query string and interactive table editor.
+- 🏢 **Workspaces & Collections Hub:** Multi-tenant workspace isolation, collections overview, and collection-level passcode security locks.
+- 🔌 **Protocols:** REST/HTTP, gRPC (Protobuf), WebSocket, and Socket.IO.
+- 🔄 **Query & Path Variable Synchronization:** Bi-directional real-time sync for query parameters and URL path parameters.
+- 📝 **Docs Editor:** Integrated API documentation generator and Markdown note-taking.
 - 📜 **Scripting Sandbox:** Pre-request and post-request test assertions using a Postman-compatible `pm.*` runtime.
 - 🤖 **AI Assistant:** Local-first LLM copilot for automated request building and script generation.
-- 📊 **Interoperability:** cURL parser, Postman Collection v2.1 import/export, and multi-language code generator.
+- 📊 **Universal Interoperability:** cURL parser, Postman Collection v2.1, OpenAPI/Swagger 2.0 & 3.0, Insomnia v4, and multi-language code generator.
 
 ---
 
 ### 🧪 [Quality Assurance & SDET Matrix](Testing-and-Quality-Assurance)
 > Multi-tier test pyramid, contract test suites, end-to-end automation specs, security audit controls, and CI/CD pipelines.
 
-- 🛡️ **Contract Tests:** 127 Node.js native contract tests verifying invariants across 20+ specialized domains.
+- 🛡️ **Contract Tests:** 37+ Node.js native contract tests verifying invariants across all core subsystems.
 - 🎭 **E2E Automation:** CodeceptJS and Playwright runner testing native UI rendering and IPC flows.
 - 🤖 **CI/CD Automation:** Automated nightly releases, secret leakage scanning (`Betterleak`), and update manifest publishing.
 
@@ -96,7 +104,7 @@ Select your domain below to navigate the technical specification:
 ---
 
 ### 🛡️ [Security & Privacy Blueprint](Security-and-Privacy)
-> Zero-telemetry model, secret redaction engine, local LLM privacy guarantee, and cryptographic Ed25519 update manifest verification.
+> Zero-telemetry model, secret redaction engine, collection passcode lock, local LLM privacy guarantee, and cryptographic Ed25519 update manifest verification.
 
 ---
 
@@ -105,11 +113,13 @@ Select your domain below to navigate the technical specification:
 | Subsystem | Specification | Operational Guarantee |
 | :--- | :--- | :--- |
 | **Desktop Shell** | Tauri 2.0 (Rust) | Native memory footprint (~45MB resting RAM) |
-| **Storage Engine** | Embedded SQLite (`001_initial.sql`) | ACID compliance & 100% local persistence |
+| **Storage Engine** | Embedded SQLite (`persistence.rs`) | ACID compliance & 100% local persistence |
 | **Secret Protection** | OS Keychain (`secrets.rs`) | Zero raw secrets stored in plain-text SQLite |
+| **Protocols Supported** | HTTP/1.1, HTTP/2, gRPC, WebSocket, Socket.IO | High-throughput, multi-protocol execution |
 | **AI Copilot** | Local Ollama (`http://localhost:11434`) | 100% offline LLM inference (Zero cloud leakage) |
+| **Documentation Engine**| Markdown & Live Docs Tab (`DocsEditor.tsx`) | Auto-generated API specs with zero cloud sync |
 | **Response Transformation**| `jq.wasm` (WebAssembly) | Client-side memory execution without network calls |
-| **Quality Gate** | 127 Contract Tests + Playwright E2E | Mandatory zero-failure pass rate prior to release |
+| **Quality Gate** | 37+ Contract Tests + Playwright E2E | Mandatory zero-failure pass rate prior to release |
 
 ---
 

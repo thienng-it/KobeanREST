@@ -15,7 +15,9 @@ The architecture explicitly isolates network request processing, local data stor
 │  ┌───────────────────────────┐  ┌───────────────────────────┐  ┌─────────────────────────────┐  │
 │  │   Request Builder (UI)    │  │   Response Panel (WASM)   │  │ Env / Auth / Color Badges   │  │
 │  │  - Bi-directional Params  │  │  - JQ Engine (jq.wasm)    │  │ - Scope Resolver            │  │
-│  │  - CodeMirror Editor      │  │  - CodeMirror Viewer      │  │ - OAuth 2.0 PKCE Listener   │  │
+│  │  - Path Variables Engine  │  │  - CodeMirror Viewer      │  │ - OAuth 2.0 PKCE Listener   │  │
+│  │  - Docs Tab (Markdown)    │  │  - Response Headers / Log │  │ - Passcode Collection Lock  │  │
+│  │  - gRPC / WebSocket Panes │  │  - Performance Telemetry  │  │ - Workspaces Hub Manager    │  │
 │  └─────────────┬─────────────┘  └─────────────┬─────────────┘  └──────────────┬──────────────┘  │
 │                │                              │                               │                 │
 │                └──────────────────────────────┼───────────────────────────────┘                 │
@@ -24,6 +26,7 @@ The architecture explicitly isolates network request processing, local data stor
 │                                               │                              │                  │
 │                                               ▼                              ▼                  │
 │                                      Tauri IPC (JSON-RPC)            Local Loopback HTTP        │
+│                                                                      (Ollama @ 11434)           │
 └───────────────────────────────────────────────┬──────────────────────────────┬──────────────────┘
                                                 │                              │
 ┌───────────────────────────────────────────────▼─────────────┐ ┌──────────────▼───────────────────┐
@@ -53,7 +56,7 @@ The architecture explicitly isolates network request processing, local data stor
 
 ### 2. Rust Native Backend (`src-tauri/src/`)
 - **HTTP Engine (`http_client.rs`):** Built on `tokio` and `reqwest`. Bypasses browser CORS limitations, supports HTTP/1.1 and HTTP/2, custom SSL/TLS certificates, redirect policy control, and custom headers.
-- **Persistence Engine (`persistence.rs`):** Manages SQLite connections via `rusqlite`. Handles transaction management, dynamic schema migrations, and relational cascading deletes.
+- **Persistence Engine (`persistence.rs`):** Manages SQLite connections via `rusqlite`. Handles transaction management, dynamic schema migrations, relational cascading deletes, and multi-workspace lifecycle state.
 - **Secret Vault (`secrets.rs`):** Interoperates with native operating system keychains (`keyring` crate):
   - macOS: Keychain Services API
   - Windows: Credential Manager API
@@ -62,23 +65,31 @@ The architecture explicitly isolates network request processing, local data stor
 
 ### 3. Frontend Web Renderer (`src/renderer/src/`)
 - **Application Shell (`App.tsx`):** Coordinates 30+ reactive states, tab switching, workspace navigation, modal management, and theme engines.
+- **Workspaces Manager (`components/WorkspacesManager.tsx`):** Provides a visual dashboard to create, switch, export, and inspect workspaces and their constituent metrics.
+- **Docs Editor (`components/DocsEditor.tsx`):** Integrated Markdown documentation authoring and preview engine for requests and collections.
 - **AI Copilot Service (`services/ai-service.ts` & `components/AiChatSidebar.tsx`):** Communicates with local Ollama daemon for offline AI prompt processing, payload generation, and test writing.
-- **CodeMirror Integration:** Embedded CodeMirror 6 components for interactive request body editing and JSON syntax highlighting.
+- **Path Variables Service (`services/path-variables.ts`):** Automatically detects `:param` and `{param}` syntax in request URLs and handles parameter substitution.
+- **Bulk Parameter Utilities (`services/bulk-param-utils.ts`):** Converts between key-value pairs and raw text blocks for rapid parameter authoring.
+- **CodeMirror Integration:** Embedded CodeMirror 6 components for interactive request body editing, script writing, and JSON syntax highlighting.
 - **WASM Query Engine (`jq.wasm`):** Client-side JQ filter execution compiled to WebAssembly. Enables real-time JSON filtering without network latency or external dependencies.
 - **Sandbox Scripting Engine (`services/script-runtime.ts`):** Isolated JavaScript sandbox providing `pm.*` API compatibility for pre-request dynamic payload manipulation and post-request test assertions.
 
 ---
 
-## 🔄 Dynamic Variable Resolution Pipeline
+## 🔄 Dynamic Variable & Parameter Resolution Pipeline
 
-Variables defined in template syntax (`{{VAR_NAME}}`) undergo hierarchical cascading resolution:
+Variables defined in template syntax (`{{VAR_NAME}}`) and URL path variables undergo hierarchical cascading resolution:
 
 > [!NOTE]
 > **Resolution Priority Cascade (Highest to Lowest):**  
-> `Request Level` $\rightarrow$ `Folder Level` $\rightarrow$ `Collection Level` $\rightarrow$ `Active Environment` $\rightarrow$ `Global Scope`
+> `Path Variables` $\rightarrow$ `Request-Level Vars` $\rightarrow$ `Folder-Level Vars` $\rightarrow$ `Collection-Level Vars` $\rightarrow$ `Active Environment` $\rightarrow$ `Global Scope`
 
 ```
 ┌──────────────────────────────────────────────────────────┐
+│                   Path Variables (:param)                │  (Target URL Specific)
+└────────────────────────────┬─────────────────────────────┘
+                             │
+┌────────────────────────────▼─────────────────────────────┐
 │                   Request-Level Vars                     │  (Highest Priority)
 └────────────────────────────┬─────────────────────────────┘
                              │ Overrides
@@ -107,7 +118,7 @@ Variables defined in template syntax (`{{VAR_NAME}}`) undergo hierarchical casca
 
 ---
 
-## 💾 SQLite Database Schema (`001_initial.sql`)
+## 💾 SQLite Database Schema (`persistence.rs`)
 
 ```sql
 -- Workspaces Table
@@ -127,12 +138,13 @@ CREATE TABLE IF NOT EXISTS environments (
     FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 );
 
--- Collections Table
+-- Collections Table (supports collection lock configuration)
 CREATE TABLE IF NOT EXISTS collections (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
     name TEXT NOT NULL,
     sort_order INTEGER DEFAULT 0,
+    lock_config TEXT,
     FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 );
 
@@ -149,16 +161,22 @@ CREATE TABLE IF NOT EXISTS folders (
 -- Requests Table
 CREATE TABLE IF NOT EXISTS requests (
     id TEXT PRIMARY KEY,
-    collection_id TEXT NOT NULL,
     folder_id TEXT,
+    collection_id TEXT,
     name TEXT NOT NULL,
     method TEXT NOT NULL,
     url TEXT NOT NULL,
     headers TEXT NOT NULL,
+    params TEXT NOT NULL,
+    path_variables TEXT,
     body TEXT,
-    auth_mode TEXT,
-    auth_config TEXT,
+    body_type TEXT,
+    auth TEXT,
+    pre_script TEXT,
+    post_script TEXT,
+    docs TEXT,
     sort_order INTEGER DEFAULT 0,
+    FOREIGN KEY(folder_id) REFERENCES folders(id) ON DELETE CASCADE,
     FOREIGN KEY(collection_id) REFERENCES collections(id) ON DELETE CASCADE
 );
 
@@ -166,16 +184,17 @@ CREATE TABLE IF NOT EXISTS requests (
 CREATE TABLE IF NOT EXISTS request_history (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
-    request_name TEXT NOT NULL,
-    method TEXT NOT NULL,
+    request_id TEXT,
     url TEXT NOT NULL,
-    status INTEGER NOT NULL,
-    duration_ms INTEGER NOT NULL,
+    method TEXT NOT NULL,
+    status_code INTEGER NOT NULL,
+    response_time INTEGER NOT NULL,
     response_size INTEGER NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 );
 ```
 
 ---
 
-> 💡 **Next Steps:** Review [API & IPC Reference](API-and-IPC-Reference) for IPC function signatures, or explore [Testing & QA Matrix](Testing-and-Quality-Assurance) for quality verification gates.
+> 💡 **Next Steps:** Refer to [API & IPC Reference](API-and-IPC-Reference) for function bindings, or [Testing & QA Matrix](Testing-and-Quality-Assurance) for validation suites.
