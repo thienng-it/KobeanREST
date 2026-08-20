@@ -37,6 +37,7 @@ import { VariableInput } from './VariableInput';
 import { parseProtoSchema, generateSampleMessageJson, SAMPLE_PROTO_DEFINITIONS } from '../services/proto-parser';
 import { executeGrpcCall, GRPC_STATUS_MAP } from '../services/grpc-client';
 import { formatBytes } from '../response-utils';
+import { useI18n } from '../services/i18n';
 
 interface GrpcPanelProps {
   draftRequest: SavedRequest;
@@ -51,6 +52,7 @@ export function GrpcPanel({
   onUpdateDraft,
   onSaveRequest,
 }: GrpcPanelProps) {
+  const { t } = useI18n();
   // Connection / RPC State
   const [useTls, setUseTls] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -296,11 +298,11 @@ export function GrpcPanel({
         >
           {isLoading ? (
             <>
-              <Square size={15} fill="#fff" /> Cancel
+              <Square size={15} fill="#fff" /> {t('grpc.cancel')}
             </>
           ) : (
             <>
-              <Play size={15} fill="#fff" /> Invoke RPC
+              <Play size={15} fill="#fff" /> {t('grpc.invokeRpc')}
             </>
           )}
         </button>
@@ -416,7 +418,7 @@ export function GrpcPanel({
               className={activeTab === 'message' ? 'tab active' : 'tab'}
               onClick={() => setActiveTab('message')}
             >
-              <MessageSquare size={13} style={{ marginRight: '6px' }} /> Message
+              <MessageSquare size={13} style={{ marginRight: '6px' }} /> {t('grpc.tabMessage')}
             </button>
             <button
               type="button"
@@ -424,7 +426,7 @@ export function GrpcPanel({
               className={activeTab === 'metadata' ? 'tab active' : 'tab'}
               onClick={() => setActiveTab('metadata')}
             >
-              <KeyRound size={13} style={{ marginRight: '6px' }} /> Metadata ({metadata.filter(m => m.enabled).length})
+              <KeyRound size={13} style={{ marginRight: '6px' }} /> {t('grpc.tabMetadata')} ({metadata.filter(m => m.enabled).length})
             </button>
             <button
               type="button"
@@ -432,7 +434,7 @@ export function GrpcPanel({
               className={activeTab === 'proto' ? 'tab active' : 'tab'}
               onClick={() => setActiveTab('proto')}
             >
-              <FileCode2 size={13} style={{ marginRight: '6px' }} /> Proto Schema
+              <FileCode2 size={13} style={{ marginRight: '6px' }} /> {t('grpc.tabProto')}
             </button>
           </div>
 

@@ -131,7 +131,7 @@ test("App.tsx implements environment editor state management", () => {
 
   // Environment selector in the UI
   assert.match(app, /aria-label="Active environment"/);
-  assert.match(app, /aria-label="Manage environments"/);
+  assert.match(app, /manageEnvironments/);
   assert.match(app, /aria-label="Environment editor"/);
 });
 

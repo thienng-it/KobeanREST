@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import { Trash2, Plus, Eye, EyeOff, Edit3, X, Check, AlignLeft, CheckCircle2 } from "lucide-react";
 import { EnvironmentVariable } from "../types";
 import { isSensitiveKey } from "../services/variables";
+import { useI18n } from '../services/i18n';
 
 export interface EnvironmentEditorProps {
   environmentName: string;
@@ -50,6 +51,7 @@ export function EnvironmentEditor({
   collections = [],
   onUpdateCollectionDefaultEnvironment,
 }: EnvironmentEditorProps) {
+  const { t } = useI18n();
   const toEditable = (vars: EnvironmentVariable[]): EditableVariable[] =>
     vars.map((v) => ({ ...v, _id: Math.random().toString(36).slice(2) }));
 
@@ -218,7 +220,7 @@ export function EnvironmentEditor({
                   margin: 0,
                 }}
               >
-                Environment: {environmentName}
+                {t('env.environment')}: {environmentName}
               </h2>
               {onRenameEnvironment && (
                 <button
@@ -231,7 +233,7 @@ export function EnvironmentEditor({
                     cursor: "pointer",
                     color: "var(--color-muted)",
                   }}
-                  title="Rename environment"
+                  title={t('env.renameEnvironment')}
                 >
                   <Edit3 size={14} />
                 </button>
@@ -261,7 +263,7 @@ export function EnvironmentEditor({
               }}
             >
               {isActiveEnvironment ? <CheckCircle2 size={14} /> : null}
-              {isActiveEnvironment ? "Active" : "Set Active"}
+              {isActiveEnvironment ? t('workspaces.active') : t('env.setActive')}
             </button>
           )}
 
@@ -284,10 +286,10 @@ export function EnvironmentEditor({
                 fontSize: "12px",
               }}
             >
-              <option value="" disabled>Set default for...</option>
+              <option value="" disabled>{t('env.setDefaultFor')}</option>
               {collections.map(c => (
                 <option key={c.id} value={c.id} disabled={c.defaultEnvironment === environmentName}>
-                  {c.name} {c.defaultEnvironment === environmentName ? "(Active)" : ""}
+                  {c.name} {c.defaultEnvironment === environmentName ? `(${t('workspaces.active')})` : ""}
                 </option>
               ))}
             </select>
@@ -327,7 +329,7 @@ export function EnvironmentEditor({
             }}
           >
             {isBulkEditing ? <Check size={14} /> : <AlignLeft size={14} />}
-            {isBulkEditing ? "Save Bulk" : "Bulk Edit"}
+            {isBulkEditing ? t('env.saveBulk') : t('env.bulkEdit')}
           </button>
 
           {isBulkEditing && (
@@ -347,7 +349,7 @@ export function EnvironmentEditor({
                 gap: "6px",
               }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           )}
 
@@ -369,7 +371,7 @@ export function EnvironmentEditor({
               }}
             >
               <Trash2 size={14} />
-              Delete
+              {t('common.delete')}
             </button>
           )}
         </div>
@@ -387,7 +389,7 @@ export function EnvironmentEditor({
           <textarea
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
-            placeholder={"KEY=value\nANOTHER_KEY=123\n# Comments are supported"}
+            placeholder={t('env.bulkPlaceholder')}
             style={{
               flex: 1,
               width: "100%",
@@ -421,7 +423,7 @@ export function EnvironmentEditor({
                   borderBottom: "1px solid var(--color-border)",
                   width: "32px",
                 }}
-                title="Variable color"
+                title={t('env.variableColor')}
               >
                 COLOR
               </th>
@@ -459,7 +461,7 @@ export function EnvironmentEditor({
                 SECRET
               </th>
               <th
-                title="When enabled, the value is exported as empty string"
+                title={t('env.maskedTooltip')}
                 style={{
                   textAlign: "center",
                   padding: "8px 12px",
@@ -485,7 +487,7 @@ export function EnvironmentEditor({
             {editingVars.map((v) => (
               <tr key={v._id} style={{ borderLeft: v.color ? `3px solid ${v.color}` : undefined }}>
                 <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--color-border)", textAlign: "center" }}>
-                  <div className="env-color-swatch-wrapper" title="Click to change variable color">
+                  <div className="env-color-swatch-wrapper" title={t('env.changeColor')}>
                     <div
                       className="env-color-swatch"
                       style={{ background: v.color || "transparent", border: v.color ? `2px solid ${v.color}` : "2px dashed var(--color-border)" }}
@@ -495,7 +497,7 @@ export function EnvironmentEditor({
                       className="env-color-picker-input"
                       value={v.color || "#6366f1"}
                       onChange={(e) => updateVariable(v._id, "color", e.target.value)}
-                      title="Pick variable color"
+                      title={t('env.pickColor')}
                     />
                   </div>
                 </td>
@@ -511,7 +513,7 @@ export function EnvironmentEditor({
                           updateVariable(v._id, "masked", true);
                         }
                       }}
-                      placeholder="Variable name"
+                      placeholder={t('env.variableName')}
                       style={{
                         width: "100%",
                         background: "transparent",
@@ -528,7 +530,7 @@ export function EnvironmentEditor({
                       className="headers-row-input-field"
                       value={v.value}
                       onChange={(e) => updateVariable(v._id, "value", e.target.value)}
-                      placeholder="Value"
+                      placeholder={t('common.value')}
                       style={{
                         width: "100%",
                         background: "transparent",
@@ -561,7 +563,7 @@ export function EnvironmentEditor({
                         ? "var(--color-accent)"
                         : "var(--color-muted)",
                     }}
-                    title={v.secret ? "Toggle visibility" : "Mark as secret first"}
+                    title={v.secret ? t('env.toggleVisibility') : t('env.markSecretFirst')}
                   >
                     {v.secret ? (
                       visibleSecrets.has(v._id) ? (
@@ -596,7 +598,7 @@ export function EnvironmentEditor({
                       alignItems: "center",
                       justifyContent: "center",
                     }}
-                    title={v.secret ? "Unmark as secret" : "Mark as secret"}
+                    title={v.secret ? t('env.unmarkSecret') : t('env.markSecret')}
                   >
                     {v.secret && (
                       <Check size={10} style={{ color: "white" }} />
@@ -622,7 +624,7 @@ export function EnvironmentEditor({
                         ? "var(--color-accent)"
                         : "var(--color-muted)",
                     }}
-                    title={v.masked ? "Unmask: value will be included in exports" : "Mask: value will export as empty string"}
+                    title={v.masked ? t('env.unmaskTooltip') : t('env.maskTooltip')}
                   >
                     <EyeOff size={14} style={{ opacity: v.masked ? 1 : 0.3 }} />
                   </button>
@@ -643,7 +645,7 @@ export function EnvironmentEditor({
                       alignItems: "center",
                       justifyContent: "center",
                     }}
-                    title={v.masked ? "Unmask variable" : "Mask variable on export"}
+                    title={v.masked ? t('env.unmaskVar') : t('env.maskVar')}
                   >
                     {v.masked && (
                       <Check size={10} style={{ color: "white" }} />
@@ -667,7 +669,7 @@ export function EnvironmentEditor({
                       cursor: "pointer",
                       color: "var(--color-muted)",
                     }}
-                    title="Delete variable"
+                    title={t('env.deleteVariable')}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -698,7 +700,7 @@ export function EnvironmentEditor({
           }}
         >
           <Plus size={14} />
-          Add Variable
+          {t('env.addVariable')}
         </button>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { RefreshCw, X } from "lucide-react";
 import type { AppSettings, UpdateStatus } from "../types";
 import { CustomSelect } from "./CustomSelect";
+import { useI18n, SUPPORTED_LANGUAGES } from "../services/i18n";
 
 export interface SettingsModalProps {
   open: boolean;
@@ -23,6 +24,8 @@ export function SettingsModal({
   onCheckForUpdates,
   onSave,
 }: SettingsModalProps) {
+  const { t, setLanguage } = useI18n();
+
   if (!open) return null;
 
   return (
@@ -86,6 +89,18 @@ export function SettingsModal({
                   { value: "matrix", label: "Neon: Matrix" },
                   { value: "cyberpunk", label: "Neon: Cyberpunk" }
                 ]}
+              />
+            </label>
+            <label className="settings-field" style={{ alignItems: "center" }}>
+              <span>{t('settings.language')}</span>
+              <CustomSelect
+                value={appSettings.language || "system"}
+                onChange={(val) => {
+                  const newLang = val as AppSettings["language"];
+                  onSettingsChange({ language: newLang });
+                  if (newLang && newLang !== "system") setLanguage(newLang);
+                }}
+                options={SUPPORTED_LANGUAGES.map(l => ({ value: l.code, label: l.name }))}
               />
             </label>
             <div className="settings-field">

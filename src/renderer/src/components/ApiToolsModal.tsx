@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useI18n } from "../services/i18n";
 import {
   X,
   ShieldCheck,
@@ -55,6 +56,7 @@ function b64DecodeUnicode(str: string) {
 }
 
 function JwtDecoder() {
+  const { t } = useI18n();
   const [token, setToken] = useState("");
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
@@ -62,7 +64,7 @@ function JwtDecoder() {
     if (!token.trim()) return null;
     try {
       const parts = token.trim().split(".");
-      if (parts.length !== 3) return { error: "Invalid JWT format (must contain 3 base64 segments separated by dots)." };
+      if (parts.length !== 3) return { error: "{t('tools.jwtInvalidFormat')} (must contain 3 base64 segments separated by dots)." };
       
       const headerStr = b64DecodeUnicode(parts[0]);
       const payloadStr = b64DecodeUnicode(parts[1]);
@@ -133,7 +135,7 @@ function JwtDecoder() {
         <textarea
           className="api-tools-textarea"
           style={{ flex: 1, wordBreak: "break-all" }}
-          placeholder="Paste your Bearer token / JWT here (e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...)"
+          placeholder="{t('tools.jwtPastePlaceholder')} (e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...)"
           value={token}
           onChange={e => setToken(e.target.value)}
           autoFocus
@@ -224,6 +226,7 @@ function JwtDecoder() {
 }
 
 function EncoderDecoder() {
+  const { t } = useI18n();
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<"base64" | "url" | "hex">("base64");
   const [action, setAction] = useState<"encode" | "decode">("encode");
@@ -358,6 +361,7 @@ function EncoderDecoder() {
 }
 
 function JsonFormatter() {
+  const { t } = useI18n();
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -473,6 +477,7 @@ function JsonFormatter() {
 }
 
 function HashGenerator() {
+  const { t } = useI18n();
   const [input, setInput] = useState("");
   const [hashes, setHashes] = useState<Record<string, string>>({});
   const [copiedAlgo, setCopiedAlgo] = useState<string | null>(null);

@@ -27,6 +27,8 @@ pub struct AppSettings {
     pub response_auto_wrap: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub response_auto_collapse: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1226,6 +1228,7 @@ fn default_app_settings() -> AppSettings {
         offline_behavior: "silent".to_string(),
         response_auto_wrap: Some(true),
         response_auto_collapse: Some(false),
+        language: Some("system".to_string()),
     }
 }
 

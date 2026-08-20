@@ -145,19 +145,19 @@ test("App.tsx keeps request renaming in the sidebar instead of the main editor h
   assert.match(app, /async function applySidebarRename\(\)/);
   assert.match(app, /await updateFolder\(target\.id, nextName\)/);
   assert.match(app, /await updateCollection\(target\.id, nextName\)/);
-  assert.match(app, /aria-label=\{`Rename collection \$\{collection\.name\}`\}/);
-  assert.match(app, /aria-label=\{`Delete collection \$\{collection\.name\}`\}/);
-  assert.match(app, /aria-label=\{`Rename folder \$\{folder\.name\}`\}/);
-  assert.match(app, /aria-label=\{`Delete folder \$\{folder\.name\}`\}/);
+  assert.match(app, /sidebar.renameCollection/);
+  assert.match(app, /sidebar.deleteCollection/);
+  assert.match(app, /sidebar.renameFolder/);
+  assert.match(app, /sidebar.deleteFolder/);
   assert.match(app, /className="folder-title sidebar-tree-row collection-title"/);
   assert.match(app, /className=\{?(`|")folder-title sidebar-tree-row/);
   assert.match(app, /request-row sidebar-tree-row/);
   assert.match(app, /className="sidebar-row-actions"/);
   assert.match(app, /className="sidebar-icon-button danger"/);
   assert.match(app, /onDoubleClick=\{\(\) => (startRequestRename|onStartRequestRename)\(request\)\}/);
-  assert.match(app, /aria-label=\{`Rename \$\{request\.name\}`\}/);
+  assert.match(app, /aria-label.*\$\{request\.name\}/);
   assert.match(app, /value=\{renameDraft\}/);
-  assert.match(app, /placeholder="Request Name"/);
+  assert.match(app, /sidebar.requestNamePlaceholder/);
   assert.match(app, /flex: 1, minWidth: 0/);
   assert.match(app, /boxSizing: ('|")border-box('|")/);
 
@@ -449,9 +449,9 @@ test("scripts tab supports typed helpers, prettify, snippets, and generated requ
   assert.match(app, /const requestCodeSnippet = draftRequest \?/);
   assert.match(app, /className="script-tool-row"/);
   assert.match(app, /(aria-label|ariaLabel)="Script editor type"/);
-  assert.match(app, /aria-label="Prettify current script"/);
+  assert.match(app, /prettifyCurrentScript/);
   assert.match(app, /(aria-label|ariaLabel)="Script snippet"/);
-  assert.match(app, /aria-label="Insert selected script snippet"/);
+  assert.match(app, /insertSelectedScriptSnippet/);
   assert.match(app, /(ghost-button script-tool-action|script-code-panel)/);
   assert.match(app, /(modal script-code-modal|script-code-panel)/);
   assert.match(app, /className="script-code-modal-preview"/);
@@ -527,7 +527,7 @@ test("request tabs keep visible hover and active contrast", () => {
   const app = readApp();
   const styles = read("src/renderer/src/styles.css");
 
-  assert.match(app, /<div className="tab-row" role="tablist" aria-label="Request configuration">/);
+  assert.match(app, /className="tab-row" role="tablist"/);
   assert.match(app, /className=\{activeTab === tab \? "tab active" : "tab"\}/);
   assert.match(styles, /\.tab\s*\{[\s\S]*border:\s*1px solid transparent;/);
   assert.match(styles, /\.tab:hover\s*\{[\s\S]*background:\s*var\(--color-surface-hover\);/);

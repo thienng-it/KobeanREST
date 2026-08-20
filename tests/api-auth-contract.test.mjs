@@ -99,7 +99,7 @@ test("auth tab UI shows config fields for the active mode", () => {
   const app = read("src/renderer/src/App.tsx");
   const styles = read("src/renderer/src/styles.css");
 
-  assert.match(app, /aria-label="API request authentication"/);
+  assert.match(app, /request.apiRequestAuth/);
   assert.match(app, /className="request-tab-panel auth-panel"/);
   assert.match(app, /className="auth-method-card"/);
   assert.match(app, /className="auth-effective-card"/);
@@ -110,9 +110,9 @@ test("auth tab UI shows config fields for the active mode", () => {
   assert.doesNotMatch(app, /className="auth-panel-header"/);
   assert.doesNotMatch(app, /className="auth-empty-card"/);
   assert.doesNotMatch(app, /className="auth-pill"/);
-  assert.match(app, /aria-label="Basic auth credentials"/);
-  assert.match(app, /aria-label="Bearer token credential"/);
-  assert.match(app, /aria-label="API key credentials"/);
+  assert.match(app, /auth.basicAria|request.basicAuthCredentials/);
+  assert.match(app, /auth.bearerAria|request.bearerTokenCredential/);
+  assert.match(app, /auth.apiKeyAria|request.apiKeyCredentials/);
   assert.match(app, /updateAuthConfig/);
   assert.match(app, /authConfig\?\.username/);
   assert.match(app, /authConfig\?\.token/);

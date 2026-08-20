@@ -34,6 +34,7 @@ import { CollectionEditor } from "./components/CollectionEditor";
 import { CollectionsManager } from "./components/CollectionsManager";
 import { WorkspacesManager } from "./components/WorkspacesManager";
 import { UniversalImportModal } from "./components/UniversalImportModal";
+import { I18nProvider } from "./services/i18n";
 import { ApiToolsModal } from "./components/ApiToolsModal";
 import { resolveAuthConfig, getEffectiveAuth } from "./services/auth";
 import { prepareRequestForExecution } from "./services/request-executor";
@@ -64,7 +65,7 @@ import {
   saveRequest,
   loadLocalWorkspace,
 } from "./services/local-store";
-import type {SavedRequest, Tab, WorkspaceSummary} from "./types";
+import type {SavedRequest, Tab, WorkspaceSummary, AppSettings} from "./types";
 import type { ScriptOutputEntry } from "./hooks/useScripts";
 
 const SIDEBAR_MIN_WIDTH = 260;
@@ -1705,6 +1706,10 @@ export function App() {
   const unsavedEntityIds = useMemo(() => new Set(Object.keys(unsavedRequests)), [unsavedRequests]);
 
   return (
+    <I18nProvider
+      language={appSettings.language}
+      onLanguageChange={(lang: string) => updateAppSettings({ language: lang as AppSettings["language"] })}
+    >
     <main
       className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${isSidebarResizing ? "sidebar-resizing" : ""}`}
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
@@ -2651,5 +2656,6 @@ export function App() {
         />
       )}
     </main>
+    </I18nProvider>
   );
 }

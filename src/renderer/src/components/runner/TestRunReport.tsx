@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { SavedRequest, ExecuteHttpResponse } from "../../types";
 import { formatBytes } from "../../response-utils";
+import { useI18n } from "../../services/i18n";
 
 export interface RequestResultItem {
   request: {
@@ -64,6 +65,7 @@ export function TestRunReport({
   createdAt = Date.now(),
   onViewDetailedLogs,
 }: TestRunReportProps) {
+  const { t } = useI18n();
   const [selectedFilter, setSelectedFilter] = useState<"all" | "passed" | "failed" | "with-tests">("all");
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
 
@@ -348,7 +350,7 @@ export function TestRunReport({
         <div class="metric-sub">${metrics.testPassRate}% Pass Rate (${metrics.totalFailedTests} failed)</div>
       </div>
       <div class="metric-card">
-        <div class="metric-title">Requests Executed</div>
+        <div class="metric-title">{t('runner.requestsExecuted')}</div>
         <div class="metric-val">${metrics.passedRequests} / ${metrics.totalRequests}</div>
         <div class="metric-sub">2xx: ${metrics.status2xx} | 4xx: ${metrics.status4xx} | 5xx: ${metrics.status5xx}</div>
       </div>
@@ -527,7 +529,7 @@ export function TestRunReport({
             type="button"
             className="ghost-button"
             onClick={handleCopyMarkdown}
-            title="Copy formatted Markdown report to clipboard"
+            title={t('runner.copyMarkdownTooltip')}
             style={{
               display: "flex",
               alignItems: "center",
@@ -542,14 +544,14 @@ export function TestRunReport({
             }}
           >
             <Copy size={13} />
-            <span>Copy Markdown</span>
+            <span>{t('runner.copyMarkdown')}</span>
           </button>
 
           <button
             type="button"
             className="ghost-button"
             onClick={handleExportHtml}
-            title="Download full interactive HTML report"
+            title={t('runner.exportHtmlTooltip')}
             style={{
               display: "flex",
               alignItems: "center",
@@ -564,14 +566,14 @@ export function TestRunReport({
             }}
           >
             <Download size={13} />
-            <span>Export HTML</span>
+            <span>{t('runner.exportHtml')}</span>
           </button>
 
           <button
             type="button"
             className="ghost-button"
             onClick={handleExportJson}
-            title="Download JSON test results"
+            title={t('runner.exportJsonTooltip')}
             style={{
               display: "flex",
               alignItems: "center",
@@ -586,7 +588,7 @@ export function TestRunReport({
             }}
           >
             <FileText size={13} />
-            <span>JSON</span>
+            <span>{t('runner.exportJson')}</span>
           </button>
         </div>
       </div>
@@ -690,7 +692,7 @@ export function TestRunReport({
             {formatBytes(metrics.totalBytes)}
           </div>
           <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "4px" }}>
-            Across {metrics.totalRequests} response payloads
+            {t('runner.across')} {metrics.totalRequests} {t('runner.responsePayloads')}
           </div>
         </div>
       </div>

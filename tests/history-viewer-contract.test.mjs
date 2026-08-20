@@ -84,7 +84,7 @@ test("App.tsx implements history viewer state and handlers", () => {
   assert.match(app, /aria-label="Request history"/);
   assert.match(app, /aria-label="Search history"/);
   assert.match(app, /aria-label="Replay request"/);
-  assert.match(app, /aria-label="Open request history"/);
+  assert.match(app, /topbar.historyAria/);
 });
 
 test("history clear deletes rows and replay selects the saved request", () => {

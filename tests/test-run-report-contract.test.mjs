@@ -21,7 +21,7 @@ test("TestRunReport component exists and exposes comprehensive KPI metrics and e
   assert.match(reportCode, /handleExportHtml/);
   assert.match(reportCode, /handleExportJson/);
   assert.match(reportCode, /Copy Markdown/);
-  assert.match(reportCode, /Export HTML/);
+  assert.match(reportCode, /runner\.exportHtml/);
   assert.match(reportCode, /Response Time Distribution/);
 });
 

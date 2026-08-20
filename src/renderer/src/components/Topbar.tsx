@@ -1,4 +1,5 @@
 import { Download, History, RefreshCw, Settings } from "lucide-react";
+import { useI18n } from '../services/i18n';
 
 export interface TopbarProps {
   onOpenDocs: () => void;
@@ -13,21 +14,22 @@ export function Topbar({
   onCheckForUpdates,
   onOpenSettings,
 }: TopbarProps) {
+  const { t } = useI18n();
   return (
     <header className="topbar">
       <div className="topbar-actions">
         <button className="ghost-button" type="button" onClick={onOpenDocs}>
           <Download size={16} />
-          Docs
+          {t('nav.docs')}
         </button>
         <button
           className="ghost-button"
           type="button"
-          aria-label="Open request history"
+          aria-label={t('topbar.historyAria')}
           onClick={onOpenHistory}
         >
           <History size={16} />
-          History
+          {t('nav.history')}
         </button>
         <button
           className="ghost-button"
@@ -35,11 +37,11 @@ export function Topbar({
           onClick={onCheckForUpdates}
         >
           <RefreshCw size={16} />
-          Check updates
+          {t('topbar.checkUpdates')}
         </button>
         <button
           className="icon-button"
-          aria-label="Settings"
+          aria-label={t('nav.settings')}
           type="button"
           onClick={onOpenSettings}
         >

@@ -193,6 +193,7 @@ export interface AppSettings {
   autoSaveEnabled?: boolean;
   responseAutoWrap?: boolean;
   responseAutoCollapse?: boolean;
+  language?: "system" | "en" | "vi" | "ja" | "zh-CN" | "es" | "fr" | "de" | "ko";
 }
 
 export interface UpdateStatus {

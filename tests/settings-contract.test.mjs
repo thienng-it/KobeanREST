@@ -99,7 +99,7 @@ test("App.tsx implements settings state, persistence, and theme application", ()
   assert.match(app, /document\.documentElement\.dataset\.theme/);
   assert.match(app, /document\.documentElement\.style\.colorScheme/);
 
-  assert.match(app, /aria-label="Settings"/);
+  assert.match(app, /nav.settings/);
   assert.match(app, /aria-label="App settings"/);
   assert.match(app, /Update checks after launch/);
   assert.match(app, /Theme/);

@@ -35,6 +35,7 @@ import type {
 } from "../types";
 import { methodClass } from "./MethodSelector";
 import { getCollectionLockConfig } from "../services/collection-security";
+import { useI18n } from '../services/i18n';
 
 export interface CollectionsManagerProps {
   workspace: WorkspaceSummary | null;
@@ -73,6 +74,7 @@ export function CollectionsManager({
   onOpenUniversalImport,
   onExportWorkspace,
 }: CollectionsManagerProps) {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filterType, setFilterType] = useState<"all" | "locked" | "unlocked" | "has_env">("all");
@@ -216,10 +218,10 @@ export function CollectionsManager({
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: "20px", fontWeight: 700, letterSpacing: "-0.02em" }}>
-                Collections Hub
+                {t('collection.hubTitle')}
               </h1>
               <p style={{ margin: 0, fontSize: "13px", color: "var(--color-text-muted)" }}>
-                Organize, run, protect, and inspect your API suites in {workspace?.name || "current workspace"}.
+                {t('collection.hubDesc1')} {workspace?.name || t('collection.currentWorkspace')}.
               </p>
             </div>
           </div>
@@ -232,7 +234,7 @@ export function CollectionsManager({
               type="button"
               className="ghost-button"
               onClick={onOpenUniversalImport}
-              title="Import Postman collection or OpenAPI"
+              title={t('collection.importTooltip')}
             >
               <Upload size={14} /> Import
             </button>
@@ -242,7 +244,7 @@ export function CollectionsManager({
               type="button"
               className="ghost-button"
               onClick={onExportWorkspace}
-              title="Export all workspace collections"
+              title={t('collection.exportAllTooltip')}
             >
               <Download size={14} /> Export All
             </button>
@@ -278,7 +280,7 @@ export function CollectionsManager({
           }}
         >
           <div style={{ fontSize: "11px", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>
-            Total Collections
+            {t('collection.totalCollections')}
           </div>
           <div style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)" }}>
             {totalCollections}
@@ -297,7 +299,7 @@ export function CollectionsManager({
           }}
         >
           <div style={{ fontSize: "11px", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>
-            Total Requests
+            {t('collection.totalRequests')}
           </div>
           <div style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)" }}>
             {totalRequests}
@@ -316,7 +318,7 @@ export function CollectionsManager({
           }}
         >
           <div style={{ fontSize: "11px", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>
-            Folders & Groups
+            {t('collection.foldersAndGroups')}
           </div>
           <div style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)" }}>
             {totalFolders}
@@ -335,7 +337,7 @@ export function CollectionsManager({
           }}
         >
           <div style={{ fontSize: "11px", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>
-            Protected Collections
+            {t('collection.protectedCollections')}
           </div>
           <div
             style={{
@@ -348,7 +350,7 @@ export function CollectionsManager({
             }}
           >
             {lockedCount > 0 ? <ShieldAlert size={18} /> : <Shield size={18} />}
-            {lockedCount} Locked
+            {lockedCount} {t('collection.locked')}
           </div>
         </div>
       </div>
@@ -385,7 +387,7 @@ export function CollectionsManager({
           />
           <input
             type="text"
-            placeholder="Search collections or requests…"
+            placeholder={t('collection.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -417,7 +419,7 @@ export function CollectionsManager({
               color: filterType === "all" ? "var(--color-text-active)" : "var(--color-text-muted)",
             }}
           >
-            All ({collections.length})
+            {t('common.all')} ({collections.length})
           </button>
           <button
             type="button"
@@ -455,7 +457,7 @@ export function CollectionsManager({
               gap: "4px",
             }}
           >
-            <Unlock size={12} /> Unlocked
+            <Unlock size={12} /> {t('collection.unlocked')}
           </button>
           <button
             type="button"
@@ -474,7 +476,7 @@ export function CollectionsManager({
               gap: "4px",
             }}
           >
-            <Globe size={12} /> Default Env
+            <Globe size={12} /> {t('collection.defaultEnv')}
           </button>
         </div>
 
@@ -494,10 +496,10 @@ export function CollectionsManager({
               cursor: "pointer",
             }}
           >
-            <option value="name_asc">Sort: Name (A-Z)</option>
-            <option value="name_desc">Sort: Name (Z-A)</option>
-            <option value="requests_desc">Sort: Most Requests</option>
-            <option value="folders_desc">Sort: Most Folders</option>
+            <option value="name_asc">{t('collection.sortNameAsc')}</option>
+            <option value="name_desc">{t('collection.sortNameDesc')}</option>
+            <option value="requests_desc">{t('collection.sortMostRequests')}</option>
+            <option value="folders_desc">{t('collection.sortMostFolders')}</option>
           </select>
 
           <div
@@ -520,7 +522,7 @@ export function CollectionsManager({
                 display: "flex",
                 alignItems: "center",
               }}
-              title="Grid View"
+              title={t('collection.gridView')}
             >
               <LayoutGrid size={14} />
             </button>
@@ -536,7 +538,7 @@ export function CollectionsManager({
                 display: "flex",
                 alignItems: "center",
               }}
-              title="List View"
+              title={t('collection.listView')}
             >
               <List size={14} />
             </button>
@@ -562,12 +564,12 @@ export function CollectionsManager({
         >
           <Package size={36} style={{ color: "var(--color-text-muted)", marginBottom: "12px", opacity: 0.6 }} />
           <h3 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: 600 }}>
-            {searchQuery ? "No collections match your filter" : "No Collections Yet"}
+            {searchQuery ? t('collection.noMatch') : t('collection.noCollections')}
           </h3>
           <p style={{ margin: "0 0 16px", fontSize: "13px", color: "var(--color-text-muted)", maxWidth: "380px" }}>
             {searchQuery
-              ? `No collections or requests matched "${searchQuery}". Try clearing search.`
-              : "Create a collection to organize requests, configure shared auth, and run end-to-end test batches."}
+              ? t('collection.noMatchDesc', { query: searchQuery })
+              : t('collection.createDesc')}
           </p>
           <div style={{ display: "flex", gap: "8px" }}>
             {searchQuery ? (
@@ -579,7 +581,7 @@ export function CollectionsManager({
                   setFilterType("all");
                 }}
               >
-                Clear Search
+                {t('collection.clearSearch')}
               </button>
             ) : (
               <>
@@ -668,7 +670,7 @@ export function CollectionsManager({
                               cursor: "pointer",
                             }}
                             onClick={() => onOpenCollection(col.id)}
-                            title="Click to open Collection Editor"
+                            title={t('collection.openEditor')}
                           >
                             {col.name}
                           </h3>
@@ -680,7 +682,7 @@ export function CollectionsManager({
                                 display: "inline-flex",
                                 alignItems: "center",
                               }}
-                              title={stats.isLocked ? "Collection is locked (click to unlock)" : "Collection is unlocked for this session"}
+                              title={stats.isLocked ? t('collection.lockedTooltip') : t('collection.unlockedTooltip')}
                             >
                               {stats.isLocked ? (
                                 <Lock size={13} style={{ color: "var(--color-status-error)" }} />
@@ -693,7 +695,7 @@ export function CollectionsManager({
                         {col.defaultEnvironment && (
                           <div style={{ fontSize: "11px", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
                             <Globe size={11} />
-                            <span>Env: {col.defaultEnvironment}</span>
+                            <span>{t('collection.envPrefix')}{col.defaultEnvironment}</span>
                           </div>
                         )}
                       </div>
@@ -714,7 +716,7 @@ export function CollectionsManager({
                             gap: "4px",
                             color: "var(--color-status-2xx)",
                           }}
-                          title={`Run entire collection "${col.name}"`}
+                          title={t('collection.runTooltip', { name: col.name })}
                         >
                           <Play size={12} /> Run
                         </button>
@@ -734,7 +736,7 @@ export function CollectionsManager({
                         fontWeight: 500,
                       }}
                     >
-                      {stats.requestCount} {stats.requestCount === 1 ? "request" : "requests"}
+                      {stats.requestCount} {stats.requestCount === 1 ? t('collection.requestSingular') : t('collection.requestPlural')}
                     </span>
                     <span
                       style={{
@@ -746,7 +748,7 @@ export function CollectionsManager({
                         fontWeight: 500,
                       }}
                     >
-                      {stats.folderCount} {stats.folderCount === 1 ? "folder" : "folders"}
+                      {stats.folderCount} {stats.folderCount === 1 ? t('collection.folderSingular') : t('collection.folderPlural')}
                     </span>
                     {col.authMode && col.authMode !== "none" && (
                       <span
@@ -775,7 +777,7 @@ export function CollectionsManager({
                           color: "var(--color-text-muted)",
                         }}
                       >
-                        {stats.variableCount} vars
+                        {stats.variableCount} {t('collection.vars')}
                       </span>
                     )}
                   </div>
@@ -797,7 +799,7 @@ export function CollectionsManager({
                       className="ghost-button"
                       onClick={() => onOpenCollection(col.id)}
                       style={{ fontSize: "12px", padding: "4px 8px" }}
-                      title="Configure auth, scripts, and variables"
+                      title={t('collection.configTooltip')}
                     >
                       <Edit2 size={12} style={{ marginRight: "4px" }} /> Edit
                     </button>
@@ -1005,7 +1007,7 @@ export function CollectionsManager({
                 <th style={{ padding: "10px 16px" }}>Requests</th>
                 <th style={{ padding: "10px 16px" }}>Folders</th>
                 <th style={{ padding: "10px 16px" }}>Auth</th>
-                <th style={{ padding: "10px 16px" }}>Default Env</th>
+                <th style={{ padding: "10px 16px" }}>{t('collection.defaultEnv')}</th>
                 <th style={{ padding: "10px 16px" }}>Security</th>
                 <th style={{ padding: "10px 16px", textAlign: "right" }}>Actions</th>
               </tr>
@@ -1079,7 +1081,7 @@ export function CollectionsManager({
                           }}
                         >
                           {stats.isLocked ? <Lock size={12} /> : <Unlock size={12} />}
-                          {stats.isLocked ? "Locked" : "Unlocked"}
+                          {stats.isLocked ? "Locked" : "{t('collection.unlocked')}"}
                         </span>
                       ) : (
                         <span style={{ color: "var(--color-text-muted)", fontSize: "12px" }}>Unprotected</span>

@@ -2,6 +2,7 @@ import { AlignLeft, Check, Eye, EyeOff, Plus, Trash2, X } from "lucide-react";
 import { useRef, useState } from "react";
 import type { EnvironmentVariable } from "../types";
 import { isSensitiveKey } from "../app-utils";
+import { useI18n } from '../services/i18n';
 
 function parseBulkText(text: string): Array<{ key: string; value: string }> {
   return text
@@ -31,6 +32,7 @@ export interface EnvVariablesEditorProps {
 }
 
 export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: EnvVariablesEditorProps) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<"grid" | "bulk">("grid");
   const [bulkText, setBulkText] = useState("");
   const [bulkApplying, setBulkApplying] = useState(false);
@@ -139,7 +141,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
       {/* Toolbar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
         <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
-          {variables.length} {variables.length === 1 ? "variable" : "variables"}
+          {variables.length} {variables.length === 1 ? t('env.variableSingular') : t('env.variablePlural')}
         </span>
         <div style={{ display: "flex", gap: "6px" }}>
           {mode === "grid" && (
@@ -147,7 +149,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
               type="button"
               className="ghost-button"
               onClick={handleGlobalToggle}
-              title={showValues ? "Hide values" : "Show values"}
+              title={showValues ? t('env.hideValues') : t('env.showValues')}
               style={{ fontSize: "12px", padding: "4px 10px", display: "flex", alignItems: "center", gap: "5px" }}
             >
               {showValues ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -158,7 +160,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
               type="button"
               className="ghost-button"
               onClick={enterBulk}
-              title="Bulk edit as text"
+              title={t('env.bulkEditTooltip')}
               style={{ fontSize: "12px", padding: "4px 10px", display: "flex", alignItems: "center", gap: "5px" }}
             >
               <AlignLeft size={13} /> Bulk Edit
@@ -195,8 +197,8 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
             rows={Math.max(4, variables.length + 2)}
-            aria-label="Bulk edit variables"
-            placeholder={"KEY=value\nANOTHER_KEY=another_value\n# comment lines are ignored"}
+            aria-label={t('env.bulkEditAria')}
+            placeholder={t('env.bulkVariablesPlaceholder')}
             spellCheck={false}
             style={{
               width: "100%",
@@ -216,7 +218,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
             onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-border)"; }}
           />
           <p style={{ fontSize: "11px", color: "var(--color-text-muted)", margin: 0, fontStyle: "italic" }}>
-            One variable per line as <code>KEY=value</code>. Secrets show as <code>[secret]</code> — leave unchanged to preserve. Removing a line deletes it.
+            {t('env.bulkInstructions')}
           </p>
         </div>
       )}
@@ -226,7 +228,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
         <div className="env-variable-card">
           {variables.length === 0 && (
             <p className="env-empty-state" style={{ margin: 0, border: "none", borderBottom: "1px solid var(--color-border)", borderRadius: 0 }}>
-              No variables yet — add one below.
+              {t('env.noVariables')}
             </p>
           )}
 
@@ -248,7 +250,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                     <input
                       className="env-inline-input"
                       value={editingKeyDraft}
-                      aria-label="Edit key"
+                      aria-label={t('env.editKeyAria')}
                       spellCheck={false}
                       autoCorrect="off"
                       autoCapitalize="off"
@@ -265,7 +267,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                         <input
                           className="env-inline-input"
                           value={editingValueDraft}
-                          aria-label="Edit value"
+                          aria-label={t('env.editValueAria')}
                           type={isSensitiveKey(v.key) && !(visibleValues[v.key] ?? showValues) ? "password" : "text"}
                           spellCheck={false}
                           autoCorrect="off"
@@ -288,8 +290,8 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                         tabIndex={0}
                         onPointerDown={(e) => e.preventDefault()}
                         onClick={() => void commitInlineEdit()}
-                        aria-label="Save"
-                        title="Save (Enter)"
+                        aria-label={t('common.save')}
+                        title={t('env.saveEnter')}
                         style={{ color: "var(--color-text-active)" }}
                       >
                         <Check size={12} />
@@ -300,8 +302,8 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                         tabIndex={0}
                         onPointerDown={(e) => e.preventDefault()}
                         onClick={cancelInlineEdit}
-                        aria-label="Cancel"
-                        title="Cancel (Escape)"
+                        aria-label={t('common.cancel')}
+                        title={t('env.cancelEscape')}
                       >
                         <X size={12} />
                       </button>
@@ -312,16 +314,16 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                     <span
                       className="env-variable-key"
                       onClick={(e) => { e.stopPropagation(); startInlineEdit(v, "key"); }}
-                      title="Click to edit"
+                      title={t('common.edit')}
                       style={{ display: "flex", alignItems: "center", gap: "6px" }}
                     >
-                      <span className="env-color-dot" style={{ background: v.color || "var(--color-border)", opacity: v.color ? 1 : 0.4 }} title={v.color ? `Color: ${v.color}` : "No color set"} />
+                      <span className="env-color-dot" style={{ background: v.color || "var(--color-border)", opacity: v.color ? 1 : 0.4 }} title={v.color ? `${t('env.color')}: ${v.color}` : t('env.noColor')} />
                       {v.key}
                     </span>
                     <span
                       className="env-variable-value"
                       onClick={(e) => { e.stopPropagation(); startInlineEdit(v, "value"); }}
-                      title="Click to edit"
+                      title={t('common.edit')}
                     >
                       { (visibleValues[v.key] ?? showValues) ? v.value : "••••••••" }
                     </span>
@@ -332,7 +334,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                   <button
                     type="button"
                     className="env-icon-button"
-                    aria-label={`Toggle visibility of ${v.key}`}
+                    aria-label={t('env.toggleVisAria', { key: v.key })}
                     onClick={(e) => { e.stopPropagation(); toggleValueVisibility(v.key); }}
                   >
                     { (visibleValues[v.key] ?? showValues) ? <EyeOff size={12} /> : <Eye size={12} /> }
@@ -340,7 +342,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                   <button
                     type="button"
                     className="env-icon-button danger"
-                    aria-label={`Delete variable ${v.key}`}
+                    aria-label={t('env.deleteVarAria', { key: v.key })}
                     onClick={(e) => { e.stopPropagation(); cancelInlineEdit(); void onDelete(envName, v.key); }}
                   >
                     <Trash2 size={12} />
@@ -351,13 +353,13 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
           })}
 
           {/* Add new row */}
-          <div className="env-add-variable" aria-label="Add variable">
+          <div className="env-add-variable" aria-label={t('env.addVariable')}>
             <div className="env-add-variable-fields">
               <input
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
-                placeholder="New key"
-                aria-label="New variable key"
+                placeholder={t('env.newKey')}
+                aria-label={t('env.newKeyAria')}
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
@@ -369,8 +371,8 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                   style={{ flex: 1, minWidth: 0 }}
                   value={newValue}
                   onChange={(e) => setNewValue(e.target.value)}
-                  placeholder="Value"
-                  aria-label="New variable value"
+                  placeholder={t('common.value')}
+                  aria-label={t('env.newValueAria')}
                   type={isSensitiveKey(newKeyBlurred) && !showNewValue ? "password" : "text"}
                   spellCheck={false}
                   autoCorrect="off"
@@ -382,7 +384,7 @@ export function EnvVariablesEditor({ envName, variables, onSave, onDelete }: Env
                 <button
                   type="button"
                   className="env-icon-button"
-                  aria-label="Toggle new variable visibility"
+                  aria-label={t('env.toggleNewVarVis')}
                   onClick={() => setShowNewValue(p => !p)}
                   style={{ marginLeft: "8px" }}
                 >

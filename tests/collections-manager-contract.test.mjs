@@ -11,11 +11,11 @@ test("CollectionsManager component exists and provides full collection dashboard
   const manager = read("src/renderer/src/components/CollectionsManager.tsx");
 
   assert.match(manager, /export function CollectionsManager/);
-  assert.match(manager, /Collections Hub/);
-  assert.match(manager, /Total Collections/);
-  assert.match(manager, /Total Requests/);
-  assert.match(manager, /Folders & Groups/);
-  assert.match(manager, /Protected Collections/);
+  assert.match(manager, /collection\.hubTitle/);
+  assert.match(manager, /collection\.totalCollections/);
+  assert.match(manager, /collection\.totalRequests/);
+  assert.match(manager, /collection\.foldersAndGroups/);
+  assert.match(manager, /collection\.protectedCollections/);
   assert.match(manager, /searchQuery/);
   assert.match(manager, /viewMode/);
   assert.match(manager, /onOpenCollection/);
@@ -31,7 +31,7 @@ test("Sidebar has interactive Collections header and LayoutGrid overview trigger
 
   assert.match(sidebar, /onOpenCollectionsOverview/);
   assert.match(sidebar, /LayoutGrid/);
-  assert.match(sidebar, /View all collections/);
+  assert.match(sidebar, /sidebar\.viewAllCollections/);
 });
 
 test("TabBar supports collections-overview tab type and icon", () => {

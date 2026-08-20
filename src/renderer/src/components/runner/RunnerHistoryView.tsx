@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Clock, ChevronRight, ChevronDown, BarChart3, List
 import type { CollectionRunSummary, HistoryEntry } from "../../types";
 import { formatTimestamp } from "../../app-utils";
 import { TestRunReport, type RequestResultItem } from "./TestRunReport";
+import { useI18n } from "../../services/i18n";
 
 export interface RunnerHistoryViewProps {
   pastRuns: CollectionRunSummary[];
@@ -27,6 +28,7 @@ export function RunnerHistoryView({
   onFilterChange,
   onToggleExpand,
 }: RunnerHistoryViewProps) {
+  const { t } = useI18n();
   const [viewMode, setViewMode] = useState<"report" | "details">("report");
 
   const historyResultItems: RequestResultItem[] = useMemo(() => {
@@ -67,11 +69,11 @@ export function RunnerHistoryView({
   }, [runDetails]);
 
   if (loadingHistory) {
-    return <div style={{ padding: "20px", color: "var(--color-text-muted)", textAlign: "center" }}>Loading run history...</div>;
+    return <div style={{ padding: "20px", color: "var(--color-text-muted)", textAlign: "center" }}>{t('runner.loadingHistory')}</div>;
   }
 
   if (pastRuns.length === 0) {
-    return <div style={{ padding: "20px", color: "var(--color-text-muted)", textAlign: "center" }}>No previous collection runs found.</div>;
+    return <div style={{ padding: "20px", color: "var(--color-text-muted)", textAlign: "center" }}>{t('runner.noPreviousRuns')}</div>;
   }
 
   const filteredDetails = runDetails.filter((entry) => {
@@ -83,7 +85,7 @@ export function RunnerHistoryView({
   return (
     <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: "16px", flex: 1, minHeight: 0, height: "100%" }}>
       <div style={{ borderRight: "1px solid var(--color-border)", overflowY: "auto", paddingRight: "10px" }}>
-        <h4 style={{ margin: "0 0 10px 0", fontSize: "13px", color: "var(--color-text-muted)" }}>Past Executions</h4>
+        <h4 style={{ margin: "0 0 10px 0", fontSize: "13px", color: "var(--color-text-muted)" }}>{t('runner.pastExecutions')}</h4>
         {pastRuns.map((run) => (
           <div
             key={run.runId}
@@ -101,9 +103,9 @@ export function RunnerHistoryView({
               <span style={{ fontWeight: 600 }}>{formatTimestamp(run.createdAt)}</span>
             </div>
             <div style={{ display: "flex", gap: "10px", color: "var(--color-text-muted)", fontSize: "11px" }}>
-              <span style={{ color: "var(--color-success)" }}>✓ {run.passedRequests} reqs</span>
-              <span style={{ color: "var(--color-danger)" }}>✗ {run.failedRequests} reqs</span>
-              <span>Total: {run.totalRequests} reqs</span>
+              <span style={{ color: "var(--color-success)" }}>✓ {run.passedRequests} {t('runner.reqs')}</span>
+              <span style={{ color: "var(--color-danger)" }}>✗ {run.failedRequests} {t('runner.reqs')}</span>
+              <span>{t('runner.total')} {run.totalRequests} {t('runner.reqs')}</span>
             </div>
             {((run.passedTests ?? 0) > 0 || (run.failedTests ?? 0) > 0) && (
               <div style={{ display: "flex", gap: "10px", color: "var(--color-text-muted)", fontSize: "11px", marginTop: "2px" }}>
@@ -137,7 +139,7 @@ export function RunnerHistoryView({
                   }}
                 >
                   <BarChart3 size={12} />
-                  <span>Report</span>
+                  <span>{t('runner.report')}</span>
                 </button>
                 <button
                   type="button"
@@ -157,7 +159,7 @@ export function RunnerHistoryView({
                   }}
                 >
                   <ListChecks size={12} />
-                  <span>Entries</span>
+                  <span>{t('runner.entries')}</span>
                 </button>
               </div>
 
@@ -236,11 +238,11 @@ export function RunnerHistoryView({
                     }}>
                       {typeof entry.testResults === 'string' && entry.testResults.length > 0 && (
                         <div>
-                          <div style={{ fontWeight: 600, marginBottom: "4px", color: "var(--color-text)" }}>Test Results</div>
+                          <div style={{ fontWeight: 600, marginBottom: "4px", color: "var(--color-text)" }}>{t('runner.testResults')}</div>
                           {(() => {
                             try {
                               const tests = JSON.parse(entry.testResults);
-                              if (!Array.isArray(tests) || tests.length === 0) return <span style={{ color: "var(--color-text-muted)" }}>No tests found</span>;
+                              if (!Array.isArray(tests) || tests.length === 0) return <span style={{ color: "var(--color-text-muted)" }}>{t('runner.noTestsFound')}</span>;
                               
                               return tests.map((t: any, i: number) => (
                                 <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginTop: "4px" }}>
@@ -260,7 +262,7 @@ export function RunnerHistoryView({
                                 </div>
                               ));
                             } catch {
-                              return <span style={{ color: "var(--color-text-muted)" }}>Failed to parse test results</span>;
+                              return <span style={{ color: "var(--color-text-muted)" }}>{t('runner.failedToParseTestResults')}</span>;
                             }
                           })()}
                         </div>
@@ -271,14 +273,14 @@ export function RunnerHistoryView({
                         borderBottom: "1px solid var(--color-border)",
                         color: "var(--color-text-muted)",
                       }}>
-                        <span>Status: <strong style={{ color: entry.status < 400 ? "var(--color-status-success, #22c55e)" : "var(--color-status-error, #ef4444)" }}>{entry.status}</strong></span>
-                        <span>Time: <strong style={{ color: "var(--color-text)" }}>{entry.durationMs}ms</strong></span>
-                        <span>Size: <strong style={{ color: "var(--color-text)" }}>{(entry.sizeBytes / 1024).toFixed(1)}kb</strong></span>
+                        <span>{t('runner.status')} <strong style={{ color: entry.status < 400 ? "var(--color-status-success, #22c55e)" : "var(--color-status-error, #ef4444)" }}>{entry.status}</strong></span>
+                        <span>{t('runner.time')} <strong style={{ color: "var(--color-text)" }}>{entry.durationMs}ms</strong></span>
+                        <span>{t('runner.size')} <strong style={{ color: "var(--color-text)" }}>{(entry.sizeBytes / 1024).toFixed(1)}kb</strong></span>
                       </div>
                       
                       {entry.responseHeaders && (
                         <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--color-border)" }}>
-                          <div style={{ fontSize: "10px", textTransform: "uppercase", opacity: 0.7, marginBottom: "8px", color: "var(--color-text-muted)" }}>Response Headers</div>
+                          <div style={{ fontSize: "10px", textTransform: "uppercase", opacity: 0.7, marginBottom: "8px", color: "var(--color-text-muted)" }}>{t('runner.responseHeaders')}</div>
                           <div style={{ 
                             maxHeight: "200px", 
                             overflowY: "auto",
@@ -320,7 +322,7 @@ export function RunnerHistoryView({
                         fontSize: "11px", color: "var(--color-text)",
                         whiteSpace: "pre-wrap", wordBreak: "break-all",
                       }}>
-                        {entry.responseBodyText || "(empty body)"}
+                        {entry.responseBodyText || t('runner.emptyBody')}
                       </pre>
                     </div>
                   )}

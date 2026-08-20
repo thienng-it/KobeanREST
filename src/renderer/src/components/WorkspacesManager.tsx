@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import type { WorkspaceListItem, WorkspaceSummary } from "../types";
 import { loadWorkspaceById } from "../services/local-store";
+import { useI18n } from '../services/i18n';
 
 export interface WorkspaceItemStats {
   collectionCount: number;
@@ -63,6 +64,7 @@ export function WorkspacesManager({
   onOpenCollectionsOverview,
   onCloseHub,
 }: WorkspacesManagerProps) {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filterType, setFilterType] = useState<"all" | "active" | "inactive">("all");
@@ -156,7 +158,7 @@ export function WorkspacesManager({
   const totalWorkspaces = workspaceList.length;
   const activeWs = workspaceList.find((w) => w.id === activeWorkspaceId) || {
     id: activeWorkspaceId,
-    name: workspace?.name || "Active Workspace",
+    name: workspace?.name || "{t('workspaces.activeWorkspace')}",
   };
   const activeStats = statsMap[activeWorkspaceId] || {
     collectionCount: (workspace?.collections || []).length,
@@ -271,11 +273,11 @@ export function WorkspacesManager({
                   fontWeight: 600,
                 }}
               >
-                {totalWorkspaces} {totalWorkspaces === 1 ? "workspace" : "workspaces"}
+                {totalWorkspaces} {totalWorkspaces === 1 ? t('workspaces.singular') : t('workspaces.plural')}
               </span>
             </div>
             <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--color-text-muted)" }}>
-              Manage, switch, export, and organize all your KobeanREST workspaces.
+              {t('workspaces.hubDesc')}
             </p>
           </div>
         </div>
@@ -287,7 +289,7 @@ export function WorkspacesManager({
               type="button"
               className="ghost-button"
               onClick={onCloseHub}
-              title="Return to active workspace"
+              title={t('workspaces.returnToActive')}
             >
               <ArrowLeft size={14} /> Back to Workspace
             </button>
@@ -297,7 +299,7 @@ export function WorkspacesManager({
               type="button"
               className="ghost-button"
               onClick={onOpenCollectionsOverview}
-              title="Open Collections Overview"
+              title={t('workspaces.openCollections')}
             >
               <FolderTree size={14} /> Collections Hub
             </button>
@@ -307,7 +309,7 @@ export function WorkspacesManager({
               type="button"
               className="ghost-button"
               onClick={onOpenUniversalImport}
-              title="Import Postman or OpenAPI into active workspace"
+              title={t('workspaces.importTooltip')}
             >
               <Upload size={14} /> Import
             </button>
@@ -317,7 +319,7 @@ export function WorkspacesManager({
               type="button"
               className="ghost-button"
               onClick={onExportWorkspace}
-              title="Export active workspace data"
+              title={t('workspaces.exportActiveTooltip')}
             >
               <Download size={14} /> Export Active
             </button>
@@ -356,7 +358,7 @@ export function WorkspacesManager({
             type="text"
             value={newWorkspaceName}
             onChange={(e) => setNewWorkspaceName(e.target.value)}
-            placeholder="Enter new workspace name (e.g., Production APIs, Mobile Team)..."
+            placeholder={t('workspaces.newNamePlaceholder')}
             spellCheck={false}
             style={{
               flex: 1,
@@ -384,7 +386,7 @@ export function WorkspacesManager({
               setNewWorkspaceName("");
             }}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
         </form>
       )}
@@ -410,7 +412,7 @@ export function WorkspacesManager({
           }}
         >
           <span style={{ fontSize: "12px", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
-            <Boxes size={13} /> Total Workspaces
+            <Boxes size={13} /> {t('workspaces.totalWorkspaces')}
           </span>
           <span style={{ fontSize: "20px", fontWeight: 700, color: "var(--color-text)" }}>
             {totalWorkspaces}
@@ -429,7 +431,7 @@ export function WorkspacesManager({
           }}
         >
           <span style={{ fontSize: "12px", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
-            <CheckCircle2 size={13} style={{ color: "var(--color-status-2xx, #10b981)" }} /> Active Workspace
+            <CheckCircle2 size={13} style={{ color: "var(--color-status-2xx, #10b981)" }} /> {t('workspaces.activeWorkspace')}
           </span>
           <span
             style={{
@@ -458,7 +460,7 @@ export function WorkspacesManager({
           }}
         >
           <span style={{ fontSize: "12px", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
-            <Package size={13} /> Active Collections
+            <Package size={13} /> {t('workspaces.activeCollections')}
           </span>
           <span style={{ fontSize: "20px", fontWeight: 700, color: "var(--color-text)" }}>
             {activeStats.collectionCount}
@@ -477,7 +479,7 @@ export function WorkspacesManager({
           }}
         >
           <span style={{ fontSize: "12px", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
-            <FileText size={13} /> Active Requests
+            <FileText size={13} /> {t('workspaces.activeRequests')}
           </span>
           <span style={{ fontSize: "20px", fontWeight: 700, color: "var(--color-text)" }}>
             {activeStats.requestCount}
@@ -538,7 +540,7 @@ export function WorkspacesManager({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search workspaces by name or ID…"
+            placeholder={t('workspaces.searchPlaceholder')}
             spellCheck={false}
             style={{
               width: "100%",
@@ -586,7 +588,7 @@ export function WorkspacesManager({
               color: filterType === "all" ? "var(--color-text-active)" : undefined,
             }}
           >
-            All ({workspaceList.length})
+            {t('common.all')} ({workspaceList.length})
           </button>
           <button
             type="button"
@@ -601,7 +603,7 @@ export function WorkspacesManager({
               color: filterType === "active" ? "var(--color-status-2xx)" : undefined,
             }}
           >
-            Active (1)
+            {t('workspaces.active')} (1)
           </button>
           <button
             type="button"
@@ -616,7 +618,7 @@ export function WorkspacesManager({
               color: filterType === "inactive" ? "var(--color-text)" : undefined,
             }}
           >
-            Other ({Math.max(0, workspaceList.length - 1)})
+            {t('workspaces.other')} ({Math.max(0, workspaceList.length - 1)})
           </button>
         </div>
 
@@ -636,9 +638,9 @@ export function WorkspacesManager({
               cursor: "pointer",
             }}
           >
-            <option value="active_first">Sort: Active First</option>
-            <option value="name_asc">Sort: Name (A-Z)</option>
-            <option value="name_desc">Sort: Name (Z-A)</option>
+            <option value="active_first">{t('workspaces.sortActiveFirst')}</option>
+            <option value="name_asc">{t('collection.sortNameAsc')}</option>
+            <option value="name_desc">{t('collection.sortNameDesc')}</option>
           </select>
 
           <div
@@ -663,7 +665,7 @@ export function WorkspacesManager({
                 display: "flex",
                 alignItems: "center",
               }}
-              title="Grid View"
+              title={t('collection.gridView')}
             >
               <LayoutGrid size={14} />
             </button>
@@ -679,7 +681,7 @@ export function WorkspacesManager({
                 display: "flex",
                 alignItems: "center",
               }}
-              title="List / Table View"
+              title={t('collection.listView')}
             >
               <List size={14} />
             </button>
@@ -706,12 +708,12 @@ export function WorkspacesManager({
         >
           <Boxes size={36} style={{ color: "var(--color-text-muted)", opacity: 0.5, marginBottom: "12px" }} />
           <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 6px" }}>
-            {searchQuery ? "No matching workspaces" : "No workspaces found"}
+            {searchQuery ? t('workspaces.noMatch') : t('workspaces.noWorkspaces')}
           </h3>
           <p style={{ fontSize: "13px", color: "var(--color-text-muted)", maxWidth: "340px", margin: "0 0 16px" }}>
             {searchQuery
-              ? `No workspaces matched "${searchQuery}". Try clearing your search query.`
-              : "Create your first workspace to start organizing collections, requests, and environments."}
+              ? t('workspaces.noMatchDesc', { query: searchQuery })
+              : t('workspaces.createDesc')}
           </p>
           {searchQuery ? (
             <button
@@ -722,7 +724,7 @@ export function WorkspacesManager({
                 setFilterType("all");
               }}
             >
-              Clear Search
+              {t('collection.clearSearch')}
             </button>
           ) : (
             <button
@@ -991,7 +993,7 @@ export function WorkspacesManager({
                 <th style={{ padding: "10px 16px", fontWeight: 600 }}>ID</th>
                 <th style={{ padding: "10px 16px", fontWeight: 600 }}>Collections</th>
                 <th style={{ padding: "10px 16px", fontWeight: 600 }}>Requests</th>
-                <th style={{ padding: "10px 16px", fontWeight: 600 }}>Environments</th>
+                <th style={{ padding: "10px 16px", fontWeight: 600 }}>{t('nav.environments')}</th>
                 <th style={{ padding: "10px 16px", fontWeight: 600 }}>Status</th>
                 <th style={{ padding: "10px 16px", fontWeight: 600, textAlign: "right" }}>Actions</th>
               </tr>

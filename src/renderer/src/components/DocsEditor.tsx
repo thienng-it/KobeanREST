@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
+import { useI18n } from "../services/i18n";
 import {
   BookOpen,
   Edit3,
@@ -49,6 +50,7 @@ export const DocsEditor: React.FC<DocsEditorProps> = ({
   onSaveExamples,
   activeResponse,
 }) => {
+  const { t } = useI18n();
   const [mode, setMode] = useState<"preview" | "edit" | "split">(
     (description && description.trim() !== "") || examples.length > 0 ? "preview" : "edit"
   );
@@ -246,7 +248,7 @@ Detailed summary of what this endpoint does and its business context.
               type="button"
               className={`docs-mode-btn ${mode === "preview" ? "active" : ""}`}
               onClick={() => setMode("preview")}
-              title="Formatted Preview Mode"
+              title="{t('docs.previewModeTooltip')}"
             >
               <Eye size={13} />
               <span>Preview</span>
@@ -255,7 +257,7 @@ Detailed summary of what this endpoint does and its business context.
               type="button"
               className={`docs-mode-btn ${mode === "edit" ? "active" : ""}`}
               onClick={() => setMode("edit")}
-              title="Markdown Edit Mode"
+              title="{t('docs.editModeTooltip')}"
             >
               <Edit3 size={13} />
               <span>Edit</span>

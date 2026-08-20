@@ -1,4 +1,5 @@
 import { HelpCircle, X } from "lucide-react";
+import { useI18n } from "../services/i18n";
 
 export interface JqHelpModalProps {
   open: boolean;
@@ -6,6 +7,7 @@ export interface JqHelpModalProps {
 }
 
 export function JqHelpModal({ open, onClose }: JqHelpModalProps) {
+  const { t } = useI18n();
   if (!open) return null;
 
   return (
@@ -14,7 +16,7 @@ export function JqHelpModal({ open, onClose }: JqHelpModalProps) {
       style={{ zIndex: 1300 }}
       role="dialog"
       aria-modal="true"
-      aria-label="jq Filter Help"
+      aria-label={t("jqHelp.title", "jq Filter Help")}
       onClick={onClose}
     >
       <div 
@@ -24,7 +26,7 @@ export function JqHelpModal({ open, onClose }: JqHelpModalProps) {
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" }}>
           <h2 style={{ fontSize: "15px", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
-            <HelpCircle size={16} /> jq Filter Help
+            <HelpCircle size={16} /> {t("jqHelp.title", "jq Filter Help")}
           </h2>
           <button
             type="button"
@@ -37,32 +39,32 @@ export function JqHelpModal({ open, onClose }: JqHelpModalProps) {
         
         <div style={{ padding: "16px", flex: 1, overflowY: "auto", fontSize: "13px", color: "var(--color-text)", lineHeight: 1.5 }}>
           <p style={{ margin: "0 0 12px 0" }}>
-            You can filter JSON responses using standard <strong>jq</strong> syntax. Here are some examples:
+            {t("jqHelp.desc", "You can filter JSON responses using standard jq syntax. Here are some examples:")}
           </p>
           
           <ul style={{ paddingLeft: "20px", margin: "0 0 16px 0", display: "flex", flexDirection: "column", gap: "10px" }}>
             <li>
-              <code>.</code> — Returns the entire JSON object unchanged.
+              <code>.</code> {t("jqHelp.ex1", "— Returns the entire JSON object unchanged.")}
             </li>
             <li>
-              <code>.data</code> — Access the <code>data</code> property.
+              <code>.data</code> {t("jqHelp.ex2", "— Access the data property.")}
             </li>
             <li>
-              <code>.data[0]</code> — Access the first item in the <code>data</code> array.
+              <code>.data[0]</code> {t("jqHelp.ex3", "— Access the first item in the data array.")}
             </li>
             <li>
-              <code>.users | map(.name)</code> — Extracts the <code>name</code> field from an array of users.
+              <code>.users | map(.name)</code> {t("jqHelp.ex4", "— Extracts the name field from an array of users.")}
             </li>
             <li>
-              <code>.users[] | select(.age &gt; 25)</code> — Filters the users array to include only those over 25.
+              <code>.users[] | select(.age &gt; 25)</code> {t("jqHelp.ex5", "— Filters the users array to include only those over 25.")}
             </li>
             <li>
-              <code>&#123; id: .id, name: .name &#125;</code> — Creates a new object with only the <code>id</code> and <code>name</code> fields.
+              <code>&#123; id: .id, name: .name &#125;</code> {t("jqHelp.ex6", "— Creates a new object with only the id and name fields.")}
             </li>
           </ul>
 
           <p style={{ margin: 0, color: "var(--color-text-muted)" }}>
-            For more advanced queries, refer to the <a href="https://jqlang.github.io/jq/manual/" target="_blank" rel="noreferrer" style={{ color: "var(--color-accent)", textDecoration: "none" }}>jq manual</a>.
+            {t("jqHelp.footer", "For more advanced queries, refer to the ")}<a href="https://jqlang.github.io/jq/manual/" target="_blank" rel="noreferrer" style={{ color: "var(--color-accent)", textDecoration: "none" }}>jq manual</a>.
           </p>
         </div>
         
@@ -72,7 +74,7 @@ export function JqHelpModal({ open, onClose }: JqHelpModalProps) {
             className="primary-button"
             onClick={onClose}
           >
-            Close
+            {t("common.close")}
           </button>
         </div>
       </div>

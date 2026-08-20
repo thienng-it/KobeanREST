@@ -42,6 +42,7 @@ export const defaultAppSettings: AppSettings = {
   autoSaveEnabled: true,
   responseAutoWrap: true,
   responseAutoCollapse: false,
+  language: "system",
 };
 
 let previewSettings = { ...defaultAppSettings };

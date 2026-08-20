@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle, Lock, Unlock, LayoutGrid, Boxes } from "lucide-react";
 import React, { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useI18n } from "../services/i18n";
 import {
   DndContext,
   closestCenter,
@@ -183,6 +184,7 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
   onLockToggle?: () => void;
   children?: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: dragId,
   });
@@ -216,7 +218,7 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
         <span
           className="sidebar-drag-handle"
           aria-hidden="true"
-          title="Drag to reorder"
+          title={t("sidebar.dragToReorder")}
           style={{ pointerEvents: "none" }}
         >
         </span>
@@ -236,7 +238,7 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
         {isRenaming ? (
           <input
             value={sidebarNameDraft}
-            aria-label={`Rename collection ${collection.name}`}
+            aria-label={`${t("sidebar.renameCollection")} ${collection.name}`}
             autoFocus
             onChange={(event) => onSidebarNameDraftChange(event.target.value)}
             onBlur={() => void onApplySidebarRename()}
@@ -267,11 +269,11 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{collection.name}</span>
             {isProtected && (
               isLocked ? (
-                <span title="Collection is locked (click to unlock)" style={{ display: "inline-flex", alignItems: "center" }}>
+                <span title={t("sidebar.collectionLockedTooltip")} style={{ display: "inline-flex", alignItems: "center" }}>
                   <Lock size={12} style={{ color: "var(--color-status-error)", flexShrink: 0 }} />
                 </span>
               ) : (
-                <span title="Collection is unlocked for this session" style={{ display: "inline-flex", alignItems: "center" }}>
+                <span title={t("sidebar.collectionUnlockedTooltip")} style={{ display: "inline-flex", alignItems: "center" }}>
                   <Unlock size={12} style={{ color: "var(--color-status-2xx)", opacity: 0.8, flexShrink: 0 }} />
                 </span>
               )
@@ -286,7 +288,7 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
             type="button"
             className="sidebar-icon-button"
             aria-label={isProtected ? (isLocked ? `Unlock collection ${collection.name}` : `Lock collection ${collection.name}`) : `Set lock for ${collection.name}`}
-            title={isProtected ? (isLocked ? "Unlock collection" : "Lock collection") : "Set passcode lock"}
+            title={isProtected ? (isLocked ? t("sidebar.unlockCollection") : t("sidebar.lockCollection")) : t("sidebar.setPasscodeLock")}
             onClick={(e) => {
               e.stopPropagation();
               onLockToggle?.();
@@ -297,7 +299,7 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
           <button
             type="button"
             className="sidebar-icon-button"
-            aria-label={`New request in ${collection.name}`}
+            aria-label={`${t("sidebar.newRequestIn")} ${collection.name}`}
             onClick={() => void onCreateRequest(collection.id)}
           >
             <FilePlus size={12} />
@@ -305,7 +307,7 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
           <button
             type="button"
             className="sidebar-icon-button"
-            aria-label={`New folder in ${collection.name}`}
+            aria-label={`${t("sidebar.newFolderIn")} ${collection.name}`}
             onClick={() => void onCreateFolder(collection.id)}
           >
             <Plus size={12} />
@@ -313,7 +315,7 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
           <button
             type="button"
             className="sidebar-icon-button"
-            aria-label={`Rename collection ${collection.name}`}
+            aria-label={`${t("sidebar.renameCollection")} ${collection.name}`}
             onClick={() => onStartSidebarRename("collection", collection.id, collection.name)}
           >
             <Edit2 size={12} />
@@ -321,7 +323,7 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
           <button
             type="button"
             className="sidebar-icon-button danger"
-            aria-label={`Delete collection ${collection.name}`}
+            aria-label={`${t("sidebar.deleteCollection")} ${collection.name}`}
             onClick={() => onDeleteCollection(collection.id)}
           >
             <Trash2 size={12} />
@@ -373,6 +375,7 @@ const DraggableFolderRow = React.memo(function DraggableFolderRow({
   requestCount?: number;
   children?: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: dragId,
   });
@@ -408,7 +411,7 @@ const DraggableFolderRow = React.memo(function DraggableFolderRow({
           <span
             className="sidebar-drag-handle"
             aria-hidden="true"
-            title="Drag to reorder"
+            title={t("sidebar.dragToReorder")}
             style={{ pointerEvents: "none" }}
           >
 
@@ -427,7 +430,7 @@ const DraggableFolderRow = React.memo(function DraggableFolderRow({
           {isRenaming ? (
             <input
               value={sidebarNameDraft}
-              aria-label={`Rename folder ${folder.name}`}
+              aria-label={`${t("sidebar.renameFolder")} ${folder.name}`}
               autoFocus
               onChange={(event) => onSidebarNameDraftChange(event.target.value)}
               onBlur={() => void onApplySidebarRename()}
@@ -464,7 +467,7 @@ const DraggableFolderRow = React.memo(function DraggableFolderRow({
           <button
             type="button"
             className="sidebar-icon-button"
-            aria-label={`New request in ${folder.name}`}
+            aria-label={`${t("sidebar.newRequestIn")} ${folder.name}`}
             onClick={() => void onCreateRequest(folder.id)}
           >
             <Plus size={12} />
@@ -472,7 +475,7 @@ const DraggableFolderRow = React.memo(function DraggableFolderRow({
           <button
             type="button"
             className="sidebar-icon-button"
-            aria-label={`Rename folder ${folder.name}`}
+            aria-label={`${t("sidebar.renameFolder")} ${folder.name}`}
             onClick={() => onStartSidebarRename("folder", folder.id, folder.name)}
           >
             <Edit2 size={12} />
@@ -480,7 +483,7 @@ const DraggableFolderRow = React.memo(function DraggableFolderRow({
           <button
             type="button"
             className="sidebar-icon-button danger"
-            aria-label={`Delete folder ${folder.name}`}
+            aria-label={`${t("sidebar.deleteFolder")} ${folder.name}`}
             onClick={() => onDeleteFolder(folder.id)}
           >
             <Trash2 size={12} />
@@ -534,6 +537,7 @@ const DraggableRequestRow = React.memo(function DraggableRequestRow({
   scriptStatus: Record<string, boolean>;
   onContextMenu: (target: ContextMenuTarget, x: number, y: number) => void;
 }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: dragId,
   });
@@ -569,7 +573,7 @@ const DraggableRequestRow = React.memo(function DraggableRequestRow({
           <span
             className="sidebar-drag-handle"
             aria-hidden="true"
-            title="Drag to reorder"
+            title={t("sidebar.dragToReorder")}
             style={{ pointerEvents: "none" }}
           >
 
@@ -577,8 +581,8 @@ const DraggableRequestRow = React.memo(function DraggableRequestRow({
           <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
           <input
             value={renameDraft}
-            aria-label={`Rename ${request.name}`}
-            placeholder="Request Name"
+            aria-label={`${t("common.edit")} ${request.name}`}
+            placeholder={t("sidebar.requestNamePlaceholder")}
             autoFocus
             onChange={(event) => onRenameDraftChange(event.target.value)}
             onBlur={() => onApplyRequestRename(request.id)}
@@ -594,7 +598,7 @@ const DraggableRequestRow = React.memo(function DraggableRequestRow({
             style={{ flex: 1, minWidth: 0, width: "100%", boxSizing: "border-box", border: "1px solid var(--color-border-tint)", borderRadius: "6px", background: "var(--color-surface)", color: "var(--color-text)", padding: "4px 8px" }}
           />
           {scriptStatus[request.id] && (
-            <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#2563eb", marginLeft: "4px" }} title="Has scripts" />
+            <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#2563eb", marginLeft: "4px" }} title={t("sidebar.hasScripts")} />
           )}
         </div>
       ) : (
@@ -606,7 +610,7 @@ const DraggableRequestRow = React.memo(function DraggableRequestRow({
           <span
             className="sidebar-drag-handle"
             aria-hidden="true"
-            title="Drag to reorder"
+            title={t("sidebar.dragToReorder")}
             style={{ pointerEvents: "none" }}
           >
 
@@ -616,7 +620,7 @@ const DraggableRequestRow = React.memo(function DraggableRequestRow({
           {request.id === draftRequest?.id && isDraftDirty && (
             <span
               className="sidebar-request-dirty-dot"
-              title="Unsaved changes"
+              title={t("sidebar.unsavedChanges")}
               style={{
                 display: "inline-block",
                 width: "6px",
@@ -631,10 +635,10 @@ const DraggableRequestRow = React.memo(function DraggableRequestRow({
         </button>
       )}
       <div className="sidebar-row-actions">
-        <button type="button" className="sidebar-icon-button" aria-label={`Rename ${request.name}`} onClick={() => onStartRequestRename(request)}>
+        <button type="button" className="sidebar-icon-button" aria-label={`${t("common.edit")} ${request.name}`} onClick={() => onStartRequestRename(request)}>
           <Edit2 size={12} />
         </button>
-        <button type="button" className="sidebar-icon-button danger" aria-label="Delete request" onClick={() => onDeleteRequest(request.id)}>
+        <button type="button" className="sidebar-icon-button danger" aria-label={t("common.delete")} onClick={() => onDeleteRequest(request.id)}>
           <Trash2 size={12} />
         </button>
       </div>
@@ -707,6 +711,7 @@ export const Sidebar = React.memo(function Sidebar({
   unlockedCollectionIds,
   onLockCollectionToggle,
 }: SidebarProps) {
+  const { t } = useI18n();
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const themeRef = useRef<HTMLDivElement>(null);
 
@@ -1191,8 +1196,8 @@ export const Sidebar = React.memo(function Sidebar({
             <button
               type="button"
               className="sidebar-icon-button"
-              aria-label="Workspaces Hub"
-              title="Open Workspaces Hub"
+              aria-label={t("sidebar.openWorkspacesHub")}
+              title={t("sidebar.openWorkspacesHub")}
               onClick={onOpenWorkspacesOverview}
             >
               <Boxes size={14} />
@@ -1202,7 +1207,7 @@ export const Sidebar = React.memo(function Sidebar({
             type="button"
             className="sidebar-icon-button"
             aria-label="Switch workspace"
-            title={`Current: ${workspace?.name ?? "Workspace"} — click to switch`}
+            title={`${t("sidebar.currentWorkspace")}: ${workspace?.name ?? t("sidebar.workspace")} — ${t("sidebar.clickToSwitch")}`}
             onClick={onOpenWorkspaceSwitcher}
             style={{ display: "flex", alignItems: "center", gap: "4px", width: "auto", maxWidth: "130px", padding: "4px 8px", borderRadius: "6px" }}
           >
@@ -1214,8 +1219,8 @@ export const Sidebar = React.memo(function Sidebar({
           <button
             type="button"
             className="sidebar-icon-button"
-            aria-label="Hide sidebar (Cmd+B)"
-            title="Hide sidebar (Cmd+B)"
+            aria-label={t("sidebar.hideSidebar")}
+            title={t("sidebar.hideSidebar")}
             onClick={onToggleSidebar}
           >
             <PanelLeftClose size={15} />
@@ -1223,8 +1228,8 @@ export const Sidebar = React.memo(function Sidebar({
           <button
             type="button"
             className="sidebar-icon-button"
-            aria-label="Workspace actions"
-            title="Workspace actions"
+            aria-label={t("sidebar.workspaceActions")}
+            title={t("sidebar.workspaceActions")}
             onClick={(e) => {
               e.stopPropagation();
               onContextMenu({ id: "workspace", type: "workspace" }, e.clientX, e.clientY);
@@ -1249,7 +1254,7 @@ export const Sidebar = React.memo(function Sidebar({
           <button
             type="button"
             className="environment-manage-button"
-            aria-label="Manage environments"
+            aria-label={t("sidebar.manageEnvironments")}
             onClick={onOpenEnvironment}
           >
             Manage
@@ -1259,7 +1264,7 @@ export const Sidebar = React.memo(function Sidebar({
         {deleteError && (
           <div role="alert" className="sidebar-error-banner" style={{ padding: "8px 10px", borderRadius: "6px", fontSize: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
             <span>{deleteError}</span>
-            <button type="button" aria-label="Dismiss error" onClick={onDismissDeleteError} style={{ all: "unset", cursor: "pointer", fontWeight: 700 }}>✕</button>
+            <button type="button" aria-label={t("sidebar.dismissError")} onClick={onDismissDeleteError} style={{ all: "unset", cursor: "pointer", fontWeight: 700 }}>✕</button>
           </div>
         )}
 
@@ -1268,19 +1273,19 @@ export const Sidebar = React.memo(function Sidebar({
             className="sidebar-new-collection-btn"
             type="button"
             onClick={() => void onCreateCollection()}
-            aria-label="Create new collection"
+            aria-label={t("sidebar.newCollection")}
             style={{ flex: 1 }}
           >
             <Plus size={16} />
-            <span>New Collection</span>
+            <span>{t("sidebar.newCollection")}</span>
           </button>
         </div>
 
         <label className={collectionSearch ? "search-field has-value" : "search-field"} style={{ marginTop: 0 }}>
           <Search size={15} />
           <input
-            placeholder="Search collections, folders, requests"
-            aria-label="Search collections"
+            placeholder={t("sidebar.searchPlaceholder")}
+            aria-label={t("common.search")}
             value={collectionSearch}
             onChange={(event) => onCollectionSearchChange(event.target.value)}
           />
@@ -1288,7 +1293,7 @@ export const Sidebar = React.memo(function Sidebar({
             <button
               type="button"
               className="search-clear-button"
-              aria-label="Clear collection search"
+              aria-label={t("common.clear")}
               onClick={() => onCollectionSearchChange("")}
             >
               <X size={13} />
@@ -1331,8 +1336,8 @@ export const Sidebar = React.memo(function Sidebar({
                     className="sidebar-icon-button"
                     type="button"
                     onClick={onOpenCollectionsOverview}
-                    aria-label="View all collections"
-                    title="View all collections"
+                    aria-label={t("sidebar.viewAllCollections")}
+                    title={t("sidebar.viewAllCollections")}
                   >
                     <LayoutGrid size={14} />
                   </button>
@@ -1342,8 +1347,8 @@ export const Sidebar = React.memo(function Sidebar({
                     className="sidebar-icon-button"
                     type="button"
                     onClick={onExpandAll}
-                    aria-label="Expand all folders"
-                    title="Expand all"
+                    aria-label={t("sidebar.expandAllFolders")}
+                    title={t("sidebar.expandAllFolders")}
                   >
                     <ChevronsDown size={14} />
                   </button>
@@ -1353,8 +1358,8 @@ export const Sidebar = React.memo(function Sidebar({
                     className="sidebar-icon-button"
                     type="button"
                     onClick={onCollapseAll}
-                    aria-label="Collapse all folders"
-                    title="Collapse all"
+                    aria-label={t("sidebar.collapseAllFolders")}
+                    title={t("sidebar.collapseAllFolders")}
                   >
                     <ChevronsUp size={14} />
                   </button>
@@ -1409,7 +1414,7 @@ export const Sidebar = React.memo(function Sidebar({
                           cursor: "pointer",
                           fontStyle: "italic",
                         }}
-                        title="Click to unlock collection"
+                        title={t("sidebar.clickToUnlock")}
                       >
                         <Lock size={12} style={{ color: "var(--color-status-error)" }} />
                         <span>Locked collection — Click to unlock</span>
@@ -1575,7 +1580,7 @@ export const Sidebar = React.memo(function Sidebar({
             className="sidebar-footer-icon-btn"
             data-tooltip="Documentation"
             data-tooltip-align="start"
-            aria-label="Documentation"
+            aria-label={t("nav.docs")}
             onClick={onOpenDocs}
           >
             <HelpCircle size={15} />
@@ -1584,7 +1589,7 @@ export const Sidebar = React.memo(function Sidebar({
             type="button"
             className="sidebar-footer-icon-btn"
             data-tooltip="Request History"
-            aria-label="Request History"
+            aria-label={t("nav.history")}
             onClick={onOpenHistory}
           >
             <History size={15} />
@@ -1593,7 +1598,7 @@ export const Sidebar = React.memo(function Sidebar({
             type="button"
             className="sidebar-footer-icon-btn"
             data-tooltip="Check for Updates"
-            aria-label="Check for Updates"
+            aria-label={t("sidebar.checkForUpdates")}
             onClick={onCheckForUpdates}
           >
             <RefreshCw size={15} />
@@ -1603,7 +1608,7 @@ export const Sidebar = React.memo(function Sidebar({
             className="sidebar-footer-icon-btn"
             data-tooltip="API Tools"
             data-tooltip-align="end"
-            aria-label="API Tools"
+            aria-label={t("nav.tools")}
             onClick={onOpenApiTools}
           >
             <Wrench size={15} />
@@ -1613,7 +1618,7 @@ export const Sidebar = React.memo(function Sidebar({
             className="sidebar-footer-icon-btn"
             data-tooltip="Plugins"
             data-tooltip-align="start"
-            aria-label="Plugin Manager"
+            aria-label={t("nav.plugins")}
             onClick={onOpenPlugins}
           >
             <Puzzle size={15} />
@@ -1622,7 +1627,7 @@ export const Sidebar = React.memo(function Sidebar({
             type="button"
             className="sidebar-footer-icon-btn"
             data-tooltip="Settings"
-            aria-label="Settings"
+            aria-label={t("nav.settings")}
             onClick={onOpenSettings}
           >
             <Settings size={15} />

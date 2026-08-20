@@ -16,6 +16,7 @@ import { RunnerHeader } from "./runner/RunnerHeader";
 import { RunnerHistoryView } from "./runner/RunnerHistoryView";
 import { TestRunReport } from "./runner/TestRunReport";
 import { CustomSelect } from "./CustomSelect";
+import { useI18n } from "../services/i18n";
 
 export interface CollectionRunnerProps {
   workspace: WorkspaceSummary;
@@ -50,6 +51,7 @@ export function CollectionRunner({
   persistVariable,
   removeVariable,
 }: CollectionRunnerProps) {
+  const { t } = useI18n();
   // --- Collect all requests under the scope ---
   const allRequests = useRef<SavedRequest[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -717,7 +719,7 @@ export function CollectionRunner({
                 {selectedIds.size === allRequests.current.length
                   ? <CheckSquare size={14} style={{ color: "var(--color-text-active)" }} />
                   : <SquareIcon size={14} />}
-                <span>{selectedIds.size} / {allRequests.current.length} selected</span>
+                <span>{selectedIds.size} / {allRequests.current.length} {t('runner.selected')}</span>
               </button>
             </div>
 
@@ -787,7 +789,7 @@ export function CollectionRunner({
               display: "flex", flexDirection: "column", gap: "8px",
             }}>
               <label style={{ fontSize: "12px", color: "var(--color-text-muted)", display: "flex", justifyContent: "space-between" }}>
-                <span>Delay between requests</span>
+                <span>{t('runner.delayBetweenRequests')}</span>
                 <span style={{ color: "var(--color-text)" }}>{delay}ms</span>
               </label>
               <input

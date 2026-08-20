@@ -12,10 +12,10 @@ test("WorkspacesManager component exists and implements full workspaces list vie
 
   assert.match(code, /export function WorkspacesManager/);
   assert.match(code, /Workspaces Hub/);
-  assert.match(code, /Total Workspaces/);
-  assert.match(code, /Active Workspace/);
-  assert.match(code, /Active Collections/);
-  assert.match(code, /Active Requests/);
+  assert.match(code, /workspaces\.totalWorkspaces/);
+  assert.match(code, /workspaces\.activeWorkspace/);
+  assert.match(code, /workspaces\.activeCollections/);
+  assert.match(code, /workspaces\.activeRequests/);
   assert.match(code, /Environments/);
   assert.match(code, /New Workspace/);
   assert.match(code, /onSwitchWorkspace/);
@@ -41,8 +41,8 @@ test("Sidebar has Workspaces Hub trigger button in brand-row", () => {
   const sidebar = read("src/renderer/src/components/Sidebar.tsx");
 
   assert.match(sidebar, /onOpenWorkspacesOverview/);
-  assert.match(sidebar, /title="Open Workspaces Hub"/);
-  assert.match(sidebar, /aria-label="Workspaces Hub"/);
+  assert.match(sidebar, /"Open Workspaces Hub"/);
+  assert.match(sidebar, /sidebar.openWorkspacesHub/);
 });
 
 test("TabBar supports workspaces-overview tab type and icon", () => {

@@ -28,6 +28,7 @@ import { VariableInput } from './VariableInput';
 import { WebSocketClient } from '../services/websocket-client';
 import { SocketIOClient } from '../services/socketio-client';
 import { formatBytes } from '../response-utils';
+import { useI18n } from '../services/i18n';
 
 interface WebSocketPanelProps {
   draftRequest: SavedRequest;
@@ -42,6 +43,7 @@ export function WebSocketPanel({
   onUpdateDraft,
   onSaveRequest,
 }: WebSocketPanelProps) {
+  const { t } = useI18n();
   const isSocketIO = draftRequest.method === 'SOCKET.IO';
 
   // Connection State
@@ -306,7 +308,7 @@ export function WebSocketPanel({
         <VariableInput
           value={draftRequest.url || ''}
           onChange={(e) => onUpdateDraft({ url: e.target.value })}
-          placeholder={isSocketIO ? "http://localhost:3000 or https://api.example.com" : "ws://localhost:8080/ws or wss://echo.websocket.events"}
+          placeholder={isSocketIO ? t('ws.socketioUrlPlaceholder') : t('ws.wsUrlPlaceholder')}
           activeVariables={activeVars}
           aria-label="Request URL"
           containerClassName="request-command-input"
@@ -329,15 +331,15 @@ export function WebSocketPanel({
         >
           {status === 'connected' ? (
             <>
-              <Square size={15} fill="#fff" /> Disconnect
+              <Square size={15} fill="#fff" /> {t('ws.disconnect')}
             </>
           ) : status === 'connecting' ? (
             <>
-              <Radio size={15} className="animate-spin" /> Connecting
+              <Radio size={15} className="animate-spin" /> {t('ws.connecting')}
             </>
           ) : (
             <>
-              <Play size={15} fill="#fff" /> Connect
+              <Play size={15} fill="#fff" /> {t('ws.connect')}
             </>
           )}
         </button>
@@ -387,9 +389,9 @@ export function WebSocketPanel({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', color: 'var(--color-text-muted)' }}>
-          <span><ArrowUpRight size={12} style={{ display: 'inline', color: 'var(--color-accent)' }} /> <strong>{metrics.outgoing}</strong> Sent</span>
-          <span><ArrowDownLeft size={12} style={{ display: 'inline', color: 'var(--color-status-2xx)' }} /> <strong>{metrics.incoming}</strong> Received</span>
-          <span><strong>{formatBytes(metrics.totalBytes)}</strong> Transferred</span>
+          <span><ArrowUpRight size={12} style={{ display: 'inline', color: 'var(--color-accent)' }} /> <strong>{metrics.outgoing}</strong> {t('ws.sent')}</span>
+          <span><ArrowDownLeft size={12} style={{ display: 'inline', color: 'var(--color-status-2xx)' }} /> <strong>{metrics.incoming}</strong> {t('ws.received')}</span>
+          <span><strong>{formatBytes(metrics.totalBytes)}</strong> {t('ws.transferred')}</span>
         </div>
       </div>
 
@@ -405,7 +407,7 @@ export function WebSocketPanel({
               className={activeTab === 'message' ? 'tab active' : 'tab'}
               onClick={() => setActiveTab('message')}
             >
-              <MessageSquare size={13} style={{ marginRight: '6px' }} /> Message
+              <MessageSquare size={13} style={{ marginRight: '6px' }} /> {t('ws.tabMessage')}
             </button>
             <button
               type="button"
@@ -413,7 +415,7 @@ export function WebSocketPanel({
               className={activeTab === 'handshake' ? 'tab active' : 'tab'}
               onClick={() => setActiveTab('handshake')}
             >
-              <Settings2 size={13} style={{ marginRight: '6px' }} /> Settings &amp; Handshake
+              <Settings2 size={13} style={{ marginRight: '6px' }} /> {t('ws.tabSettings')}
             </button>
             {isSocketIO && (
               <button
@@ -422,7 +424,7 @@ export function WebSocketPanel({
                 className={activeTab === 'events' ? 'tab active' : 'tab'}
                 onClick={() => setActiveTab('events')}
               >
-                <ListFilter size={13} style={{ marginRight: '6px' }} /> Listeners ({customEventListeners.length})
+                <ListFilter size={13} style={{ marginRight: '6px' }} /> {t('ws.tabListeners')} ({customEventListeners.length})
               </button>
             )}
           </div>
