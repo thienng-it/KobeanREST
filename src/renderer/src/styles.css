@@ -1620,40 +1620,43 @@ button:disabled {
 
 .folder-chevron {
   transform: rotate(0deg);
-  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
 }
 
 .folder-chevron.collapsed {
   transform: rotate(-90deg);
 }
 
-.folder-children {
+.folder-children,
+.collection-children {
   display: grid;
   grid-template-rows: 1fr;
   opacity: 1;
   transform: translateY(0);
   visibility: visible;
   transition:
-    grid-template-rows 240ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 170ms ease,
-    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    grid-template-rows 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
     visibility 0s;
 }
 
-.folder-children.collapsed {
+.folder-children.collapsed,
+.collection-children.collapsed {
   grid-template-rows: 0fr;
   opacity: 0;
   pointer-events: none;
   transform: translateY(-4px);
   visibility: hidden;
   transition:
-    grid-template-rows 220ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 150ms ease,
-    transform 220ms cubic-bezier(0.4, 0, 0.2, 1),
-    visibility 0s linear 220ms;
+    grid-template-rows 260ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 180ms ease,
+    transform 260ms cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s linear 260ms;
 }
 
-.folder-children-inner {
+.folder-children-inner,
+.collection-children-inner {
   min-height: 0;
   overflow: hidden;
   padding-top: 2px;
@@ -1666,7 +1669,15 @@ button:disabled {
 
 .sidebar-tree-row {
   justify-content: space-between;
-  transition: background 140ms ease, border-color 90ms ease;
+  border-radius: 6px;
+  padding: 4px 6px;
+  transition: background 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-tree-row:hover {
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.06));
 }
 
 .sidebar-item-name {
@@ -1690,10 +1701,8 @@ button:disabled {
   cursor: grab;
   touch-action: none;
   pointer-events: none;
-  transition: opacity 120ms ease, color 120ms ease;
+  transition: opacity 160ms ease, color 160ms ease;
 }
-
-
 
 .sidebar-drag-handle:hover,
 .sidebar-tree-row:hover .sidebar-drag-handle {
@@ -1712,15 +1721,16 @@ button:disabled {
   gap: 2px;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(4px);
-  transition: opacity 140ms ease, transform 140ms ease;
+  transform: translateX(4px) scale(0.92);
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar-tree-row:hover .sidebar-row-actions,
 .sidebar-tree-row:focus-within .sidebar-row-actions {
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(0);
+  transform: translateX(0) scale(1);
 }
 
 .sidebar-icon-button {
@@ -1729,10 +1739,10 @@ button:disabled {
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 7px;
+  border-radius: 6px;
   color: var(--color-muted);
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
 .sidebar-icon-button:hover,

@@ -45,6 +45,13 @@ test("styles.css contract: contains styles for workspace panes, split layout, an
   assert.match(styles, /\.bottom-dock\.split-mode\s*\.bottom-dock-resizer/);
   assert.match(styles, /\.bottom-dock\.split-mode\s*\.bottom-dock-collapse\.expanded\s*\.bottom-dock-toggle-chevron/);
   assert.match(styles, /\.bottom-dock\.split-mode\.dock-collapsed/);
+  assert.match(styles, /\.collection-children/);
   assert.match(styles, /\.layout-controls/);
   assert.match(styles, /\[data-density=["']compact["']\]/);
+});
+
+test("Sidebar.tsx contract: renders collection-children animated accordion container", () => {
+  const sidebar = read("src/renderer/src/components/Sidebar.tsx");
+  assert.match(sidebar, /collection-children/);
+  assert.match(sidebar, /collection-children-inner/);
 });

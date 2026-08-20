@@ -1402,35 +1402,40 @@ export const Sidebar = React.memo(function Sidebar({
                   isLocked={isLocked}
                   onLockToggle={() => onLockCollectionToggle?.(collection.id)}
                 >
-                  {!isCollectionCollapsed && (
-                    isLocked ? (
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onLockCollectionToggle?.(collection.id);
-                        }}
-                        style={{
-                          padding: "8px 16px 8px 32px",
-                          fontSize: "12px",
-                          color: "var(--color-text-muted)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          cursor: "pointer",
-                          fontStyle: "italic",
-                        }}
-                        title={t("sidebar.clickToUnlock")}
-                      >
-                        <Lock size={12} style={{ color: "var(--color-status-error)" }} />
-                        <span>Locked collection — Click to unlock</span>
-                      </div>
-                    ) : (
-                      <>
-                        {renderCollectionRequests(collection.id, matchesCollectionSearch(collection.name) ?? false)}
-                        {renderFolders(undefined, 0, matchesCollectionSearch(collection.name) ?? false, collection.id)}
-                      </>
-                    )
-                  )}
+                  <div
+                    className={isCollectionCollapsed ? "collection-children folder-children collapsed" : "collection-children folder-children"}
+                    aria-hidden={isCollectionCollapsed}
+                  >
+                    <div className="collection-children-inner folder-children-inner">
+                      {isLocked ? (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onLockCollectionToggle?.(collection.id);
+                          }}
+                          style={{
+                            padding: "8px 16px 8px 32px",
+                            fontSize: "12px",
+                            color: "var(--color-text-muted)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            cursor: "pointer",
+                            fontStyle: "italic",
+                          }}
+                          title={t("sidebar.clickToUnlock")}
+                        >
+                          <Lock size={12} style={{ color: "var(--color-status-error)" }} />
+                          <span>Locked collection — Click to unlock</span>
+                        </div>
+                      ) : (
+                        <>
+                          {renderCollectionRequests(collection.id, matchesCollectionSearch(collection.name) ?? false)}
+                          {renderFolders(undefined, 0, matchesCollectionSearch(collection.name) ?? false, collection.id)}
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </DraggableCollectionRow>
               );
             })}
