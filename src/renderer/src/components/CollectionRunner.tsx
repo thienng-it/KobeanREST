@@ -1,8 +1,9 @@
 import { createPortal } from "react-dom";
-import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from "react";
 import {
   X, Play, Square, CheckCircle, XCircle, Clock, ChevronDown, ChevronRight,
-  Loader, RefreshCw, Filter, CheckSquare, Square as SquareIcon, History
+  Loader, RefreshCw, Filter, CheckSquare, Square as SquareIcon, History,
+  BarChart3, ListChecks
 } from "lucide-react";
 import type { SavedRequest, WorkspaceSummary, ExecuteHttpResponse } from "../types";
 import { executeHttpRequest } from "../services/http-client";
@@ -13,6 +14,7 @@ import type { KbScriptContext } from "../services/script-runtime";
 import { formatResponseBody } from "../response-utils";
 import { RunnerHeader } from "./runner/RunnerHeader";
 import { RunnerHistoryView } from "./runner/RunnerHistoryView";
+import { TestRunReport } from "./runner/TestRunReport";
 import { CustomSelect } from "./CustomSelect";
 
 export interface CollectionRunnerProps {
@@ -55,6 +57,7 @@ export function CollectionRunner({
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [viewMode, setViewMode] = useState<"report" | "details">("details");
   const [delay, setDelay] = useState(0);
   const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
   const [runEnvId, setRunEnvId] = useState<string | null>(workspace.activeEnvironment);
@@ -66,6 +69,7 @@ export function CollectionRunner({
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [resultFilter, setResultFilter] = useState<"all" | "passed" | "failed">("all");
   const [historyFilter, setHistoryFilter] = useState<"all" | "passed" | "failed">("all");
+  const [historyViewMode, setHistoryViewMode] = useState<"report" | "details">("report");
   const [expandedHistoryItems, setExpandedHistoryItems] = useState<Set<number>>(new Set());
   const abortRef = useRef(false);
   const pauseRef = useRef(false);
@@ -73,6 +77,44 @@ export function CollectionRunner({
     scopeType === "folder"
       ? workspace.folders.find((f) => f.id === scopeId)?.name
       : workspace.collections?.find((c) => c.id === scopeId)?.name;
+
+  const historyResultItems: import("./runner/TestRunReport").RequestResultItem[] = useMemo(() => {
+    return runDetails.map((entry, idx) => {
+      let parsedTestResults: Array<{ name: string; passed: boolean; error?: string }> = [];
+      if (entry.testResults) {
+        try {
+          parsedTestResults = typeof entry.testResults === "string" ? JSON.parse(entry.testResults) : entry.testResults;
+        } catch {
+          // ignore
+        }
+      }
+      const passed = entry.testPassed ?? (entry.status >= 200 && entry.status < 400 && (entry.failedTests || 0) === 0);
+      return {
+        request: {
+          id: entry.requestId || String(idx),
+          name: entry.url || `Request #${idx + 1}`,
+          method: entry.method,
+          folderId: "",
+          url: entry.url,
+        },
+        status: passed ? "passed" : "failed",
+        response: {
+          status: entry.status,
+          statusText: entry.status >= 200 && entry.status < 300 ? "OK" : entry.status >= 400 ? "Error" : "",
+          headers: entry.responseHeaders ? parseHeadersString(entry.responseHeaders) : [],
+          body: entry.responseBodyText || "",
+          bodyText: entry.responseBodyText || "",
+          sizeBytes: entry.sizeBytes || 0,
+          durationMs: entry.durationMs,
+        },
+        durationMs: entry.durationMs,
+        passedTests: entry.passedTests,
+        failedTests: entry.failedTests,
+        testResults: parsedTestResults,
+        error: entry.status >= 400 || entry.status === 0 ? `HTTP ${entry.status}` : undefined,
+      };
+    });
+  }, [runDetails]);
 
   // Build ordered list of requests under this scope
   function collectRequestsForFolder(folderId: string, depth = 0): SavedRequest[] {
@@ -220,6 +262,7 @@ export function CollectionRunner({
     setIsRunning(false);
     setIsPaused(false);
     setFinished(false);
+    setViewMode("details");
     setResults(allRequests.current.map((r) => ({ request: r, status: "pending" })));
   }, []);
 
@@ -529,6 +572,7 @@ export function CollectionRunner({
 
     setIsRunning(false);
     setFinished(true);
+    setViewMode("report");
     
     // Reload history after run completes
     await loadHistory();
@@ -570,7 +614,7 @@ export function CollectionRunner({
     >
       <div
         style={{
-          width: "min(900px, 96vw)", height: "min(720px, 92vh)",
+          width: "min(1120px, 96vw)", height: "min(840px, 94vh)",
           background: "var(--color-surface-solid)",
           border: "1px solid var(--color-border-modal)",
           borderRadius: "12px",
@@ -823,48 +867,125 @@ export function CollectionRunner({
           </div>
 
           {/* Right: results */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-            {/* Progress bar and stats */}
-            {(isRunning || finished) && (
-              <>
-                <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--color-border)", flexShrink: 0 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "12px" }}>
-                    <div style={{ display: "flex", gap: "16px" }}>
-                      <span style={{ color: "var(--color-status-success, #22c55e)" }}>
-                        ✓ {passed} passed
-                      </span>
-                      {failed > 0 && (
-                        <span style={{ color: "var(--color-status-error, #ef4444)" }}>
-                          ✗ {failed} failed
-                        </span>
-                      )}
-                      {running > 0 && (
-                        <span style={{ color: "var(--color-text-active)" }}>
-                          ↻ {running} running
-                        </span>
-                      )}
-                      {(totalPassedTests > 0 || totalFailedTests > 0) && (
-                        <span style={{ color: "var(--color-text-muted)" }}>
-                          ({totalPassedTests} tests passed, {totalFailedTests} failed)
-                        </span>
-                      )}
-                    </div>
-                    <span style={{ color: "var(--color-text-muted)" }}>
-                      {done}/{total} ({progressPct}%)
-                    </span>
-                  </div>
-                  <div style={{ height: "4px", borderRadius: "4px", background: "var(--color-border)", overflow: "hidden" }}>
-                    <div style={{
-                      height: "100%",
-                      width: `${progressPct}%`,
-                      borderRadius: "4px",
-                      background: failed > 0
-                        ? "linear-gradient(90deg, #22c55e, #ef4444)"
-                        : "var(--color-status-success, #22c55e)",
-                      transition: "width 200ms ease",
-                    }} />
-                  </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+            {/* View switcher when finished */}
+            {finished && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 20px",
+                  borderBottom: "1px solid var(--color-border)",
+                  background: "var(--color-surface)",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("report")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "5px 12px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      border: "none",
+                      background: viewMode === "report" ? "var(--color-text-active)" : "var(--color-surface-muted)",
+                      color: viewMode === "report" ? "#fff" : "var(--color-text-muted)",
+                      transition: "all 150ms ease",
+                    }}
+                  >
+                    <BarChart3 size={13} />
+                    <span>Summary Report</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("details")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "5px 12px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      border: "none",
+                      background: viewMode === "details" ? "var(--color-text-active)" : "var(--color-surface-muted)",
+                      color: viewMode === "details" ? "#fff" : "var(--color-text-muted)",
+                      transition: "all 150ms ease",
+                    }}
+                  >
+                    <ListChecks size={13} />
+                    <span>Request Logs</span>
+                  </button>
                 </div>
+
+                <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                  {passed} passed / {failed} failed / {total} total
+                </span>
+              </div>
+            )}
+
+            {/* Render TestRunReport in report mode */}
+            {finished && viewMode === "report" ? (
+              <TestRunReport
+                scopeName={scopeName}
+                scopeType={scopeType}
+                environmentName={workspace.environments?.find(e => e.name === runEnvId)?.name || runEnvId}
+                results={results}
+                createdAt={Date.now()}
+                onViewDetailedLogs={() => setViewMode("details")}
+              />
+            ) : (
+              <>
+                {/* Progress bar and stats */}
+                {(isRunning || finished) && (
+                  <>
+                    <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--color-border)", flexShrink: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "12px" }}>
+                        <div style={{ display: "flex", gap: "16px" }}>
+                          <span style={{ color: "var(--color-status-success, #22c55e)" }}>
+                            ✓ {passed} passed
+                          </span>
+                          {failed > 0 && (
+                            <span style={{ color: "var(--color-status-error, #ef4444)" }}>
+                              ✗ {failed} failed
+                            </span>
+                          )}
+                          {running > 0 && (
+                            <span style={{ color: "var(--color-text-active)" }}>
+                              ↻ {running} running
+                            </span>
+                          )}
+                          {(totalPassedTests > 0 || totalFailedTests > 0) && (
+                            <span style={{ color: "var(--color-text-muted)" }}>
+                              ({totalPassedTests} tests passed, {totalFailedTests} failed)
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ color: "var(--color-text-muted)" }}>
+                          {done}/{total} ({progressPct}%)
+                        </span>
+                      </div>
+                      <div style={{ height: "4px", borderRadius: "4px", background: "var(--color-border)", overflow: "hidden" }}>
+                        <div style={{
+                          height: "100%",
+                          width: `${progressPct}%`,
+                          borderRadius: "4px",
+                          background: failed > 0
+                            ? "linear-gradient(90deg, #22c55e, #ef4444)"
+                            : "var(--color-status-success, #22c55e)",
+                          transition: "width 200ms ease",
+                        }} />
+                      </div>
+                    </div>
                 
                 {/* Filter and Graph */}
                 <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--color-border)", flexShrink: 0, display: "flex", gap: "16px", alignItems: "center" }}>
@@ -1151,6 +1272,8 @@ export function CollectionRunner({
                 })}
               </div>
             )}
+              </>
+            )}
           </div>
         </div>
         ) : (
@@ -1314,86 +1437,159 @@ export function CollectionRunner({
             </div>
           ) : (
             /* Details of a selected run */
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-              <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", gap: "12px" }}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRun(null)}
-                  style={{
-                    all: "unset",
-                    cursor: "pointer",
-                    padding: "6px",
-                    color: "var(--color-text-muted)",
-                    borderRadius: "4px",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  ← Back
-                </button>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)" }}>
-                    {new Date(selectedRun.createdAt).toLocaleString()}
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "10px 20px",
+                  borderBottom: "1px solid var(--color-border)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background: "var(--color-surface)",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRun(null)}
+                    style={{
+                      all: "unset",
+                      cursor: "pointer",
+                      padding: "5px 10px",
+                      color: "var(--color-text)",
+                      background: "var(--color-surface-muted)",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    ← Back to History
+                  </button>
+                  <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                    {new Date(selectedRun.createdAt).toLocaleString()} &bull; {selectedRun.passedRequests}/{selectedRun.totalRequests} passed ({(selectedRun.totalDurationMs / 1000).toFixed(1)}s)
                   </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
-                    {selectedRun.passedRequests}/{selectedRun.totalRequests} passed • {(selectedRun.totalDurationMs / 1000).toFixed(1)}s
-                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryViewMode("report")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "5px 12px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      border: "none",
+                      background: historyViewMode === "report" ? "var(--color-text-active)" : "var(--color-surface-muted)",
+                      color: historyViewMode === "report" ? "#fff" : "var(--color-text-muted)",
+                      transition: "all 150ms ease",
+                    }}
+                  >
+                    <BarChart3 size={13} />
+                    <span>Summary Report</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setHistoryViewMode("details")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "5px 12px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      border: "none",
+                      background: historyViewMode === "details" ? "var(--color-text-active)" : "var(--color-surface-muted)",
+                      color: historyViewMode === "details" ? "#fff" : "var(--color-text-muted)",
+                      transition: "all 150ms ease",
+                    }}
+                  >
+                    <ListChecks size={13} />
+                    <span>Request Logs</span>
+                  </button>
                 </div>
               </div>
-              
-              {/* Filter and Graph for history */}
-              {!loadingHistory && runDetails.length > 0 && (
-                <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--color-border)", flexShrink: 0, display: "flex", gap: "16px", alignItems: "center" }}>
-                  <Filter size={14} style={{ color: "var(--color-text-muted)" }} />
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    {["all", "passed", "failed"].map((filter) => (
-                      <button
-                        key={filter}
-                        type="button"
-                        onClick={() => setHistoryFilter(filter as any)}
-                        style={{
-                          all: "unset",
-                          padding: "4px 10px",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          background: historyFilter === filter ? "var(--color-text-active)" : "var(--color-surface-muted)",
-                          color: historyFilter === filter ? "#fff" : "var(--color-text-muted)",
-                          transition: "all 150ms",
-                        }}
-                      >
-                        {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  {/* Mini Graph */}
-                  <div style={{ marginLeft: "auto", display: "flex", gap: "2px", alignItems: "flex-end", height: "24px" }}>
-                    {runDetails.map((entry, idx) => {
-                      const maxDuration = Math.max(...runDetails.map(e => e.durationMs));
-                      const height = Math.max(4, Math.min(24, (entry.durationMs / maxDuration) * 24));
-                      const passed = entry.testPassed ?? entry.status < 400;
-                      const color = passed ? "var(--color-status-success)" : "var(--color-status-error)";
-                      return (
-                        <div
-                          key={idx}
-                          style={{
-                            width: "3px",
-                            height: `${height}px`,
-                            background: color,
-                            borderRadius: "1px",
-                            opacity: 0.8,
-                          }}
-                          title={`${entry.method} ${entry.url}: ${entry.durationMs}ms - ${passed ? 'passed' : 'failed'}`}
-                        />
-                      );
-                    })}
-                  </div>
+
+              {loadingHistory ? (
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)" }}>
+                  <Loader size={24} style={{ animation: "spin 1s linear infinite" }} />
                 </div>
-              )}
-              
-              <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px" }}>
+              ) : historyViewMode === "report" ? (
+                <TestRunReport
+                  scopeName={selectedRun.scopeName || scopeName}
+                  scopeType={scopeType}
+                  environmentName={runEnvId ? (workspace?.environments?.find(e => e.name === runEnvId)?.name || runEnvId) : undefined}
+                  results={historyResultItems}
+                  totalDurationMs={selectedRun.totalDurationMs}
+                  createdAt={new Date(selectedRun.createdAt).getTime()}
+                  onViewDetailedLogs={() => setHistoryViewMode("details")}
+                />
+              ) : (
+                <>
+                  {/* Filter and Graph for history */}
+                  {!loadingHistory && runDetails.length > 0 && (
+                    <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--color-border)", flexShrink: 0, display: "flex", gap: "16px", alignItems: "center" }}>
+                      <Filter size={14} style={{ color: "var(--color-text-muted)" }} />
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        {["all", "passed", "failed"].map((filter) => (
+                          <button
+                            key={filter}
+                            type="button"
+                            onClick={() => setHistoryFilter(filter as any)}
+                            style={{
+                              all: "unset",
+                              padding: "4px 10px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              background: historyFilter === filter ? "var(--color-text-active)" : "var(--color-surface-muted)",
+                              color: historyFilter === filter ? "#fff" : "var(--color-text-muted)",
+                              transition: "all 150ms",
+                            }}
+                          >
+                            {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      {/* Mini Graph */}
+                      <div style={{ marginLeft: "auto", display: "flex", gap: "2px", alignItems: "flex-end", height: "24px" }}>
+                        {runDetails.map((entry, idx) => {
+                          const maxDuration = Math.max(...runDetails.map(e => e.durationMs));
+                          const height = Math.max(4, Math.min(24, (entry.durationMs / maxDuration) * 24));
+                          const passed = entry.testPassed ?? entry.status < 400;
+                          const color = passed ? "var(--color-status-success)" : "var(--color-status-error)";
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                width: "3px",
+                                height: `${height}px`,
+                                background: color,
+                                borderRadius: "1px",
+                                opacity: 0.8,
+                              }}
+                              title={`${entry.method} ${entry.url}: ${entry.durationMs}ms - ${passed ? 'passed' : 'failed'}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px" }}>
                 {loadingHistory ? (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 0" }}>
                     <Loader size={24} style={{ animation: "spin 1s linear infinite", color: "var(--color-text-muted)" }} />
@@ -1569,8 +1765,10 @@ export function CollectionRunner({
                         </div>
                       );
                     })
-                )}
-              </div>
+                  )}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

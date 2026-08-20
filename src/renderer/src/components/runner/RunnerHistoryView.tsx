@@ -1,6 +1,8 @@
-import { CheckCircle, XCircle, Clock, ChevronRight, ChevronDown } from "lucide-react";
+import { useState, useMemo } from "react";
+import { CheckCircle, XCircle, Clock, ChevronRight, ChevronDown, BarChart3, ListChecks } from "lucide-react";
 import type { CollectionRunSummary, HistoryEntry } from "../../types";
 import { formatTimestamp } from "../../app-utils";
+import { TestRunReport, type RequestResultItem } from "./TestRunReport";
 
 export interface RunnerHistoryViewProps {
   pastRuns: CollectionRunSummary[];
@@ -25,6 +27,45 @@ export function RunnerHistoryView({
   onFilterChange,
   onToggleExpand,
 }: RunnerHistoryViewProps) {
+  const [viewMode, setViewMode] = useState<"report" | "details">("report");
+
+  const historyResultItems: RequestResultItem[] = useMemo(() => {
+    return runDetails.map((entry, idx) => {
+      let parsedTestResults: Array<{ name: string; passed: boolean; error?: string }> = [];
+      if (entry.testResults) {
+        try {
+          parsedTestResults = typeof entry.testResults === "string" ? JSON.parse(entry.testResults) : entry.testResults;
+        } catch {
+          // ignore
+        }
+      }
+      const isSuccess = entry.status >= 200 && entry.status < 400 && (entry.failedTests || 0) === 0;
+      return {
+        request: {
+          id: entry.requestId || String(idx),
+          name: entry.url || `Request #${idx + 1}`,
+          method: entry.method,
+          folderId: "",
+          url: entry.url,
+        },
+        status: isSuccess ? "passed" : "failed",
+        response: {
+          status: entry.status,
+          statusText: entry.status >= 200 && entry.status < 300 ? "OK" : entry.status >= 400 ? "Error" : "",
+          headers: [],
+          body: entry.responseBodyText || "",
+          sizeBytes: entry.sizeBytes || 0,
+          durationMs: entry.durationMs,
+        },
+        durationMs: entry.durationMs,
+        passedTests: entry.passedTests,
+        failedTests: entry.failedTests,
+        testResults: parsedTestResults,
+        error: entry.status >= 400 || entry.status === 0 ? `HTTP ${entry.status}` : undefined,
+      };
+    });
+  }, [runDetails]);
+
   if (loadingHistory) {
     return <div style={{ padding: "20px", color: "var(--color-text-muted)", textAlign: "center" }}>Loading run history...</div>;
   }
@@ -40,7 +81,7 @@ export function RunnerHistoryView({
   });
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "16px", height: "420px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: "16px", flex: 1, minHeight: 0, height: "100%" }}>
       <div style={{ borderRight: "1px solid var(--color-border)", overflowY: "auto", paddingRight: "10px" }}>
         <h4 style={{ margin: "0 0 10px 0", fontSize: "13px", color: "var(--color-text-muted)" }}>Past Executions</h4>
         {pastRuns.map((run) => (
@@ -76,24 +117,77 @@ export function RunnerHistoryView({
       <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
         {selectedRun ? (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h4 style={{ margin: 0, fontSize: "13px" }}>Run Details ({selectedRun.runId})</h4>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--color-border)", paddingBottom: "8px" }}>
               <div style={{ display: "flex", gap: "6px" }}>
-                {(["all", "passed", "failed"] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    className={`btn-secondary ${historyFilter === filter ? "active" : ""}`}
-                    onClick={() => onFilterChange(filter)}
-                    style={{ fontSize: "11px", padding: "2px 8px" }}
-                  >
-                    {filter.toUpperCase()}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => setViewMode("report")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    border: "none",
+                    background: viewMode === "report" ? "var(--color-text-active)" : "var(--color-surface-muted)",
+                    color: viewMode === "report" ? "#fff" : "var(--color-text-muted)",
+                  }}
+                >
+                  <BarChart3 size={12} />
+                  <span>Report</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("details")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    border: "none",
+                    background: viewMode === "details" ? "var(--color-text-active)" : "var(--color-surface-muted)",
+                    color: viewMode === "details" ? "#fff" : "var(--color-text-muted)",
+                  }}
+                >
+                  <ListChecks size={12} />
+                  <span>Entries</span>
+                </button>
               </div>
+
+              {viewMode === "details" && (
+                <div style={{ display: "flex", gap: "6px" }}>
+                  {(["all", "passed", "failed"] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      className={`btn-secondary ${historyFilter === filter ? "active" : ""}`}
+                      onClick={() => onFilterChange(filter)}
+                      style={{ fontSize: "11px", padding: "2px 8px" }}
+                    >
+                      {filter.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {filteredDetails.map((entry, idx) => {
+            {viewMode === "report" ? (
+              <TestRunReport
+                scopeName={selectedRun.scopeName || selectedRun.runId}
+                results={historyResultItems}
+                totalDurationMs={selectedRun.totalDurationMs}
+                createdAt={selectedRun.createdAt}
+                onViewDetailedLogs={() => setViewMode("details")}
+              />
+            ) : (
+              filteredDetails.map((entry, idx) => {
               const isExpanded = expandedHistoryItems.has(idx);
               const isSuccess = entry.status >= 200 && entry.status < 400;
               return (
@@ -232,9 +326,10 @@ export function RunnerHistoryView({
                   )}
                 </div>
               );
-            })}
-          </>
-        ) : (
+            })
+          )}
+        </>
+      ) : (
           <div style={{ padding: "20px", color: "var(--color-text-muted)", textAlign: "center" }}>
             Select a run from the list to view detailed execution results.
           </div>
