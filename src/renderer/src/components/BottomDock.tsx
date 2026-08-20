@@ -20,6 +20,8 @@ export interface BottomDockProps {
   previewMode: PreviewMode;
   scriptOutputLog: ScriptOutputEntry[];
   isRequestTabsCollapsed?: boolean;
+  layoutMode?: "stacked" | "split";
+  splitResponseWidth?: number;
   autoWrap?: boolean;
   autoCollapse?: boolean;
   onActiveBottomDockChange: (dock: "response" | "console" | null) => void;
@@ -46,6 +48,8 @@ export const BottomDock = React.memo(function BottomDock({
   previewMode,
   scriptOutputLog,
   isRequestTabsCollapsed,
+  layoutMode = "stacked",
+  splitResponseWidth = 480,
   autoWrap = true,
   autoCollapse = false,
   onActiveBottomDockChange,
@@ -59,12 +63,24 @@ export const BottomDock = React.memo(function BottomDock({
   onClearConsole,
 }: BottomDockProps) {
   const open = activeBottomDock !== null;
+  const isSplit = layoutMode === "split";
   const hasResponse = !(responseState.kind === "idle" && !currentResponse);
   const hasConsoleErrors = scriptOutputLog.some(
     (e) => e.tone === "error" || e.type === "test_fail",
   );
 
-  const dockStyle: React.CSSProperties = open
+  const dockStyle: React.CSSProperties = isSplit
+    ? open
+      ? {
+          width: `${splitResponseWidth}px`,
+          minWidth: "280px",
+          maxWidth: "80%",
+          flex: `0 0 ${splitResponseWidth}px`,
+          height: "100%",
+          minHeight: "100%",
+        }
+      : { width: `${bottomDockStripHeight}px`, height: "100%" }
+    : open
     ? isRequestTabsCollapsed
       ? { flex: 1, minHeight: "260px", height: "100%" }
       : { height: `${bottomDockHeight + bottomDockStripHeight}px` }
@@ -73,7 +89,7 @@ export const BottomDock = React.memo(function BottomDock({
   // If no response and no console logs and dock closed, still keep strip accessible
   return (
     <section
-      className={`bottom-dock ${isRequestTabsCollapsed ? "expanded-view" : ""}`}
+      className={`bottom-dock ${isRequestTabsCollapsed ? "expanded-view" : ""} ${isSplit ? "split-mode" : ""}`}
       aria-label="Bottom dock"
       style={dockStyle}
     >
@@ -81,9 +97,9 @@ export const BottomDock = React.memo(function BottomDock({
         <div
           className="bottom-dock-resizer"
           role="separator"
-          aria-label="Resize bottom panel"
+          aria-label={isSplit ? "Resize split panel width" : "Resize bottom panel height"}
           onMouseDown={onResizerMouseDown}
-          title="Drag to resize panel height"
+          title={isSplit ? "Drag to resize panel width" : "Drag to resize panel height"}
         />
       )}
       <div className="bottom-dock-strip">

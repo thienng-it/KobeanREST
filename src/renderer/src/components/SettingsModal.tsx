@@ -92,6 +92,28 @@ export function SettingsModal({
               />
             </label>
             <label className="settings-field" style={{ alignItems: "center" }}>
+              <span>Layout view</span>
+              <CustomSelect
+                value={appSettings.layoutMode || "stacked"}
+                onChange={(val) => onSettingsChange({ layoutMode: val as AppSettings["layoutMode"] })}
+                options={[
+                  { value: "stacked", label: "Stacked (Top/Bottom Rows)" },
+                  { value: "split", label: "Side-by-Side (Columns)" },
+                ]}
+              />
+            </label>
+            <label className="settings-field" style={{ alignItems: "center" }}>
+              <span>UI Density</span>
+              <CustomSelect
+                value={appSettings.uiDensity || "comfortable"}
+                onChange={(val) => onSettingsChange({ uiDensity: val as AppSettings["uiDensity"] })}
+                options={[
+                  { value: "comfortable", label: "Comfortable (Default)" },
+                  { value: "compact", label: "Compact (High Density)" },
+                ]}
+              />
+            </label>
+            <label className="settings-field" style={{ alignItems: "center" }}>
               <span>{t('settings.language')}</span>
               <CustomSelect
                 value={appSettings.language || "system"}

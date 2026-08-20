@@ -2399,6 +2399,127 @@ button:disabled {
   letter-spacing: 0.05em;
 }
 
+.workspace-panes {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  gap: 8px;
+  padding: 4px;
+}
+
+.workspace-panes.layout-stacked {
+  flex-direction: column;
+}
+
+.workspace-panes.layout-split {
+  flex-direction: row;
+}
+
+.workspace-panes.layout-split > .request-panel {
+  flex: 1 1 0%;
+  min-width: 320px;
+  height: 100%;
+}
+
+.workspace-panes.layout-split > .bottom-dock {
+  min-width: 280px;
+  max-width: 80%;
+  height: 100%;
+  border-top: 1px solid var(--color-border);
+}
+
+.bottom-dock.split-mode {
+  transition: width 280ms cubic-bezier(0.16, 1, 0.3, 1),
+              flex 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bottom-dock.split-mode .bottom-dock-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  right: auto;
+  width: 12px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.bottom-dock.split-mode .bottom-dock-resizer::after {
+  content: "";
+  width: 4px;
+  height: 48px;
+  border-radius: 2px;
+  background: var(--color-border);
+  transition: background 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+.bottom-dock.split-mode .bottom-dock-resizer:hover::after,
+.bottom-dock.split-mode .bottom-dock-resizer:active::after {
+  background: var(--color-accent, #3b82f6);
+  width: 5px;
+  height: 72px;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+
+/* Zero-latency direct hardware resizing: disable all transitions during active drag */
+.app-shell.dock-resizing *,
+.app-shell.dock-resizing .bottom-dock,
+.app-shell.dock-resizing .request-panel,
+.app-shell.dock-resizing .workspace-panes,
+.app-shell.dock-resizing .workspace-panes > *,
+.app-shell.sidebar-resizing *,
+.app-shell.sidebar-resizing .sidebar,
+.app-shell.sidebar-resizing .workspace {
+  transition: none !important;
+  user-select: none !important;
+}
+
+.layout-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.layout-controls .layout-mode-btn {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.layout-controls .layout-mode-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.layout-controls .layout-mode-btn.active {
+  background: var(--color-accent-surface, rgba(59, 130, 246, 0.15));
+  color: var(--color-accent, #3b82f6);
+}
+
+/* UI Density */
+:root[data-density="compact"],
+[data-density="compact"] {
+  --row-height: 28px;
+}
+
+[data-density="compact"] .request-panel {
+  gap: 8px;
+  padding: 4px 6px;
+}
+
+[data-density="compact"] .tab-row button.tab {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+[data-density="compact"] .headers-row {
+  padding: 2px 4px;
+}
+
 .request-panel,
 .response-viewer,
 .status-column article {

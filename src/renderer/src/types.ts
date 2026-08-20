@@ -195,6 +195,8 @@ export interface AppSettings {
   responseAutoCollapse?: boolean;
   language?: "system" | "en" | "vi" | "ja" | "zh-CN" | "es" | "fr" | "de" | "ko";
   quotesEnabled?: boolean;
+  layoutMode?: "stacked" | "split";
+  uiDensity?: "comfortable" | "compact";
 }
 
 export interface UpdateStatus {

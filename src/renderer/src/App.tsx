@@ -34,6 +34,7 @@ import { CollectionEditor } from "./components/CollectionEditor";
 import { CollectionsManager } from "./components/CollectionsManager";
 import { WorkspacesManager } from "./components/WorkspacesManager";
 import { UniversalImportModal } from "./components/UniversalImportModal";
+import { LayoutControls } from "./components/LayoutControls";
 import { I18nProvider } from "./services/i18n";
 import { PositiveQuoteCard, PositiveQuoteWidget } from "./components/PositiveQuoteWidget";
 import { ApiToolsModal } from "./components/ApiToolsModal";
@@ -113,6 +114,7 @@ export function App() {
   const [responseWindowOpen, setResponseWindowOpen] = useState(false);
   const [activeBottomDock, setActiveBottomDock] = useState<'response' | 'console' | null>('response');
   const [bottomDockHeight, setBottomDockHeight] = useState(320);
+  const [splitResponseWidth, setSplitResponseWidth] = useState(480);
   const [isResponsePanelResizing, setIsResponsePanelResizing] = useState(false);
   const [isRequestTabsCollapsed, setIsRequestTabsCollapsed] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
@@ -521,9 +523,22 @@ export function App() {
     const handleMouseMove = (e: MouseEvent) => {
       if (rafId !== null) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        const maxHeight = Math.max(160, window.innerHeight - 280);
-        const nextHeight = Math.min(maxHeight, Math.max(140, window.innerHeight - e.clientY - 24));
-        setBottomDockHeight(nextHeight);
+        const activeTab = activeTabId ? tabs.find((t) => t.id === activeTabId) : null;
+        const isSplit = (appSettings.layoutMode ?? "stacked") === "split" && (!activeTab || activeTab.type === "request");
+        const mainEl = document.querySelector('.workspace-main') as HTMLElement | null;
+        const mainRect = mainEl?.getBoundingClientRect();
+
+        if (isSplit) {
+          const rightEdge = mainRect ? mainRect.right : window.innerWidth;
+          const maxW = Math.max(320, (mainRect ? mainRect.width - 320 : window.innerWidth - 420));
+          const nextWidth = Math.min(maxW, Math.max(280, rightEdge - e.clientX));
+          setSplitResponseWidth(nextWidth);
+        } else {
+          const bottomEdge = mainRect ? mainRect.bottom : window.innerHeight;
+          const maxH = Math.max(140, (mainRect ? mainRect.height - 160 : window.innerHeight - 280));
+          const nextHeight = Math.min(maxH, Math.max(120, bottomEdge - e.clientY - 4));
+          setBottomDockHeight(nextHeight);
+        }
       });
     };
 
@@ -542,11 +557,13 @@ export function App() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResponsePanelResizing]);
+  }, [isResponsePanelResizing, appSettings.layoutMode, activeTabId, tabs, aiChatOpen]);
 
   function handleResponsePanelResizerMouseDown() {
     setIsResponsePanelResizing(true);
-    document.body.style.cursor = 'row-resize';
+    const activeTab = activeTabId ? tabs.find((t) => t.id === activeTabId) : null;
+    const isSplit = (appSettings.layoutMode ?? "stacked") === "split" && (!activeTab || activeTab.type === "request");
+    document.body.style.cursor = isSplit ? 'col-resize' : 'row-resize';
     document.body.style.userSelect = 'none';
   }
 
@@ -1600,6 +1617,10 @@ export function App() {
         e.preventDefault();
         handleNewTab();
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
+        e.preventDefault();
+        updateAppSettings({ layoutMode: (appSettings.layoutMode ?? "stacked") === "stacked" ? "split" : "stacked" });
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -1720,7 +1741,9 @@ export function App() {
       onLanguageChange={(lang: string) => updateAppSettings({ language: lang as AppSettings["language"] })}
     >
     <main
-      className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${isSidebarResizing ? "sidebar-resizing" : ""}`}
+      className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${isSidebarResizing ? "sidebar-resizing" : ""} ${isResponsePanelResizing ? "dock-resizing" : ""}`}
+      data-density={appSettings.uiDensity ?? "comfortable"}
+      data-layout={appSettings.layoutMode ?? "stacked"}
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
       onContextMenu={handleGlobalContextMenu}
     >
@@ -1879,6 +1902,12 @@ export function App() {
                   />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', margin: '0 8px' }}>
+                  <LayoutControls
+                    layoutMode={appSettings.layoutMode ?? "stacked"}
+                    onLayoutModeChange={(mode) => updateAppSettings({ layoutMode: mode })}
+                    uiDensity={appSettings.uiDensity ?? "comfortable"}
+                    onToggleDensity={() => updateAppSettings({ uiDensity: (appSettings.uiDensity ?? "comfortable") === "comfortable" ? "compact" : "comfortable" })}
+                  />
                   <button
                     onClick={() => setActiveBottomDock(prev => prev === 'console' ? null : 'console')}
                     className="icon-btn"
@@ -1927,6 +1956,7 @@ export function App() {
                 </div>
               </div>
             )}
+          <div className={`workspace-panes layout-${appSettings.layoutMode ?? "stacked"}`} style={{ flex: 1, display: 'flex', flexDirection: (appSettings.layoutMode === "split" && currentTab?.type === "request") ? 'row' : 'column', minHeight: 0, overflow: 'hidden' }}>
           {(() => {
             let scopedVarsArray = activeVars;
             if (workspace) {
@@ -2259,6 +2289,8 @@ export function App() {
               previewMode={previewMode}
               scriptOutputLog={activeBottomDock === 'console' ? globalConsoleLog : scriptOutputLog}
               isRequestTabsCollapsed={isRequestTabsCollapsed}
+              layoutMode={appSettings.layoutMode ?? "stacked"}
+              splitResponseWidth={splitResponseWidth}
               autoWrap={appSettings.responseAutoWrap ?? true}
               autoCollapse={appSettings.responseAutoCollapse ?? false}
               onActiveBottomDockChange={setActiveBottomDock}
@@ -2280,6 +2312,7 @@ export function App() {
               }}
             />
           )}
+          </div>
           </div>
           <AIChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} draftRequest={draftRequest} workspace={workspace} onUpdateRequest={updateDraft as any} />
         </div>

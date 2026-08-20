@@ -44,6 +44,8 @@ export const defaultAppSettings: AppSettings = {
   responseAutoCollapse: false,
   language: "system",
   quotesEnabled: true,
+  layoutMode: "stacked",
+  uiDensity: "comfortable",
 };
 
 let previewSettings = { ...defaultAppSettings };
