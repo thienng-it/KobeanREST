@@ -28,6 +28,7 @@ test("BottomDock.tsx contract: supports layoutMode prop and split-mode class", (
   assert.match(dock, /layoutMode\?:\s*["']stacked["']\s*\|\s*["']split["']/);
   assert.match(dock, /splitResponseWidth\?:/);
   assert.match(dock, /split-mode/);
+  assert.match(dock, /bottom-dock-toggle-chevron/);
 });
 
 test("types.ts contract: AppSettings includes layoutMode and uiDensity", () => {
@@ -42,6 +43,8 @@ test("styles.css contract: contains styles for workspace panes, split layout, an
   assert.match(styles, /\.workspace-panes\.layout-split/);
   assert.match(styles, /\.workspace-panes\.layout-stacked/);
   assert.match(styles, /\.bottom-dock\.split-mode\s*\.bottom-dock-resizer/);
+  assert.match(styles, /\.bottom-dock\.split-mode\s*\.bottom-dock-collapse\.expanded\s*\.bottom-dock-toggle-chevron/);
+  assert.match(styles, /\.bottom-dock\.split-mode\.dock-collapsed/);
   assert.match(styles, /\.layout-controls/);
   assert.match(styles, /\[data-density=["']compact["']\]/);
 });

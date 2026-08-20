@@ -79,7 +79,13 @@ export const BottomDock = React.memo(function BottomDock({
           height: "100%",
           minHeight: "100%",
         }
-      : { width: `${bottomDockStripHeight}px`, height: "100%" }
+      : {
+          width: "40px",
+          minWidth: "40px",
+          flex: "0 0 40px",
+          height: "100%",
+          minHeight: "100%",
+        }
     : open
     ? isRequestTabsCollapsed
       ? { flex: 1, minHeight: "260px", height: "100%" }
@@ -89,9 +95,10 @@ export const BottomDock = React.memo(function BottomDock({
   // If no response and no console logs and dock closed, still keep strip accessible
   return (
     <section
-      className={`bottom-dock ${isRequestTabsCollapsed ? "expanded-view" : ""} ${isSplit ? "split-mode" : ""}`}
-      aria-label="Bottom dock"
+      className={`bottom-dock ${isRequestTabsCollapsed ? "expanded-view" : ""} ${isSplit ? "split-mode" : ""} ${open ? "has-open-dock" : "dock-collapsed"}`}
+      aria-label={isSplit ? "Response sidebar" : "Bottom dock"}
       style={dockStyle}
+      onClick={!open && isSplit ? () => onActiveBottomDockChange("response") : undefined}
     >
       {open && (
         <div
@@ -130,14 +137,32 @@ export const BottomDock = React.memo(function BottomDock({
             </button>
           )}
           <button
-            className={open ? "bottom-dock-collapse expanded" : "bottom-dock-collapse collapsed"}
+            className={`bottom-dock-collapse ${open ? "expanded" : "collapsed"}`}
             type="button"
-            aria-label={open ? "Collapse bottom dock" : "Expand bottom dock"}
-            onClick={() =>
-              onActiveBottomDockChange(open ? null : "response")
+            aria-label={
+              isSplit
+                ? open
+                  ? "Hide response panel (collapse horizontally)"
+                  : "Show response panel (expand horizontally)"
+                : open
+                ? "Collapse bottom dock"
+                : "Expand bottom dock"
             }
+            title={
+              isSplit
+                ? open
+                  ? "Hide response panel"
+                  : "Show response panel"
+                : open
+                ? "Collapse response dock"
+                : "Expand response dock"
+            }
+            onClick={(e) => {
+              e.stopPropagation();
+              onActiveBottomDockChange(open ? null : "response");
+            }}
           >
-            <ChevronDown size={14} />
+            <ChevronDown size={14} className="bottom-dock-toggle-chevron" />
           </button>
         </div>
       </div>
