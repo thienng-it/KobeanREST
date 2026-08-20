@@ -73,12 +73,12 @@ export function getResolvedLanguage(lang: SupportedLanguage = activeLanguage): "
 /**
  * Pure translation function for use anywhere (inside or outside React tree).
  */
-export function t(key: string, params?: string | number, langOverride?: SupportedLanguage): string {
+export function t(key: string, params?: Record<string, string | number> | any, langOverride?: SupportedLanguage): string {
   const targetLang = getResolvedLanguage(langOverride || activeLanguage);
   const dict = DICTIONARIES[targetLang] || en;
   let text = dict[key] || en[key as keyof typeof en] || key;
 
-  if (params) {
+  if (params && typeof params === "object") {
     for (const [paramKey, paramVal] of Object.entries(params)) {
       text = text.replace(new RegExp(`\\{\\s*${paramKey}\\s*\\}`, "g"), String(paramVal));
       text = text.replace(new RegExp(`\\{\\{\\s*${paramKey}\\s*\\}\\}`, "g"), String(paramVal));
@@ -92,7 +92,7 @@ export interface I18nContextValue {
   language: SupportedLanguage;
   resolvedLanguage: "en" | "vi" | "ja" | "zh-CN" | "es" | "fr" | "de" | "ko";
   setLanguage: (lang: SupportedLanguage) => void;
-  t: (key: string, params?: any) => string;
+  t: (key: string, params?: Record<string, string | number> | any) => string;
   supportedLanguages: LanguageInfo[];
 }
 
@@ -100,7 +100,7 @@ export const I18nContext = createContext<I18nContextValue>({
   language: "system",
   resolvedLanguage: "en",
   setLanguage: () => {},
-  t: (k) => t(k),
+  t: (k, p) => t(k, p),
   supportedLanguages: SUPPORTED_LANGUAGES,
 });
 
@@ -111,13 +111,12 @@ export interface I18nProviderProps {
 }
 
 export function I18nProvider({ language = "system", onLanguageChange, children }: I18nProviderProps) {
-  const [currentLang, setCurrentLang] = useState<SupportedLanguage>(language);
+  const [currentLang, setCurrentLang] = useState<SupportedLanguage>(language || "system");
 
   useEffect(() => {
-    if (language && language !== currentLang) {
-      setCurrentLang(language);
-      activeLanguage = language;
-    }
+    const lang = language || "system";
+    setCurrentLang(lang);
+    activeLanguage = lang;
   }, [language]);
 
   const handleSetLanguage = useCallback((newLang: SupportedLanguage) => {
@@ -130,7 +129,7 @@ export function I18nProvider({ language = "system", onLanguageChange, children }
 
   const resolved = useMemo(() => getResolvedLanguage(currentLang), [currentLang]);
 
-  const translate = useCallback((key: string, params?: string | number) => {
+  const translate = useCallback((key: string, params?: Record<string, string | number> | any) => {
     return t(key, params, currentLang);
   }, [currentLang]);
 

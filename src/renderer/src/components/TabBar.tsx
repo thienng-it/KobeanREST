@@ -2,6 +2,7 @@ import React from "react";
 import { X, Folder, Globe, Package, Plus, FolderTree, Boxes } from "lucide-react";
 import type { Tab } from "../types";
 import { methodClass } from "./MethodSelector";
+import { useI18n } from "../services/i18n";
 
 export interface TabBarProps {
   tabs: Tab[];
@@ -24,6 +25,7 @@ export const TabBar = React.memo(function TabBar({
   onNewTab,
   onNewRequest,
 }: TabBarProps) {
+  const { t } = useI18n();
   const handleNewTab = onNewTab || onNewRequest;
 
   if (tabs.length === 0) {
@@ -34,15 +36,15 @@ export const TabBar = React.memo(function TabBar({
     <div
       className="tab-bar editor-tab-bar"
       role="tablist"
-      aria-label="Open requests and folders"
+      aria-label={t("sidebar.openTabs")}
     >
       {tabs.map((tab) => {
         const isUnsaved = Boolean(unsavedEntityIds?.has(tab.entityId) || tab.entityId.startsWith("temp_"));
         const isDirtyOrUnsaved = Boolean(tab.isDirty || isUnsaved);
         const tooltip = isUnsaved
-          ? `${tab.name} — Draft (Unsaved). Press Cmd+S to save.`
+          ? t("tab.draftTooltip", { name: tab.name })
           : tab.isDirty
-          ? `${tab.name} — Unsaved changes. Press Cmd+S to save.`
+          ? t("tab.unsavedTooltip", { name: tab.name })
           : tab.name;
 
         const isActive = activeTabId === tab.id;
@@ -85,7 +87,7 @@ export const TabBar = React.memo(function TabBar({
                 {isDirtyOrUnsaved && (
                   <span
                     className="editor-tab-dirty-dot"
-                    title={isUnsaved ? "Draft (Unsaved)" : "Unsaved changes"}
+                    title={isUnsaved ? t("request.draftUnsaved") : t("request.unsavedChanges")}
                     style={{ backgroundColor: "#f59e0b" }}
                   />
                 )}
@@ -115,7 +117,7 @@ export const TabBar = React.memo(function TabBar({
                 e.stopPropagation();
                 onTabClose(tab.id, e);
               }}
-              aria-label={`Close ${tab.name}`}
+              aria-label={t("tab.closeTab", { name: tab.name })}
             >
               <X size={12} />
             </button>
@@ -125,8 +127,8 @@ export const TabBar = React.memo(function TabBar({
       {handleNewTab && (
         <button
           type="button"
-          aria-label="New tab"
-          title="New Tab (Cmd+T)"
+          aria-label={t("tab.newTab")}
+          title={t("tab.newTab")}
           onClick={handleNewTab}
           className="editor-tab-add-btn"
         >

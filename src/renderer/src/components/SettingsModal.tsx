@@ -33,17 +33,17 @@ export function SettingsModal({
       className="modal-overlay"
       role="dialog"
       aria-modal="true"
-      aria-label="App settings"
+      aria-label={t("settings.title")}
       onClick={onClose}
     >
       <div className="modal settings-modal" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <div>
-            <span className="settings-kicker">Preferences</span>
-            <h2>App settings</h2>
-            <p>Control startup checks, privacy defaults, and request behavior.</p>
+            <span className="settings-kicker">{t("settings.preferences")}</span>
+            <h2>{t("settings.title")}</h2>
+            <p>{t("settings.subtitle")}</p>
           </div>
-          <button className="settings-close" type="button" aria-label="Close settings" onClick={onClose}>
+          <button className="settings-close" type="button" aria-label={t("common.close")} onClick={onClose}>
             <X size={18} />
           </button>
         </div>
@@ -51,13 +51,13 @@ export function SettingsModal({
         <div className="settings-content">
           <section className="settings-section">
             <div className="settings-section-heading">
-              <h3>General</h3>
-              <p>Launch behavior and appearance.</p>
+              <h3>{t("settings.sectionGeneral")}</h3>
+              <p>{t("settings.sectionGeneralDesc")}</p>
             </div>
             <label className="settings-row">
               <span>
-                <strong>Update checks after launch</strong>
-                <small>Look for signed app updates automatically when KobeanREST starts.</small>
+                <strong>{t("settings.updateChecks")}</strong>
+                <small>{t("settings.updateChecksDesc")}</small>
               </span>
               <input
                 type="checkbox"
@@ -67,8 +67,8 @@ export function SettingsModal({
             </label>
             <label className="settings-row">
               <span>
-                <strong>Auto-save requests</strong>
-                <small>Automatically save changes to requests without needing to press Save.</small>
+                <strong>{t("settings.autoSave")}</strong>
+                <small>{t("settings.autoSaveDesc")}</small>
               </span>
               <input
                 type="checkbox"
@@ -77,39 +77,39 @@ export function SettingsModal({
               />
             </label>
             <label className="settings-field" style={{ alignItems: "center" }}>
-              <span>Theme</span>
+              <span>{t("settings.theme")}</span>
               <CustomSelect
                 value={appSettings.theme}
                 onChange={(val) => onSettingsChange({ theme: val as AppSettings["theme"] })}
                 options={[
-                  { value: "system", label: "System" },
-                  { value: "light", label: "Glass: Light" },
-                  { value: "dark", label: "Glass: Dark" },
-                  { value: "warm", label: "Glass: Warm / Sunset" },
-                  { value: "matrix", label: "Neon: Matrix" },
-                  { value: "cyberpunk", label: "Neon: Cyberpunk" }
+                  { value: "system", label: t("settings.themeSystem") },
+                  { value: "light", label: t("settings.themeLight") },
+                  { value: "dark", label: t("settings.themeDark") },
+                  { value: "warm", label: t("settings.themeWarm") },
+                  { value: "matrix", label: t("settings.themeMatrix") },
+                  { value: "cyberpunk", label: t("settings.themeCyberpunk") }
                 ]}
               />
             </label>
             <label className="settings-field" style={{ alignItems: "center" }}>
-              <span>Layout view</span>
+              <span>{t('settings.layoutMode')}</span>
               <CustomSelect
                 value={appSettings.layoutMode || "stacked"}
                 onChange={(val) => onSettingsChange({ layoutMode: val as AppSettings["layoutMode"] })}
                 options={[
-                  { value: "stacked", label: "Stacked (Top/Bottom Rows)" },
-                  { value: "split", label: "Side-by-Side (Columns)" },
+                  { value: "stacked", label: t('settings.layoutStacked') },
+                  { value: "split", label: t('settings.layoutSplit') },
                 ]}
               />
             </label>
             <label className="settings-field" style={{ alignItems: "center" }}>
-              <span>UI Density</span>
+              <span>{t('settings.uiDensity')}</span>
               <CustomSelect
                 value={appSettings.uiDensity || "comfortable"}
                 onChange={(val) => onSettingsChange({ uiDensity: val as AppSettings["uiDensity"] })}
                 options={[
-                  { value: "comfortable", label: "Comfortable (Default)" },
-                  { value: "compact", label: "Compact (High Density)" },
+                  { value: "comfortable", label: t('settings.densityComfortable') },
+                  { value: "compact", label: t('settings.densityCompact') },
                 ]}
               />
             </label>
@@ -120,26 +120,26 @@ export function SettingsModal({
                 onChange={(val) => {
                   const newLang = val as AppSettings["language"];
                   onSettingsChange({ language: newLang });
-                  if (newLang && newLang !== "system") setLanguage(newLang);
+                  if (newLang) setLanguage(newLang);
                 }}
                 options={SUPPORTED_LANGUAGES.map(l => ({ value: l.code, label: l.name }))}
               />
             </label>
             <div className="settings-field">
-              <span>Data location</span>
+              <span>{t("settings.dataLocation")}</span>
               <code className="settings-path">{databasePath}</code>
             </div>
           </section>
 
           <section className="settings-section">
             <div className="settings-section-heading">
-              <h3>Response Viewer</h3>
-              <p>Configure JSON formatting, line wrapping, and code folding.</p>
+              <h3>{t('settings.responseViewer')}</h3>
+              <p>{t('settings.responseViewerDesc')}</p>
             </div>
             <label className="settings-row">
               <span>
-                <strong>Auto-wrap lines</strong>
-                <small>Wrap long lines automatically in response JSON and text viewers.</small>
+                <strong>{t('settings.responseAutoWrap')}</strong>
+                <small>{t('settings.responseAutoWrapDesc')}</small>
               </span>
               <input
                 type="checkbox"
@@ -149,8 +149,8 @@ export function SettingsModal({
             </label>
             <label className="settings-row">
               <span>
-                <strong>Auto-collapse JSON</strong>
-                <small>Automatically collapse/fold nested JSON objects and arrays when a response loads.</small>
+                <strong>{t('settings.responseAutoCollapse')}</strong>
+                <small>{t('settings.responseAutoCollapseDesc')}</small>
               </span>
               <input
                 type="checkbox"
@@ -162,13 +162,13 @@ export function SettingsModal({
 
           <section className="settings-section">
             <div className="settings-section-heading">
-              <h3>Developer Inspiration</h3>
-              <p>Positive energy, proverbs, and wisdom throughout the workspace.</p>
+              <h3>{t('settings.developerQuotes')}</h3>
+              <p>{t('settings.developerQuotesDesc')}</p>
             </div>
             <label className="settings-row">
               <span>
-                <strong>Developer quotes</strong>
-                <small>Show uplifting developer quotes in the sidebar and empty workspace.</small>
+                <strong>{t('settings.developerQuotes')}</strong>
+                <small>{t('settings.developerQuotesDesc')}</small>
               </span>
               <input
                 type="checkbox"
@@ -180,13 +180,13 @@ export function SettingsModal({
 
           <section className="settings-section">
             <div className="settings-section-heading">
-              <h3>Privacy</h3>
-              <p>Keep exported files and diagnostics safe by default.</p>
+              <h3>{t("settings.sectionPrivacy")}</h3>
+              <p>{t("settings.sectionPrivacyDesc")}</p>
             </div>
             <label className="settings-row">
               <span>
-                <strong>Export redaction</strong>
-                <small>Remove secret values from exported workspace data.</small>
+                <strong>{t("settings.exportRedaction")}</strong>
+                <small>{t("settings.exportRedactionDesc")}</small>
               </span>
               <input
                 type="checkbox"
@@ -196,8 +196,8 @@ export function SettingsModal({
             </label>
             <label className="settings-row">
               <span>
-                <strong>Diagnostics redaction</strong>
-                <small>Sanitize URLs, headers, and tokens from error reports.</small>
+                <strong>{t("settings.diagnosticsRedaction")}</strong>
+                <small>{t("settings.diagnosticsRedactionDesc")}</small>
               </span>
               <input
                 type="checkbox"
@@ -209,17 +209,17 @@ export function SettingsModal({
 
           <section className="settings-section">
             <div className="settings-section-heading">
-              <h3>Updates</h3>
-              <p>Choose how the app behaves when update checks cannot reach the network.</p>
+              <h3>{t("settings.updates")}</h3>
+              <p>{t("settings.updatesDesc")}</p>
             </div>
             <label className="settings-field" style={{ alignItems: "center" }}>
-              <span>Offline behavior</span>
+              <span>{t("settings.offlineBehavior")}</span>
               <CustomSelect
                 value={appSettings.offlineBehavior}
                 onChange={(val) => onSettingsChange({ offlineBehavior: val as AppSettings["offlineBehavior"] })}
                 options={[
-                  { value: "silent", label: "Stay quiet when offline" },
-                  { value: "notice", label: "Show a notice when update checks fail" }
+                  { value: "silent", label: t("settings.offlineSilent") },
+                  { value: "notice", label: t("settings.offlineNotice") }
                 ]}
               />
             </label>
@@ -228,13 +228,13 @@ export function SettingsModal({
 
           <section className="settings-section">
             <div className="settings-section-heading">
-              <h3>Network defaults</h3>
-              <p>Defaults applied to newly created requests.</p>
+              <h3>{t("settings.sectionNetwork")}</h3>
+              <p>{t("settings.sectionNetworkDesc")}</p>
             </div>
             <label className="settings-row">
               <span>
-                <strong>Default timeout</strong>
-                <small>Maximum request duration in milliseconds.</small>
+                <strong>{t("settings.defaultTimeout")}</strong>
+                <small>{t("settings.defaultTimeoutDesc")}</small>
               </span>
               <input
                 className="settings-number"
@@ -245,8 +245,8 @@ export function SettingsModal({
             </label>
             <label className="settings-row">
               <span>
-                <strong>Default follow redirects</strong>
-                <small>Automatically follow HTTP redirects for new requests.</small>
+                <strong>{t("settings.defaultFollowRedirects")}</strong>
+                <small>{t("settings.defaultFollowRedirectsDesc")}</small>
               </span>
               <input
                 type="checkbox"
@@ -257,9 +257,9 @@ export function SettingsModal({
           </section>
 
           <section className="settings-section">
-            <h3>About & Attribution</h3>
+            <h3>{t("settings.aboutAttribution")}</h3>
             <p style={{ fontSize: "12px", color: "var(--color-muted)", margin: 0, lineHeight: 1.5 }}>
-              KobeanREST is a local-first desktop API client. Built with ❤️ by <strong>josephThien</strong>.
+              {t("settings.aboutDesc")}
             </p>
           </section>
         </div>
@@ -271,14 +271,14 @@ export function SettingsModal({
             onClick={() => void onCheckForUpdates()}
           >
             <RefreshCw size={14} />
-            Check now
+            {t("settings.checkNow")}
           </button>
           <div className="settings-footer-actions">
             <button className="modal-cancel" type="button" onClick={onClose}>
-              Cancel
+              {t("common.cancel")}
             </button>
             <button className="modal-confirm" type="button" onClick={() => void onSave()}>
-              Save settings
+              {t("settings.saveSettings")}
             </button>
           </div>
         </div>

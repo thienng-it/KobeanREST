@@ -154,7 +154,7 @@ test("Inherited OAuth 2.0 contract: displays inherited token status and quick re
   assert.match(panel, /auth-inherited-oauth-card/);
   assert.match(panel, /auth-refresh-token-btn/);
   assert.match(panel, /handleRefreshInheritedOAuth/);
-  assert.match(panel, /Refresh Token/);
+  assert.match(panel, /auth\.refreshToken|Refresh Token/);
   assert.match(panel, /onUpdateInheritedAuth/);
 
   const app = read("src/renderer/src/App.tsx");

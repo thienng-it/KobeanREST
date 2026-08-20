@@ -5,9 +5,23 @@ import assert from "node:assert/strict";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
 
-test("i18n service and dictionary files exist and support 8 languages", () => {
+test("i18n service and dictionary files exist and support 8 languages with 100% key parity", () => {
   const languages = ["en", "vi", "ja", "zh-CN", "es", "fr", "de", "ko"];
   
+  const parseKeys = (content) => {
+    const keys = new Set();
+    const regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*:/g;
+    let m;
+    while ((m = regex.exec(content)) !== null) {
+      keys.add(m[1]);
+    }
+    return keys;
+  };
+
+  const enContent = read("src/renderer/src/locales/en.ts");
+  const enKeys = parseKeys(enContent);
+  assert.ok(enKeys.size > 500, "English locale should have over 500 keys");
+
   for (const lang of languages) {
     const exists = existsSync(new URL(`src/renderer/src/locales/${lang}.ts`, root));
     assert.ok(exists, `Locale file src/renderer/src/locales/${lang}.ts should exist`);
@@ -16,6 +30,11 @@ test("i18n service and dictionary files exist and support 8 languages", () => {
     assert.match(content, /common\.save/);
     assert.match(content, /settings\.language/);
     assert.match(content, /runner\.summaryReport/);
+
+    const locKeys = parseKeys(content);
+    for (const key of enKeys) {
+      assert.ok(locKeys.has(key), `Locale ${lang} missing key "${key}"`);
+    }
   }
 });
 
@@ -53,7 +72,7 @@ test("SettingsModal allows user to switch application language", () => {
 test("App wraps root tree with I18nProvider", () => {
   const app = read("src/renderer/src/App.tsx");
 
-  assert.match(app, /import { I18nProvider } from ".\/services\/i18n"/);
+  assert.match(app, /import\s*\{[^}]*I18nProvider[^}]*\}\s*from\s*["'].\/services\/i18n["']/);
   assert.match(app, /<I18nProvider/);
   assert.match(app, /<\/I18nProvider>/);
 });

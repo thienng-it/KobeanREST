@@ -887,15 +887,15 @@ export const RequestPanel = React.memo(function RequestPanel({
                     letterSpacing: "0.5px",
                   }}
                 >
-                  DRAFT
+                  {t("request.badgeDraft")}
                 </span>
                 <span className="request-path" style={{ color: "var(--color-text-muted)" }}>
-                  Unsaved request • Press Cmd+S or click Save to store in a collection
+                  {t("request.unsavedHeaderHint")}
                 </span>
               </>
             ) : (
               <>
-                <span className="request-type-badge">REQUEST</span>
+                <span className="request-type-badge">{t("request.badgeRequest")}</span>
                 {folderPath && (
                   <>
                     <span className="request-path">{folderPath}</span>
@@ -962,7 +962,7 @@ export const RequestPanel = React.memo(function RequestPanel({
               size={14}
               className={`request-tabs-toggle-chevron ${isTabsCollapsed ? "is-collapsed" : ""}`}
             />
-            <span>{isTabsCollapsed ? "Show Request" : "Hide Request"}</span>
+            <span>{isTabsCollapsed ? t("request.showRequest") : t("request.hideRequest")}</span>
           </button>
           <button
             className={`request-save-button ${isDirty || isUnsaved ? "is-dirty" : "ghost-button"}`}
@@ -993,7 +993,7 @@ export const RequestPanel = React.memo(function RequestPanel({
             }}
           >
             <Save size={14} />
-            {isUnsaved ? "Save to Collection..." : isDirty ? "Save Changes" : "Saved"}
+            {isUnsaved ? t("request.saveToCollection") : isDirty ? t("request.saveChanges") : t("request.saved")}
             {(isDirty || isUnsaved) && (
               <span
                 className="save-dirty-dot"
@@ -1053,7 +1053,7 @@ export const RequestPanel = React.memo(function RequestPanel({
             onClick={stopRepeat}
             style={{ backgroundColor: "var(--color-danger)" }}
           >
-            Stop Repeating
+            {t("request.stopRepeating")}
           </button>
         ) : (
           <div style={{ display: "flex", gap: "1px" }}>
@@ -1065,7 +1065,7 @@ export const RequestPanel = React.memo(function RequestPanel({
               disabled={isSending}
             >
               <Play size={17} />
-              {isSending ? "Sending" : "Send"}
+              {isSending ? t("request.sending") : t("request.send")}
             </button>
             <div ref={sendMenuRef} style={{ position: "relative", display: "flex" }}>
               <button
@@ -1095,7 +1095,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                     style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%", display: "flex", alignItems: "center", gap: "8px" }}
                   >
                     <Clock size={14} style={{ opacity: 0.7 }} />
-                    Send after delay...
+                    {t("request.sendAfterDelay")}
                   </button>
                   <button
                     type="button"
@@ -1113,7 +1113,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                     style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%", display: "flex", alignItems: "center", gap: "8px" }}
                   >
                     <Repeat size={14} style={{ opacity: 0.7 }} />
-                    Repeat on interval...
+                    {t("request.sendInterval")}
                   </button>
                   <button
                     type="button"
@@ -1131,7 +1131,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                     style={{ background: "transparent", border: "none", padding: "6px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "4px", textAlign: "left", width: "100%", display: "flex", alignItems: "center", gap: "8px" }}
                   >
                     <Activity size={14} style={{ opacity: 0.7 }} />
-                    Load Test...
+                    {t("request.runLoadTest")}
                   </button>
                 </div>
               )}
@@ -1160,7 +1160,7 @@ export const RequestPanel = React.memo(function RequestPanel({
           >
             <div className="request-workspace-collapsed-left">
               <span className="request-workspace-collapsed-badge">{t("request.requestPanelHidden")}</span>
-              <span className="request-workspace-collapsed-text">Response data view expanded • Click to show params, body, headers, auth & scripts</span>
+              <span className="request-workspace-collapsed-text">{t("request.collapsedBarHint")}</span>
             </div>
             <button
               type="button"
@@ -1171,7 +1171,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                 onToggleTabsCollapsed?.(false);
               }}
             >
-              <ChevronDown size={14} /> Expand Request
+              <ChevronDown size={14} /> {t("request.expandRequest")}
             </button>
           </div>
         </div>
@@ -1221,11 +1221,23 @@ export const RequestPanel = React.memo(function RequestPanel({
                 count = exCount;
               }
 
+              const tabNameMap: Record<string, string> = {
+                params: t("request.tabParams"),
+                body: t("request.tabBody"),
+                headers: t("request.tabHeaders"),
+                auth: t("request.tabAuth"),
+                scripts: t("request.tabScripts"),
+                variables: t("request.tabVariables"),
+                docs: t("request.tabDocs"),
+                settings: t("request.tabSettings"),
+                code: t("request.tabCode"),
+              };
+              const baseLabel = tabNameMap[tab] || tab;
               const tabLabel = (tab === "headers" || tab === "params") && count > 0 
-                ? `${tab} (${count})` 
+                ? `${baseLabel} (${count})` 
                 : tab === "docs" && count > 0 
-                ? `docs (${count})` 
-                : tab;
+                ? `${baseLabel} (${count})` 
+                : baseLabel;
 
               return (
                 <button
@@ -1255,7 +1267,7 @@ export const RequestPanel = React.memo(function RequestPanel({
               <div className="params-section" aria-label={t("request.urlQueryParams")}>
                 <div className="params-section-header">
                   <span className="params-section-title">
-                    Query Parameters
+                    {t("request.queryParams")}
                     {draftRequest.queryParams && draftRequest.queryParams.filter(p => p.key || p.value).length > 0 && (
                       <span className="params-section-badge">{draftRequest.queryParams.filter(p => p.key || p.value).length}</span>
                     )}
@@ -1271,7 +1283,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                         title={paramsBulkMode ? t("request.switchKeyValue") : t("request.editParamsBulk")}
                       >
                         {paramsBulkMode ? <List size={14} /> : <AlignLeft size={14} />}
-                        {paramsBulkMode ? "Key-Value Edit" : "Bulk Edit"}
+                        {paramsBulkMode ? t("request.keyValueEdit") : t("request.bulkEdit")}
                       </button>
                       {!paramsBulkMode && (
                         <button
@@ -1279,7 +1291,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                           className="ghost-button headers-add-button"
                           onClick={() => addQueryParam()}
                         >
-                          <Plus size={14} /> Add Parameter
+                          <Plus size={14} /> {t("request.addParameter")}
                         </button>
                       )}
                     </div>
@@ -1297,7 +1309,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                         aria-label={t("request.bulkEditQueryParams")}
                       />
                       <p className="headers-bulk-hint">
-                        One parameter per line as <code>key: value</code> or <code>key=value</code>. Prefix with <code>//</code> to disable.
+                        {t("request.bulkParamHint")}
                       </p>
                     </div>
                   ) : (
@@ -1362,7 +1374,7 @@ export const RequestPanel = React.memo(function RequestPanel({
               <div className="params-section" aria-label={t("request.tabPathVariables")}>
                 <div className="params-section-header">
                   <span className="params-section-title">
-                    Path Variables
+                    {t("request.pathVariables")}
                     {draftRequest.pathVariables && draftRequest.pathVariables.length > 0 && (
                       <span className="params-section-badge">{draftRequest.pathVariables.length}</span>
                     )}
@@ -1372,7 +1384,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                 {!draftRequest.pathVariables || draftRequest.pathVariables.length === 0 ? (
                   <div className="path-vars-empty-hint">
                     <span>
-                      No path variables detected in URL. Use <code>:variable</code> or <code>{"{variable}"}</code> in the request URL path (e.g. <code>/users/:id</code>) to define path variables here.
+                      {t("request.noPathVarsHint")}
                     </span>
                   </div>
                 ) : (
@@ -1380,7 +1392,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                     <div className="headers-grid-body">
                       <div className="headers-grid-header path-vars-grid-header">
                         <span className="col-center"></span>
-                        <span>Variable</span>
+                        <span>{t("request.variable")}</span>
                         <span>{t("common.value")}</span>
                         <span>{t("common.description")}</span>
                         <span className="col-center"></span>
@@ -1480,7 +1492,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                   }}
                   title={t("request.beautifyJson")}
                 >
-                  <WandSparkles size={13} /> Beautify
+                  <WandSparkles size={13} /> {t("request.beautify")}
                 </button>
               )}
             </div>
@@ -1498,7 +1510,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                         }))
                       }
                     >
-                      <Plus size={14} /> Add Field
+                      <Plus size={14} /> {t("request.addField")}
                     </button>
                   </div>
                 </div>
@@ -1559,8 +1571,8 @@ export const RequestPanel = React.memo(function RequestPanel({
                               padding: "0 8px"
                             }}
                           >
-                            <option value="text">Text</option>
-                            <option value="file">File</option>
+                            <option value="text">{t("request.textType")}</option>
+                            <option value="file">{t("request.fileType")}</option>
                           </select>
                         </div>
                         {item.type === "file" ? (
@@ -1601,10 +1613,10 @@ export const RequestPanel = React.memo(function RequestPanel({
                               }}
                               style={{ padding: "4px 8px", fontSize: 12, flexShrink: 0 }}
                             >
-                              Select File
+                              {t("request.selectFile")}
                             </button>
                             <span style={{ fontSize: 12, color: item.value ? "var(--color-text)" : "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {item.value || "No file selected"}
+                              {item.value || t("request.noFileSelected")}
                             </span>
                           </div>
                         ) : (
@@ -1691,7 +1703,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                     title={headersBulkMode ? t("request.switchKeyValue") : t("request.editHeadersBulk")}
                   >
                     {headersBulkMode ? <List size={14} /> : <AlignLeft size={14} />}
-                    {headersBulkMode ? "Key-Value Edit" : "Bulk Edit"}
+                    {headersBulkMode ? t("request.keyValueEdit") : t("request.bulkEdit")}
                   </button>
                   {!headersBulkMode && (
                     <>
@@ -1705,7 +1717,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                           aria-expanded={headersPresetMenuOpen}
                           onClick={() => setHeadersPresetMenuOpen((open) => !open)}
                         >
-                          Common
+                          {t("request.commonPresets")}
                           <ChevronDown size={14} />
                         </button>
                         {headersPresetMenuOpen && createPortal(
@@ -1743,7 +1755,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                         className="ghost-button headers-add-button"
                         onClick={() => addHeader()}
                       >
-                        <Plus size={14} /> Add Header
+                        <Plus size={14} /> {t("request.addHeader")}
                       </button>
                     </>
                   )}
@@ -1762,7 +1774,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                     aria-label={t("request.bulkEditRequestHeaders")}
                   />
                   <p className="headers-bulk-hint">
-                    One header per line as <code>Header-Name: Value</code>. Prefix with <code>//</code> to disable.
+                    {t("request.bulkHeaderHint")}
                   </p>
                 </div>
               ) : (
@@ -1851,14 +1863,14 @@ export const RequestPanel = React.memo(function RequestPanel({
               <div className="auth-inherited-header">
                 <div className="auth-inherited-title-group">
                   <span className="auth-inherited-title">
-                    Inherited OAuth 2.0
+                    {t("request.inheritedOAuth2")}
                   </span>
                   {effectiveAuth.config?.expiresAt && now > effectiveAuth.config.expiresAt ? (
-                    <span className="auth-status-badge expired">EXPIRED</span>
+                    <span className="auth-status-badge expired">{t("auth.expired")}</span>
                   ) : effectiveAuth.config?.token ? (
-                    <span className="auth-status-badge active">ACTIVE</span>
+                    <span className="auth-status-badge active">{t("auth.active")}</span>
                   ) : (
-                    <span className="auth-status-badge missing">NO TOKEN</span>
+                    <span className="auth-status-badge missing">{t("auth.noToken")}</span>
                   )}
                 </div>
                 <div className="auth-inherited-meta">
@@ -1894,7 +1906,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                   title={t("request.refreshObtainTokenQuickly")}
                 >
                   <RefreshCw size={13} className={isRefreshingInherited ? "spin" : ""} />
-                  <span>{isRefreshingInherited ? "Refreshing..." : (effectiveAuth.config?.refreshToken ? "Refresh Token" : "Get Token")}</span>
+                  <span>{isRefreshingInherited ? t("auth.refreshing") : (effectiveAuth.config?.refreshToken ? t("auth.refreshToken") : t("auth.getToken"))}</span>
                 </button>
 
                 {effectiveAuth.config?.refreshToken && (
@@ -1905,7 +1917,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                     onClick={handleGetInheritedOAuthToken}
                     title={t("request.obtainFreshToken")}
                   >
-                    Get New Token
+                    {t("auth.getNewToken")}
                   </button>
                 )}
 
@@ -1928,7 +1940,7 @@ export const RequestPanel = React.memo(function RequestPanel({
               {effectiveAuth.config?.refreshToken && (
                 <div className="auth-inherited-hint">
                   <span className="auth-inherited-hint-dot" />
-                  <span>Refresh token is configured on parent. Click &ldquo;Refresh Token&rdquo; to quickly renew expired access token.</span>
+                  <span>{t("request.inheritedOAuthHint")}</span>
                 </div>
               )}
             </div>
@@ -1965,7 +1977,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>{t("request.token")}</span>
                   {draftRequest.authConfig?.expiresAt && now > draftRequest.authConfig.expiresAt && (
-                    <span style={{ color: "var(--color-danger, #ef4444)", fontSize: "11px", fontWeight: 600, padding: "2px 6px", backgroundColor: "rgba(239, 68, 68, 0.1)", borderRadius: "4px" }}>EXPIRED</span>
+                    <span style={{ color: "var(--color-danger, #ef4444)", fontSize: "11px", fontWeight: 600, padding: "2px 6px", backgroundColor: "rgba(239, 68, 68, 0.1)", borderRadius: "4px" }}>{t("auth.expired")}</span>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
@@ -1984,7 +1996,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
                     }
                   }}>
-                    Get Token
+                    {t("auth.getToken")}
                   </button>
                   {draftRequest.authConfig?.refreshToken && (
                     <button type="button" onClick={async () => {
@@ -2009,7 +2021,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                       }
                     }} style={{ padding: "4px 12px", cursor: "pointer", backgroundColor: "var(--color-success, #10b981)", color: "#fff", border: "none", borderRadius: "4px", flexShrink: 0, fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)" }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>
-                      Refresh
+                      {t("auth.refresh")}
                     </button>
                   )}
                   <button type="button" className="icon-button" onClick={() => navigator.clipboard.writeText(draftRequest.authConfig?.token ?? "")} title={t("request.copyToken")} aria-label={t("request.copyToken")}>
@@ -2021,7 +2033,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                 <label style={{ margin: 0 }}>
                   <span style={{ color: "var(--color-primary, #0066cc)", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>
-                    Refresh Token
+                    {t("auth.refreshToken")}
                   </span>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                     <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.refreshToken ?? ""} onChange={e => updateAuthConfig({ refreshToken: e.target.value })} placeholder={t("request.refreshTokenPlaceholder")} autoComplete="off" style={{ flex: 1, borderColor: "rgba(0, 102, 204, 0.3)", boxShadow: "0 0 0 1px rgba(0, 102, 204, 0.1)" } as CSSProperties} />
@@ -2029,33 +2041,33 @@ export const RequestPanel = React.memo(function RequestPanel({
                 </label>
               </div>
               <label>
-                <span>Grant Type</span>
+                <span>{t("auth.grantType")}</span>
                 <CustomSelect
                   value={draftRequest.authConfig?.grantType ?? "client_credentials"}
                   onChange={(val) => updateAuthConfig({ grantType: val as "client_credentials" | "password_credentials" | "authorization_code" })}
                   options={[
-                    { value: "client_credentials", label: "Client Credentials" },
-                    { value: "password_credentials", label: "Password Credentials" },
-                    { value: "authorization_code", label: "Authorization Code (Browser)" }
+                    { value: "client_credentials", label: t("auth.clientCredentials") },
+                    { value: "password_credentials", label: t("auth.passwordCredentials") },
+                    { value: "authorization_code", label: t("auth.authorizationCode") }
                   ]}
                 />
               </label>
               {draftRequest.authConfig?.grantType === "authorization_code" && (
                 <label>
-                  <span>Target URL (Login URL)</span>
+                  <span>{t("auth.targetUrl")}</span>
                   <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.authUrl ?? ""} onChange={e => updateAuthConfig({ authUrl: e.target.value })} placeholder={t("request.authUrlPlaceholder")} autoComplete="off" />
                 </label>
               )}
               <label>
-                <span>Access Token URL</span>
+                <span>{t("auth.accessTokenUrl")}</span>
                 <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.accessTokenUrl ?? ""} onChange={e => updateAuthConfig({ accessTokenUrl: e.target.value })} placeholder={t("request.accessTokenUrlPlaceholder")} autoComplete="off" />
               </label>
               <label>
-                <span>Client ID</span>
+                <span>{t("auth.clientId")}</span>
                 <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.clientId ?? ""} onChange={e => updateAuthConfig({ clientId: e.target.value })} placeholder={t("request.clientIdPlaceholder")} autoComplete="off" />
               </label>
               <label>
-                <span>Client Secret</span>
+                <span>{t("auth.clientSecret")}</span>
                 <VariableInput type="password" activeVariables={activeVars} value={draftRequest.authConfig?.clientSecret ?? ""} onChange={e => updateAuthConfig({ clientSecret: e.target.value })} placeholder={t("request.clientSecretPlaceholder")} autoComplete="new-password" />
               </label>
               {(draftRequest.authConfig?.grantType === "password_credentials") && (
@@ -2071,11 +2083,11 @@ export const RequestPanel = React.memo(function RequestPanel({
                 </>
               )}
               <label>
-                <span>Scope</span>
+                <span>{t("auth.scope")}</span>
                 <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.scope ?? ""} onChange={e => updateAuthConfig({ scope: e.target.value })} placeholder={t("request.scopePlaceholder")} autoComplete="off" />
               </label>
               <label>
-                <span>Audience</span>
+                <span>{t("auth.audience")}</span>
                 <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.audience ?? ""} onChange={e => updateAuthConfig({ audience: e.target.value })} placeholder={t("request.audiencePlaceholder")} autoComplete="off" />
               </label>
             </div>
@@ -2083,21 +2095,21 @@ export const RequestPanel = React.memo(function RequestPanel({
           {draftRequest.authMode === "apiKey" && (
             <div className="auth-config-fields" aria-label={t("request.apiKeyCredentials")}>
               <label>
-                <span>Key name</span>
+                <span>{t("auth.keyName")}</span>
                 <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.keyName ?? ""} onChange={e => updateAuthConfig({ keyName: e.target.value })} placeholder={t("request.keyNamePlaceholder")} autoComplete="off" />
               </label>
               <label>
-                <span>Key value</span>
+                <span>{t("auth.keyValue")}</span>
                 <VariableInput activeVariables={activeVars} value={draftRequest.authConfig?.keyValue ?? ""} onChange={e => updateAuthConfig({ keyValue: e.target.value })} placeholder={t("request.paramValuePlaceholder")} autoComplete="off" />
               </label>
               <label>
-                <span>Add to</span>
+                <span>{t("auth.addTo")}</span>
                 <CustomSelect
                   value={draftRequest.authConfig?.placement ?? "header"}
                   onChange={(val) => updateAuthConfig({ placement: val as "header" | "query" })}
                   options={[
-                    { value: "header", label: "Header" },
-                    { value: "query", label: "Query parameter" }
+                    { value: "header", label: t("auth.header") },
+                    { value: "query", label: t("auth.queryParameter") }
                   ]}
                 />
               </label>
@@ -2124,7 +2136,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                       : "Pre-request script saved"
                 }
               >
-                Pre-request
+                {t("request.tabPreRequest")}
                 {preScriptDirty && (
                   <span className="script-dot dirty" aria-hidden="true" title={t("request.preScriptUnsaved")} />
                 )}
@@ -2143,7 +2155,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                       : "Post-request script saved"
                 }
               >
-                Post-request
+                {t("request.tabTests")}
                 {postScriptDirty && (
                   <span className="script-dot dirty" aria-hidden="true" title={t("request.postScriptUnsaved")} />
                 )}
@@ -2158,12 +2170,12 @@ export const RequestPanel = React.memo(function RequestPanel({
               title={scriptsDirty ? t("request.pendingEditsSave") : t("request.allScriptsSaved")}
             >
               <Save size={14} />
-              <span>{scriptsDirty ? "Save Scripts" : "Saved"}</span>
+              <span>{scriptsDirty ? t("request.saveScripts") : t("request.saved")}</span>
             </button>
           </div>
           <div className="script-tool-row">
             <label className="script-tool-group">
-              <span className="script-tool-label">Language</span>
+              <span className="script-tool-label">{t("request.scriptLanguage")}</span>
               <CustomSelect
                 className="script-tool-select"
                 ariaLabel="Script editor type"
@@ -2179,10 +2191,10 @@ export const RequestPanel = React.memo(function RequestPanel({
               aria-label={t("request.prettifyCurrentScript")}
             >
               <WandSparkles size={14} />
-              Prettify
+              {t("request.prettify")}
             </button>
             <label className="script-tool-group script-tool-group-fill">
-              <span className="script-tool-label">Template</span>
+              <span className="script-tool-label">{t("request.scriptTemplate")}</span>
               <CustomSelect
                 className="script-tool-select"
                 ariaLabel="Script snippet"
@@ -2202,7 +2214,7 @@ export const RequestPanel = React.memo(function RequestPanel({
               onClick={onInsertSelectedScriptSnippet}
               aria-label={t("request.insertSelectedScriptSnippet")}
             >
-              Insert
+              {t("request.insert")}
             </button>
             <CustomSelect
               className="script-helper-select"
@@ -2240,10 +2252,10 @@ export const RequestPanel = React.memo(function RequestPanel({
         <div className="request-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' } as CSSProperties}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              Request Variables
+              {t("request.requestVariables")}
             </label>
             <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontStyle: 'italic', margin: 0 }}>
-              Override environment and folder variables for this request only.
+              {t("request.requestVariablesDesc")}
             </p>
             <ScopedVariablesEditor
               entityId={draftRequest.id}
@@ -2301,11 +2313,11 @@ export const RequestPanel = React.memo(function RequestPanel({
         <div className="request-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' } as CSSProperties}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Settings size={14} /> Request Settings
+              <Settings size={14} /> {t("request.requestSettings")}
             </label>
             <div style={{ display: 'grid', gap: '12px', padding: '12px', borderRadius: '6px', background: 'var(--color-surface-muted)', border: '1px solid var(--color-border)' }}>
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
-                <span>Timeout (ms)</span>
+                <span>{t("request.timeoutMs")}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <input
                     type="number"
@@ -2320,12 +2332,12 @@ export const RequestPanel = React.memo(function RequestPanel({
                     disabled={draftRequest.timeoutMs === undefined}
                     style={{ padding: '2px 6px', fontSize: '11px' }}
                   >
-                    Reset
+                    {t("common.reset")}
                   </button>
                 </div>
               </label>
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontSize: '13px', color: 'var(--color-text)' }}>
-                <span>Follow Redirects</span>
+                <span>{t("request.followRedirects")}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <input
                     type="checkbox"
@@ -2340,13 +2352,13 @@ export const RequestPanel = React.memo(function RequestPanel({
                     disabled={draftRequest.followRedirects === undefined}
                     style={{ padding: '2px 6px', fontSize: '11px' }}
                   >
-                    Reset
+                    {t("common.reset")}
                   </button>
                 </div>
               </label>
             </div>
             <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-              Values are inherited from Folder or Global settings if not overridden.
+              {t("request.inheritedSettingsHint")}
             </p>
           </div>
         </div>
@@ -2378,7 +2390,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                 title={t("request.copyToClipboard")}
               >
                 {copiedCode ? <Check size={14} style={{ color: "var(--color-success)" }} /> : <Copy size={14} />}
-                {copiedCode ? "Copied!" : "Copy"}
+                {copiedCode ? t("common.copied") : t("common.copy")}
               </button>
               <button
                 className="ghost-button script-tool-action"
@@ -2386,7 +2398,7 @@ export const RequestPanel = React.memo(function RequestPanel({
                 onClick={onInsertCode}
                 aria-label={t("request.insertRequestCodeSnippet")}
               >
-                Insert into script
+                {t("request.insertIntoScript")}
               </button>
             </div>
           </div>

@@ -1262,7 +1262,7 @@ export const Sidebar = React.memo(function Sidebar({
             aria-label={t("sidebar.manageEnvironments")}
             onClick={onOpenEnvironment}
           >
-            Manage
+            {t("sidebar.manage")}
           </button>
         </div>
 
@@ -1307,7 +1307,7 @@ export const Sidebar = React.memo(function Sidebar({
         </label>
         {isCollectionSearchActive && (
           <div className="search-status" role="status">
-            {visibleCollections.length === 0 ? "No matches" : `${visibleCollections.length} collection${visibleCollections.length === 1 ? "" : "s"} found`}
+            {visibleCollections.length === 0 ? t("sidebar.noMatches") : t("sidebar.collectionsFound", { count: visibleCollections.length })}
           </div>
         )}
         </div>
@@ -1330,10 +1330,10 @@ export const Sidebar = React.memo(function Sidebar({
                   cursor: onOpenCollectionsOverview ? "pointer" : "default",
                 }}
                 onClick={onOpenCollectionsOverview}
-                title={onOpenCollectionsOverview ? "Click to view All Collections" : undefined}
+                title={onOpenCollectionsOverview ? t("sidebar.clickToViewAllCollections") : undefined}
               >
                 <FolderTree size={15} />
-                Collections
+                {t("sidebar.collections")}
               </div>
               <div style={{ display: "flex", gap: "2px" }}>
                 {onOpenCollectionsOverview && (

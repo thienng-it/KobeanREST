@@ -1,5 +1,6 @@
 import React from "react";
 import { Columns, Rows } from "lucide-react";
+import { useI18n } from "../services/i18n";
 
 export interface LayoutControlsProps {
   layoutMode: "stacked" | "split";
@@ -14,14 +15,16 @@ export function LayoutControls({
   uiDensity,
   onToggleDensity,
 }: LayoutControlsProps) {
+  const { t } = useI18n();
+
   return (
     <div className="layout-controls" style={{ display: "flex", alignItems: "center", gap: "2px" }}>
       <button
         type="button"
         className={`icon-btn layout-mode-btn ${layoutMode === "split" ? "active" : ""}`}
         onClick={() => onLayoutModeChange(layoutMode === "split" ? "stacked" : "split")}
-        title={layoutMode === "split" ? "Switch to Stacked View (Cmd+\\)" : "Switch to Side-by-Side Split View (Cmd+\\)"}
-        aria-label={layoutMode === "split" ? "Switch to Stacked View" : "Switch to Side-by-Side Split View"}
+        title={layoutMode === "split" ? t("layout.switchToStacked") : t("layout.switchToSplit")}
+        aria-label={layoutMode === "split" ? t("layout.switchToStacked") : t("layout.switchToSplit")}
         style={{
           padding: "4px 8px",
           display: "flex",
@@ -38,7 +41,7 @@ export function LayoutControls({
         }}
       >
         {layoutMode === "split" ? <Columns size={14} /> : <Rows size={14} />}
-        <span>{layoutMode === "split" ? "Split" : "Stacked"}</span>
+        <span>{layoutMode === "split" ? t("layout.split") : t("layout.stacked")}</span>
       </button>
     </div>
   );

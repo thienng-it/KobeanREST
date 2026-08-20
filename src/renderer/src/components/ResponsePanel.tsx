@@ -8,6 +8,7 @@ import { GraphQLIcon } from "./GraphQLIcon";
 import { formatBytes, formatResponseBody, analyzeGraphQLResponse, type ResponseState, type PreviewMode } from "../response-utils";
 import type { ExecuteHttpResponse } from "../types";
 import type { ScriptOutputEntry } from "../hooks/useScripts";
+import { useI18n } from "../services/i18n";
 
 export type ResponseTab = "preview" | "headers" | "timeline" | "download" | "copy" | "tests";
 
@@ -55,6 +56,7 @@ export const ResponsePanel = React.memo(function ResponsePanel({
   onOpenWindow,
   onResizerMouseDown,
 }: ResponsePanelProps) {
+  const { t } = useI18n();
   const modal = variant === "modal";
 
   const [jqFilter, setJqFilter] = useState("");
@@ -199,7 +201,7 @@ export const ResponsePanel = React.memo(function ResponsePanel({
                         backgroundColor: passed ? "color-mix(in srgb, var(--color-status-2xx) 15%, transparent)" : "color-mix(in srgb, var(--color-status-error) 15%, transparent)",
                         color: passed ? "var(--color-status-2xx)" : "var(--color-status-error)",
                         border: `1px solid ${passed ? "color-mix(in srgb, var(--color-status-2xx) 40%, transparent)" : "color-mix(in srgb, var(--color-status-error) 40%, transparent)"}`
-                      }}>{passed ? "PASSED" : "FAILED"}</span>
+                      }}>{passed ? t("response.passed") : t("response.failed")}</span>
                       <span style={{ fontWeight: 600, color: "var(--color-text)" }}>{log.name || log.message}</span>
                     </div>
                     {!passed && log.errMessage && (
@@ -225,16 +227,16 @@ export const ResponsePanel = React.memo(function ResponsePanel({
             {responseTab === "preview" && (
               <div style={{ display: "flex", gap: "8px", alignItems: "center", marginRight: "auto" }}>
                 <CustomSelect
-                  ariaLabel="Preview mode"
+                  ariaLabel={t("response.previewMode")}
                   value={previewMode}
                   onChange={(val) => onPreviewModeChange(val as PreviewMode)}
                   options={[
-                    { value: "rendered", label: "Rendered" },
+                    { value: "rendered", label: t("response.rendered") },
                     { value: "json", label: "JSON" },
                     { value: "graphql", label: "GraphQL", icon: <GraphQLIcon size={13} style={{ marginRight: 6 }} /> },
                     { value: "xml", label: "XML" },
                     { value: "html", label: "HTML" },
-                    { value: "raw", label: "Raw" }
+                    { value: "raw", label: t("response.raw") }
                   ]}
                 />
               </div>
@@ -271,24 +273,37 @@ export const ResponsePanel = React.memo(function ResponsePanel({
 
             <div style={{ display: "flex", gap: "8px" }}>
               <button className="ghost-button" type="button" onClick={onDownload} style={{ padding: "4px 8px", fontSize: "11px" }}>
-                <Download size={12} /> Download
+                <Download size={12} /> {t("common.download")}
               </button>
               <button className="ghost-button" type="button" onClick={onCopy} style={{ padding: "4px 8px", fontSize: "11px" }}>
-                <span style={{ fontSize: "10px" }}>📋</span> Copy
+                <span style={{ fontSize: "10px" }}>📋</span> {t("common.copy")}
               </button>
-              <button className="ghost-button" type="button" onClick={onOpenHistory} title="View Request History" style={{ padding: "4px 8px", fontSize: "11px" }}>
-                <History size={12} /> History
+              <button className="ghost-button" type="button" onClick={onOpenHistory} title={t("response.viewRequestHistory")} style={{ padding: "4px 8px", fontSize: "11px" }}>
+                <History size={12} /> {t("response.history")}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="tab-row" role="tablist" aria-label="Response views">
+      <div className="tab-row" role="tablist" aria-label={t("response.responseViews")}>
         {(["preview", "headers", "timeline", "tests"] as const).map((tab) => {
           const totalTests = tab === "tests" ? scriptOutputLog.filter(e => e.type === "test_pass" || e.type === "test_fail").length : 0;
           const passedTests = tab === "tests" ? scriptOutputLog.filter(e => e.type === "test_pass").length : 0;
           
+          const tabLabelMap: Record<string, string> = {
+            preview: t("response.tabPreview"),
+            headers: t("response.tabHeaders"),
+            timeline: t("response.tabTimeline"),
+            tests: t("response.tabTests"),
+          };
+          const baseName = tabLabelMap[tab] || tab;
+          const label = tab === "tests" && totalTests > 0
+            ? `${baseName} (${passedTests}/${totalTests})`
+            : tab === "headers" && currentResponse?.headers
+            ? `${baseName} (${currentResponse.headers.length})`
+            : baseName;
+
           return (
             <button
               key={tab}
@@ -297,9 +312,7 @@ export const ResponsePanel = React.memo(function ResponsePanel({
               type="button"
               role="tab"
             >
-              {tab === "tests" && totalTests > 0 ? `Tests (${passedTests}/${totalTests})` : 
-               tab === "headers" && currentResponse?.headers ? `Headers (${currentResponse.headers.length})` : 
-               tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {label}
               {tab === "tests" && totalTests > 0 && (
                 <span 
                   className="tab-script-indicator" 
@@ -323,7 +336,7 @@ export const ResponsePanel = React.memo(function ResponsePanel({
       {renderResponseBody()}
       
       {currentResponse && responseState.kind !== "error" && responseTab === "preview" && (previewMode === "json" || previewMode === "graphql") && (
-        <div className="tab-row" role="tablist" aria-label="Response views">
+        <div className="tab-row" role="tablist" aria-label={t("response.responseViews")}>
           <Search size={14} style={{ color: "var(--color-text-muted)" }} />
           <input
             type="text"
@@ -345,9 +358,9 @@ export const ResponsePanel = React.memo(function ResponsePanel({
             onClick={() => setIsJqHelpOpen(true)}
             className="ghost-button"
             style={{ padding: "4px 8px", fontSize: "12px", display: "flex", gap: "4px", alignItems: "center" }}
-            title="jq Filter Help"
+            title={t("response.jqFilterHelp")}
           >
-            <HelpCircle size={14} /> Help
+            <HelpCircle size={14} /> {t("response.help")}
           </button>
         </div>
       )}
@@ -360,7 +373,7 @@ export const ResponsePanel = React.memo(function ResponsePanel({
   );
 
   if (modal) {
-    return <div className="response-window-shell" aria-label="Response window">{shell}</div>;
+    return <div className="response-window-shell" aria-label={t("response.responseWindow")}>{shell}</div>;
   }
 
   return (

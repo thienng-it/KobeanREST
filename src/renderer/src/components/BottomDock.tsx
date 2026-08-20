@@ -6,6 +6,7 @@ import { type PreviewMode } from "../response-utils";
 import type { ExecuteHttpResponse } from "../types";
 import type { ResponseState } from "../response-utils";
 import type { ScriptOutputEntry } from "../hooks/useScripts";
+import { useI18n } from "../services/i18n";
 
 export interface BottomDockProps {
   activeBottomDock: "response" | "console" | null;
@@ -62,6 +63,7 @@ export const BottomDock = React.memo(function BottomDock({
   onResizerMouseDown,
   onClearConsole,
 }: BottomDockProps) {
+  const { t } = useI18n();
   const open = activeBottomDock !== null;
   const isSplit = layoutMode === "split";
   const hasResponse = !(responseState.kind === "idle" && !currentResponse);
@@ -96,7 +98,7 @@ export const BottomDock = React.memo(function BottomDock({
   return (
     <section
       className={`bottom-dock ${isRequestTabsCollapsed ? "expanded-view" : ""} ${isSplit ? "split-mode" : ""} ${open ? "has-open-dock" : "dock-collapsed"}`}
-      aria-label={isSplit ? "Response sidebar" : "Bottom dock"}
+      aria-label={isSplit ? t("dock.responseSidebar") : t("dock.bottomDock")}
       style={dockStyle}
       onClick={!open && isSplit ? () => onActiveBottomDockChange("response") : undefined}
     >
@@ -116,7 +118,7 @@ export const BottomDock = React.memo(function BottomDock({
             type="button"
             onClick={() => onActiveBottomDockChange(activeBottomDock === "response" ? null : "response")}
           >
-            <Eye size={14} /> Response
+            <Eye size={14} /> {t("dock.response")}
           </button>
         </div>
 
@@ -125,15 +127,15 @@ export const BottomDock = React.memo(function BottomDock({
             <button
               className="bottom-dock-open-window-btn"
               type="button"
-              aria-label="Open response in new window"
-              title="Open in new window"
+              aria-label={t("dock.openInWindow")}
+              title={t("dock.openInWindow")}
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenWindow();
               }}
             >
               <ExternalLink size={12} />
-              <span>Open in Window</span>
+              <span>{t("dock.openInWindow")}</span>
             </button>
           )}
           <button

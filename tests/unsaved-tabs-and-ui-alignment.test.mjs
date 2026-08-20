@@ -18,8 +18,8 @@ test("TabBar renders amber dot, italic font, and tooltips for unsaved and dirty 
   assert.match(tabBar, /fontStyle: isUnsaved \? "italic" : "normal"/);
 
   // Verify rich tooltip text
-  assert.match(tabBar, /Draft \(Unsaved\)\. Press Cmd\+S to save/);
-  assert.match(tabBar, /Unsaved changes\. Press Cmd\+S to save/);
+  assert.match(tabBar, /tab\.draftTooltip|Draft \(Unsaved\)\. Press Cmd\+S to save/);
+  assert.match(tabBar, /tab\.unsavedTooltip|Unsaved changes\. Press Cmd\+S to save/);
 
   // Verify amber dirty dot rendering
   assert.match(tabBar, /backgroundColor:\s*"#f59e0b"/);
@@ -33,14 +33,14 @@ test("RequestPanel header displays DRAFT badge, helper text, and Save to Collect
 
   // Verify DRAFT badge rendering
   assert.match(requestPanel, /className="request-type-badge draft-badge"/);
-  assert.match(requestPanel, /DRAFT/);
+  assert.match(requestPanel, /request\.badgeDraft|DRAFT/);
 
   // Verify helper text
-  assert.match(requestPanel, /Unsaved request • Press Cmd\+S or click Save to store in a collection/);
+  assert.match(requestPanel, /request\.unsavedHeaderHint|Unsaved request • Press Cmd\+S or click Save to store in a collection/);
 
   // Verify Save button text and style for unsaved draft
-  assert.match(requestPanel, /Save to Collection\.\.\./);
-  assert.match(requestPanel, /Save Changes/);
+  assert.match(requestPanel, /request\.saveToCollection|Save to Collection\.\.\./);
+  assert.match(requestPanel, /request\.saveChanges|Save Changes/);
 });
 
 test("App.tsx implements in-memory unsaved drafts, modal save flow, and tab deduplication", () => {

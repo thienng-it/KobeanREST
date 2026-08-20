@@ -95,8 +95,8 @@ test("App.tsx implements editable state management", () => {
   assert.match(app, /<div className="folder-children-inner">/);
   assert.doesNotMatch(sidebar, /\{!collapsedFolders\[folder\.id\] && \(/);
   assert.match(sidebar, /folderRequests\.map\(\(request\) => \(/);
-  assert.match(styles, /\.folder-children\s*\{[\s\S]*grid-template-rows:\s*1fr;/);
-  assert.match(styles, /\.folder-children\.collapsed\s*\{[\s\S]*grid-template-rows:\s*0fr;/);
+  assert.match(styles, /\.folder-children[^{]*\{[\s\S]*?grid-template-rows:\s*1fr;/);
+  assert.match(styles, /\.folder-children\.collapsed[^{]*\{[\s\S]*?grid-template-rows:\s*0fr;/);
   assert.match(styles, /\.folder-chevron\.collapsed\s*\{[\s\S]*rotate\(-90deg\)/);
   assert.doesNotMatch(styles, /\.folder-group:hover\s*>\s*\.folder-children/);
 });
@@ -597,7 +597,8 @@ test("settings modal uses structured sections and stable modal chrome", () => {
 test("response panel behaves like a bottom dock manager with a persistent dock tab", () => {
   const app = readApp();
   const styles = read("src/renderer/src/styles.css");
-  const bottomDockBlock = styles.match(/\.bottom-dock\s*\{([^}]*)\}/);
+  const bottomDockBlocks = [...styles.matchAll(/\.bottom-dock\s*\{([^}]*)\}/g)];
+  const bottomDockBlock = bottomDockBlocks.find(m => m[1].includes("border-radius")) || bottomDockBlocks[0];
 
   assert.match(app, /const \[activeBottomDock, setActiveBottomDock\] = useState<.*>\(('response'|null)\);/);
   assert.match(app, /const \[bottomDockHeight, setBottomDockHeight\] = useState\(320\);/);

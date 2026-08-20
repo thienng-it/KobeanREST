@@ -99,14 +99,13 @@ test("App.tsx implements settings state, persistence, and theme application", ()
   assert.match(app, /document\.documentElement\.dataset\.theme/);
   assert.match(app, /document\.documentElement\.style\.colorScheme/);
 
-  assert.match(app, /nav.settings/);
-  assert.match(app, /aria-label="App settings"/);
-  assert.match(app, /Update checks after launch/);
-  assert.match(app, /Theme/);
-  assert.match(app, /Data location/);
-  assert.match(app, /Export redaction/);
-  assert.match(app, /Diagnostics redaction/);
-  assert.match(app, /Offline behavior/);
+  assert.match(app, /nav\.settings|settings\.appSettings|aria-label="App settings"/);
+  assert.match(app, /settings\.updateChecksAfterLaunch|Update checks after launch/);
+  assert.match(app, /settings\.theme|Theme/);
+  assert.match(app, /settings\.dataLocation|Data location/);
+  assert.match(app, /settings\.exportRedaction|Export redaction/);
+  assert.match(app, /settings\.diagnosticsRedaction|Diagnostics redaction/);
+  assert.match(app, /settings\.offlineBehavior|Offline behavior/);
 });
 
 test("automatic update checks are gated by the saved preference", () => {

@@ -117,12 +117,12 @@ test("RequestPanel contract: supports Bulk Edit for both Params and Headers tabs
 
   // Verify Params Bulk Edit UI
   assert.match(requestPanel, /onClick=\{toggleParamsBulkMode\}/);
-  assert.match(requestPanel, /paramsBulkMode \? "Key-Value Edit" : "Bulk Edit"/);
+  assert.match(requestPanel, /paramsBulkMode \? (t\("request\.keyValueEdit"\)|"Key-Value Edit") : (t\("request\.bulkEdit"\)|"Bulk Edit")/);
   assert.match(requestPanel, /className="headers-bulk-editor"/);
 
   // Verify Headers Bulk Edit UI
   assert.match(requestPanel, /onClick=\{toggleHeadersBulkMode\}/);
-  assert.match(requestPanel, /headersBulkMode \? "Key-Value Edit" : "Bulk Edit"/);
+  assert.match(requestPanel, /headersBulkMode \? (t\("request\.keyValueEdit"\)|"Key-Value Edit") : (t\("request\.bulkEdit"\)|"Bulk Edit")/);
 });
 
 test("styles.css contract: includes bulk editor styles", () => {

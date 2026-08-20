@@ -35,7 +35,7 @@ import { CollectionsManager } from "./components/CollectionsManager";
 import { WorkspacesManager } from "./components/WorkspacesManager";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { LayoutControls } from "./components/LayoutControls";
-import { I18nProvider } from "./services/i18n";
+import { I18nProvider, t } from "./services/i18n";
 import { PositiveQuoteCard, PositiveQuoteWidget } from "./components/PositiveQuoteWidget";
 import { ApiToolsModal } from "./components/ApiToolsModal";
 import { resolveAuthConfig, getEffectiveAuth } from "./services/auth";
@@ -1911,7 +1911,7 @@ export function App() {
                   <button
                     onClick={() => setActiveBottomDock(prev => prev === 'console' ? null : 'console')}
                     className="icon-btn"
-                    title="Toggle Console Output"
+                    title={t("dock.toggleConsole")}
                     style={{
                        padding: '4px 8px',
                        display: 'flex',
@@ -1926,7 +1926,7 @@ export function App() {
                     }}
                   >
                     <Terminal size={14} />
-                    <span style={{ fontSize: '12px', fontWeight: 500 }}>Console</span>
+                    <span style={{ fontSize: '12px', fontWeight: 500 }}>{t("dock.console")}</span>
                     {globalConsoleLog.length > 0 && (
                       <span className="bottom-dock-badge" style={{ marginLeft: '2px' }}>
                         {globalConsoleLog.length}
@@ -1936,7 +1936,7 @@ export function App() {
                   <button
                     onClick={() => setAiChatOpen(prev => !prev)}
                     className="icon-btn"
-                    title="Toggle AI Chat"
+                    title={t("dock.toggleAiChat")}
                     style={{
                        padding: '4px 8px',
                        display: 'flex',
@@ -1951,7 +1951,7 @@ export function App() {
                     }}
                   >
                     <Sparkles size={14} />
-                    <span style={{ fontSize: '12px', fontWeight: 500 }}>AI Chat</span>
+                    <span style={{ fontSize: '12px', fontWeight: 500 }}>{t("dock.aiChat")}</span>
                   </button>
                 </div>
               </div>

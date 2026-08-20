@@ -58,7 +58,7 @@ test("request builder UI sends selected requests and renders dynamic response st
 
   assert.match(app, /sendSelectedRequest/);
   assert.match(app, /isSending/);
-  assert.match(app, /\{isSending \? "Sending" : "Send"\}/);
+  assert.match(app, /isSending \? (t\("request\.sending"\)|"Sending") : (t\("request\.send"\)|"Send")/);
   assert.match(app, /setResponseState/);
   assert.match(app, /(selectedRequest|draftRequest)\.timeoutMs/);
   assert.match(app, /kind:\s*"success"|responseState\.kind === "success"/);
