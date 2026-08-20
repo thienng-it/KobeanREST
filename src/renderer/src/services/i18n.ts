@@ -73,7 +73,7 @@ export function getResolvedLanguage(lang: SupportedLanguage = activeLanguage): "
 /**
  * Pure translation function for use anywhere (inside or outside React tree).
  */
-export function t(key: string, params?: Record<string, string | number>, langOverride?: SupportedLanguage): string {
+export function t(key: string, params?: string | number, langOverride?: SupportedLanguage): string {
   const targetLang = getResolvedLanguage(langOverride || activeLanguage);
   const dict = DICTIONARIES[targetLang] || en;
   let text = dict[key] || en[key as keyof typeof en] || key;
@@ -92,7 +92,7 @@ export interface I18nContextValue {
   language: SupportedLanguage;
   resolvedLanguage: "en" | "vi" | "ja" | "zh-CN" | "es" | "fr" | "de" | "ko";
   setLanguage: (lang: SupportedLanguage) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: (key: string, params?: any) => string;
   supportedLanguages: LanguageInfo[];
 }
 
@@ -130,7 +130,7 @@ export function I18nProvider({ language = "system", onLanguageChange, children }
 
   const resolved = useMemo(() => getResolvedLanguage(currentLang), [currentLang]);
 
-  const translate = useCallback((key: string, params?: Record<string, string | number>) => {
+  const translate = useCallback((key: string, params?: string | number) => {
     return t(key, params, currentLang);
   }, [currentLang]);
 
