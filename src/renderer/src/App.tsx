@@ -1,5 +1,5 @@
 import { useEffect, useState, useTransition, useRef, useMemo, useCallback, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { PanelLeftOpen, Sparkles } from "lucide-react";
+import { PanelLeftOpen, Sparkles, Terminal } from "lucide-react";
 import { PRODUCT_AUTHENTICATION_MODEL } from "./product-contract";
 import { executeHttpRequest } from "./services/http-client";
 import { resolveRequestFieldsSafe, UnresolvedVariableError, buildScopedVariableMap, activeScopedVariablesList, resolveString } from "./services/variables";
@@ -35,6 +35,7 @@ import { CollectionsManager } from "./components/CollectionsManager";
 import { WorkspacesManager } from "./components/WorkspacesManager";
 import { UniversalImportModal } from "./components/UniversalImportModal";
 import { I18nProvider } from "./services/i18n";
+import { PositiveQuoteCard, PositiveQuoteWidget } from "./components/PositiveQuoteWidget";
 import { ApiToolsModal } from "./components/ApiToolsModal";
 import { resolveAuthConfig, getEffectiveAuth } from "./services/auth";
 import { prepareRequestForExecution } from "./services/request-executor";
@@ -383,6 +384,7 @@ export function App() {
     handleSaveScripts, runScript
   } = useScripts(selectedRequestId);
 
+  const [globalConsoleLog, setGlobalConsoleLog] = useState<ScriptOutputEntry[]>([]);
   const responseCacheRef = useRef<Record<string, { state: ResponseState, log: ScriptOutputEntry[] }>>({});
 
   const handleViewHistoryResponse = async (entry: import("./types").HistoryEntry) => {
@@ -942,18 +944,22 @@ export function App() {
       console.error("Pre-script execution failed", diagnosticMessage(err));
       if (err instanceof UnresolvedVariableError) {
         setResponseState({ kind: "error", message: err.message });
-        setScriptOutputLog([...scriptOutputEntries, { tone: "error", message: err.message }]);
+        const finalEntries: ScriptOutputEntry[] = [...scriptOutputEntries, { tone: "error", message: err.message }];
+        setScriptOutputLog(finalEntries);
+        setGlobalConsoleLog((prev) => [...prev, ...finalEntries]);
         return;
       }
       scriptOutputEntries.push({ tone: "error", message: `Pre-script execution failed: ${diagnosticMessage(err)}` });
       setResponseState({ kind: "error", message: `Pre-script execution failed: ${diagnosticMessage(err)}` });
       setScriptOutputLog(scriptOutputEntries);
+      setGlobalConsoleLog((prev) => [...prev, ...scriptOutputEntries]);
       return;
     }
 
     if (preScriptsContext.skipRequest) {
       setResponseState({ kind: "error", message: "Request skipped by script." });
       setScriptOutputLog(scriptOutputEntries);
+      setGlobalConsoleLog((prev) => [...prev, ...scriptOutputEntries]);
       return;
     }
 
@@ -1169,6 +1175,7 @@ export function App() {
         scriptOutputEntries.push({ tone: "error", message: `Post-script execution failed: ${diagnosticMessage(err)}` });
       }
       setScriptOutputLog(scriptOutputEntries);
+      setGlobalConsoleLog((prev) => [...prev, ...scriptOutputEntries]);
       responseCacheRef.current[requestToSend.id] = {
         state: { kind: "success", response },
         log: scriptOutputEntries,
@@ -1229,10 +1236,12 @@ export function App() {
         message: isAbort ? "Request cancelled by user" : (error instanceof Error ? error.message : String(error))
       };
       setResponseState(errState);
-      setScriptOutputLog(scriptOutputEntries);
+      const finalErrEntries: ScriptOutputEntry[] = [...scriptOutputEntries, { tone: "error", message: errState.message }];
+      setScriptOutputLog(finalErrEntries);
+      setGlobalConsoleLog((prev) => [...prev, ...finalErrEntries]);
       responseCacheRef.current[requestToSend.id] = {
         state: errState,
-        log: scriptOutputEntries,
+        log: finalErrEntries,
       };
       setAbortController(null);
     }
@@ -1760,6 +1769,7 @@ export function App() {
         isResizing={isSidebarResizing}
         theme={appSettings.theme}
         onThemeChange={(nextTheme) => updateAppSettings({ theme: nextTheme })}
+        quotesEnabled={appSettings.quotesEnabled ?? true}
         onToggleSidebar={toggleSidebar}
         collectionSearch={collectionSearch}
         collapsedFolders={collapsedFolders}
@@ -1802,7 +1812,8 @@ export function App() {
         onContextMenu={handleSidebarContextMenu}
         onDismissDeleteError={() => setDeleteError(null)}
         onOpenDocs={openProductDocs}
-        onOpenHistory={() => void handleOpenHistory()}
+        onOpenHistory={handleOpenHistory}
+        onOpenConsole={() => setActiveBottomDock((prev) => (prev === "console" ? null : "console"))}
         onCheckForUpdates={() => void handleCheckForUpdates("manual")}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenApiTools={() => setApiToolsOpen(true)}
@@ -1867,27 +1878,53 @@ export function App() {
                     onTabContextMenu={handleTabContextMenu}
                   />
                 </div>
-                <button
-                  onClick={() => setAiChatOpen(prev => !prev)}
-                  className="icon-btn"
-                  title="Toggle AI Chat"
-                  style={{
-                     margin: '0 8px',
-                     padding: '4px 8px',
-                     display: 'flex',
-                     alignItems: 'center',
-                     gap: '6px',
-                     background: aiChatOpen ? 'var(--color-surface-active)' : 'transparent',
-                     border: 'none',
-                     borderRadius: '6px',
-                     color: aiChatOpen ? 'var(--color-text-active)' : 'var(--color-text-muted)',
-                     cursor: 'pointer',
-                     flexShrink: 0
-                  }}
-                >
-                  <Sparkles size={14} />
-                  <span style={{ fontSize: '12px', fontWeight: 500 }}>AI Chat</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', margin: '0 8px' }}>
+                  <button
+                    onClick={() => setActiveBottomDock(prev => prev === 'console' ? null : 'console')}
+                    className="icon-btn"
+                    title="Toggle Console Output"
+                    style={{
+                       padding: '4px 8px',
+                       display: 'flex',
+                       alignItems: 'center',
+                       gap: '6px',
+                       background: activeBottomDock === 'console' ? 'var(--color-surface-active)' : 'transparent',
+                       border: 'none',
+                       borderRadius: '6px',
+                       color: activeBottomDock === 'console' ? 'var(--color-text-active)' : 'var(--color-text-muted)',
+                       cursor: 'pointer',
+                       flexShrink: 0
+                    }}
+                  >
+                    <Terminal size={14} />
+                    <span style={{ fontSize: '12px', fontWeight: 500 }}>Console</span>
+                    {globalConsoleLog.length > 0 && (
+                      <span className="bottom-dock-badge" style={{ marginLeft: '2px' }}>
+                        {globalConsoleLog.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setAiChatOpen(prev => !prev)}
+                    className="icon-btn"
+                    title="Toggle AI Chat"
+                    style={{
+                       padding: '4px 8px',
+                       display: 'flex',
+                       alignItems: 'center',
+                       gap: '6px',
+                       background: aiChatOpen ? 'var(--color-surface-active)' : 'transparent',
+                       border: 'none',
+                       borderRadius: '6px',
+                       color: aiChatOpen ? 'var(--color-text-active)' : 'var(--color-text-muted)',
+                       cursor: 'pointer',
+                       flexShrink: 0
+                    }}
+                  >
+                    <Sparkles size={14} />
+                    <span style={{ fontSize: '12px', fontWeight: 500 }}>AI Chat</span>
+                  </button>
+                </div>
               </div>
             )}
           {(() => {
@@ -2202,12 +2239,13 @@ export function App() {
                     Manage Workspaces
                   </button>
                 </div>
+                {(appSettings.quotesEnabled ?? true) && <PositiveQuoteCard />}
               </div>
             </div>
             );
           })()}
 
-          {currentTab && currentTab.type !== "folder" && currentTab.type !== "collection" && currentTab.type !== "collections-overview" && currentTab.type !== "workspaces-overview" && currentTab.type !== "environment" && currentTab.method !== "WS" && currentTab.method !== "SOCKET.IO" && currentTab.method !== "GRPC" && draftRequest?.method !== "WS" && draftRequest?.method !== "SOCKET.IO" && draftRequest?.method !== "GRPC" && (
+          {(activeBottomDock !== null || (currentTab && currentTab.type !== "folder" && currentTab.type !== "collection" && currentTab.type !== "collections-overview" && currentTab.type !== "workspaces-overview" && currentTab.type !== "environment" && currentTab.method !== "WS" && currentTab.method !== "SOCKET.IO" && currentTab.method !== "GRPC" && draftRequest?.method !== "WS" && draftRequest?.method !== "SOCKET.IO" && draftRequest?.method !== "GRPC")) && (
             <BottomDock
               activeBottomDock={activeBottomDock}
               bottomDockHeight={bottomDockHeight}
@@ -2219,7 +2257,7 @@ export function App() {
               isResponseTabPending={isResponseTabPending}
               responseTab={responseTab}
               previewMode={previewMode}
-              scriptOutputLog={scriptOutputLog}
+              scriptOutputLog={activeBottomDock === 'console' ? globalConsoleLog : scriptOutputLog}
               isRequestTabsCollapsed={isRequestTabsCollapsed}
               autoWrap={appSettings.responseAutoWrap ?? true}
               autoCollapse={appSettings.responseAutoCollapse ?? false}
@@ -2236,7 +2274,10 @@ export function App() {
               }}
               onOpenWindow={() => setResponseWindowOpen(true)}
               onResizerMouseDown={handleResponsePanelResizerMouseDown}
-              onClearConsole={() => setScriptOutputLog([])}
+              onClearConsole={() => {
+                setGlobalConsoleLog([]);
+                setScriptOutputLog([]);
+              }}
             />
           )}
           </div>

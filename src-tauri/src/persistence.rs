@@ -29,6 +29,8 @@ pub struct AppSettings {
     pub response_auto_collapse: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quotes_enabled: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1229,6 +1231,7 @@ fn default_app_settings() -> AppSettings {
         response_auto_wrap: Some(true),
         response_auto_collapse: Some(false),
         language: Some("system".to_string()),
+        quotes_enabled: Some(true),
     }
 }
 

@@ -9884,3 +9884,314 @@ select:focus-visible,
 
 
 
+
+/* Positive Energy Quote Widget & Hero Card */
+.positive-quote-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 600px;
+  padding: 4px 12px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--color-text-soft, var(--color-text));
+  cursor: pointer;
+  user-select: none;
+  transition: all 180ms ease;
+  white-space: nowrap;
+}
+
+.positive-quote-pill:hover {
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
+  border-color: var(--color-accent, #3b82f6);
+  transform: translateY(-1px);
+}
+
+.positive-quote-pill .quote-emoji {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.positive-quote-pill .quote-text {
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.positive-quote-pill .quote-author {
+  font-size: 10px;
+  color: var(--color-muted, var(--color-text-muted));
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.positive-quote-pill .quote-refresh-icon {
+  opacity: 0.6;
+  flex-shrink: 0;
+  transition: transform 300ms ease, opacity 180ms ease;
+}
+
+.positive-quote-pill:hover .quote-refresh-icon {
+  opacity: 1;
+}
+
+.positive-quote-pill .quote-refresh-icon.rotating,
+.quote-hero-refresh-btn .rotating {
+  transform: rotate(180deg);
+}
+
+.positive-quote-hero-card {
+  margin-top: 24px;
+  width: 100%;
+  max-width: 440px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, var(--color-surface-muted, rgba(255, 255, 255, 0.03)), var(--color-surface, rgba(255, 255, 255, 0.06)));
+  border: 1px dashed var(--color-border, rgba(255, 255, 255, 0.12));
+  border-radius: 14px;
+  text-align: left;
+  position: relative;
+  transition: all 200ms ease;
+}
+
+.positive-quote-hero-card:hover {
+  border-color: var(--color-accent, #3b82f6);
+  background: linear-gradient(135deg, var(--color-surface, rgba(255, 255, 255, 0.05)), var(--color-surface-hover, rgba(255, 255, 255, 0.09)));
+}
+
+.quote-hero-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.quote-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-accent, #3b82f6);
+}
+
+.quote-hero-title .sparkle-icon {
+  color: var(--color-accent, #3b82f6);
+}
+
+.quote-hero-refresh-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-muted, var(--color-text-muted));
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 160ms ease;
+}
+
+.quote-hero-refresh-btn:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
+}
+
+.quote-hero-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quote-hero-emoji {
+  font-size: 18px;
+  margin-bottom: 2px;
+}
+
+.quote-hero-quote {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-text);
+  font-style: italic;
+  font-weight: 500;
+}
+
+.quote-hero-author {
+  font-size: 11px;
+  color: var(--color-muted, var(--color-text-muted));
+  margin-top: 4px;
+  text-align: right;
+  font-weight: 500;
+}
+
+.positive-quote-widget-wrapper {
+  position: relative;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
+.positive-quote-pill {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  border-radius: 10px;
+  font-size: 11.5px;
+  color: var(--color-text-soft, var(--color-text));
+  cursor: pointer;
+  user-select: none;
+  transition: all 180ms ease;
+}
+
+.positive-quote-pill:hover {
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
+  border-color: var(--color-accent, #3b82f6);
+  transform: translateY(-1px);
+}
+
+.positive-quote-pill .quote-emoji {
+  font-size: 14px;
+  line-height: 1.35;
+  flex-shrink: 0;
+}
+
+.positive-quote-pill .quote-text {
+  font-style: italic;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.positive-quote-pill .quote-author {
+  display: block;
+  font-size: 10px;
+  color: var(--color-muted, var(--color-text-muted));
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.quote-pill-refresh-btn {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  margin-left: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted, var(--color-text-muted));
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: all 150ms ease;
+}
+
+.quote-pill-refresh-btn:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.1));
+}
+
+.positive-quote-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: 280px;
+  padding: 16px 18px;
+  background: var(--color-surface-solid, #100828);
+  background-color: var(--color-panel, rgba(20, 10, 40, 0.95));
+  border: 1px solid var(--color-border-strong, rgba(255, 255, 255, 0.15));
+  border-radius: 14px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(24px);
+  z-index: 1000;
+  animation: quotePopoverFadeIn 180ms ease forwards;
+}
+
+@keyframes quotePopoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.quote-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+}
+
+.quote-popover-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-accent, #3b82f6);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.quote-popover-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  color: var(--color-text-soft, var(--color-text));
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.quote-popover-refresh-btn:hover {
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.12));
+  border-color: var(--color-accent, #3b82f6);
+  color: var(--color-text);
+}
+
+.quote-popover-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quote-popover-emoji {
+  font-size: 24px;
+}
+
+.quote-popover-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-text);
+  font-style: italic;
+  font-weight: 500;
+}
+
+.quote-popover-author {
+  font-size: 11.5px;
+  color: var(--color-muted, var(--color-text-muted));
+  text-align: right;
+  font-weight: 600;
+}

@@ -95,16 +95,6 @@ export const BottomDock = React.memo(function BottomDock({
           >
             <Eye size={14} /> Response
           </button>
-          <button
-            className={activeBottomDock === "console" ? "bottom-dock-tab active" : "bottom-dock-tab"}
-            type="button"
-            onClick={() => onActiveBottomDockChange(activeBottomDock === "console" ? null : "console")}
-          >
-            <Terminal size={14} /> Console
-            <span className={`bottom-dock-badge ${hasConsoleErrors ? "has-errors" : ""}`}>
-              {scriptOutputLog.length}
-            </span>
-          </button>
         </div>
 
         <div className="bottom-dock-toolbar-right">

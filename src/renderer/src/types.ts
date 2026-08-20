@@ -194,6 +194,7 @@ export interface AppSettings {
   responseAutoWrap?: boolean;
   responseAutoCollapse?: boolean;
   language?: "system" | "en" | "vi" | "ja" | "zh-CN" | "es" | "fr" | "de" | "ko";
+  quotesEnabled?: boolean;
 }
 
 export interface UpdateStatus {

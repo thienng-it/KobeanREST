@@ -43,6 +43,7 @@ export const defaultAppSettings: AppSettings = {
   responseAutoWrap: true,
   responseAutoCollapse: false,
   language: "system",
+  quotesEnabled: true,
 };
 
 let previewSettings = { ...defaultAppSettings };

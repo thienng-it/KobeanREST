@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle, Lock, Unlock, LayoutGrid, Boxes } from "lucide-react";
 import React, { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useI18n } from "../services/i18n";
+import { PositiveQuoteWidget } from "./PositiveQuoteWidget";
 import {
   DndContext,
   closestCenter,
@@ -56,10 +57,12 @@ export interface SidebarProps {
   theme?: AppSettings["theme"];
   onThemeChange?: (theme: AppSettings["theme"]) => void;
   onToggleSidebar?: () => void;
+  quotesEnabled?: boolean;
 
   // Topbar / App Actions
   onOpenDocs?: () => void;
   onOpenHistory?: () => void;
+  onOpenConsole?: () => void;
   onCheckForUpdates?: () => void;
   onOpenSettings?: () => void;
   onOpenApiTools?: () => void;
@@ -698,6 +701,7 @@ export const Sidebar = React.memo(function Sidebar({
   onToggleSidebar,
   onOpenDocs,
   onOpenHistory,
+  onOpenConsole,
   onCheckForUpdates,
   onOpenSettings,
   onOpenApiTools,
@@ -710,6 +714,7 @@ export const Sidebar = React.memo(function Sidebar({
   onMoveItem,
   unlockedCollectionIds,
   onLockCollectionToggle,
+  quotesEnabled = true,
 }: SidebarProps) {
   const { t } = useI18n();
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
@@ -1597,6 +1602,15 @@ export const Sidebar = React.memo(function Sidebar({
           <button
             type="button"
             className="sidebar-footer-icon-btn"
+            data-tooltip="Console Logs"
+            aria-label="Console"
+            onClick={onOpenConsole}
+          >
+            <Terminal size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
             data-tooltip="Check for Updates"
             aria-label={t("sidebar.checkForUpdates")}
             onClick={onCheckForUpdates}
@@ -1633,6 +1647,11 @@ export const Sidebar = React.memo(function Sidebar({
             <Settings size={15} />
           </button>
         </div>
+        {quotesEnabled && (
+          <div className="sidebar-quote-row" style={{ padding: "6px 8px", display: "flex", justifyContent: "center" }}>
+            <PositiveQuoteWidget />
+          </div>
+        )}
         <div ref={themeRef} className="sidebar-footer-theme" style={{ position: "relative" }}>
           <button
             type="button"

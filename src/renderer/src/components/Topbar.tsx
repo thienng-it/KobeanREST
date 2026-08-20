@@ -1,5 +1,6 @@
 import { Download, History, RefreshCw, Settings } from "lucide-react";
 import { useI18n } from '../services/i18n';
+import { PositiveQuoteWidget } from "./PositiveQuoteWidget";
 
 export interface TopbarProps {
   onOpenDocs: () => void;
@@ -17,6 +18,7 @@ export function Topbar({
   const { t } = useI18n();
   return (
     <header className="topbar">
+      <PositiveQuoteWidget />
       <div className="topbar-actions">
         <button className="ghost-button" type="button" onClick={onOpenDocs}>
           <Download size={16} />

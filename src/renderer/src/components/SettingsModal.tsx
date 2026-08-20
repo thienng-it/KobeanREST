@@ -140,6 +140,24 @@ export function SettingsModal({
 
           <section className="settings-section">
             <div className="settings-section-heading">
+              <h3>Developer Inspiration</h3>
+              <p>Positive energy, proverbs, and wisdom throughout the workspace.</p>
+            </div>
+            <label className="settings-row">
+              <span>
+                <strong>Developer quotes</strong>
+                <small>Show uplifting developer quotes in the sidebar and empty workspace.</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={appSettings.quotesEnabled ?? true}
+                onChange={(e) => onSettingsChange({ quotesEnabled: e.target.checked })}
+              />
+            </label>
+          </section>
+
+          <section className="settings-section">
+            <div className="settings-section-heading">
               <h3>Privacy</h3>
               <p>Keep exported files and diagnostics safe by default.</p>
             </div>
