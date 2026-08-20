@@ -955,8 +955,13 @@ export const RequestPanel = React.memo(function RequestPanel({
             onClick={() => onToggleTabsCollapsed?.(!isTabsCollapsed)}
             title={isTabsCollapsed ? t("request.expandRequestConfig") : t("request.collapseRequestConfig")}
             aria-label={isTabsCollapsed ? t("request.expandRequestConfig") : t("request.collapseRequestConfig")}
+            aria-expanded={!isTabsCollapsed}
+            aria-controls="request-workspace-anim-wrapper"
           >
-            {isTabsCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            <ChevronDown
+              size={14}
+              className={`request-tabs-toggle-chevron ${isTabsCollapsed ? "is-collapsed" : ""}`}
+            />
             <span>{isTabsCollapsed ? "Show Request" : "Hide Request"}</span>
           </button>
           <button
@@ -1135,37 +1140,50 @@ export const RequestPanel = React.memo(function RequestPanel({
         )}
       </div>
 
-      {isTabsCollapsed ? (
-        <div
-          className="request-workspace-collapsed-bar"
-          onClick={() => onToggleTabsCollapsed?.(false)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onToggleTabsCollapsed?.(false);
-            }
-          }}
-          title={t("request.clickToExpandConfig")}
-        >
-          <div className="request-workspace-collapsed-left">
-            <span className="request-workspace-collapsed-badge">{t("request.requestPanelHidden")}</span>
-            <span className="request-workspace-collapsed-text">Response data view expanded • Click to show params, body, headers, auth & scripts</span>
-          </div>
-          <button
-            type="button"
-            className="request-workspace-expand-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleTabsCollapsed?.(false);
+      <div
+        className={`request-workspace-collapsed-container ${isTabsCollapsed ? "is-collapsed" : ""}`}
+        aria-hidden={!isTabsCollapsed}
+      >
+        <div className="request-workspace-collapsed-inner">
+          <div
+            className="request-workspace-collapsed-bar"
+            onClick={() => onToggleTabsCollapsed?.(false)}
+            role="button"
+            tabIndex={isTabsCollapsed ? 0 : -1}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onToggleTabsCollapsed?.(false);
+              }
             }}
+            title={t("request.clickToExpandConfig")}
           >
-            <ChevronDown size={14} /> Expand Request
-          </button>
+            <div className="request-workspace-collapsed-left">
+              <span className="request-workspace-collapsed-badge">{t("request.requestPanelHidden")}</span>
+              <span className="request-workspace-collapsed-text">Response data view expanded • Click to show params, body, headers, auth & scripts</span>
+            </div>
+            <button
+              type="button"
+              className="request-workspace-expand-btn"
+              tabIndex={isTabsCollapsed ? 0 : -1}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleTabsCollapsed?.(false);
+              }}
+            >
+              <ChevronDown size={14} /> Expand Request
+            </button>
+          </div>
         </div>
-      ) : (
-        <div className="request-workspace">
+      </div>
+
+      <div
+        id="request-workspace-anim-wrapper"
+        className={`request-workspace-anim-wrapper ${isTabsCollapsed ? "is-collapsed" : ""}`}
+        aria-hidden={isTabsCollapsed}
+      >
+        <div className="request-workspace-anim-inner">
+          <div className="request-workspace">
         <div className="tab-row" role="tablist" aria-label={t("request.requestConfiguration")}>
           {(["params", "body", "headers", "auth", "scripts", "variables", "docs", "settings", "code"] as const)
             .filter((tab) => !(tab === "body" && draftRequest.method === "GET"))
@@ -2375,10 +2393,11 @@ export const RequestPanel = React.memo(function RequestPanel({
           <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--color-surface)" }}>
             <CodeSnippetViewer value={codeSnippet} language={codeTarget} />
           </div>
-          </div>
-        )}
-      </div>
+        </div>
       )}
+          </div>
+        </div>
+      </div>
       </>
       )}
     </section>

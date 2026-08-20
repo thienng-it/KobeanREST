@@ -20,6 +20,9 @@ test("RequestPanel.tsx contract: supports isTabsCollapsed and renders toggle but
   assert.match(panel, /isTabsCollapsed\?: boolean;/);
   assert.match(panel, /onToggleTabsCollapsed\?: \(collapsed: boolean\) => void;/);
   assert.match(panel, /request-tabs-toggle-btn/);
+  assert.match(panel, /request-tabs-toggle-chevron/);
+  assert.match(panel, /request-workspace-anim-wrapper/);
+  assert.match(panel, /request-workspace-collapsed-container/);
   assert.match(panel, /request-workspace-collapsed-bar/);
   assert.match(panel, /request-workspace-expand-btn/);
 });
@@ -34,6 +37,9 @@ test("styles.css contract: contains styles for collapsed request panel and colla
   const styles = read("src/renderer/src/styles.css");
   assert.match(styles, /\.request-panel\.collapsed/);
   assert.match(styles, /\.request-tabs-toggle-btn/);
+  assert.match(styles, /\.request-tabs-toggle-chevron/);
+  assert.match(styles, /\.request-workspace-anim-wrapper/);
+  assert.match(styles, /\.request-workspace-collapsed-container/);
   assert.match(styles, /\.request-workspace-collapsed-bar/);
   assert.match(styles, /\.request-workspace-expand-btn/);
 });
