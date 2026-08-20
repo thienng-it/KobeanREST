@@ -140,12 +140,15 @@ export async function importPostmanCollection(
       url: req.url,
       headers: req.headers,
       queryParams: req.queryParams,
+      pathVariables: req.pathVariables,
       body: req.body,
       bodyMimeType: req.bodyMimeType,
       bodyForm: req.bodyForm,
       authMode: req.authMode,
       authConfig: req.authConfig,
       variables: req.variables,
+      description: req.description,
+      examples: req.examples,
       folderId: targetFolderId,
     };
 

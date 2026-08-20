@@ -20,6 +20,8 @@ export interface BottomDockProps {
   previewMode: PreviewMode;
   scriptOutputLog: ScriptOutputEntry[];
   isRequestTabsCollapsed?: boolean;
+  autoWrap?: boolean;
+  autoCollapse?: boolean;
   onActiveBottomDockChange: (dock: "response" | "console" | null) => void;
   onTabChange: (tab: ResponseTab) => void;
   onPreviewModeChange: (mode: PreviewMode) => void;
@@ -44,6 +46,8 @@ export const BottomDock = React.memo(function BottomDock({
   previewMode,
   scriptOutputLog,
   isRequestTabsCollapsed,
+  autoWrap = true,
+  autoCollapse = false,
   onActiveBottomDockChange,
   onTabChange,
   onPreviewModeChange,
@@ -144,6 +148,8 @@ export const BottomDock = React.memo(function BottomDock({
             previewMode={previewMode}
             activeBottomDock={activeBottomDock}
             scriptOutputLog={scriptOutputLog}
+            autoWrap={autoWrap}
+            autoCollapse={autoCollapse}
             onTabChange={onTabChange}
             onPreviewModeChange={onPreviewModeChange}
             onDownload={onDownload}

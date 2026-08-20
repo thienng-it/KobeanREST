@@ -22,6 +22,8 @@ interface ResponsePanelProps {
   previewMode: PreviewMode;
   activeBottomDock: "response" | "console" | null;
   scriptOutputLog?: ScriptOutputEntry[];
+  autoWrap?: boolean;
+  autoCollapse?: boolean;
 
   onTabChange: (tab: ResponseTab) => void;
   onPreviewModeChange: (mode: PreviewMode) => void;
@@ -43,6 +45,8 @@ export const ResponsePanel = React.memo(function ResponsePanel({
   previewMode,
   activeBottomDock,
   scriptOutputLog = [],
+  autoWrap = true,
+  autoCollapse = false,
   onTabChange,
   onPreviewModeChange,
   onDownload,
@@ -133,6 +137,8 @@ export const ResponsePanel = React.memo(function ResponsePanel({
                 }
                 contentType={previewMode === "graphql" ? "application/graphql" : (currentResponse.contentType ?? "text/plain")}
                 height="100%"
+                autoWrap={autoWrap}
+                autoCollapse={autoCollapse}
               />
             )}
           </>

@@ -24,6 +24,8 @@ interface ResponseWindowProps {
   responseTab: ResponseTab;
   previewMode: PreviewMode;
   activeBottomDock: "response" | "console" | null;
+  autoWrap?: boolean;
+  autoCollapse?: boolean;
   onTabChange: (tab: ResponseTab) => void;
   onPreviewModeChange: (mode: PreviewMode) => void;
   onDownload: () => void;
@@ -114,6 +116,8 @@ export function ModalManager({
               responseTab={responseWindow.responseTab}
               previewMode={responseWindow.previewMode}
               activeBottomDock={responseWindow.activeBottomDock}
+              autoWrap={responseWindow.autoWrap}
+              autoCollapse={responseWindow.autoCollapse}
               onTabChange={responseWindow.onTabChange}
               onPreviewModeChange={responseWindow.onPreviewModeChange}
               onDownload={responseWindow.onDownload}

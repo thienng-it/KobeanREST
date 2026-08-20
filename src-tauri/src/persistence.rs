@@ -23,6 +23,10 @@ pub struct AppSettings {
     pub export_redaction_enabled: bool,
     pub diagnostics_redaction_enabled: bool,
     pub offline_behavior: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_auto_wrap: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_auto_collapse: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -55,6 +59,17 @@ pub struct ResponseExample {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct PathVariableEntry {
+    pub key: String,
+    pub value: String,
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SavedRequest {
     pub id: String,
     pub name: String,
@@ -76,6 +91,8 @@ pub struct SavedRequest {
     pub description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub examples: Option<Vec<ResponseExample>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path_variables: Option<Vec<PathVariableEntry>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -244,6 +261,7 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
     ensure_collection_default_environment_column(&connection)?;
     ensure_description_columns(&connection)?;
     ensure_request_examples_column(&connection)?;
+    ensure_request_path_variables_column(&connection)?;
     seed_default_workspace(&mut connection)?;
     sync_request_workspace_ids(&connection)?;
 
@@ -251,6 +269,28 @@ pub fn ensure_database(app: &AppHandle) -> Result<PersistenceStatus, String> {
         database_path: path.to_string_lossy().to_string(),
         migrated: true,
     })
+}
+
+fn ensure_request_path_variables_column(connection: &Connection) -> Result<(), String> {
+    let mut stmt = connection
+        .prepare("PRAGMA table_info(requests)")
+        .map_err(|e| format!("failed to inspect requests table: {e}"))?;
+    let cols = stmt
+        .query_map([], |r| r.get::<_, String>(1))
+        .map_err(|e| format!("failed to query requests columns: {e}"))?;
+    let mut has_col = false;
+    for col in cols {
+        if col.map_err(|e| e.to_string())? == "path_variables" {
+            has_col = true;
+            break;
+        }
+    }
+    if !has_col {
+        connection
+            .execute("ALTER TABLE requests ADD COLUMN path_variables TEXT", [])
+            .map_err(|e| format!("failed to add requests.path_variables column: {e}"))?;
+    }
+    Ok(())
 }
 
 fn ensure_request_examples_column(connection: &Connection) -> Result<(), String> {
@@ -1184,6 +1224,8 @@ fn default_app_settings() -> AppSettings {
         export_redaction_enabled: true,
         diagnostics_redaction_enabled: true,
         offline_behavior: "silent".to_string(),
+        response_auto_wrap: Some(true),
+        response_auto_collapse: Some(false),
     }
 }
 
@@ -1753,7 +1795,8 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
                 requests.body_form,
                 requests.query_params,
                 requests.description,
-                requests.examples
+                requests.examples,
+                requests.path_variables
              FROM requests
              LEFT JOIN folders ON folders.id = requests.folder_id
              WHERE requests.workspace_id = ?1
@@ -1778,6 +1821,7 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
                 row.get::<_, String>(12)?,
                 row.get::<_, Option<String>>(13)?,
                 row.get::<_, Option<String>>(14)?,
+                row.get::<_, Option<String>>(15)?,
             ))
         })
         .map_err(|error| format!("failed to query requests: {error}"))?;
@@ -1790,6 +1834,13 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
                 None
             } else {
                 serde_json::from_str::<Vec<ResponseExample>>(&json_str).ok()
+            }
+        });
+        let path_variables = row.15.and_then(|json_str| {
+            if json_str.trim().is_empty() {
+                None
+            } else {
+                serde_json::from_str::<Vec<PathVariableEntry>>(&json_str).ok()
             }
         });
         requests.push(SavedRequest {
@@ -1810,6 +1861,7 @@ fn load_requests(connection: &Connection, workspace_id: &str) -> Result<Vec<Save
             variables: Some(load_scoped_variables(connection, &row.0, "request")?),
             description: row.13,
             examples,
+            path_variables,
         });
     }
 
@@ -2021,6 +2073,8 @@ pub struct RequestRow {
     pub description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub examples: Option<Vec<ResponseExample>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path_variables: Option<Vec<PathVariableEntry>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2106,12 +2160,16 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
     )?;
 
     let requests = collect_rows(
-        connection.prepare("SELECT id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position, description, examples FROM requests ORDER BY position")
+        connection.prepare("SELECT id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position, description, examples, path_variables FROM requests ORDER BY position")
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
                 let examples_json: Option<String> = row.get(16)?;
                 let examples = examples_json.and_then(|j| {
                     if j.trim().is_empty() { None } else { serde_json::from_str::<Vec<ResponseExample>>(&j).ok() }
+                });
+                let path_variables_json: Option<String> = row.get(17)?;
+                let path_variables = path_variables_json.and_then(|j| {
+                    if j.trim().is_empty() { None } else { serde_json::from_str::<Vec<PathVariableEntry>>(&j).ok() }
                 });
                 Ok(RequestRow {
                     id: row.get(0)?,
@@ -2131,6 +2189,7 @@ pub fn export_workspace_data(app: AppHandle) -> Result<String, String> {
                     position: row.get(14)?,
                     description: row.get(15)?,
                     examples,
+                    path_variables,
                 })
             })
             .map_err(|e| e.to_string())?,
@@ -2284,9 +2343,10 @@ pub fn import_workspace_data(app: AppHandle, json: String) -> Result<(), String>
             .get(&request.folder_id)
             .ok_or("invalid folder reference in request")?;
         let examples_json = request.examples.and_then(|ex| serde_json::to_string(&ex).ok());
+        let path_variables_json = request.path_variables.and_then(|pv| serde_json::to_string(&pv).ok());
         transaction.execute(
-            "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position, description, examples) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
-            params![new_id, workspace_id, folder_id, request.name, request.method, request.url, request.auth_mode, request.auth_config, request.body, request.body_mime_type, request.body_form, request.query_params, request.timeout_ms, request.follow_redirects, request.position, request.description, examples_json],
+            "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, position, description, examples, path_variables) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
+            params![new_id, workspace_id, folder_id, request.name, request.method, request.url, request.auth_mode, request.auth_config, request.body, request.body_mime_type, request.body_form, request.query_params, request.timeout_ms, request.follow_redirects, request.position, request.description, examples_json, path_variables_json],
         ).map_err(|e| format!("failed to import request: {e}"))?;
     }
 
@@ -2398,10 +2458,11 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
         .unwrap_or_else(|_| first_workspace_id(&transaction).unwrap_or_default());
 
     let examples_json = request.examples.and_then(|ex| serde_json::to_string(&ex).ok());
+    let path_variables_json = request.path_variables.and_then(|pv| serde_json::to_string(&pv).ok());
 
     transaction.execute(
-        "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, description, examples, position)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, (SELECT COALESCE(MAX(position), -1) + 1 FROM requests WHERE folder_id = ?3))
+        "INSERT INTO requests (id, workspace_id, folder_id, name, method, url, auth_mode, auth_config, body, body_mime_type, body_form, query_params, timeout_ms, follow_redirects, description, examples, path_variables, position)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, (SELECT COALESCE(MAX(position), -1) + 1 FROM requests WHERE folder_id = ?3))
          ON CONFLICT(id) DO UPDATE SET
             workspace_id = excluded.workspace_id,
             folder_id = excluded.folder_id,
@@ -2417,7 +2478,8 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
             timeout_ms = excluded.timeout_ms,
             follow_redirects = excluded.follow_redirects,
             description = excluded.description,
-            examples = excluded.examples",
+            examples = excluded.examples,
+            path_variables = excluded.path_variables",
         rusqlite::params![
             request.id,
             workspace_id,
@@ -2434,7 +2496,8 @@ pub fn save_request(app: AppHandle, request: SavedRequest) -> Result<(), String>
             request.timeout_ms,
             request.follow_redirects,
             request.description,
-            examples_json
+            examples_json,
+            path_variables_json
         ]
     ).map_err(|e| e.to_string())?;
 
@@ -2744,6 +2807,7 @@ pub fn create_request(app: AppHandle, folder_id: String) -> Result<SavedRequest,
         variables: Some(Vec::new()),
         description: None,
         examples: None,
+        path_variables: None,
     };
     save_request(app, req.clone())?;
     Ok(req)

@@ -185,3 +185,12 @@ test("RequestPanel.tsx contract: passes pathVariables and onUpdatePathVariable t
   assert.match(panelSource, /onUpdatePathVariable=\{updatePathVariableValue\}/);
 });
 
+test("persistence.rs contract: persists path_variables in SQLite database", () => {
+  const persistence = read("src-tauri/src/persistence.rs");
+  assert.match(persistence, /pub struct PathVariableEntry/);
+  assert.match(persistence, /pub path_variables:\s*Option<Vec<PathVariableEntry>>/);
+  assert.match(persistence, /ensure_request_path_variables_column/);
+  assert.match(persistence, /requests\.path_variables/);
+  assert.match(persistence, /path_variables\s*=\s*excluded\.path_variables/);
+});
+

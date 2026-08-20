@@ -82,23 +82,26 @@ export function syncPathVariablesWithUrl(
   if (existingPathVariables) {
     for (const item of existingPathVariables) {
       if (item.key) {
+        const clean = item.key.replace(/^:/, "");
+        existingMap.set(clean, item);
         existingMap.set(item.key, item);
       }
     }
   }
 
   return detectedKeys.map((key) => {
-    const existing = existingMap.get(key);
+    const cleanKey = key.replace(/^:/, "");
+    const existing = existingMap.get(cleanKey) || existingMap.get(key) || existingMap.get(`:${cleanKey}`);
     if (existing) {
       return {
-        key,
+        key: cleanKey,
         value: existing.value ?? "",
         enabled: existing.enabled !== false,
         description: existing.description ?? "",
       };
     }
     return {
-      key,
+      key: cleanKey,
       value: "",
       enabled: true,
       description: "",

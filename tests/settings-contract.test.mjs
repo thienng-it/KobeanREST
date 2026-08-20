@@ -116,3 +116,16 @@ test("automatic update checks are gated by the saved preference", () => {
   assert.match(app, /void handleCheckForUpdates\("automatic", loadedSettings\)/);
   assert.match(app, /if \(!settingsOverride\.updateChecksEnabled && trigger === "automatic"\) return;/);
 });
+
+test("settings modal and viewer support response auto wrap and auto collapse", () => {
+  const app = read("src/renderer/src/App.tsx");
+  assert.match(app, /Auto-wrap lines/);
+  assert.match(app, /Auto-collapse JSON/);
+  assert.match(app, /responseAutoWrap/);
+  assert.match(app, /responseAutoCollapse/);
+
+  const persistence = read("src-tauri/src/persistence.rs");
+  assert.match(persistence, /pub response_auto_wrap: Option<bool>/);
+  assert.match(persistence, /pub response_auto_collapse: Option<bool>/);
+});
+

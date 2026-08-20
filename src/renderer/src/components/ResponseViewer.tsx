@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { basicSetup } from 'codemirror';
-import { EditorState } from '@codemirror/state';
+import { Compartment, EditorState } from '@codemirror/state';
 import { javascript } from '@codemirror/lang-javascript';
+import { foldAll } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 
 // We can define a few more common languages if they are available or use a simple map
@@ -13,11 +14,21 @@ interface ResponseViewerProps {
   contentType: string;
   readOnly?: boolean;
   height?: string;
+  autoWrap?: boolean;
+  autoCollapse?: boolean;
 }
 
-export function ResponseViewer({ value, contentType, readOnly = true, height = '100%' }: ResponseViewerProps) {
+export function ResponseViewer({
+  value,
+  contentType,
+  readOnly = true,
+  height = '100%',
+  autoWrap = true,
+  autoCollapse = false,
+}: ResponseViewerProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const lineWrappingCompartment = useRef(new Compartment());
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -29,9 +40,7 @@ export function ResponseViewer({ value, contentType, readOnly = true, height = '
     } else if (contentType.includes('javascript')) {
       languageExtension = javascript();
     } else if (contentType.includes('xml') || contentType.includes('html')) {
-      // We don't have a specific XML/HTML lang package installed, 
-      // but we can use a basic stream language or just keep it as plain text.
-      // For now, we'll stick to plain text or use a simple generic approach.
+      // Plain text fallback
       languageExtension = []; 
     }
 
@@ -40,7 +49,7 @@ export function ResponseViewer({ value, contentType, readOnly = true, height = '
       extensions: [
         basicSetup,
         languageExtension,
-        EditorView.lineWrapping,
+        lineWrappingCompartment.current.of(autoWrap ? EditorView.lineWrapping : []),
         EditorState.readOnly.of(readOnly),
         EditorView.theme({
           "&": {
@@ -71,6 +80,18 @@ export function ResponseViewer({ value, contentType, readOnly = true, height = '
 
     viewRef.current = view;
 
+    if (autoCollapse && value) {
+      setTimeout(() => {
+        if (viewRef.current) {
+          try {
+            foldAll(viewRef.current);
+          } catch {
+            // ignore
+          }
+        }
+      }, 50);
+    }
+
     return () => {
       view.destroy();
     };
@@ -81,13 +102,31 @@ export function ResponseViewer({ value, contentType, readOnly = true, height = '
       viewRef.current.dispatch({
         changes: { from: 0, to: viewRef.current.state.doc.length, insert: value }
       });
+      if (autoCollapse && value) {
+        setTimeout(() => {
+          if (viewRef.current) {
+            try {
+              foldAll(viewRef.current);
+            } catch {
+              // ignore
+            }
+          }
+        }, 50);
+      }
     }
-  }, [value]);
+  }, [value, autoCollapse]);
 
   useEffect(() => {
-    // If content type changes, we should really re-initialize the editor to update the language.
-    // For simplicity in this prototype, we'll just update the doc.
-    // A more robust version would destroy and re-create the view.
+    if (viewRef.current) {
+      viewRef.current.dispatch({
+        effects: lineWrappingCompartment.current.reconfigure(
+          autoWrap ? EditorView.lineWrapping : []
+        )
+      });
+    }
+  }, [autoWrap]);
+
+  useEffect(() => {
     if (viewRef.current && value !== viewRef.current.state.doc.toString()) {
       viewRef.current.dispatch({
         changes: { from: 0, to: viewRef.current.state.doc.length, insert: value }

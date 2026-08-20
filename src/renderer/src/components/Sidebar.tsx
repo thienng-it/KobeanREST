@@ -1049,7 +1049,7 @@ export const Sidebar = React.memo(function Sidebar({
     if (rootRequests.length === 0) return null;
 
     return (
-      <div style={{ paddingLeft: '16px' }}>
+      <div style={{ paddingLeft: '8px' }}>
         {rootRequests.map((request) => (
           <DraggableRequestRow
             key={request.id}
@@ -1087,7 +1087,7 @@ export const Sidebar = React.memo(function Sidebar({
     if (folders.length === 0) return null;
 
     return (
-      <div style={{ paddingLeft: "16px" }}>
+      <div style={{ paddingLeft: "8px" }}>
         {folders.map((folder) => {
           const folderNameMatches = matchesCollectionSearch(folder.name);
           const showFolderContents = forceShowAll || (folderNameMatches ?? false);
@@ -1132,11 +1132,11 @@ export const Sidebar = React.memo(function Sidebar({
                       className={`empty-folder sidebar-tree-row ${
                         isFolderDragOver && dragOverItem?.position === "inside" ? "drag-over-inside" : ""
                       }`}
-                      style={{ paddingLeft: "16px", opacity: 0.5, fontStyle: "italic", fontSize: "11px" }}
+                      style={{ paddingLeft: "8px", opacity: 0.5, fontStyle: "italic", fontSize: "11px" }}
                     >
                     </div>
                   )}
-                  <div style={{ paddingLeft: "16px" }}>
+                  <div style={{ paddingLeft: "8px" }}>
                     {folderRequests.map((request) => (
                       <DraggableRequestRow
                         key={request.id}

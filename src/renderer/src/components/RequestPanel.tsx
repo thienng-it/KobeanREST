@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type MutableRefObject } from "react";
-import { AlignLeft, List, ChevronDown, ChevronUp, Code2, Plus, Play, Save, Settings, Trash2, WandSparkles, Copy, Check, Clock, Repeat, Activity } from "lucide-react";
+import { AlignLeft, List, ChevronDown, ChevronUp, Code2, Plus, Play, Save, Settings, Trash2, WandSparkles, Copy, Check, Clock, Repeat, Activity, RefreshCw } from "lucide-react";
 import { createPortal } from "react-dom";
 import { CustomSelect } from "./CustomSelect";
 import { MethodSelector } from "./MethodSelector";
@@ -290,6 +290,7 @@ export interface RequestPanelProps {
   isTabsCollapsed?: boolean;
   onToggleTabsCollapsed?: (collapsed: boolean) => void;
   currentResponse?: ExecuteHttpResponse | null;
+  onUpdateInheritedAuth?: (entityId: string, entityType: "folder" | "collection", updatedAuth: Partial<AuthConfig>) => Promise<void>;
 }
 
 export const RequestPanel = React.memo(function RequestPanel({
@@ -302,6 +303,7 @@ export const RequestPanel = React.memo(function RequestPanel({
   folderPath,
   effectiveAuth,
   currentResponse,
+  onUpdateInheritedAuth,
   activeTab,
   setActiveTab,
   preScript,
@@ -664,6 +666,97 @@ export const RequestPanel = React.memo(function RequestPanel({
   function updateAuthConfig(fields: Partial<AuthConfig>) {
     onUpdateDraft({ authConfig: { ...draftRequest.authConfig, ...fields } });
   }
+
+  const [isRefreshingInherited, setIsRefreshingInherited] = useState(false);
+
+  const handleRefreshInheritedOAuth = async () => {
+    if (!effectiveAuth || effectiveAuth.mode !== "oauth2" || !effectiveAuth.entityId || !effectiveAuth.entityType) {
+      return;
+    }
+    setIsRefreshingInherited(true);
+    try {
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Refreshing inherited OAuth 2.0 token...", tone: "info" } }));
+      const { refreshOAuth2Token, obtainOAuth2Token } = await import("../services/auth");
+      const variableMap = buildVariableMap(activeVars);
+      
+      let result: { token: string; refreshToken?: string; expiresAt?: number };
+      if (effectiveAuth.config?.refreshToken) {
+        try {
+          result = await refreshOAuth2Token(effectiveAuth.config, variableMap);
+        } catch (refreshErr) {
+          console.warn("[OAuth2] Refresh token failed or expired. Falling back to obtain new token:", refreshErr);
+          window.dispatchEvent(new CustomEvent('app-toast', { 
+            detail: { 
+              message: "Refresh token failed or expired. Obtaining new token...", 
+              tone: "warning" 
+            } 
+          }));
+          result = await obtainOAuth2Token(effectiveAuth.config, variableMap);
+        }
+      } else {
+        result = await obtainOAuth2Token(effectiveAuth.config, variableMap);
+      }
+
+      const updatedAuthFields = {
+        token: result.token,
+        refreshToken: result.refreshToken || effectiveAuth.config?.refreshToken,
+        expiresAt: result.expiresAt,
+      };
+
+      if (onUpdateInheritedAuth) {
+        await onUpdateInheritedAuth(effectiveAuth.entityId, effectiveAuth.entityType, updatedAuthFields);
+      } else {
+        const { saveFolderAuth, saveCollectionAuth } = await import("../services/local-store");
+        if (effectiveAuth.entityType === "folder") {
+          await saveFolderAuth(effectiveAuth.entityId, effectiveAuth.mode, { ...effectiveAuth.config, ...updatedAuthFields });
+        } else if (effectiveAuth.entityType === "collection") {
+          await saveCollectionAuth(effectiveAuth.entityId, effectiveAuth.mode, { ...effectiveAuth.config, ...updatedAuthFields });
+        }
+      }
+
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Inherited OAuth 2.0 token updated successfully!", tone: "success" } }));
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to refresh or obtain inherited OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
+    } finally {
+      setIsRefreshingInherited(false);
+    }
+  };
+
+  const handleGetInheritedOAuthToken = async () => {
+    if (!effectiveAuth || effectiveAuth.mode !== "oauth2" || !effectiveAuth.entityId || !effectiveAuth.entityType) {
+      return;
+    }
+    setIsRefreshingInherited(true);
+    try {
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Obtaining inherited OAuth 2.0 token...", tone: "info" } }));
+      const { obtainOAuth2Token } = await import("../services/auth");
+      const variableMap = buildVariableMap(activeVars);
+      const result = await obtainOAuth2Token(effectiveAuth.config, variableMap);
+
+      const updatedAuthFields = {
+        token: result.token,
+        refreshToken: result.refreshToken || effectiveAuth.config?.refreshToken,
+        expiresAt: result.expiresAt,
+      };
+
+      if (onUpdateInheritedAuth) {
+        await onUpdateInheritedAuth(effectiveAuth.entityId, effectiveAuth.entityType, updatedAuthFields);
+      } else {
+        const { saveFolderAuth, saveCollectionAuth } = await import("../services/local-store");
+        if (effectiveAuth.entityType === "folder") {
+          await saveFolderAuth(effectiveAuth.entityId, effectiveAuth.mode, { ...effectiveAuth.config, ...updatedAuthFields });
+        } else if (effectiveAuth.entityType === "collection") {
+          await saveCollectionAuth(effectiveAuth.entityId, effectiveAuth.mode, { ...effectiveAuth.config, ...updatedAuthFields });
+        }
+      }
+
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Inherited OAuth 2.0 token obtained successfully!", tone: "success" } }));
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to obtain inherited OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
+    } finally {
+      setIsRefreshingInherited(false);
+    }
+  };
 
   function handleHeaderPaste(index: number, event: ClipboardEvent<HTMLInputElement>) {
     const text = event.clipboardData.getData("text");
@@ -1733,6 +1826,94 @@ export const RequestPanel = React.memo(function RequestPanel({
             </div>
           </div>
 
+          {draftRequest.authMode === "none" && effectiveAuth?.mode === "oauth2" && (
+            <div className="auth-inherited-oauth-card" aria-label="Inherited OAuth 2.0 configuration">
+              <div className="auth-inherited-header">
+                <div className="auth-inherited-title-group">
+                  <span className="auth-inherited-title">
+                    Inherited OAuth 2.0
+                  </span>
+                  {effectiveAuth.config?.expiresAt && now > effectiveAuth.config.expiresAt ? (
+                    <span className="auth-status-badge expired">EXPIRED</span>
+                  ) : effectiveAuth.config?.token ? (
+                    <span className="auth-status-badge active">ACTIVE</span>
+                  ) : (
+                    <span className="auth-status-badge missing">NO TOKEN</span>
+                  )}
+                </div>
+                <div className="auth-inherited-meta">
+                  <span>{effectiveAuth.source}</span>
+                  {effectiveAuth.config?.expiresAt && (
+                    <span className="auth-inherited-expires">
+                      {" · "}
+                      {now > effectiveAuth.config.expiresAt ? "Expired " : "Expires "}
+                      {new Date(effectiveAuth.config.expiresAt).toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="auth-inherited-controls">
+                <div className="auth-inherited-token-wrap">
+                  <VariableInput
+                    type="password"
+                    activeVariables={activeVars}
+                    readOnly
+                    value={effectiveAuth.config?.token || ""}
+                    placeholder={effectiveAuth.config?.token ? "Bearer token active" : "No access token currently stored"}
+                    autoComplete="off"
+                    className="auth-inherited-token-input"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  className="primary-action auth-refresh-token-btn"
+                  disabled={isRefreshingInherited}
+                  onClick={handleRefreshInheritedOAuth}
+                  title="Refresh or obtain OAuth 2.0 token quickly"
+                >
+                  <RefreshCw size={13} className={isRefreshingInherited ? "spin" : ""} />
+                  <span>{isRefreshingInherited ? "Refreshing..." : (effectiveAuth.config?.refreshToken ? "Refresh Token" : "Get Token")}</span>
+                </button>
+
+                {effectiveAuth.config?.refreshToken && (
+                  <button
+                    type="button"
+                    className="secondary-action auth-get-token-btn"
+                    disabled={isRefreshingInherited}
+                    onClick={handleGetInheritedOAuthToken}
+                    title="Obtain a fresh OAuth 2.0 token by running the grant flow"
+                  >
+                    Get New Token
+                  </button>
+                )}
+
+                {effectiveAuth.config?.token && (
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(effectiveAuth.config?.token ?? "");
+                      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Inherited token copied to clipboard!", tone: "success" } }));
+                    }}
+                    title="Copy Inherited Token"
+                    aria-label="Copy Inherited Token"
+                  >
+                    <Copy size={16} />
+                  </button>
+                )}
+              </div>
+
+              {effectiveAuth.config?.refreshToken && (
+                <div className="auth-inherited-hint">
+                  <span className="auth-inherited-hint-dot" />
+                  <span>Refresh token is configured on parent. Click &ldquo;Refresh Token&rdquo; to quickly renew expired access token.</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {draftRequest.authMode === "basic" && (
             <div className="auth-config-fields" aria-label="Basic auth credentials">
               <label>
@@ -1789,16 +1970,22 @@ export const RequestPanel = React.memo(function RequestPanel({
                     <button type="button" onClick={async () => {
                       try {
                         window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Refreshing OAuth 2.0 token...", tone: "info" } }));
-                        const { refreshOAuth2Token } = await import("../services/auth");
-                        const result = await refreshOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
+                        const { refreshOAuth2Token, obtainOAuth2Token } = await import("../services/auth");
+                        let result;
+                        try {
+                          result = await refreshOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
+                        } catch (refreshErr) {
+                          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Refresh token failed or expired. Obtaining new token...", tone: "warning" } }));
+                          result = await obtainOAuth2Token(draftRequest.authConfig ?? {}, buildVariableMap(activeVars));
+                        }
                         updateAuthConfig({ 
                           token: result.token, 
                           refreshToken: result.refreshToken || draftRequest.authConfig?.refreshToken, 
                           expiresAt: result.expiresAt 
                         });
-                        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token refreshed successfully!", tone: "success" } }));
+                        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token updated successfully!", tone: "success" } }));
                       } catch (err) {
-                        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to refresh OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
+                        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to refresh or obtain token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
                       }
                     }} style={{ padding: "4px 12px", cursor: "pointer", backgroundColor: "var(--color-success, #10b981)", color: "#fff", border: "none", borderRadius: "4px", flexShrink: 0, fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)" }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>

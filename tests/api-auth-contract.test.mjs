@@ -147,3 +147,27 @@ test("Rust persistence stores auth_config on requests", () => {
   const createBody = persistence.slice(createStart, createStart + 1500);
   assert.match(createBody, /auth_config.*\{\}/s);
 });
+
+test("Inherited OAuth 2.0 contract: displays inherited token status and quick refresh button in Auth Tab", () => {
+  const panel = read("src/renderer/src/components/RequestPanel.tsx");
+  assert.match(panel, /draftRequest\.authMode === "none" && effectiveAuth\?\.mode === "oauth2"/);
+  assert.match(panel, /auth-inherited-oauth-card/);
+  assert.match(panel, /auth-refresh-token-btn/);
+  assert.match(panel, /handleRefreshInheritedOAuth/);
+  assert.match(panel, /Refresh Token/);
+  assert.match(panel, /onUpdateInheritedAuth/);
+
+  const app = read("src/renderer/src/App.tsx");
+  assert.match(app, /handleUpdateInheritedAuth/);
+  assert.match(app, /onUpdateInheritedAuth=\{handleUpdateInheritedAuth\}/);
+});
+
+test("OAuth 2.0 fallback mechanism: exports refreshOrObtainOAuth2Token and falls back when refresh fails", () => {
+  const auth = read("src/renderer/src/services/auth.ts");
+  assert.match(auth, /export async function refreshOrObtainOAuth2Token/);
+  assert.match(auth, /refreshOAuth2Token\(authConfig,\s*variableMap\)/);
+  assert.match(auth, /obtainOAuth2Token\(authConfig,\s*variableMap\)/);
+
+  const executor = read("src/renderer/src/services/request-executor.ts");
+  assert.match(executor, /shouldRefresh\s*=\s*false;\s*\/\/\s*Fall back to obtain new/);
+});

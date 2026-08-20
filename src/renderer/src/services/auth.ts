@@ -460,3 +460,26 @@ export async function refreshOAuth2Token(
     throw new Error("Refresh response did not contain an access_token");
   }
 }
+
+/**
+ * Refreshes an expired OAuth 2.0 token using the refresh token, or automatically
+ * falls back to obtaining a new token if the refresh fails or no refresh token is present.
+ */
+export async function refreshOrObtainOAuth2Token(
+  authConfig: AuthConfig,
+  variableMap: Map<string, string>,
+): Promise<{ token: string; refreshToken?: string; expiresAt?: number; refreshed: boolean }> {
+  if (authConfig.refreshToken) {
+    try {
+      const result = await refreshOAuth2Token(authConfig, variableMap);
+      return { ...result, refreshed: true };
+    } catch (refreshErr) {
+      console.warn("[OAuth2] Refresh token failed or expired, falling back to obtain new token:", refreshErr);
+      const result = await obtainOAuth2Token(authConfig, variableMap);
+      return { ...result, refreshed: false };
+    }
+  }
+  const result = await obtainOAuth2Token(authConfig, variableMap);
+  return { ...result, refreshed: false };
+}
+

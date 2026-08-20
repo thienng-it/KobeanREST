@@ -734,6 +734,31 @@ export function App() {
     });
   }
 
+  const handleUpdateInheritedAuth = useCallback(async (
+    entityId: string,
+    entityType: "folder" | "collection",
+    updatedAuth: Partial<import("./types").AuthConfig>
+  ) => {
+    if (!workspace) return;
+    if (entityType === "folder") {
+      const folderToUpdate = workspace.folders.find(f => f.id === entityId);
+      if (folderToUpdate) {
+        const { saveFolderAuth } = await import("./services/local-store");
+        const newConfig = { ...folderToUpdate.authConfig, ...updatedAuth };
+        await saveFolderAuth(folderToUpdate.id, folderToUpdate.authMode || "none", newConfig);
+        await handleUpdateFolder({ ...folderToUpdate, authConfig: newConfig });
+      }
+    } else if (entityType === "collection") {
+      const colToUpdate = workspace.collections?.find(c => c.id === entityId);
+      if (colToUpdate) {
+        const { saveCollectionAuth } = await import("./services/local-store");
+        const newConfig = { ...colToUpdate.authConfig, ...updatedAuth };
+        await saveCollectionAuth(colToUpdate.id, colToUpdate.authMode || "none", newConfig);
+        await handleUpdateCollection({ ...colToUpdate, authConfig: newConfig });
+      }
+    }
+  }, [workspace, handleUpdateFolder, handleUpdateCollection]);
+
   function handleCurlImport(result: CurlImportResult) {
     handleImportCurlAsDraft({
       method: result.method,
@@ -2127,6 +2152,7 @@ export function App() {
               isTabsCollapsed={isRequestTabsCollapsed}
               onToggleTabsCollapsed={setIsRequestTabsCollapsed}
               currentResponse={currentResponse}
+              onUpdateInheritedAuth={handleUpdateInheritedAuth}
             />
             ) : (
             <div className="workspace-empty-hero">
@@ -2190,6 +2216,8 @@ export function App() {
               previewMode={previewMode}
               scriptOutputLog={scriptOutputLog}
               isRequestTabsCollapsed={isRequestTabsCollapsed}
+              autoWrap={appSettings.responseAutoWrap ?? true}
+              autoCollapse={appSettings.responseAutoCollapse ?? false}
               onActiveBottomDockChange={setActiveBottomDock}
               onTabChange={handleResponseTabChange}
               onPreviewModeChange={setPreviewMode}
@@ -2330,6 +2358,8 @@ export function App() {
           responseTab,
           previewMode,
           activeBottomDock,
+          autoWrap: appSettings.responseAutoWrap ?? true,
+          autoCollapse: appSettings.responseAutoCollapse ?? false,
           onTabChange: handleResponseTabChange,
           onPreviewModeChange: setPreviewMode,
           onDownload: downloadCurrentResponse,

@@ -114,8 +114,14 @@ export function AuthEditorForm({
                   <button type="button" onClick={async () => {
                     try {
                       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Refreshing OAuth 2.0 token...", tone: "info" } }));
-                      const { refreshOAuth2Token } = await import("../services/auth");
-                      const result = await refreshOAuth2Token(draft.config, buildVariableMap(activeVars));
+                      const { refreshOAuth2Token, obtainOAuth2Token } = await import("../services/auth");
+                      let result;
+                      try {
+                        result = await refreshOAuth2Token(draft.config, buildVariableMap(activeVars));
+                      } catch (refreshErr) {
+                        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Refresh token failed or expired. Obtaining new token...", tone: "warning" } }));
+                        result = await obtainOAuth2Token(draft.config, buildVariableMap(activeVars));
+                      }
                       const newConfig = { 
                         ...draft.config,
                         token: result.token, 
@@ -124,9 +130,9 @@ export function AuthEditorForm({
                       };
                       updateConfig(newConfig);
                       if (onTokenObtained) onTokenObtained(newConfig);
-                      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token refreshed successfully!", tone: "success" } }));
+                      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Access token updated successfully!", tone: "success" } }));
                     } catch (err) {
-                      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to refresh OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
+                      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: "Failed to refresh or obtain OAuth 2.0 token: " + (err instanceof Error ? err.message : String(err)), tone: "error", durationMs: 6000 } }));
                     }
                   }} style={{ padding: "4px 12px", cursor: "pointer", backgroundColor: "var(--color-success, #10b981)", color: "#fff", border: "none", borderRadius: "4px", flexShrink: 0, fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)" }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>

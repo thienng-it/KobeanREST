@@ -96,6 +96,35 @@ export function SettingsModal({
 
           <section className="settings-section">
             <div className="settings-section-heading">
+              <h3>Response Viewer</h3>
+              <p>Configure JSON formatting, line wrapping, and code folding.</p>
+            </div>
+            <label className="settings-row">
+              <span>
+                <strong>Auto-wrap lines</strong>
+                <small>Wrap long lines automatically in response JSON and text viewers.</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={appSettings.responseAutoWrap ?? true}
+                onChange={(e) => onSettingsChange({ responseAutoWrap: e.target.checked })}
+              />
+            </label>
+            <label className="settings-row">
+              <span>
+                <strong>Auto-collapse JSON</strong>
+                <small>Automatically collapse/fold nested JSON objects and arrays when a response loads.</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={appSettings.responseAutoCollapse ?? false}
+                onChange={(e) => onSettingsChange({ responseAutoCollapse: e.target.checked })}
+              />
+            </label>
+          </section>
+
+          <section className="settings-section">
+            <div className="settings-section-heading">
               <h3>Privacy</h3>
               <p>Keep exported files and diagnostics safe by default.</p>
             </div>
@@ -175,7 +204,7 @@ export function SettingsModal({
           <section className="settings-section">
             <h3>About & Attribution</h3>
             <p style={{ fontSize: "12px", color: "var(--color-muted)", margin: 0, lineHeight: 1.5 }}>
-              KobeanREST is a local-first desktop API client. Built with ❤️ by <strong>kobenguyent</strong> (Lead Contributor) & open-source contributors.
+              KobeanREST is a local-first desktop API client. Built with ❤️ by <strong>josephThien</strong>.
             </p>
           </section>
         </div>

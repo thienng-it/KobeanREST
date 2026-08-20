@@ -40,6 +40,8 @@ export const defaultAppSettings: AppSettings = {
   timeoutMs: 30000,
   followRedirects: true,
   autoSaveEnabled: true,
+  responseAutoWrap: true,
+  responseAutoCollapse: false,
 };
 
 let previewSettings = { ...defaultAppSettings };

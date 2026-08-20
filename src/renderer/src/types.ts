@@ -191,6 +191,8 @@ export interface AppSettings {
   timeoutMs?: number;
   followRedirects?: boolean;
   autoSaveEnabled?: boolean;
+  responseAutoWrap?: boolean;
+  responseAutoCollapse?: boolean;
 }
 
 export interface UpdateStatus {

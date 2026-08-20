@@ -1752,7 +1752,6 @@ button:disabled {
 
 .method {
   display: inline-flex;
-
   align-items: center;
   justify-content: center;
   min-width: 48px;
@@ -1763,6 +1762,21 @@ button:disabled {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 0 4px;
+}
+
+.sidebar .method,
+.sidebar-tree-row .method,
+.request-row .method {
+  min-width: 34px;
+  height: 16px;
+  font-size: 8px;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0 3px;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-right: 4px;
 }
 
 /* GET - Teal */
@@ -3671,7 +3685,8 @@ button:disabled {
 
 :root:not([data-theme="light"]):not([data-theme="warm"]) .auth-method-card,
 :root:not([data-theme="light"]):not([data-theme="warm"]) .auth-effective-card,
-:root:not([data-theme="light"]):not([data-theme="warm"]) .auth-config-fields {
+:root:not([data-theme="light"]):not([data-theme="warm"]) .auth-config-fields,
+:root:not([data-theme="light"]):not([data-theme="warm"]) .auth-inherited-oauth-card {
   background: rgba(15, 23, 42, 0.58);
 }
 
@@ -9672,6 +9687,199 @@ select:focus-visible,
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+}
+
+/* ==========================================================================
+   Inherited OAuth 2.0 Card & Token Refresh Styling
+   ========================================================================== */
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.auth-inherited-oauth-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.auth-inherited-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.auth-inherited-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-inherited-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.auth-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.auth-status-badge.active {
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--color-success, #16a34a);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+}
+
+.auth-status-badge.expired {
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--color-danger, #ef4444);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+
+.auth-status-badge.missing {
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--color-warning, #d97706);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+.auth-inherited-meta {
+  font-size: 11px;
+  color: var(--color-muted);
+  font-weight: 550;
+}
+
+.auth-inherited-expires {
+  color: var(--color-muted);
+}
+
+.auth-inherited-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-inherited-token-wrap {
+  flex: 1;
+}
+
+.auth-inherited-token-wrap .variable-input-container {
+  width: 100%;
+}
+
+.auth-inherited-token-wrap .variable-input {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  cursor: default;
+}
+
+:root:not([data-theme="light"]):not([data-theme="warm"]) .auth-inherited-token-wrap .variable-input {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.auth-refresh-token-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--color-accent, #3b82f6);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 160ms ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.auth-refresh-token-btn:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-0.5px);
+}
+
+.auth-refresh-token-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.auth-refresh-token-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-get-token-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 160ms ease;
+}
+
+.auth-get-token-btn:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
+.auth-get-token-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-inherited-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.auth-inherited-hint-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success, #10b981);
+  flex-shrink: 0;
 }
 
 

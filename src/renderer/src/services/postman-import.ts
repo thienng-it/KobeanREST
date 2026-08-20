@@ -1,4 +1,5 @@
 import type { ApiAuthMode, AuthConfig, ScopedVariable, ResponseExample } from "../types";
+import { syncPathVariablesWithUrl, type PathVariableItem } from "./path-variables";
 
 // ---------------------------------------------------------------------------
 // Postman Collection v2.0/v2.1 Types
@@ -149,6 +150,7 @@ export interface PostmanCollectionImportResult {
     url: string;
     headers: Array<{ key: string; value: string; enabled: boolean }>;
     queryParams: Array<{ key: string; value: string; enabled: boolean }>;
+    pathVariables?: PathVariableItem[];
     body: string;
     bodyMimeType: string;
     bodyForm: Array<{ key: string; value: string; enabled: boolean }>;
@@ -532,6 +534,22 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
           });
         }
 
+        // Path variables from Postman request url.variable or extracted from URL
+        let pathVars: PathVariableItem[] | undefined = undefined;
+        if (typeof item.request === "object" && item.request?.url && Array.isArray((item.request.url as any).variable)) {
+          pathVars = (item.request.url as any).variable
+            .filter((v: any) => v && (typeof v.key === "string" || typeof v.value === "string"))
+            .map((v: any) => ({
+              key: String(v.key || "").replace(/^:/, ""),
+              value: String(v.value ?? ""),
+              enabled: v.disabled !== true,
+              description: typeof v.description === "string" ? v.description : undefined,
+            }));
+        }
+        if (url) {
+          pathVars = syncPathVariablesWithUrl(url, pathVars);
+        }
+
         requests.push({
           id: reqId,
           name: item.name || "Unnamed Request",
@@ -540,6 +558,7 @@ export function parsePostmanCollection(json: string): PostmanCollectionImportRes
           url,
           headers,
           queryParams,
+          pathVariables: pathVars && pathVars.length > 0 ? pathVars : undefined,
           body,
           bodyMimeType,
           bodyForm,
