@@ -4,24 +4,48 @@ on:
   schedule:
     - cron: "0 0 * * *" # Runs every night at 00:00 UTC
   workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "SemVer bump type override (auto detects from conventional commits)"
+        required: false
+        default: "auto"
+        type: choice
+        options:
+          - "auto"
+          - "patch"
+          - "minor"
+          - "major"
+      force_release:
+        description: "Force release build even if no new qualifying commits are detected"
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: "Dry run mode (analyze commits and changelog without writing tags or triggering builds)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
 
 jobs:
   check-and-bump:
-    name: Check Commits & Auto-Bump Release
+    name: Scan Commits & Evaluate Auto-Bump
     runs-on: ubuntu-latest
     outputs:
-      should_release: ${{ steps.check.outputs.should_release }}
-      tag_name: ${{ steps.check.outputs.tag_name }}
-      release_name: ${{ steps.check.outputs.release_name }}
-      is_prerelease: ${{ steps.check.outputs.is_prerelease }}
+      should_release: ${{ steps.scanner.outputs.should_release }}
+      tag_name: ${{ steps.scanner.outputs.tag_name }}
+      release_name: ${{ steps.scanner.outputs.release_name }}
+      is_prerelease: ${{ steps.scanner.outputs.is_prerelease }}
+      bump_type: ${{ steps.scanner.outputs.bump_type }}
+      release_notes: ${{ steps.scanner.outputs.release_notes }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node
@@ -29,93 +53,44 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Check commits and auto-bump version
-        id: check
+      - name: Install dependencies
+        run: npm i
+
+      - name: Run release preflight contract checks
+        run: npm run check:release
+
+      - name: Run intelligent commit & release scanner
+        id: scanner
         shell: bash
         run: |
-          # Configure Git Bot
+          node scripts/release-scanner.mjs --bump \
+            --bump-type=${{ inputs.bump_type || 'auto' }} \
+            ${{ inputs.force_release == true && '--force' || '' }} \
+            ${{ inputs.dry_run == true && '--dry-run' || '' }}
+
+      - name: Commit version bump and push git tag
+        if: steps.scanner.outputs.should_release == 'true' && inputs.dry_run != true
+        shell: bash
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          VERSION_TAG="v${PKG_VERSION}"
+          TARGET_TAG="${{ steps.scanner.outputs.tag_name }}"
+          NEXT_VER="${{ steps.scanner.outputs.next_version }}"
 
-          echo "Current package version: ${PKG_VERSION}"
+          echo "Committing version bump to ${NEXT_VER} and tagging ${TARGET_TAG}..."
 
-          # Check if current version tag exists on remote
-          if ! git rev-parse "${VERSION_TAG}" >/dev/null 2>&1; then
-            echo "Version tag ${VERSION_TAG} does not exist on remote. Tagging and building ${VERSION_TAG}."
-            git tag "${VERSION_TAG}"
-            git push origin "${VERSION_TAG}"
-
-            echo "should_release=true" >> "$GITHUB_OUTPUT"
-            echo "tag_name=${VERSION_TAG}" >> "$GITHUB_OUTPUT"
-            echo "release_name=KobeanREST ${VERSION_TAG}" >> "$GITHUB_OUTPUT"
-            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Check if there are new commits on main since the last version tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "${VERSION_TAG}")
-          COMMITS_SINCE=$(git rev-list "${LATEST_TAG}..HEAD" --count 2>/dev/null || echo "0")
-
-          echo "Commits since ${LATEST_TAG}: ${COMMITS_SINCE}"
-
-          if [ "$COMMITS_SINCE" -eq 0 ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
-            echo "No new commits found on main since ${LATEST_TAG}. Skipping nightly auto-bump."
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Auto-bump patch version (e.g. 0.1.3 -> 0.1.4)
-          NEXT_VERSION=$(node -p "
-            const parts = require('./package.json').version.split('.');
-            parts[2] = Number(parts[2]) + 1;
-            parts.join('.');
-          ")
-          NEW_TAG="v${NEXT_VERSION}"
-
-          echo "Bumping version to ${NEXT_VERSION} (tag: ${NEW_TAG})"
-
-          # 1. Update package.json & package-lock.json
-          npm version ${NEXT_VERSION} --no-git-tag-version
-
-          # 2. Update tauri.conf.json
-          node -e "
-            const fs = require('fs');
-            const file = 'src-tauri/tauri.conf.json';
-            const json = JSON.parse(fs.readFileSync(file, 'utf8'));
-            json.version = '${NEXT_VERSION}';
-            fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n');
-          "
-
-          # 3. Update Cargo.toml
-          node -e "
-            const fs = require('fs');
-            const file = 'src-tauri/Cargo.toml';
-            let content = fs.readFileSync(file, 'utf8');
-            content = content.replace(/^version = \"[^\"]+\"/m, 'version = \"${NEXT_VERSION}\"');
-            fs.writeFileSync(file, content);
-          "
-
-          # Commit version bump to main
-          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
-          git commit -m "chore(release): auto-bump version to ${NEXT_VERSION} [skip ci]"
+          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml CHANGELOG.md
+          git commit -m "chore(release): auto-bump version to ${NEXT_VER} [skip ci]" || echo "No file modifications to commit"
           git push origin main
 
-          # Create and push tag
-          git tag "${NEW_TAG}"
-          git push origin "${NEW_TAG}"
-
-          echo "should_release=true" >> "$GITHUB_OUTPUT"
-          echo "tag_name=${NEW_TAG}" >> "$GITHUB_OUTPUT"
-          echo "release_name=KobeanREST ${NEW_TAG}" >> "$GITHUB_OUTPUT"
-          echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          git tag "${TARGET_TAG}"
+          git push origin "${TARGET_TAG}"
 
   build-and-deploy:
     name: Build & Deploy ${{ matrix.platform.name }}
     needs: check-and-bump
-    if: needs.check-and-bump.outputs.should_release == 'true'
+    if: needs.check-and-bump.outputs.should_release == 'true' && inputs.dry_run != true
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
@@ -203,7 +178,7 @@ jobs:
         with:
           tagName: ${{ needs.check-and-bump.outputs.tag_name }}
           releaseName: ${{ needs.check-and-bump.outputs.release_name }}
-          releaseBody: "Automated KobeanREST release build. Includes cross-platform desktop installers and signed update metadata."
+          releaseBody: ${{ needs.check-and-bump.outputs.release_notes }}
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
@@ -219,7 +194,7 @@ jobs:
   checksums-and-manifest:
     name: Generate Checksums & Publish Manifest
     needs: [check-and-bump, build-and-deploy]
-    if: needs.check-and-bump.outputs.should_release == 'true'
+    if: needs.check-and-bump.outputs.should_release == 'true' && inputs.dry_run != true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
