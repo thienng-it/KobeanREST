@@ -158,7 +158,7 @@ export function WorkspacesManager({
   const totalWorkspaces = workspaceList.length;
   const activeWs = workspaceList.find((w) => w.id === activeWorkspaceId) || {
     id: activeWorkspaceId,
-    name: workspace?.name || "{t('workspaces.activeWorkspace')}",
+    name: workspace?.name || t('workspaces.activeWorkspace'),
   };
   const activeStats = statsMap[activeWorkspaceId] || {
     collectionCount: (workspace?.collections || []).length,

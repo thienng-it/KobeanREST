@@ -76,7 +76,7 @@ export function getResolvedLanguage(lang: SupportedLanguage = activeLanguage): "
 export function t(key: string, params?: Record<string, string | number> | any, langOverride?: SupportedLanguage): string {
   const targetLang = getResolvedLanguage(langOverride || activeLanguage);
   const dict = DICTIONARIES[targetLang] || en;
-  let text = dict[key] || en[key as keyof typeof en] || key;
+  let text = dict[key] || en[key as keyof typeof en] || (typeof params === "string" ? params : key);
 
   if (params && typeof params === "object") {
     for (const [paramKey, paramVal] of Object.entries(params)) {

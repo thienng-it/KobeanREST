@@ -76,3 +76,27 @@ test("App wraps root tree with I18nProvider", () => {
   assert.match(app, /<I18nProvider/);
   assert.match(app, /<\/I18nProvider>/);
 });
+
+test("all static t() calls across renderer components resolve to defined locale keys", () => {
+  const enContent = read("src/renderer/src/locales/en.ts");
+  const parseKeys = (content) => {
+    const keys = new Set();
+    const regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*:/g;
+    let m;
+    while ((m = regex.exec(content)) !== null) {
+      keys.add(m[1]);
+    }
+    return keys;
+  };
+  const enKeys = parseKeys(enContent);
+
+  // Critical keys specifically reported
+  assert.ok(enKeys.has("request.tabScripts"), "en.ts missing request.tabScripts");
+  assert.ok(enKeys.has("request.tabVariables"), "en.ts missing request.tabVariables");
+  assert.ok(enKeys.has("request.tabSettings"), "en.ts missing request.tabSettings");
+  assert.ok(enKeys.has("sidebar.collections"), "en.ts missing sidebar.collections");
+  assert.ok(enKeys.has("sidebar.collectionsFound"), "en.ts missing sidebar.collectionsFound");
+  assert.ok(enKeys.has("dock.responseSidebar"), "en.ts missing dock.responseSidebar");
+  assert.ok(enKeys.has("dock.bottomDock"), "en.ts missing dock.bottomDock");
+});
+
