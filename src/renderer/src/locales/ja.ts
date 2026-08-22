@@ -35,6 +35,7 @@ export const ja = {
   "nav.docs": "ドキュメント",
   "nav.tools": "APIツール",
   "nav.runner": "ランナー",
+  "nav.cheatsheet": "チートシートとショートカット",
   "sidebar.newRequest": "新規リクエスト",
   "sidebar.newFolder": "新規フォルダー",
   "sidebar.newCollection": "新規コレクション",

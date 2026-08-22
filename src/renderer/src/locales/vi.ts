@@ -35,6 +35,7 @@ export const vi = {
   "nav.docs": "Tài liệu",
   "nav.tools": "Công cụ API",
   "nav.runner": "Trình chạy kiểm thử",
+  "nav.cheatsheet": "Bảng tra cứu & Phím tắt",
   "sidebar.newRequest": "Yêu cầu mới",
   "sidebar.newFolder": "Thư mục mới",
   "sidebar.newCollection": "Bộ sưu tập mới",

@@ -1991,34 +1991,31 @@ button:disabled {
   gap: 5px;
   height: 100%;
   padding: 0 10px;
-  border-radius: 6px;
-  font-size: 11px;
+  border-radius: 8px;
+  font-size: 11.5px;
   font-weight: 800;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
   white-space: nowrap;
-  /* Do NOT set border or color here — let method-get/post/etc own those */
-  transition: filter 0.15s ease, box-shadow 0.15s ease;
-  min-width: 64px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: unset;
   justify-content: center;
   box-sizing: border-box;
 }
 
-/* The method color classes (method-get, method-post…) supply background, color, border.
-   We just need to ensure those are not accidentally wiped by all:unset above.
-   Explicitly re-declare them here with higher specificity so they always win. */
-.method-selector-btn.method-get    { background: rgba(20,184,166,0.12);  color:#0f766e; border:1px solid rgba(20,184,166,0.25); }
-.method-selector-btn.method-post   { background: rgba(249,115,22,0.12);  color:#c2410c; border:1px solid rgba(249,115,22,0.25); }
-.method-selector-btn.method-put    { background: rgba(59,130,246,0.12);  color:#1d4ed8; border:1px solid rgba(59,130,246,0.25); }
-.method-selector-btn.method-patch  { background: rgba(168,85,247,0.12);  color:#7e22ce; border:1px solid rgba(168,85,247,0.25); }
-.method-selector-btn.method-delete { background: rgba(239,68,68,0.12);   color:#b91c1c; border:1px solid rgba(239,68,68,0.25); }
-.method-selector-btn.method-head   { background: rgba(6,182,212,0.12);   color:#0e7490; border:1px solid rgba(6,182,212,0.25); }
-.method-selector-btn.method-options{ background: rgba(245,158,11,0.12);  color:#b45309; border:1px solid rgba(245,158,11,0.25); }
-.method-selector-btn.method-custom { background: rgba(217,70,239,0.12);  color:#a21caf; border:1px solid rgba(217,70,239,0.25); }
-.method-selector-btn.method-ws     { background: rgba(147,51,234,0.12);  color:#7e22ce; border:1px solid rgba(147,51,234,0.25); }
-.method-selector-btn.method-socketio{ background: rgba(16,185,129,0.12); color:#047857; border:1px solid rgba(16,185,129,0.25); }
-.method-selector-btn.method-grpc   { background: rgba(99,102,241,0.12);  color:#4f46e5; border:1px solid rgba(99,102,241,0.25); }
+/* The method color classes (method-get, method-post…) supply background, color, border. */
+.method-selector-btn.method-get    { background: rgba(20,184,166,0.12);  color:#0f766e; border:1px solid rgba(20,184,166,0.28); }
+.method-selector-btn.method-post   { background: rgba(249,115,22,0.12);  color:#c2410c; border:1px solid rgba(249,115,22,0.28); }
+.method-selector-btn.method-put    { background: rgba(59,130,246,0.12);  color:#1d4ed8; border:1px solid rgba(59,130,246,0.28); }
+.method-selector-btn.method-patch  { background: rgba(168,85,247,0.12);  color:#7e22ce; border:1px solid rgba(168,85,247,0.28); }
+.method-selector-btn.method-delete { background: rgba(239,68,68,0.12);   color:#b91c1c; border:1px solid rgba(239,68,68,0.28); }
+.method-selector-btn.method-head   { background: rgba(6,182,212,0.12);   color:#0e7490; border:1px solid rgba(6,182,212,0.28); }
+.method-selector-btn.method-options{ background: rgba(245,158,11,0.12);  color:#b45309; border:1px solid rgba(245,158,11,0.28); }
+.method-selector-btn.method-custom { background: rgba(217,70,239,0.12);  color:#a21caf; border:1px solid rgba(217,70,239,0.28); }
+.method-selector-btn.method-ws     { background: rgba(147,51,234,0.12);  color:#7e22ce; border:1px solid rgba(147,51,234,0.28); }
+.method-selector-btn.method-socketio{ background: rgba(16,185,129,0.12); color:#047857; border:1px solid rgba(16,185,129,0.28); }
+.method-selector-btn.method-grpc   { background: rgba(99,102,241,0.12);  color:#4f46e5; border:1px solid rgba(99,102,241,0.28); }
 
 :root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-btn.method-get    { background:rgba(20,184,166,0.18);  color:#2dd4bf; border-color:rgba(20,184,166,0.35); }
 :root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-btn.method-post   { background:rgba(249,115,22,0.18);  color:#fb923c; border-color:rgba(249,115,22,0.35); }
@@ -2033,8 +2030,12 @@ button:disabled {
 :root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-btn.method-grpc   { background:rgba(99,102,241,0.18);  color:#818cf8; border-color:rgba(99,102,241,0.35); }
 
 .method-selector-btn:hover {
-  filter: brightness(1.12);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  filter: brightness(1.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+.method-selector-btn:active {
+  transform: scale(0.98);
 }
 
 .method-selector-caret {
@@ -2043,7 +2044,7 @@ button:disabled {
   height: 18px;
   flex-shrink: 0;
   opacity: 0.72;
-  margin-left: 4px;
+  margin-left: 2px;
   transform: translateY(0) rotate(0deg);
   transform-origin: center;
   transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease;
@@ -2052,39 +2053,39 @@ button:disabled {
 
 .method-selector-btn.open .method-selector-caret,
 .method-selector-caret.open {
-  opacity: 0.88;
-  transform: translateY(1px) rotate(180deg);
+  opacity: 0.95;
+  transform: translateY(0) rotate(180deg);
 }
 
 .method-selector-dropdown {
   position: fixed;
   z-index: 10000;
-  background: var(--color-panel, rgba(15, 23, 42, 0.94));
-  border: 1px solid var(--color-border-strong, rgba(255, 255, 255, 0.1));
-  border-radius: 12px;
-  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.45),
-              0 6px 16px -2px rgba(0, 0, 0, 0.25),
-              0 0 0 1px rgba(255, 255, 255, 0.05),
-              inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  padding: 5px;
-  min-width: 150px;
+  background: var(--color-surface-elevated, var(--color-panel, rgba(15, 23, 42, 0.96)));
+  border: 1px solid var(--color-border-strong, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.38),
+              0 4px 12px -2px rgba(0, 0, 0, 0.18),
+              0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  padding: 6px;
+  min-width: 120px;
   max-height: min(360px, calc(100vh - 32px));
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  animation: selectDropdownIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: selectDropdownIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 
 :root[data-theme="light"] .method-selector-dropdown,
 :root[data-theme="warm"] .method-selector-dropdown {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(0, 0, 0, 0.08);
-  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.12),
-              0 4px 14px -2px rgba(0, 0, 0, 0.06),
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.12),
+              0 4px 12px -2px rgba(0, 0, 0, 0.06),
               0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
@@ -2092,35 +2093,42 @@ button:disabled {
   all: unset;
   display: flex;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 8px;
+  justify-content: center;
+  width: 100%;
   cursor: pointer;
   box-sizing: border-box;
-  transition: background 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.method-selector-option:hover {
-  background: rgba(255, 255, 255, 0.08);
-  transform: translateX(2px);
-}
-.method-selector-option.selected {
-  background: rgba(59, 130, 246, 0.18);
-}
-:root[data-theme="light"] .method-selector-option:hover,
-:root[data-theme="warm"] .method-selector-option:hover {
-  background: rgba(0, 0, 0, 0.05);
-  transform: translateX(2px);
-}
-:root[data-theme="light"] .method-selector-option.selected,
-:root[data-theme="warm"] .method-selector-option.selected {
-  background: rgba(59, 130, 246, 0.12);
 }
 
 .method-selector-option .method {
-  /* Slightly larger in the dropdown */
-  min-width: 60px;
-  font-size: 10px;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  transition: all 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.method-selector-option:hover .method {
+  filter: brightness(1.09);
+  transform: scale(1.02);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.method-selector-option.selected .method {
+  box-shadow: 0 0 0 1.5px currentColor, 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.method-selector-divider {
+  height: 1px;
+  background: var(--color-border, rgba(255, 255, 255, 0.08));
+  margin: 3px 2px;
 }
 
 .method-selector-custom-input {
@@ -2132,28 +2140,29 @@ button:disabled {
 .method-selector-custom-input input {
   width: 100%;
   box-sizing: border-box;
-  background: #f8fafc;
-  color: #0f172a;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  padding: 5px 8px;
+  background: var(--color-surface, #f8fafc);
+  color: var(--color-text, #0f172a);
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 6px;
+  padding: 6px 8px;
   font-size: 11px;
   font-family: monospace;
   font-weight: 700;
   letter-spacing: 0.05em;
   outline: none;
   text-transform: uppercase;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 :root:not([data-theme="light"]):not([data-theme="warm"]) .method-selector-custom-input input {
-  background: #0f172a;
+  background: rgba(15, 23, 42, 0.8);
   color: #f1f5f9;
-  border-color: #475569;
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .method-selector-custom-input input:focus {
-  border-color: var(--color-border-tint);
-  box-shadow: 0 0 0 2px rgba(217, 70, 239, 0.15);
+  border-color: var(--color-accent, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
 }
 
 .workspace {
@@ -3038,13 +3047,14 @@ button:disabled {
 }
 
 .request-command-bar .method-selector {
-  min-width: 104px;
+  min-width: unset;
   width: auto;
 }
 
 .request-command-bar .method-selector-btn {
-  width: 100%;
+  width: auto;
   min-height: 40px;
+  padding: 0 12px;
   border-radius: 8px;
   box-shadow: none;
 }
@@ -10585,3 +10595,103 @@ select:focus-visible,
   text-align: right;
   font-weight: 600;
 }
+
+/* ── AI Chat Sidebar Animation & Transitions ──────────────────────────────── */
+.ai-chat-sidebar {
+  position: relative;
+  height: 100%;
+  flex-shrink: 0;
+  z-index: 10;
+  overflow: hidden;
+  box-sizing: border-box;
+  background-color: var(--color-sidebar);
+  border-left: 1px solid var(--color-border);
+  transition: width 240ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: width;
+}
+
+.ai-chat-sidebar.resizing {
+  transition: none !important;
+  will-change: auto;
+}
+
+.ai-chat-sidebar.closed {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  pointer-events: none;
+  border-left-color: transparent !important;
+}
+
+.ai-chat-sidebar.open {
+  pointer-events: auto;
+}
+
+.ai-chat-sidebar-inner {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ai-chat-sidebar.closed .ai-chat-sidebar-inner {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ai-chat-sidebar.open .ai-chat-sidebar-inner {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ai-chat-sidebar.resizing .ai-chat-sidebar-inner {
+  transition: none !important;
+}
+
+.ai-chat-resize-handle {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  z-index: 30;
+  background-color: transparent;
+  transition: background-color 0.15s ease, opacity 0.2s ease;
+}
+
+.ai-chat-sidebar.closed .ai-chat-resize-handle {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.ai-chat-sessions-drawer {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  padding: 10px 14px;
+  gap: 8px;
+  flex-shrink: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  animation: sessionsDrawerIn 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sessionsDrawerIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+

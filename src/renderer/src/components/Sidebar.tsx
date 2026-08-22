@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle, Lock, Unlock, LayoutGrid, Boxes } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, FolderTree, Globe, Plus, Search, Trash2, Edit2, X, HelpCircle, Upload, Terminal, MoreVertical, Sun, Moon, Monitor, Zap, Flame, History, RefreshCw, Settings, PanelLeftClose, PanelLeftOpen, GripVertical, ChevronsDown, ChevronsRight, ChevronRight, ChevronsUp, FilePlus, Key, Wrench, Puzzle, Lock, Unlock, LayoutGrid, Boxes, Keyboard } from "lucide-react";
 import React, { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useI18n } from "../services/i18n";
 import { PositiveQuoteWidget } from "./PositiveQuoteWidget";
@@ -67,6 +67,7 @@ export interface SidebarProps {
   onOpenSettings?: () => void;
   onOpenApiTools?: () => void;
   onOpenPlugins?: () => void;
+  onOpenCheatsheet?: () => void;
 
   // Collection state
   collectionSearch: string;
@@ -259,6 +260,7 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
         ) : (
           <strong 
             className="sidebar-item-name" 
+            title={collection.name}
             onDoubleClick={() => onStartSidebarRename("collection", collection.id, collection.name)}
             onClick={() => {
               if (isLocked) {
@@ -269,7 +271,7 @@ const DraggableCollectionRow = React.memo(function DraggableCollectionRow({
             }}
             style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
           >
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{collection.name}</span>
+            <span title={collection.name} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{collection.name}</span>
             {isProtected && (
               isLocked ? (
                 <span title={t("sidebar.collectionLockedTooltip")} style={{ display: "inline-flex", alignItems: "center" }}>
@@ -457,9 +459,10 @@ const DraggableFolderRow = React.memo(function DraggableFolderRow({
                 onStartSidebarRename("folder", folder.id, folder.name);
               }}
               className="sidebar-item-name-btn"
+              title={folder.name}
               style={{ all: "unset", display: "flex", alignItems: "center", gap: "2px", cursor: "pointer", flex: 1, minWidth: 0 }}
             >
-              <span className="sidebar-item-name">{folder.name}</span>
+              <span className="sidebar-item-name" title={folder.name}>{folder.name}</span>
               {requestCount !== undefined && (
                 <span style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>({requestCount})</span>
               )}
@@ -609,6 +612,7 @@ const DraggableRequestRow = React.memo(function DraggableRequestRow({
           style={{ all: "unset", flex: 1, display: "flex", alignItems: "center", gap: "2px", cursor: "pointer", minWidth: 0 }}
           onClick={() => onSelectRequest(request.id)}
           type="button"
+          title={`${resolvedMethodLabel(request.method, request.customMethod)} ${request.id === draftRequest?.id ? draftRequest.name : request.name}`}
         >
           <span
             className="sidebar-drag-handle"
@@ -619,7 +623,7 @@ const DraggableRequestRow = React.memo(function DraggableRequestRow({
 
           </span>
           <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>{resolvedMethodLabel(request.method, request.customMethod)}</span>
-          <span className="sidebar-item-name" onDoubleClick={() => onStartRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
+          <span className="sidebar-item-name" title={request.id === draftRequest?.id ? draftRequest.name : request.name} onDoubleClick={() => onStartRequestRename(request)}>{request.id === draftRequest?.id ? draftRequest.name : request.name}</span>
           {request.id === draftRequest?.id && isDraftDirty && (
             <span
               className="sidebar-request-dirty-dot"
@@ -706,6 +710,7 @@ export const Sidebar = React.memo(function Sidebar({
   onOpenSettings,
   onOpenApiTools,
   onOpenPlugins,
+  onOpenCheatsheet,
   onExport,
   onImport,
   onCurlImport,
@@ -1013,7 +1018,7 @@ export const Sidebar = React.memo(function Sidebar({
         return (
           <div className="folder-title sidebar-tree-row collection-title" style={{ opacity: 0.8, background: 'var(--color-surface)', padding: '8px 12px', borderRadius: '6px' }}>
 
-            <strong>{collection.name}</strong>
+            <strong title={collection.name}>{collection.name}</strong>
           </div>
         );
       }
@@ -1026,7 +1031,7 @@ export const Sidebar = React.memo(function Sidebar({
           <div className="folder-title sidebar-tree-row" style={{ opacity: 0.8, background: 'var(--color-surface)', padding: '8px 12px', borderRadius: '6px' }}>
 
             <ChevronDown size={14} />
-            <span>{folder.name}</span>
+            <span title={folder.name}>{folder.name}</span>
           </div>
         );
       }
@@ -1041,7 +1046,7 @@ export const Sidebar = React.memo(function Sidebar({
             <span className={`method method-${methodClass(resolvedMethodLabel(request.method, request.customMethod))}`}>
               {resolvedMethodLabel(request.method, request.customMethod)}
             </span>
-            <span>{request.name}</span>
+            <span title={request.name}>{request.name}</span>
           </div>
         );
       }
@@ -1499,6 +1504,7 @@ export const Sidebar = React.memo(function Sidebar({
                     ) : null}
                   </div>
                   <span
+                    title={env.name}
                     style={{
                       flex: 1,
                       fontSize: "13px",
@@ -1650,6 +1656,19 @@ export const Sidebar = React.memo(function Sidebar({
             onClick={onOpenSettings}
           >
             <Settings size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-icon-btn"
+            data-tooltip={t("nav.cheatsheet") || "Cheatsheet & Hotkeys"}
+            data-tooltip-align="end"
+            aria-label={t("nav.cheatsheet") || "Cheatsheet & Hotkeys"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenCheatsheet?.();
+            }}
+          >
+            <Keyboard size={15} />
           </button>
         </div>
         {quotesEnabled && (

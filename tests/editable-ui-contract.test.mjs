@@ -634,7 +634,7 @@ test("method selector dropdown uses a viewport-aware portal overlay", () => {
   const selector = read("src/renderer/src/components/MethodSelector.tsx");
   const styles = read("src/renderer/src/styles.css");
 
-  assert.match(selector, /import \{ ChevronDown \} from "lucide-react";/);
+  assert.match(selector, /import \{.*ChevronDown.*\} from "lucide-react";/);
   assert.match(selector, /import \{ createPortal \} from "react-dom";/);
   assert.match(selector, /export function getMethodDropdownLayout/);
   assert.match(selector, /window\.addEventListener\("resize", updateLayout\)/);

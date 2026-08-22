@@ -42,6 +42,7 @@ import { resolveAuthConfig, getEffectiveAuth } from "./services/auth";
 import { prepareRequestForExecution } from "./services/request-executor";
 import { CollectionRunner } from "./components/CollectionRunner";
 import { PluginsModal } from "./components/PluginsModal";
+import { CheatsheetModal } from "./components/CheatsheetModal";
 import { LockCollectionModal, LockedCollectionGate, type LockModalMode } from "./components/LockCollectionModal";
 import {
   getCollectionLockConfig,
@@ -132,6 +133,7 @@ export function App() {
   const [createRequestModalOpen, setCreateRequestModalOpen] = useState(false);
   const [apiToolsOpen, setApiToolsOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
+  const [cheatsheetOpen, setCheatsheetOpen] = useState(false);
   const [createRequestInitialFolderId, setCreateRequestInitialFolderId] = useState<string | undefined>(undefined);
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
   const [moveToModal, setMoveToModal] = useState<{ type: "request" | "folder"; id: string } | null>(null);
@@ -1621,6 +1623,10 @@ export function App() {
         e.preventDefault();
         updateAppSettings({ layoutMode: (appSettings.layoutMode ?? "stacked") === "stacked" ? "split" : "stacked" });
       }
+      if (((e.metaKey || e.ctrlKey) && e.key === "/") || e.key === "F1") {
+        e.preventDefault();
+        setCheatsheetOpen((prev) => !prev);
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -1841,6 +1847,7 @@ export function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenApiTools={() => setApiToolsOpen(true)}
         onOpenPlugins={() => setPluginsOpen(true)}
+        onOpenCheatsheet={() => setCheatsheetOpen(true)}
         onExport={() => {void handleExport()}}
         onImport={() => {
           setUniversalImportInitialContent("");
@@ -1947,7 +1954,8 @@ export function App() {
                        borderRadius: '6px',
                        color: aiChatOpen ? 'var(--color-text-active)' : 'var(--color-text-muted)',
                        cursor: 'pointer',
-                       flexShrink: 0
+                       flexShrink: 0,
+                       transition: 'background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), color 0.18s ease',
                     }}
                   >
                     <Sparkles size={14} />
@@ -2708,6 +2716,12 @@ export function App() {
       <PluginsModal
         open={pluginsOpen}
         onClose={() => setPluginsOpen(false)}
+      />
+
+      <CheatsheetModal
+        open={cheatsheetOpen}
+        onClose={() => setCheatsheetOpen(false)}
+        onOpenDocs={openProductDocs}
       />
 
       {lockModalState && (

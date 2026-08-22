@@ -35,6 +35,7 @@ export const ko = {
   "nav.docs": "문서",
   "nav.tools": "API 도구",
   "nav.runner": "러너",
+  "nav.cheatsheet": "치트시트 & 단축키",
   "sidebar.newRequest": "새 요청",
   "sidebar.newFolder": "새 폴더",
   "sidebar.newCollection": "새 컬렉션",

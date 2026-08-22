@@ -35,6 +35,7 @@ export const de = {
   "nav.docs": "Dokumentation",
   "nav.tools": "API-Werkzeuge",
   "nav.runner": "Runner",
+  "nav.cheatsheet": "Cheatsheet & Tastaturkürzel",
   "sidebar.newRequest": "Neue Anfrage",
   "sidebar.newFolder": "Neuer Ordner",
   "sidebar.newCollection": "Neue Kollektion",

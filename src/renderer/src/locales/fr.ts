@@ -35,6 +35,7 @@ export const fr = {
   "nav.docs": "Documentation",
   "nav.tools": "Outils API",
   "nav.runner": "Exécuteur",
+  "nav.cheatsheet": "Aide-mémoire & Raccourcis",
   "sidebar.newRequest": "Nouvelle requête",
   "sidebar.newFolder": "Nouveau dossier",
   "sidebar.newCollection": "Nouvelle collection",

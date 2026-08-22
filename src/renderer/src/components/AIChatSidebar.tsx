@@ -1232,47 +1232,37 @@ IMPORTANT: When the user asks you to modify, update, rename, or create anything 
   const clearChat = () => { setMessages([]); setError(null); };
   const hasContext = !!draftRequest?.url || !!draftRequest?.method;
 
-  if (!isOpen) return null;
-
   return (
     <div
-      className="ai-chat-sidebar"
+      className={`ai-chat-sidebar ${isOpen ? "open" : "closed"} ${isResizing ? "resizing" : ""}`}
       style={{
-        width: sidebarWidth,
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "var(--color-sidebar)",
-        borderLeft: "1px solid var(--color-border)",
-        height: "100%",
-        flexShrink: 0,
-        zIndex: 10,
+        width: isOpen ? sidebarWidth : 0,
         userSelect: isResizing ? "none" : "auto",
       }}
+      aria-hidden={!isOpen}
     >
       {/* ── Left Resize Drag Handle ──────────────────────────────── */}
       <div
-        onMouseDown={handleMouseDownResizer}
-        onDoubleClick={handleDoubleClickResizer}
-        title="Drag to resize (Double-click to reset width)"
+        onMouseDown={isOpen ? handleMouseDownResizer : undefined}
+        onDoubleClick={isOpen ? handleDoubleClickResizer : undefined}
+        title={isOpen ? "Drag to resize (Double-click to reset width)" : undefined}
         style={{
-          position: "absolute",
-          left: "-3px",
-          top: 0,
-          bottom: 0,
-          width: "7px",
-          cursor: "col-resize",
-          zIndex: 30,
           backgroundColor: isResizing ? "var(--color-accent)" : "transparent",
-          transition: "background-color 0.15s ease",
         }}
         className="ai-chat-resize-handle"
       />
 
-      {/* ── Header ────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "10px 12px", borderBottom: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)", flexShrink: 0 }}>
-        {/* Row 1: Title & Top Action Controls */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
+      <div
+        className="ai-chat-sidebar-inner"
+        style={{
+          width: sidebarWidth,
+          minWidth: sidebarWidth,
+        }}
+      >
+        {/* ── Header ────────────────────────────────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "10px 12px", borderBottom: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)", flexShrink: 0 }}>
+          {/* Row 1: Title & Top Action Controls */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, overflow: "hidden" }}>
             <Sparkles size={15} style={{ color: "var(--color-accent)", flexShrink: 0 }} />
             <span style={{ fontWeight: 600, fontSize: "13px", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1379,7 +1369,7 @@ IMPORTANT: When the user asks you to modify, update, rename, or create anything 
 
       {/* ── Sessions Drawer Overlay Panel ─────────────────────────── */}
       {showSessionsDrawer && (
-        <div style={{ display: "flex", flexDirection: "column", borderBottom: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)", padding: "10px 14px", gap: "8px", flexShrink: 0, maxHeight: "220px", overflowY: "auto" }}>
+        <div className="ai-chat-sessions-drawer">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: "6px" }}>
               <History size={13} /> Sessions ({sessions.length})
@@ -1828,6 +1818,7 @@ IMPORTANT: When the user asks you to modify, update, rename, or create anything 
         <div style={{ marginTop: "6px", fontSize: "10px", color: "var(--color-text-muted)", textAlign: "center" }}>
           Shift+Enter for new line · {provider.isLocal ? "🔒 Local AI — private" : "☁️ Cloud AI — data leaves device"}
         </div>
+      </div>
       </div>
 
       <style>{`@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }`}</style>

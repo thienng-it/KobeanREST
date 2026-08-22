@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 import { createPortal } from "react-dom";
 import { HttpMethod } from "../types";
 
@@ -40,7 +40,7 @@ export function getMethodDropdownLayout(
   viewportWidth: number,
   viewportHeight: number,
 ): DropdownLayout {
-  const width = Math.max(Math.round(triggerRect.width), 150);
+  const width = Math.max(Math.round(triggerRect.width), 120);
   const left = Math.min(
     Math.max(VIEWPORT_PADDING, Math.round(triggerRect.left)),
     Math.max(VIEWPORT_PADDING, viewportWidth - width - VIEWPORT_PADDING),
@@ -175,23 +175,30 @@ export function MethodSelector({ method, customMethod, onChange }: MethodSelecto
             visibility: dropdownLayout ? "visible" : "hidden",
           }}
         >
-          {PRESET_METHODS.map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="option"
-              aria-selected={method === m}
-              className={`method-selector-option ${method === m ? "selected" : ""}`}
-              onClick={() => {
-                onChange(m, m === "CUSTOM" ? customMethod : undefined);
-                if (m !== "CUSTOM") setOpen(false);
-              }}
-            >
-              <span className={`method method-${methodClass(m)}`}>
-                {m === "CUSTOM" ? "CUSTOM" : m}
-              </span>
-            </button>
-          ))}
+          {PRESET_METHODS.map((m) => {
+            const isSelected = method === m;
+            const isDividerBefore = m === "WS" || m === "CUSTOM";
+            return (
+              <React.Fragment key={m}>
+                {isDividerBefore && <div className="method-selector-divider" />}
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`method-selector-option ${isSelected ? "selected" : ""}`}
+                  onClick={() => {
+                    onChange(m, m === "CUSTOM" ? customMethod : undefined);
+                    if (m !== "CUSTOM") setOpen(false);
+                  }}
+                >
+                  <span className={`method method-${methodClass(m)}`}>
+                    {m === "CUSTOM" ? "CUSTOM" : m}
+                    {isSelected && <Check size={11} strokeWidth={3} style={{ marginLeft: "3px", opacity: 0.9 }} />}
+                  </span>
+                </button>
+              </React.Fragment>
+            );
+          })}
 
           {/* Custom method inline input */}
           {method === "CUSTOM" && (
