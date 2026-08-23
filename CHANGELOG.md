@@ -2,6 +2,16 @@
 
 All notable changes to KobeanREST are documented in this file.
 
+## [v0.2.0] - 2026-08-23
+*Comparing changes against v0.1.35*
+
+### 🚀 New Features & Enhancements
+- feat(ui): add super cheatsheet modal and redesign method selector (`15214b4`) - *thienng-it*
+- feat(ci): add intelligent commit scanner and enhance nightly release automation (`0f97dcd`) - *thienng-it*
+
+### 🐛 Bug Fixes
+- fix(i18n): resolve missing translation keys and dictionary parity across 8 locales (`e98e7b7`) - *thienng-it*
+
 ## [v0.1.35] - 2026-08-22
 Automated release build with cross-platform installer packages and signed update metadata.
 
