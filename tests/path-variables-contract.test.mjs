@@ -186,7 +186,7 @@ test("RequestPanel.tsx contract: passes pathVariables and onUpdatePathVariable t
 });
 
 test("persistence.rs contract: persists path_variables in SQLite database", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
   assert.match(persistence, /pub struct PathVariableEntry/);
   assert.match(persistence, /pub path_variables:\s*Option<Vec<PathVariableEntry>>/);
   assert.match(persistence, /ensure_request_path_variables_column/);

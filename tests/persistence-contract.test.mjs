@@ -46,22 +46,25 @@ test("SQLite migration creates MVP local persistence tables", () => {
 
 test("Rust native core exposes SQLite persistence commands", () => {
   assert.equal(hasFile("src-tauri/src/persistence.rs"), true);
+  assert.equal(hasFile("crates/kobean-core/src/persistence.rs"), true);
+
+  const corePersistence = read("crates/kobean-core/src/persistence.rs");
+  assert.match(corePersistence, /rusqlite::Connection|rusqlite::\{.*Connection/);
+  assert.match(corePersistence, /include_str!\("\.\.\/\.\.\/\.\.\/src-tauri\/migrations\/001_initial\.sql"\)/);
+  assert.match(corePersistence, /None => first_workspace_id\(&connection\)\?/);
+  assert.match(corePersistence, /UPDATE collections SET name = \?2 WHERE id = \?1/);
+  assert.match(corePersistence, /DELETE FROM scripts WHERE/);
+  assert.match(corePersistence, /DELETE FROM request_headers WHERE request_id IN/);
+  assert.match(corePersistence, /DELETE FROM collections WHERE id = \?1/);
 
   const persistence = read("src-tauri/src/persistence.rs");
-  assert.match(persistence, /rusqlite::Connection/);
-  assert.match(persistence, /include_str!\("\.\.\/migrations\/001_initial\.sql"\)/);
   assert.match(persistence, /app_local_data_dir/);
   assert.match(persistence, /pub fn initialize_persistence/);
   assert.match(persistence, /pub fn load_workspace/);
   assert.match(persistence, /pub fn record_request_history/);
   assert.match(persistence, /pub fn create_collection\(\s*app: AppHandle,\s*name: String,\s*workspace_id: Option<String>,?\s*\)/);
-  assert.match(persistence, /None => first_workspace_id\(&connection\)\?/);
   assert.match(persistence, /pub fn update_collection\(\s*app: AppHandle,\s*collection_id: String,\s*name: String,?\s*\)/);
-  assert.match(persistence, /UPDATE collections SET name = \?2 WHERE id = \?1/);
   assert.match(persistence, /pub fn delete_collection\(app: AppHandle, collection_id: String\)/);
-  assert.match(persistence, /DELETE FROM scripts WHERE/);
-  assert.match(persistence, /DELETE FROM request_headers WHERE request_id IN/);
-  assert.match(persistence, /DELETE FROM collections WHERE id = \?1/);
 
   const lib = read("src-tauri/src/lib.rs");
   assert.match(lib, /mod persistence;/);
@@ -94,7 +97,7 @@ test("request UI loads workspace data and records request history after send", (
 });
 
 test("environment persistence keeps active environment valid", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
   const renameBlock = persistence.match(/pub fn rename_environment\([\s\S]*?\n\}/);
   const deleteBlock = persistence.match(/pub fn delete_environment\([\s\S]*?\n\}/);
 

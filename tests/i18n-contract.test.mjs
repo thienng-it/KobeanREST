@@ -55,7 +55,7 @@ test("AppSettings supports language configuration in renderer and backend persis
   const localStore = read("src/renderer/src/services/local-store.ts");
   assert.match(localStore, /language: "system"/);
 
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
   assert.match(persistence, /pub language: Option<String>/);
   assert.match(persistence, /language: Some\("system"\.to_string\(\)\)/);
 });

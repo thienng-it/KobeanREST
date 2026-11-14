@@ -19,8 +19,9 @@ path = "src/main.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+kobean-core = { path = "../crates/kobean-core" }
 base64 = "0.22"
-keyring = "3"
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 log = "0.4"
 reqwest = { version = "0.13", default-features = false, features = ["brotli", "deflate", "gzip", "json", "rustls", "multipart"] }
 rusqlite = { version = "0.32", features = ["bundled"] }

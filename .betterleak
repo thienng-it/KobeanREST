@@ -2,12 +2,15 @@
   "version": 1,
   "include": [
     ".github",
+    "crates",
     "docs",
     "docs-site",
+    "macos",
     "scripts",
     "src",
     "src-tauri",
     "tests",
+    "Cargo.toml",
     "codecept.conf.cjs",
     "README.md",
     "package.json",
@@ -22,23 +25,34 @@
     "dist",
     "node_modules",
     "docs-site/dist",
-    "src-tauri/target"
+    "src-tauri/target",
+    "target",
+    "macos/build",
+    "macos/DerivedData",
+    "macos/Frameworks"
   ],
   "ignoreFiles": [
-    "package-lock.json"
+    "package-lock.json",
+    "Cargo.lock"
   ],
   "allowedExtensions": [
     ".css",
+    ".entitlements",
     ".html",
     ".js",
     ".json",
     ".md",
     ".mjs",
+    ".pbxproj",
+    ".plist",
     ".rs",
+    ".sh",
     ".sql",
+    ".swift",
     ".toml",
     ".ts",
     ".tsx",
+    ".xcconfig",
     ".yaml",
     ".yml"
   ],

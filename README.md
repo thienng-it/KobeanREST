@@ -9,6 +9,7 @@
 [![Version](https://img.shields.io/github/v/release/thienng-it/KobeanREST?color=3b82f6&style=flat-square)](https://github.com/thienng-it/KobeanREST/releases/latest)
 [![License](https://img.shields.io/github/license/thienng-it/KobeanREST?color=10b981&style=flat-square)](LICENSE)
 [![Tauri 2](https://img.shields.io/badge/Tauri-2.0-22c55e?style=flat-square&logo=tauri)](https://tauri.app)
+[![Swift 6](https://img.shields.io/badge/macOS_Native-SwiftUI_%2B_AppKit-F05138?style=flat-square&logo=swift)](macos/project.yml)
 [![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react)](https://react.dev)
 [![Docs Portal](https://img.shields.io/badge/Docs-Live-8b5cf6?style=flat-square)](https://thienng-it.github.io/KobeanREST/)
 [![Web Preview](https://img.shields.io/badge/Web_Preview-Try_Live-ec4899?style=flat-square)](https://thienng-it.github.io/KobeanREST/app/)
@@ -121,7 +122,7 @@ Official cross-platform installers are published through GitHub Releases:
 
 | Platform | Installer Format | Architecture |
 | :--- | :--- | :--- |
-| **macOS** | `.dmg` | Universal (Apple Silicon & Intel) |
+| **macOS** | `.dmg` (Tauri Universal & Native macOS `KobeanREST-macOS-Native.dmg`) | macOS 15+ (Apple Silicon & Intel) |
 | **Windows** | `.msi` | x64 |
 | **Linux** | `.AppImage` / `.deb` | x64 |
 
@@ -132,23 +133,29 @@ Official cross-platform installers are published through GitHub Releases:
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      React Renderer                         │
-│   (Request Builder, Params Sync, Env Editor, Bottom Dock)   │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ Tauri IPC Bridge
-┌──────────────────────────────▼──────────────────────────────┐
-│                    Rust Desktop Core                        │
-│   (Reqwest HTTP Engine, SQLite Persistence, Keychain Vault) │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────┐    ┌─────────────────────────────────────┐
+│   Native macOS App (macOS)   │    │  Tauri Desktop App (Win/Linux/Mac)  │
+│  SwiftUI + AppKit (Swift 6)  │    │   React Renderer + Tauri 2 IPC      │
+└──────────────┬───────────────┘    └──────────────────┬──────────────────┘
+               │ UniFFI Static XCFramework             │
+               │ (crates/kobean-ffi)                   │ Tauri Commands
+               └──────────────────┬────────────────────┘
+                                  ▼
+               ┌──────────────────────────────────────┐
+               │       Shared Rust Core (kobean-core) │
+               │ SQLite (WAL), Reqwest, OS Keychain,  │
+               │ Domain Engine, Mock Server, MCP      │
+               └──────────────────────────────────────┘
 ```
 
 | Layer | Responsibility |
 | :--- | :--- |
-| **Tauri 2 Shell** | Native window management, desktop shortcuts, auto-updater integration |
-| **Rust Native Core** | SQLite storage, HTTP client execution engine, OS keychain integrations |
-| **React Renderer** | CodeMirror editor, dynamic variable resolution `{{var}}`, theme engines |
-| **Docs Portal** | GitHub Pages documentation portal built from `docs-site/` |
+| **Native macOS Client (`macos/`)** | SwiftUI + AppKit workbench (macOS 15+, Swift 6 strict concurrency), `ASWebAuthenticationSession` OAuth2 + PKCE, `JavaScriptCore` sandboxed scripts, `URLSessionWebSocketTask`, Snippet Generator, and XcodeGen project (`macos/project.yml`) |
+| **UniFFI Bridge (`crates/kobean-ffi`)** | Static `KobeanFFI.xcframework` exposing `kobean-core` persistence, HTTP, mock server, MCP, and domain helpers to Swift |
+| **Shared Rust Core (`crates/kobean-core`)** | Shared workspace SQLite (`WAL`, `com.kobeanrest.app/kobeanrest.sqlite`), Keychain secret vault (`service = "KobeanREST"`), HTTP client, domain resolution/import parity, loopback mock server, OpenAPI generator, and MCP tools |
+| **Tauri 2 Shell (`src-tauri/`)** | Thin desktop IPC wrapper around `kobean-core` for cross-platform Windows, Linux, and macOS builds |
+| **React Renderer (`src/renderer/`)** | CodeMirror editor, dynamic variable resolution `{{var}}`, theme engines |
+| **Docs Portal (`docs-site/`)** | GitHub Pages documentation portal |
 
 ---
 
@@ -158,8 +165,9 @@ Official cross-platform installers are published through GitHub Releases:
 - [Node.js](https://nodejs.org/) v22+
 - [Rust](https://www.rust-lang.org/) stable toolchain
 - Cargo & platform build dependencies
+- *(Native macOS only)* Xcode 16+ (macOS 15 SDK) and [`xcodegen`](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
-### Local Setup
+### Cross-Platform Tauri App
 
 1. **Clone & Install Dependencies:**
    ```bash
@@ -173,18 +181,45 @@ Official cross-platform installers are published through GitHub Releases:
    npm run dev
    ```
 
-3. **Run Native Desktop App:**
+3. **Run Tauri Desktop App:**
    ```bash
    npm run tauri dev
    ```
 
-4. **Execute Verification & Tests:**
+4. **Execute Cross-Platform Verification & Tests:**
    ```bash
    npm test               # Run contract and unit test suite
    npm run build          # Build TypeScript & Vite renderer
+   npm run check:native   # Run Cargo check for Tauri desktop crate
    npm run build:docs     # Build documentation portal
    npm run check:secrets  # Perform Betterleak sensitive-data scan
    npm run check:release  # Run release preflight checks
+   ```
+
+### Native macOS Client (`macos/`)
+
+The native macOS client shares the exact same SQLite workspace and OS Keychain store as Tauri so both clients interoperate on your local machine.
+
+1. **Build Rust Core XCFramework & Swift UniFFI Bindings:**
+   ```bash
+   ./macos/scripts/build-rust-xcframework.sh              # Current macOS architecture
+   # Or build Universal (requires `rustup target add x86_64-apple-darwin aarch64-apple-darwin`):
+   ./macos/scripts/build-rust-xcframework.sh --universal
+   ```
+
+2. **Generate Xcode Project & Run Tests:**
+   ```bash
+   cd macos && xcodegen generate && cd ..
+   xcodebuild test \
+     -project macos/KobeanREST.xcodeproj \
+     -scheme KobeanREST \
+     -configuration Debug \
+     -destination 'platform=macOS,arch=arm64'
+   ```
+
+3. **Run Rust Core & FFI Workspace Tests:**
+   ```bash
+   cargo test --workspace
    ```
 
 ---
@@ -193,9 +228,10 @@ Official cross-platform installers are published through GitHub Releases:
 
 KobeanREST is engineered to keep your workspace data private and local:
 
-- **Redacted Secret Exports:** Workspace exports redact sensitive environment variables by default.
-- **Redacted History:** Request history automatically masks sensitive URL query parameters and authorization headers.
-- **Automated Scanning:** Every commit and PR is scanned for credential leaks via `Betterleak` in CI (`npm run check:secrets`).
+- **Keychain-Externalized Credentials:** API keys, passwords, OAuth2 access/refresh tokens, and client secrets are stored in the OS Keychain (`service = "KobeanREST"`, referenced via `kobeanrest://secrets/...`) rather than plaintext SQLite fields.
+- **Sandboxed Scripts & Native OAuth2:** On native macOS, `kb.*`/`pm.*` scripts run inside an isolated `JavaScriptCore` context with a watchdog timeout and zero Keychain secret exposure; OAuth2 uses ephemeral `ASWebAuthenticationSession` with strict PKCE `S256` and CSRF `state` verification.
+- **Redacted Secret Exports & History:** Workspace exports redact secret variables, auth configs, and sensitive headers by default, and request history masks sensitive URL query tokens, `Authorization`, `Cookie`, and `Set-Cookie` headers.
+- **Automated Scanning:** Source, Swift, Xcode configs, and workflows are scanned for credential leaks (`npm run check:secrets` and `betterleaks`).
 
 ---
 

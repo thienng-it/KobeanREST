@@ -25,7 +25,8 @@ const read = (path) => {
 };
 
 test("Rust native core exposes load and clear history commands", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
+  const tauriPersistence = read("src-tauri/src/persistence.rs");
 
   assert.match(persistence, /pub struct HistoryEntry/);
   assert.match(persistence, /pub request_id: String/);
@@ -42,6 +43,9 @@ test("Rust native core exposes load and clear history commands", () => {
 
   assert.match(persistence, /pub fn clear_request_history/);
   assert.match(persistence, /DELETE FROM request_history WHERE workspace_id/);
+
+  assert.match(tauriPersistence, /pub fn load_request_history/);
+  assert.match(tauriPersistence, /pub fn clear_request_history/);
 
   const lib = read("src-tauri/src/lib.rs");
   assert.match(lib, /load_request_history/);

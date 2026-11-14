@@ -33,7 +33,7 @@ test("SQLite stores secret metadata and redacted placeholders, not raw secret va
   assert.match(migration, /secret_ref TEXT/);
   assert.match(migration, /variable_value TEXT NOT NULL/);
 
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
   assert.match(persistence, /REDACTED_SECRET_VALUE/);
   assert.match(persistence, /secret_ref/);
   assert.doesNotMatch(persistence, /Stored in OS keychain/);
@@ -41,14 +41,19 @@ test("SQLite stores secret metadata and redacted placeholders, not raw secret va
 
 test("native core exposes keychain-backed secret commands", () => {
   assert.equal(hasFile("src-tauri/src/secrets.rs"), true);
+  assert.equal(hasFile("crates/kobean-core/src/secrets.rs"), true);
+
+  const coreSecrets = read("crates/kobean-core/src/secrets.rs");
+  assert.match(coreSecrets, /keyring::Entry/);
+  assert.match(coreSecrets, /pub fn store_secret/);
+  assert.match(coreSecrets, /pub fn delete_secret/);
+  assert.match(coreSecrets, /pub fn secret_ref/);
+  assert.doesNotMatch(coreSecrets, /println!/);
+  assert.doesNotMatch(coreSecrets, /eprintln!/);
 
   const secrets = read("src-tauri/src/secrets.rs");
-  assert.match(secrets, /keyring::Entry/);
   assert.match(secrets, /pub fn store_secret/);
   assert.match(secrets, /pub fn delete_secret/);
-  assert.match(secrets, /pub fn secret_ref/);
-  assert.doesNotMatch(secrets, /println!/);
-  assert.doesNotMatch(secrets, /eprintln!/);
 
   const cargo = read("src-tauri/Cargo.toml");
   assert.match(cargo, /keyring/);

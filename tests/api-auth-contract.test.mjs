@@ -127,7 +127,7 @@ test("auth tab UI shows config fields for the active mode", () => {
 });
 
 test("Rust persistence stores auth_config on requests", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
 
   assert.match(persistence, /pub auth_config: String/);
   assert.match(persistence, /ensure_auth_config_column/);

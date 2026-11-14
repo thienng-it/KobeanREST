@@ -1,0 +1,23 @@
+[package]
+name = "kobean-ffi"
+version = "0.2.0"
+edition = "2021"
+authors = ["Nguyen Thai Minh Thien (Joseph)"]
+license = "MIT"
+description = "UniFFI Swift bridge for KobeanREST core."
+
+[lib]
+name = "kobean_ffi"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+
+[dependencies]
+kobean-core = { path = "../kobean-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tokio = { version = "1", features = ["rt-multi-thread"] }
+uniffi = { version = "0.32", features = ["cli"] }

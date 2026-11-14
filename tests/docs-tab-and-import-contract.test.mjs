@@ -63,10 +63,14 @@ test("Sidebar contract: searches across request, folder, and collection descript
 });
 
 test("Rust persistence contract: supports description columns and commands in persistence.rs and lib.rs", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
   assert.match(persistence, /pub fn save_folder_description/);
   assert.match(persistence, /pub fn save_collection_description/);
   assert.match(persistence, /ensure_description_columns/);
+
+  const tauriPersistence = read("src-tauri/src/persistence.rs");
+  assert.match(tauriPersistence, /pub fn save_folder_description/);
+  assert.match(tauriPersistence, /pub fn save_collection_description/);
 
   const lib = read("src-tauri/src/lib.rs");
   assert.match(lib, /save_folder_description/);
@@ -117,7 +121,7 @@ test("Response Examples contract: SavedRequest, Postman import, Universal parser
   assert.match(importParser, /examples\?:\s*ResponseExample\[\];/);
   assert.match(importParser, /item\.response/);
 
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
   assert.match(persistence, /pub struct ResponseExample/);
   assert.match(persistence, /ensure_request_examples_column/);
   assert.match(persistence, /pub examples:\s*Option<Vec<ResponseExample>>/);

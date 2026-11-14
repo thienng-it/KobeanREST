@@ -46,18 +46,19 @@ test("Rust native core exposes environment editing commands", () => {
 });
 
 test("secret variable command stores only a ref, never a raw secret value", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
+  const tauriPersistence = read("src-tauri/src/persistence.rs");
 
   // save_secret_variable must accept secret_ref, not a raw value
-  assert.match(persistence, /save_secret_variable/);
-  assert.match(persistence, /secret_ref: String/);
+  assert.match(tauriPersistence, /save_secret_variable/);
+  assert.match(tauriPersistence, /secret_ref: String/);
 
   // The raw value stored must be the REDACTED constant
   assert.match(persistence, /REDACTED_SECRET_VALUE/);
 
   // The function must NOT write arbitrary raw values — confirm it uses the constant
   const fnStart = persistence.indexOf("pub fn save_secret_variable");
-  const fnEnd = persistence.indexOf("#[tauri::command]", fnStart);
+  const fnEnd = persistence.indexOf("\npub fn ", fnStart + 1);
   const fnBody = persistence.slice(fnStart, fnEnd > fnStart ? fnEnd : fnStart + 1500);
   assert.match(fnBody, /REDACTED_SECRET_VALUE/);
   assert.doesNotMatch(fnBody, /value: String/);

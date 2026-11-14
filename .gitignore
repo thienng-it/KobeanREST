@@ -1,6 +1,12 @@
 node_modules/
 dist/
 src-tauri/target/
+target/
+macos/build/
+macos/DerivedData/
+macos/Frameworks/
+macos/Generated/
+macos/KobeanREST.xcodeproj/
 .idea/
 
 .DS_Store
@@ -24,3 +30,13 @@ dist-webview/
 .dolt/
 *.db
 .beads-credential-key
+
+# Graphify & Kobean local runtime caches
+graphify-out/cache/
+.kobean/kobean.db*
+.kobean/session.json
+
+# Apple signing & notarization credentials
+*.p12
+*.p8
+*.mobileprovision

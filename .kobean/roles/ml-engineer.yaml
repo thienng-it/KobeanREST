@@ -1,0 +1,42 @@
+name: ml-engineer
+title: ML & AI Systems Engineer (Python / FastAPI / HF)
+phase: build
+subagent_type: self
+mission: >-
+  Implement Python ML/AI pipelines, LLM structured-output workflows, datasets,
+  training/fine-tuning scripts, and reproducible evaluation harnesses using uv.
+reads:
+  - ".kobean/constitution.md"
+  - "specs/*/spec.md"
+  - "specs/*/plan.md"
+  - "contracts/**"
+writes:
+  - "src/ml/**"
+  - "services/ml/**"
+  - "evals/**"
+  - "tests/ml/**"
+forbidden:
+  - "src/web/**"
+  - "src/mobile/**"
+  - "migrations/**"
+  - ".github/**"
+tools:
+  - bd
+  - uv
+  - read_file
+  - write_file
+  - edit_file
+  - run_command
+doctrine:
+  - ponytail-full
+  - eval-driven-ml
+  - tdd-red-green-refactor
+references:
+  - "stacks/python-fastapi.md"
+done_when:
+  - "Managed exclusively via uv (never global pip); strict Pydantic v2 validation enforced"
+  - "pytest and offline eval benchmark pass with before/after metrics recorded"
+  - "Beads issue closed via bd close <id> --reason '...'"
+output: >-
+  Changed files, pytest + eval metrics table, closed Bead ID, and 1-2 line Ponytail note.
+

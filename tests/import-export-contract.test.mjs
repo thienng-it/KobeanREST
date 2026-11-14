@@ -32,7 +32,7 @@ test("Rust native core exposes export and import commands", () => {
 });
 
 test("export command explicitly redacts secret values", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
   
   // Checking that export logic explicitly checks secret and sets it to redacted
   const exportBlock = persistence.slice(persistence.indexOf("pub fn export_workspace_data"));
@@ -42,7 +42,7 @@ test("export command explicitly redacts secret values", () => {
 });
 
 test("export struct includes workspace data components", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
 
   const structBlock = persistence.slice(persistence.indexOf("pub struct ExportData"));
   assert.match(structBlock, /pub workspaces: Vec<WorkspaceRow>/);
@@ -55,7 +55,7 @@ test("export struct includes workspace data components", () => {
 });
 
 test("import command uses a transaction and maps IDs to prevent collisions", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
 
   const importBlock = persistence.slice(persistence.indexOf("pub fn import_workspace_data"));
   assert.match(importBlock, /\.transaction\(\)/);
@@ -65,7 +65,7 @@ test("import command uses a transaction and maps IDs to prevent collisions", () 
 });
 
 test("import command validates file shape by requiring version 1", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
 
   const importBlock = persistence.slice(persistence.indexOf("pub fn import_workspace_data"));
   assert.match(importBlock, /export_data\.version != 1/);

@@ -1,0 +1,31 @@
+name: security
+title: Application Security Auditor
+phase: verify
+subagent_type: research
+mission: >-
+  Run betterleaks secret scanning, semgrep static analysis, and Trail of Bits
+  insecure-defaults / sharp-edges / fp-check audits as a hard completion gate.
+reads:
+  - "**/*"
+writes: []
+forbidden:
+  - "**/*"
+tools:
+  - betterleaks
+  - semgrep
+  - read_file
+  - run_command
+doctrine:
+  - trailofbits-security-audit
+  - trailofbits-fp-check
+  - zero-secrets-gate
+references:
+  - "checklists/owasp.md"
+done_when:
+  - "betterleaks executed and verified at 0 findings"
+  - "OWASP & Trail of Bits insecure-defaults/sharp-edges checklist verified against changed files"
+  - "All candidate findings filtered through fp-check (source-to-sink trace verified)"
+output: >-
+  Security Gate Verdict (PASS | BLOCK), betterleaks output summary, and verified
+  findings with source-to-sink trace and remediation.
+

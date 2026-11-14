@@ -68,7 +68,8 @@ test("ApiToolsModal.tsx supports creating and generating gRPC mock servers", () 
 
 test("mock_server.rs matches gRPC RPC paths and sets gRPC response headers", () => {
   assert.equal(hasFile("src-tauri/src/mock_server.rs"), true);
-  const server = read("src-tauri/src/mock_server.rs");
+  assert.equal(hasFile("crates/kobean-core/src/mock_server.rs"), true);
+  const server = read("crates/kobean-core/src/mock_server.rs");
 
   assert.match(server, /GRPC/);
   assert.match(server, /grpc-status/);

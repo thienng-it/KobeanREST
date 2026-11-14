@@ -25,8 +25,9 @@ const read = (path) => {
 };
 
 test("persistence.rs exposes multi-workspace commands", () => {
+  const coreP = read("crates/kobean-core/src/persistence.rs");
   const p = read("src-tauri/src/persistence.rs");
-  assert.match(p, /pub struct WorkspaceListItem/);
+  assert.match(coreP, /pub struct WorkspaceListItem/);
   assert.match(p, /pub fn list_workspaces\(app: AppHandle\)/);
   assert.match(p, /pub fn rename_workspace\(app: AppHandle, workspace_id: String, name: String\)/);
   assert.match(p, /pub fn delete_workspace\(app: AppHandle, workspace_id: String\)/);
@@ -44,12 +45,12 @@ test("lib.rs registers all multi-workspace commands", () => {
 });
 
 test("last_active_workspace_id is persisted in settings table", () => {
-  const p = read("src-tauri/src/persistence.rs");
+  const p = read("crates/kobean-core/src/persistence.rs");
   assert.match(p, /last_active_workspace_id/);
 });
 
 test("delete_workspace prevents deleting last workspace", () => {
-  const p = read("src-tauri/src/persistence.rs");
+  const p = read("crates/kobean-core/src/persistence.rs");
   assert.match(p, /cannot delete the last workspace/);
 });
 

@@ -25,7 +25,8 @@ const read = (path) => {
 };
 
 test("Rust native core exposes app settings commands with privacy-preserving defaults", () => {
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
+  const tauriPersistence = read("src-tauri/src/persistence.rs");
 
   assert.match(persistence, /pub struct AppSettings/);
   assert.match(persistence, /pub update_checks_enabled: bool/);
@@ -41,8 +42,8 @@ test("Rust native core exposes app settings commands with privacy-preserving def
   assert.match(persistence, /diagnostics_redaction_enabled: true/);
   assert.match(persistence, /offline_behavior: "silent"/);
 
-  assert.match(persistence, /pub fn load_app_settings/);
-  assert.match(persistence, /pub fn save_app_settings/);
+  assert.match(tauriPersistence, /pub fn load_app_settings/);
+  assert.match(tauriPersistence, /pub fn save_app_settings/);
 
   const lib = read("src-tauri/src/lib.rs");
   assert.match(lib, /load_app_settings/);
@@ -123,7 +124,7 @@ test("settings modal and viewer support response auto wrap and auto collapse", (
   assert.match(app, /responseAutoWrap/);
   assert.match(app, /responseAutoCollapse/);
 
-  const persistence = read("src-tauri/src/persistence.rs");
+  const persistence = read("crates/kobean-core/src/persistence.rs");
   assert.match(persistence, /pub response_auto_wrap: Option<bool>/);
   assert.match(persistence, /pub response_auto_collapse: Option<bool>/);
 });

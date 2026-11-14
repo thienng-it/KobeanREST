@@ -30,14 +30,18 @@ const hasFile = (path) => existsSync(new URL(path, root));
 
 test("Rust native core exposes an execute_http_request command", () => {
   assert.equal(hasFile("src-tauri/src/http_client.rs"), true);
+  assert.equal(hasFile("crates/kobean-core/src/http_client.rs"), true);
+
+  const coreHttpClient = read("crates/kobean-core/src/http_client.rs");
+  assert.match(coreHttpClient, /pub async fn execute_http_request/);
+  assert.match(coreHttpClient, /ExecuteHttpRequest/);
+  assert.match(coreHttpClient, /ExecuteHttpResponse/);
+  assert.match(coreHttpClient, /reqwest::Client/);
+  assert.match(coreHttpClient, /timeout_ms/);
+  assert.match(coreHttpClient, /follow_redirects/);
 
   const httpClient = read("src-tauri/src/http_client.rs");
   assert.match(httpClient, /pub async fn execute_http_request/);
-  assert.match(httpClient, /ExecuteHttpRequest/);
-  assert.match(httpClient, /ExecuteHttpResponse/);
-  assert.match(httpClient, /reqwest::Client/);
-  assert.match(httpClient, /timeout_ms/);
-  assert.match(httpClient, /follow_redirects/);
 
   const lib = read("src-tauri/src/lib.rs");
   assert.match(lib, /mod http_client;/);

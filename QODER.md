@@ -42,3 +42,10 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes_tool` for code review.
 3. Use `get_affected_flows_tool` to understand impact.
 4. Use `query_graph_tool` pattern="tests_for" to check coverage.
+
+## KobeanSkills, Ponytail, UI/UX, Graphify, Beads & Parallel Subagent Orchestration
+- **Doctrine & Ponytail:** Follow `.kobean/doctrine.md`, `.kobean/constitution.md`, and `.agents/skills/ponytail/SKILL.md`. Route non-trivial tasks via `.kobean/skills/kb-*`, reuse existing helpers first, write the smallest complete change, and end build/review replies with 1–2 lines on skipped scope and residual risk.
+- **UI/UX (Impeccable + Taste-Skill + UI/UX Pro Max):** Follow `.kobean/skills/kb-ui/SKILL.md` and `.kobean/references/design/impeccable-taste.md` (Impeccable default; `.agents/skills/taste-skill/` for opt-in `bold` work; `ui-ux-pro-max` §5 lookup pairings only) while keeping `src/renderer/` CSS tokens.
+- **`.beads/` (`bd`) Task State (Always Update):** Single source of truth for multi-step tasks (never create `tasks.md` or `progress.md`). Always run `bd ready --json`, claim (`bd update <id> --status in_progress`), add discovered subtasks, and `bd close <id>` when done.
+- **`graphify` (`graphify-out/`) (Read First & Always Update):** Check `graphify-out/GRAPH_REPORT.md` / `graphify query` before broad raw greps, and ALWAYS run `graphify update . >/dev/null 2>&1 || true` after building or modifying code.
+- **Simultaneous Multi-Agent / Subagent Orchestration:** For non-trivial builds or edits, coordinate multiple `.kobean/roles/*.yaml` subagents in parallel with strictly non-overlapping `writes` paths; run independent read, implementation, review, security, and QA slices concurrently.

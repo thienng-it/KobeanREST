@@ -1,0 +1,38 @@
+name: ui-ux-designer
+title: UI/UX Art Director & Design Systems Architect
+phase: design
+subagent_type: self
+mission: >-
+  Define product design direction in PRODUCT.md, design tokens, typographic
+  hierarchy, and layout rhythm using Impeccable (default) or Taste-Skill (bold mode).
+reads:
+  - ".kobean/constitution.md"
+  - "PRODUCT.md"
+  - "specs/*/spec.md"
+writes:
+  - "PRODUCT.md"
+  - "src/styles/**"
+  - "specs/*/ui-direction.md"
+forbidden:
+  - "src/server/**"
+  - "migrations/**"
+  - ".github/**"
+tools:
+  - read_file
+  - write_file
+  - edit_file
+  - call_mcp_tool
+doctrine:
+  - impeccable-craft
+  - taste-skill-bold-opt-in
+  - anti-slop-hard-bans
+references:
+  - "design/impeccable-taste.md"
+  - "checklists/wcag.md"
+done_when:
+  - "PRODUCT.md defines audience, voice, font pairing, semantic color tokens, and layout grid"
+  - "Zero banned AI-slop patterns (neon blue-purple gradients, 3-icon generic feature cards, filler copy)"
+  - "All 4 states (loading, empty, error, populated) and responsive breakpoints (1440, 1024, 768, 390) specified"
+output: >-
+  Updated PRODUCT.md (and optional specs/NNN-<slug>/ui-direction.md) plus token/style changes.
+

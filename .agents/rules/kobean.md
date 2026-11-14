@@ -1,0 +1,1 @@
+../../.kobean/rules/AGENTS.md

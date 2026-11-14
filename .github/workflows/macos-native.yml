@@ -1,0 +1,153 @@
+name: macos-native
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "macos/**"
+      - ".github/workflows/macos-native.yml"
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "macos/**"
+      - ".github/workflows/macos-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-and-swift:
+    name: Native macOS Core, FFI & SwiftUI Build/Test
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Test Rust core & UniFFI crates
+        run: |
+          cargo test -p kobean-core
+          cargo test -p kobean-ffi
+
+      - name: Build universal Rust XCFramework & Swift bindings
+        run: ./macos/scripts/build-rust-xcframework.sh --universal
+
+      - name: Generate Xcode project
+        run: |
+          cd macos
+          xcodegen generate
+
+      - name: Build & test native macOS app
+        run: |
+          xcodebuild test \
+            -project macos/KobeanREST.xcodeproj \
+            -scheme KobeanREST \
+            -configuration Debug \
+            -destination 'platform=macOS,arch=arm64' \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Archive Release app (unsigned CI smoke check)
+        run: |
+          xcodebuild build \
+            -project macos/KobeanREST.xcodeproj \
+            -scheme KobeanREST \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath macos/DerivedData \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Import Apple Developer ID certificate & sign Release app (optional)
+        if: github.event_name != 'pull_request' && vars.MACOS_SIGNING_ENABLED == 'true'
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_DEVELOPER_IDENTITY: ${{ secrets.APPLE_DEVELOPER_IDENTITY }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/kobean-signing.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/dev_id.p12"
+          printf '%s' "$APPLE_CERTIFICATE_P12_BASE64" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          codesign --force --options runtime --timestamp \
+            --entitlements macos/KobeanREST/Resources/KobeanREST.entitlements \
+            --sign "$APPLE_DEVELOPER_IDENTITY" \
+            macos/DerivedData/Build/Products/Release/KobeanREST.app
+
+      - name: Package Native macOS DMG artifact (signed releases only)
+        if: github.event_name != 'pull_request' && vars.MACOS_SIGNING_ENABLED == 'true'
+        run: |
+          mkdir -p macos/build/dmg-staging
+          cp -R macos/DerivedData/Build/Products/Release/KobeanREST.app macos/build/dmg-staging/
+          ln -s /Applications macos/build/dmg-staging/Applications
+          hdiutil create \
+            -volname "KobeanREST" \
+            -srcfolder macos/build/dmg-staging \
+            -ov -format UDZO \
+            macos/build/KobeanREST-macOS-Native.dmg
+
+      - name: Notarize & staple DMG + generate Sparkle appcast
+        if: github.event_name != 'pull_request' && vars.MACOS_SIGNING_ENABLED == 'true'
+        env:
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          APPLE_NOTARY_API_KEY_P8: ${{ secrets.APPLE_NOTARY_API_KEY_P8 }}
+          APPLE_DEVELOPER_IDENTITY: ${{ secrets.APPLE_DEVELOPER_IDENTITY }}
+          SPARKLE_EDDSA_KEY: ${{ secrets.SPARKLE_EDDSA_KEY }}
+        run: |
+          codesign --force --timestamp --sign "$APPLE_DEVELOPER_IDENTITY" macos/build/KobeanREST-macOS-Native.dmg
+          API_KEY_FILE="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s\n' "$APPLE_NOTARY_API_KEY_P8" > "$API_KEY_FILE"
+          xcrun notarytool submit macos/build/KobeanREST-macOS-Native.dmg \
+            --key "$API_KEY_FILE" \
+            --key-id "$APPLE_NOTARY_KEY_ID" \
+            --issuer "$APPLE_NOTARY_ISSUER_ID" \
+            --wait
+          xcrun stapler staple macos/build/KobeanREST-macOS-Native.dmg
+          test -n "$SPARKLE_EDDSA_KEY"
+          brew install --cask sparkle
+          SPARKLE_BIN="$(brew --prefix)/Caskroom/sparkle/$(brew list --cask --versions sparkle | awk '{print $2}')/bin/generate_appcast"
+          SPARKLE_KEY_FILE="$RUNNER_TEMP/sparkle_eddsa.key"
+          printf '%s' "$SPARKLE_EDDSA_KEY" > "$SPARKLE_KEY_FILE"
+          chmod 600 "$SPARKLE_KEY_FILE"
+          mkdir -p macos/build/sparkle
+          cp macos/build/KobeanREST-macOS-Native.dmg macos/build/sparkle/
+          "$SPARKLE_BIN" --ed-key-file "$SPARKLE_KEY_FILE" macos/build/sparkle/
+
+      - name: Cleanup temporary signing files
+        if: always() && github.event_name != 'pull_request' && vars.MACOS_SIGNING_ENABLED == 'true'
+        run: |
+          rm -f "$RUNNER_TEMP/dev_id.p12" "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/sparkle_eddsa.key"
+          security delete-keychain "$RUNNER_TEMP/kobean-signing.keychain-db" >/dev/null 2>&1 || true
+
+      - name: Upload signed macOS Native artifact
+        if: github.event_name != 'pull_request' && vars.MACOS_SIGNING_ENABLED == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: KobeanREST-macOS-Native-dmg
+          path: |
+            macos/build/KobeanREST-macOS-Native.dmg
+            macos/build/sparkle/appcast.xml
+          if-no-files-found: error
+
