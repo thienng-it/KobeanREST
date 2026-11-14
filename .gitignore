@@ -19,3 +19,8 @@ dist-webview/
 # Added by code-review-graph
 .code-review-graph/
 .kobeanrest/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key

@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "KobeanREST",
+  "project_id": "a8529a52-251d-4e15-bccb-a7587b119723"
+}
