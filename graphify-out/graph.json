@@ -454,10 +454,19 @@
       "norm_label": "mock_server_sanitizes_crlf_headers_restricts_cors_and_json_escapes_404()"
     },
     {
-      "label": "secrets_resolve_strict_fails_closed_on_missing_ref()",
+      "label": "mock_server_waits_for_delayed_request_bytes_after_connect()",
       "file_type": "code",
       "source_file": "crates/kobean-core/tests/core_tests.rs",
       "source_location": "L520",
+      "id": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "community": 17,
+      "norm_label": "mock_server_waits_for_delayed_request_bytes_after_connect()"
+    },
+    {
+      "label": "secrets_resolve_strict_fails_closed_on_missing_ref()",
+      "file_type": "code",
+      "source_file": "crates/kobean-core/tests/core_tests.rs",
+      "source_location": "L560",
       "id": "tests_core_tests_secrets_resolve_strict_fails_closed_on_missing_ref",
       "community": 3,
       "norm_label": "secrets_resolve_strict_fails_closed_on_missing_ref()"
@@ -466,7 +475,7 @@
       "label": "persistence_seeded_requests_match_seeded_folders_and_scopes_history_to_active_workspace()",
       "file_type": "code",
       "source_file": "crates/kobean-core/tests/core_tests.rs",
-      "source_location": "L531",
+      "source_location": "L571",
       "id": "tests_core_tests_persistence_seeded_requests_match_seeded_folders_and_scopes_history_to_active_workspace",
       "community": 3,
       "norm_label": "persistence_seeded_requests_match_seeded_folders_and_scopes_history_to_active_workspace()"
@@ -475,7 +484,7 @@
       "label": "persistence_enables_foreign_keys_delete_folder_cascades_and_move_rejects_cycles()",
       "file_type": "code",
       "source_file": "crates/kobean-core/tests/core_tests.rs",
-      "source_location": "L588",
+      "source_location": "L628",
       "id": "tests_core_tests_persistence_enables_foreign_keys_delete_folder_cascades_and_move_rejects_cycles",
       "community": 3,
       "norm_label": "persistence_enables_foreign_keys_delete_folder_cascades_and_move_rejects_cycles()"
@@ -630,7 +639,7 @@
       "source_file": "crates/kobean-core/tests/domain_tests.rs",
       "source_location": "L748",
       "id": "tests_domain_tests_http_client_bounded_response_limit_and_chunk_guard",
-      "community": 22,
+      "community": 20,
       "norm_label": "http_client_bounded_response_limit_and_chunk_guard()"
     },
     {
@@ -763,7 +772,7 @@
       "label": "parse_request_line()",
       "file_type": "code",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L117",
+      "source_location": "L118",
       "id": "src_mock_server_parse_request_line",
       "community": 17,
       "norm_label": "parse_request_line()"
@@ -772,7 +781,7 @@
       "label": "path_matches()",
       "file_type": "code",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L130",
+      "source_location": "L131",
       "id": "src_mock_server_path_matches",
       "community": 17,
       "norm_label": "path_matches()"
@@ -781,7 +790,7 @@
       "label": "find_matching_route()",
       "file_type": "code",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L145",
+      "source_location": "L146",
       "id": "src_mock_server_find_matching_route",
       "community": 17,
       "norm_label": "find_matching_route()"
@@ -790,7 +799,7 @@
       "label": "sanitize_header_value()",
       "file_type": "code",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L158",
+      "source_location": "L159",
       "id": "src_mock_server_sanitize_header_value",
       "community": 17,
       "norm_label": "sanitize_header_value()"
@@ -799,7 +808,7 @@
       "label": "current_unix_ms()",
       "file_type": "code",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L165",
+      "source_location": "L166",
       "id": "src_mock_server_current_unix_ms",
       "community": 17,
       "norm_label": "current_unix_ms()"
@@ -1980,7 +1989,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L1",
       "id": "crates_kobean_core_src_http_client_rs",
-      "community": 22,
+      "community": 20,
       "norm_label": "http_client.rs"
     },
     {
@@ -1989,7 +1998,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L17",
       "id": "src_http_client_append_bounded_chunk",
-      "community": 22,
+      "community": 20,
       "norm_label": "append_bounded_chunk()"
     },
     {
@@ -1998,7 +2007,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L33",
       "id": "src_http_client_headerentry",
-      "community": 22,
+      "community": 20,
       "norm_label": "headerentry"
     },
     {
@@ -2007,7 +2016,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L44",
       "id": "src_http_client_executehttprequest",
-      "community": 22,
+      "community": 20,
       "norm_label": "executehttprequest"
     },
     {
@@ -2016,7 +2025,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L63",
       "id": "src_http_client_executehttpresponse",
-      "community": 22,
+      "community": 20,
       "norm_label": "executehttpresponse"
     },
     {
@@ -2025,7 +2034,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L78",
       "id": "src_http_client_default_enabled",
-      "community": 22,
+      "community": 20,
       "norm_label": "default_enabled()"
     },
     {
@@ -2034,7 +2043,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L82",
       "id": "src_http_client_default_timeout_ms",
-      "community": 22,
+      "community": 20,
       "norm_label": "default_timeout_ms()"
     },
     {
@@ -2043,7 +2052,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L86",
       "id": "src_http_client_default_follow_redirects",
-      "community": 22,
+      "community": 20,
       "norm_label": "default_follow_redirects()"
     },
     {
@@ -2052,7 +2061,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L90",
       "id": "src_http_client_shared_client",
-      "community": 22,
+      "community": 20,
       "norm_label": "shared_client()"
     },
     {
@@ -2061,7 +2070,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L110",
       "id": "src_http_client_format_reqwest_error",
-      "community": 22,
+      "community": 20,
       "norm_label": "format_reqwest_error()"
     },
     {
@@ -2070,7 +2079,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L123",
       "id": "src_http_client_is_http2_pseudo_header",
-      "community": 22,
+      "community": 20,
       "norm_label": "is_http2_pseudo_header()"
     },
     {
@@ -2079,7 +2088,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L130",
       "id": "src_http_client_validate_request_url",
-      "community": 22,
+      "community": 20,
       "norm_label": "validate_request_url()"
     },
     {
@@ -2088,7 +2097,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L149",
       "id": "src_http_client_response_headers",
-      "community": 22,
+      "community": 20,
       "norm_label": "response_headers()"
     },
     {
@@ -2097,7 +2106,7 @@
       "source_file": "crates/kobean-core/src/http_client.rs",
       "source_location": "L161",
       "id": "src_http_client_is_text_response",
-      "community": 22,
+      "community": 20,
       "norm_label": "is_text_response()"
     },
     {
@@ -2106,7 +2115,7 @@
       "source_file": "src-tauri/src/http_client.rs",
       "source_location": "L4",
       "id": "src_http_client_execute_http_request",
-      "community": 22,
+      "community": 20,
       "norm_label": "execute_http_request()"
     },
     {
@@ -4167,7 +4176,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L63",
       "id": "generated_kobean_ffi_fficonverterbyrefbytes",
-      "community": 7,
+      "community": 2,
       "norm_label": "fficonverterbyrefbytes"
     },
     {
@@ -4176,7 +4185,7 @@
       "source_file": "",
       "source_location": "",
       "id": "fficonverter",
-      "community": 7,
+      "community": 2,
       "norm_label": "fficonverter"
     },
     {
@@ -4185,7 +4194,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L67",
       "id": "generated_kobean_ffi_fficonverterbyrefbytes_lower",
-      "community": 7,
+      "community": 2,
       "norm_label": ".lower()"
     },
     {
@@ -4194,7 +4203,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L77",
       "id": "generated_kobean_ffi_fficonverterbyrefbytes_lift",
-      "community": 7,
+      "community": 2,
       "norm_label": ".lift()"
     },
     {
@@ -4203,7 +4212,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L81",
       "id": "generated_kobean_ffi_fficonverterbyrefbytes_read",
-      "community": 7,
+      "community": 2,
       "norm_label": ".read()"
     },
     {
@@ -4212,7 +4221,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L85",
       "id": "generated_kobean_ffi_fficonverterbyrefbytes_write",
-      "community": 7,
+      "community": 2,
       "norm_label": ".write()"
     },
     {
@@ -4383,7 +4392,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L263",
       "id": "generated_kobean_ffi_uniffiinternalerror",
-      "community": 5,
+      "community": 6,
       "norm_label": "uniffiinternalerror"
     },
     {
@@ -4392,7 +4401,7 @@
       "source_file": "",
       "source_location": "",
       "id": "localizederror",
-      "community": 5,
+      "community": 6,
       "norm_label": "localizederror"
     },
     {
@@ -4401,7 +4410,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L264",
       "id": "generated_kobean_ffi_uniffiinternalerror_bufferoverflow",
-      "community": 5,
+      "community": 6,
       "norm_label": "bufferoverflow"
     },
     {
@@ -4410,7 +4419,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L265",
       "id": "generated_kobean_ffi_uniffiinternalerror_incompletedata",
-      "community": 5,
+      "community": 6,
       "norm_label": "incompletedata"
     },
     {
@@ -4419,7 +4428,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L266",
       "id": "generated_kobean_ffi_uniffiinternalerror_unexpectedoptionaltag",
-      "community": 5,
+      "community": 6,
       "norm_label": "unexpectedoptionaltag"
     },
     {
@@ -4428,7 +4437,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L267",
       "id": "generated_kobean_ffi_uniffiinternalerror_unexpectedenumcase",
-      "community": 5,
+      "community": 6,
       "norm_label": "unexpectedenumcase"
     },
     {
@@ -4437,7 +4446,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L268",
       "id": "generated_kobean_ffi_uniffiinternalerror_unexpectednullpointer",
-      "community": 5,
+      "community": 6,
       "norm_label": "unexpectednullpointer"
     },
     {
@@ -4446,7 +4455,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L269",
       "id": "generated_kobean_ffi_uniffiinternalerror_unexpectedrustcallstatuscode",
-      "community": 5,
+      "community": 6,
       "norm_label": "unexpectedrustcallstatuscode"
     },
     {
@@ -4455,7 +4464,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L270",
       "id": "generated_kobean_ffi_uniffiinternalerror_unexpectedrustcallerror",
-      "community": 5,
+      "community": 6,
       "norm_label": "unexpectedrustcallerror"
     },
     {
@@ -4464,7 +4473,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L271",
       "id": "generated_kobean_ffi_uniffiinternalerror_unexpectedstalehandle",
-      "community": 5,
+      "community": 6,
       "norm_label": "unexpectedstalehandle"
     },
     {
@@ -4473,7 +4482,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L272",
       "id": "generated_kobean_ffi_uniffiinternalerror_rustpanic",
-      "community": 5,
+      "community": 6,
       "norm_label": "rustpanic"
     },
     {
@@ -4779,7 +4788,7 @@
       "source_file": "macos/Generated/kobean_ffi.swift",
       "source_location": "L570",
       "id": "generated_kobean_ffi_ffimockserverprotocol",
-      "community": 5,
+      "community": 0,
       "norm_label": "ffimockserverprotocol"
     },
     {
@@ -4788,7 +4797,7 @@
       "source_file": "",
       "source_location": "",
       "id": "anyobject",
-      "community": 5,
+      "community": 0,
       "norm_label": "anyobject"
     },
     {
@@ -6192,7 +6201,7 @@
       "source_file": "",
       "source_location": "",
       "id": "corebridgeprotocol",
-      "community": 6,
+      "community": 14,
       "norm_label": "corebridgeprotocol"
     },
     {
@@ -6615,7 +6624,7 @@
       "source_file": "macos/KobeanRESTTests/Phase3ViewsTests.swift",
       "source_location": "L151",
       "id": "kobeanresttests_phase3viewstests_mockrunnerbridge_parsecurlcommand",
-      "community": 14,
+      "community": 6,
       "norm_label": ".parsecurlcommand()"
     },
     {
@@ -6759,7 +6768,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L1",
       "id": "macos_kobeanresttests_sidebartreetests_swift",
-      "community": 6,
+      "community": 5,
       "norm_label": "sidebartreetests.swift"
     },
     {
@@ -6768,7 +6777,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L5",
       "id": "kobeanresttests_sidebartreetests_sidebartreetests",
-      "community": 6,
+      "community": 5,
       "norm_label": "sidebartreetests"
     },
     {
@@ -6777,7 +6786,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L8",
       "id": "kobeanresttests_sidebartreetests_sidebartreetests_sampleworkspace",
-      "community": 6,
+      "community": 5,
       "norm_label": ".sampleworkspace()"
     },
     {
@@ -6786,7 +6795,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L33",
       "id": "kobeanresttests_sidebartreetests_sidebartreetests_flattensexpandedtreeinorder",
-      "community": 6,
+      "community": 5,
       "norm_label": ".flattensexpandedtreeinorder()"
     },
     {
@@ -6795,7 +6804,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L67",
       "id": "kobeanresttests_sidebartreetests_sidebartreetests_collapsinghidesdescendants",
-      "community": 6,
+      "community": 5,
       "norm_label": ".collapsinghidesdescendants()"
     },
     {
@@ -6804,7 +6813,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L83",
       "id": "kobeanresttests_sidebartreetests_sidebartreetests_searchautoexpandsmatchingancestors",
-      "community": 6,
+      "community": 5,
       "norm_label": ".searchautoexpandsmatchingancestors()"
     },
     {
@@ -6813,7 +6822,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L108",
       "id": "kobeanresttests_sidebartreetests_sidebartreetests_togglecollapseexpandallcycle",
-      "community": 6,
+      "community": 5,
       "norm_label": ".togglecollapseexpandallcycle()"
     },
     {
@@ -6822,7 +6831,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L136",
       "id": "kobeanresttests_sidebartreetests_sidebartreetests_percollectionfoldertoggle",
-      "community": 6,
+      "community": 5,
       "norm_label": ".percollectionfoldertoggle()"
     },
     {
@@ -6831,7 +6840,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L172",
       "id": "kobeanresttests_sidebartreetests_sidebartreetests_creatingchildexpandscollapsedparent",
-      "community": 6,
+      "community": 5,
       "norm_label": ".creatingchildexpandscollapsedparent()"
     },
     {
@@ -6840,7 +6849,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L189",
       "id": "kobeanresttests_sidebartreetests_sidebartreetests_renamerequestpersistenceanddirtytabsync",
-      "community": 6,
+      "community": 5,
       "norm_label": ".renamerequestpersistenceanddirtytabsync()"
     },
     {
@@ -6849,7 +6858,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L234",
       "id": "kobeanresttests_sidebartreetests_sidebartreetests_duplicaterequestclonesandisolatessecrets",
-      "community": 6,
+      "community": 5,
       "norm_label": ".duplicaterequestclonesandisolatessecrets()"
     },
     {
@@ -6858,7 +6867,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L289",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge",
-      "community": 6,
+      "community": 5,
       "norm_label": "sidebarmockbridge"
     },
     {
@@ -6867,7 +6876,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L296",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_init",
-      "community": 6,
+      "community": 5,
       "norm_label": ".init()"
     },
     {
@@ -6876,7 +6885,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L306",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_initializepersistence",
-      "community": 6,
+      "community": 5,
       "norm_label": ".initializepersistence()"
     },
     {
@@ -6903,7 +6912,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L315",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_requestauthmodes",
-      "community": 6,
+      "community": 5,
       "norm_label": ".requestauthmodes()"
     },
     {
@@ -6912,7 +6921,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L316",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_loadworkspace",
-      "community": 6,
+      "community": 5,
       "norm_label": ".loadworkspace()"
     },
     {
@@ -6921,7 +6930,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L317",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_listworkspaces",
-      "community": 6,
+      "community": 5,
       "norm_label": ".listworkspaces()"
     },
     {
@@ -6930,7 +6939,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L319",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_switchworkspace",
-      "community": 6,
+      "community": 5,
       "norm_label": ".switchworkspace()"
     },
     {
@@ -6939,7 +6948,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L320",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_createworkspace",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createworkspace()"
     },
     {
@@ -6948,7 +6957,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L321",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_renameworkspace",
-      "community": 6,
+      "community": 5,
       "norm_label": ".renameworkspace()"
     },
     {
@@ -6957,7 +6966,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L322",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_deleteworkspace",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deleteworkspace()"
     },
     {
@@ -6966,7 +6975,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L323",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_createcollection",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createcollection()"
     },
     {
@@ -6975,7 +6984,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L324",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_updatecollection",
-      "community": 6,
+      "community": 5,
       "norm_label": ".updatecollection()"
     },
     {
@@ -6984,7 +6993,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L325",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_deletecollection",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deletecollection()"
     },
     {
@@ -6993,7 +7002,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L326",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_savecollectionauth",
-      "community": 6,
+      "community": 5,
       "norm_label": ".savecollectionauth()"
     },
     {
@@ -7002,7 +7011,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L327",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_createfolder",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createfolder()"
     },
     {
@@ -7011,7 +7020,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L332",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_updatefolder",
-      "community": 6,
+      "community": 5,
       "norm_label": ".updatefolder()"
     },
     {
@@ -7020,7 +7029,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L333",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_deletefolder",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deletefolder()"
     },
     {
@@ -7029,7 +7038,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L334",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_savefolderauth",
-      "community": 6,
+      "community": 5,
       "norm_label": ".savefolderauth()"
     },
     {
@@ -7038,7 +7047,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L335",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_createrequest",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createrequest()"
     },
     {
@@ -7047,7 +7056,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L340",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_saverequest",
-      "community": 6,
+      "community": 5,
       "norm_label": ".saverequest()"
     },
     {
@@ -7056,7 +7065,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L346",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_deleterequest",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deleterequest()"
     },
     {
@@ -7065,7 +7074,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L347",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_createenvironment",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createenvironment()"
     },
     {
@@ -7074,7 +7083,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L348",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_renameenvironment",
-      "community": 6,
+      "community": 5,
       "norm_label": ".renameenvironment()"
     },
     {
@@ -7083,7 +7092,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L349",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_deleteenvironment",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deleteenvironment()"
     },
     {
@@ -7092,7 +7101,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L350",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_setactiveenvironment",
-      "community": 6,
+      "community": 5,
       "norm_label": ".setactiveenvironment()"
     },
     {
@@ -7101,7 +7110,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L351",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_savevariable",
-      "community": 6,
+      "community": 5,
       "norm_label": ".savevariable()"
     },
     {
@@ -7110,7 +7119,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L352",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_savesecretvariable",
-      "community": 6,
+      "community": 5,
       "norm_label": ".savesecretvariable()"
     },
     {
@@ -7119,7 +7128,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L353",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_deletevariable",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deletevariable()"
     },
     {
@@ -7128,7 +7137,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L354",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_storesecret",
-      "community": 6,
+      "community": 5,
       "norm_label": ".storesecret()"
     },
     {
@@ -7137,7 +7146,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L359",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_resolvesecrets",
-      "community": 6,
+      "community": 5,
       "norm_label": ".resolvesecrets()"
     },
     {
@@ -7146,7 +7155,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L368",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_deletesecret",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deletesecret()"
     },
     {
@@ -7155,7 +7164,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L371",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_resolveenvironmentsecretvalues",
-      "community": 6,
+      "community": 5,
       "norm_label": ".resolveenvironmentsecretvalues()"
     },
     {
@@ -7164,7 +7173,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L372",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_buildscopedvariablemap",
-      "community": 6,
+      "community": 5,
       "norm_label": ".buildscopedvariablemap()"
     },
     {
@@ -7173,7 +7182,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L373",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_getscripts",
-      "community": 6,
+      "community": 5,
       "norm_label": ".getscripts()"
     },
     {
@@ -7182,7 +7191,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L376",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_getallscripts",
-      "community": 6,
+      "community": 5,
       "norm_label": ".getallscripts()"
     },
     {
@@ -7191,7 +7200,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L377",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_savescript",
-      "community": 0,
+      "community": 12,
       "norm_label": ".savescript()"
     },
     {
@@ -7200,7 +7209,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L393",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_deletescript",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deletescript()"
     },
     {
@@ -7209,7 +7218,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L394",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_prepareandexecuterequest",
-      "community": 6,
+      "community": 5,
       "norm_label": ".prepareandexecuterequest()"
     },
     {
@@ -7218,7 +7227,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L402",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_loadrequesthistory",
-      "community": 6,
+      "community": 5,
       "norm_label": ".loadrequesthistory()"
     },
     {
@@ -7236,7 +7245,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L404",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_recordrequesthistory",
-      "community": 6,
+      "community": 5,
       "norm_label": ".recordrequesthistory()"
     },
     {
@@ -7245,7 +7254,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L405",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_clearrequesthistory",
-      "community": 6,
+      "community": 5,
       "norm_label": ".clearrequesthistory()"
     },
     {
@@ -7254,7 +7263,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L406",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_redacturlforhistory",
-      "community": 6,
+      "community": 5,
       "norm_label": ".redacturlforhistory()"
     },
     {
@@ -7263,7 +7272,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L407",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_redactheadersforhistory",
-      "community": 6,
+      "community": 5,
       "norm_label": ".redactheadersforhistory()"
     },
     {
@@ -7272,7 +7281,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L408",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_loadappsettings",
-      "community": 6,
+      "community": 5,
       "norm_label": ".loadappsettings()"
     },
     {
@@ -7281,7 +7290,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L409",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_saveappsettings",
-      "community": 6,
+      "community": 5,
       "norm_label": ".saveappsettings()"
     },
     {
@@ -7290,7 +7299,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L410",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_extractpathvariables",
-      "community": 6,
+      "community": 5,
       "norm_label": ".extractpathvariables()"
     },
     {
@@ -7299,7 +7308,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L411",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_syncpathvariables",
-      "community": 6,
+      "community": 5,
       "norm_label": ".syncpathvariables()"
     },
     {
@@ -7308,7 +7317,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L412",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_detectimportformat",
-      "community": 6,
+      "community": 5,
       "norm_label": ".detectimportformat()"
     },
     {
@@ -7326,7 +7335,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L416",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_parsecurlcommand",
-      "community": 6,
+      "community": 5,
       "norm_label": ".parsecurlcommand()"
     },
     {
@@ -7335,7 +7344,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L419",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_importworkspacedata",
-      "community": 6,
+      "community": 5,
       "norm_label": ".importworkspacedata()"
     },
     {
@@ -7344,7 +7353,7 @@
       "source_file": "macos/KobeanRESTTests/SidebarTreeTests.swift",
       "source_location": "L420",
       "id": "kobeanresttests_sidebartreetests_sidebarmockbridge_exportworkspacedata",
-      "community": 6,
+      "community": 5,
       "norm_label": ".exportworkspacedata()"
     },
     {
@@ -7821,7 +7830,7 @@
       "source_file": "macos/KobeanRESTTests/CoreBridgeTests.swift",
       "source_location": "L405",
       "id": "kobeanresttests_corebridgetests_corebridgetests_corebridgefailsclosedonmissingauthsecret",
-      "community": 12,
+      "community": 0,
       "norm_label": ".corebridgefailsclosedonmissingauthsecret()"
     },
     {
@@ -7884,7 +7893,7 @@
       "source_file": "macos/KobeanRESTTests/CoreBridgeTests.swift",
       "source_location": "L620",
       "id": "kobeanresttests_corebridgetests_mockcorebridge_initializepersistence",
-      "community": 12,
+      "community": 0,
       "norm_label": ".initializepersistence()"
     },
     {
@@ -8199,7 +8208,7 @@
       "source_file": "macos/KobeanRESTTests/CoreBridgeTests.swift",
       "source_location": "L713",
       "id": "kobeanresttests_corebridgetests_mockcorebridge_savescript",
-      "community": 0,
+      "community": 12,
       "norm_label": ".savescript()"
     },
     {
@@ -8361,7 +8370,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L1",
       "id": "macos_kobeanresttests_websockettests_swift",
-      "community": 5,
+      "community": 6,
       "norm_label": "websockettests.swift"
     },
     {
@@ -8370,7 +8379,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L11",
       "id": "kobeanresttests_websockettests_mockwebsockettask",
-      "community": 5,
+      "community": 6,
       "norm_label": "mockwebsockettask"
     },
     {
@@ -8379,7 +8388,7 @@
       "source_file": "",
       "source_location": "",
       "id": "websockettaskprotocol",
-      "community": 5,
+      "community": 6,
       "norm_label": "websockettaskprotocol"
     },
     {
@@ -8388,7 +8397,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L12",
       "id": "kobeanresttests_websockettests_receiveitem",
-      "community": 5,
+      "community": 6,
       "norm_label": "receiveitem"
     },
     {
@@ -8397,7 +8406,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L13",
       "id": "kobeanresttests_websockettests_receiveitem_payload",
-      "community": 5,
+      "community": 6,
       "norm_label": "payload"
     },
     {
@@ -8406,7 +8415,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L14",
       "id": "kobeanresttests_websockettests_receiveitem_error",
-      "community": 5,
+      "community": 6,
       "norm_label": "error"
     },
     {
@@ -8415,7 +8424,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L15",
       "id": "kobeanresttests_websockettests_receiveitem_close",
-      "community": 5,
+      "community": 6,
       "norm_label": "close"
     },
     {
@@ -8424,7 +8433,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L18",
       "id": "kobeanresttests_websockettests_state",
-      "community": 5,
+      "community": 6,
       "norm_label": "state"
     },
     {
@@ -8433,7 +8442,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L37",
       "id": "kobeanresttests_websockettests_mockwebsockettask_init",
-      "community": 5,
+      "community": 6,
       "norm_label": ".init()"
     },
     {
@@ -8442,7 +8451,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L75",
       "id": "kobeanresttests_websockettests_mockwebsockettask_enqueuereceive",
-      "community": 5,
+      "community": 6,
       "norm_label": ".enqueuereceive()"
     },
     {
@@ -8451,7 +8460,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L87",
       "id": "kobeanresttests_websockettests_mockwebsockettask_simulateremoteclose",
-      "community": 5,
+      "community": 6,
       "norm_label": ".simulateremoteclose()"
     },
     {
@@ -8460,7 +8469,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L102",
       "id": "kobeanresttests_websockettests_mockwebsockettask_simulatereceiveerror",
-      "community": 5,
+      "community": 6,
       "norm_label": ".simulatereceiveerror()"
     },
     {
@@ -8469,7 +8478,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L114",
       "id": "kobeanresttests_websockettests_mockwebsockettask_open",
-      "community": 5,
+      "community": 6,
       "norm_label": ".open()"
     },
     {
@@ -8478,7 +8487,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L148",
       "id": "kobeanresttests_websockettests_mockwebsockettask_send",
-      "community": 5,
+      "community": 6,
       "norm_label": ".send()"
     },
     {
@@ -8487,7 +8496,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L161",
       "id": "kobeanresttests_websockettests_mockwebsockettask_receive",
-      "community": 5,
+      "community": 6,
       "norm_label": ".receive()"
     },
     {
@@ -8496,7 +8505,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L201",
       "id": "kobeanresttests_websockettests_mockwebsockettask_ping",
-      "community": 5,
+      "community": 6,
       "norm_label": ".ping()"
     },
     {
@@ -8505,7 +8514,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L211",
       "id": "kobeanresttests_websockettests_mockwebsockettask_cancel",
-      "community": 5,
+      "community": 6,
       "norm_label": ".cancel()"
     },
     {
@@ -8514,7 +8523,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L228",
       "id": "kobeanresttests_websockettests_mockwebsocketsessionfactory",
-      "community": 5,
+      "community": 6,
       "norm_label": "mockwebsocketsessionfactory"
     },
     {
@@ -8523,7 +8532,7 @@
       "source_file": "",
       "source_location": "",
       "id": "websocketsessionfactory",
-      "community": 5,
+      "community": 6,
       "norm_label": "websocketsessionfactory"
     },
     {
@@ -8532,7 +8541,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L236",
       "id": "kobeanresttests_websockettests_mockwebsocketsessionfactory_init",
-      "community": 5,
+      "community": 6,
       "norm_label": ".init()"
     },
     {
@@ -8541,7 +8550,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L244",
       "id": "kobeanresttests_websockettests_mockwebsocketsessionfactory_makewebsockettask",
-      "community": 5,
+      "community": 6,
       "norm_label": ".makewebsockettask()"
     },
     {
@@ -8550,7 +8559,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L255",
       "id": "kobeanresttests_websockettests_mockfailure",
-      "community": 5,
+      "community": 6,
       "norm_label": "mockfailure"
     },
     {
@@ -8559,7 +8568,7 @@
       "source_file": "",
       "source_location": "",
       "id": "error",
-      "community": 5,
+      "community": 6,
       "norm_label": "error"
     },
     {
@@ -8568,7 +8577,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L256",
       "id": "kobeanresttests_websockettests_mockfailure_boom",
-      "community": 5,
+      "community": 6,
       "norm_label": "boom"
     },
     {
@@ -8577,7 +8586,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L268",
       "id": "kobeanresttests_websockettests_localwebsocketechoserver",
-      "community": 5,
+      "community": 6,
       "norm_label": "localwebsocketechoserver"
     },
     {
@@ -8586,7 +8595,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L278",
       "id": "kobeanresttests_websockettests_localwebsocketechoserver_start",
-      "community": 5,
+      "community": 6,
       "norm_label": ".start()"
     },
     {
@@ -8595,7 +8604,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L337",
       "id": "kobeanresttests_websockettests_localwebsocketechoserver_stop",
-      "community": 5,
+      "community": 6,
       "norm_label": ".stop()"
     },
     {
@@ -8604,7 +8613,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L346",
       "id": "kobeanresttests_websockettests_localwebsocketechoserver_handlenewconnection",
-      "community": 5,
+      "community": 6,
       "norm_label": ".handlenewconnection()"
     },
     {
@@ -8613,7 +8622,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L352",
       "id": "kobeanresttests_websockettests_localwebsocketechoserver_receivenext",
-      "community": 5,
+      "community": 6,
       "norm_label": ".receivenext()"
     },
     {
@@ -8622,7 +8631,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L400",
       "id": "kobeanresttests_websockettests_collectevents",
-      "community": 5,
+      "community": 6,
       "norm_label": "collectevents()"
     },
     {
@@ -8631,7 +8640,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L430",
       "id": "kobeanresttests_websockettests_websockettests",
-      "community": 5,
+      "community": 6,
       "norm_label": "websockettests"
     },
     {
@@ -8640,7 +8649,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L434",
       "id": "kobeanresttests_websockettests_websockettests_testconnectrejectsunsupportedschemesbeforecreatingtask",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testconnectrejectsunsupportedschemesbeforecreatingtask()"
     },
     {
@@ -8649,7 +8658,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L477",
       "id": "kobeanresttests_websockettests_websockettests_testvalidatewebsocketurlacceptscaseinsensitivewsandwss",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testvalidatewebsocketurlacceptscaseinsensitivewsandwss()"
     },
     {
@@ -8658,7 +8667,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L489",
       "id": "kobeanresttests_websockettests_websockettests_testconnectappliescustomheadersandemitsconnectedevent",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testconnectappliescustomheadersandemitsconnectedevent()"
     },
     {
@@ -8667,7 +8676,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L522",
       "id": "kobeanresttests_websockettests_websockettests_testconnectthrowsalreadyconnectedwhenactive",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testconnectthrowsalreadyconnectedwhenactive()"
     },
     {
@@ -8676,7 +8685,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L539",
       "id": "kobeanresttests_websockettests_websockettests_testconnecthandshakefailureresetsstateandemitserror",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testconnecthandshakefailureresetsstateandemitserror()"
     },
     {
@@ -8685,7 +8694,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L570",
       "id": "kobeanresttests_websockettests_websockettests_testsendtextandbinaryemitmessagesentevents",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testsendtextandbinaryemitmessagesentevents()"
     },
     {
@@ -8694,7 +8703,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L601",
       "id": "kobeanresttests_websockettests_websockettests_testsendandpingfailwhendisconnected",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testsendandpingfailwhendisconnected()"
     },
     {
@@ -8703,7 +8712,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L632",
       "id": "kobeanresttests_websockettests_websockettests_testsenderroremitserrorandthrowssendfailed",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testsenderroremitserrorandthrowssendfailed()"
     },
     {
@@ -8712,7 +8721,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L656",
       "id": "kobeanresttests_websockettests_websockettests_testreceiveloopemitsincomingtextbinaryandcleanremoteclose",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testreceiveloopemitsincomingtextbinaryandcleanremoteclose()"
     },
     {
@@ -8721,7 +8730,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L694",
       "id": "kobeanresttests_websockettests_websockettests_testunexpectedreceiveerroremitserrorandabnormaldisconnect",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testunexpectedreceiveerroremitserrorandabnormaldisconnect()"
     },
     {
@@ -8730,7 +8739,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L719",
       "id": "kobeanresttests_websockettests_websockettests_testpingsuccessandfailure",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testpingsuccessandfailure()"
     },
     {
@@ -8739,7 +8748,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L748",
       "id": "kobeanresttests_websockettests_websockettests_testdisconnectisidempotentandpassesclosecodeandreason",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testdisconnectisidempotentandpassesclosecodeandreason()"
     },
     {
@@ -8748,7 +8757,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L766",
       "id": "kobeanresttests_websockettests_websockettests_testdisconnectduringpendingopencancelshandshakecleanly",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testdisconnectduringpendingopencancelshandshakecleanly()"
     },
     {
@@ -8757,7 +8766,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L796",
       "id": "kobeanresttests_websockettests_websockettests_testmessagesystemdirectionmodel",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testmessagesystemdirectionmodel()"
     },
     {
@@ -8766,7 +8775,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L807",
       "id": "kobeanresttests_websockettests_websockettests_testliveurlsessionwebsockettaskagainstlocalnwlistener",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testliveurlsessionwebsockettaskagainstlocalnwlistener()"
     },
     {
@@ -8775,7 +8784,7 @@
       "source_file": "macos/KobeanRESTTests/WebSocketTests.swift",
       "source_location": "L854",
       "id": "kobeanresttests_websockettests_websockettests_testliveserverinitiatedcloseandconnectionrefusedagainstnwlistener",
-      "community": 5,
+      "community": 6,
       "norm_label": ".testliveserverinitiatedcloseandconnectionrefusedagainstnwlistener()"
     },
     {
@@ -8784,7 +8793,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1",
       "id": "macos_kobeanrest_app_appstate_swift",
-      "community": 6,
+      "community": 5,
       "norm_label": "appstate.swift"
     },
     {
@@ -8793,7 +8802,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L7",
       "id": "app_appstate_appstate",
-      "community": 6,
+      "community": 5,
       "norm_label": "appstate"
     },
     {
@@ -8802,7 +8811,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L41",
       "id": "app_appstate_appstate_init",
-      "community": 6,
+      "community": 5,
       "norm_label": ".init()"
     },
     {
@@ -8811,7 +8820,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L61",
       "id": "app_appstate_appstate_bootstrap",
-      "community": 6,
+      "community": 5,
       "norm_label": ".bootstrap()"
     },
     {
@@ -8820,7 +8829,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L91",
       "id": "app_appstate_appstate_refreshworkspace",
-      "community": 6,
+      "community": 5,
       "norm_label": ".refreshworkspace()"
     },
     {
@@ -8829,7 +8838,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L102",
       "id": "app_appstate_appstate_switchworkspace",
-      "community": 6,
+      "community": 5,
       "norm_label": ".switchworkspace()"
     },
     {
@@ -8838,7 +8847,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L126",
       "id": "app_appstate_appstate_createworkspace",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createworkspace()"
     },
     {
@@ -8856,7 +8865,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L155",
       "id": "app_appstate_appstate_loadscriptsfortab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".loadscriptsfortab()"
     },
     {
@@ -8865,7 +8874,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L172",
       "id": "app_appstate_appstate_createnewtab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createnewtab()"
     },
     {
@@ -8874,7 +8883,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L185",
       "id": "app_appstate_appstate_closetab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".closetab()"
     },
     {
@@ -8883,7 +8892,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L200",
       "id": "app_appstate_appstate_closeactivetab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".closeactivetab()"
     },
     {
@@ -8892,7 +8901,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L205",
       "id": "app_appstate_appstate_movetab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".movetab()"
     },
     {
@@ -8901,7 +8910,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L215",
       "id": "app_appstate_appstate_movetabtoend",
-      "community": 6,
+      "community": 5,
       "norm_label": ".movetabtoend()"
     },
     {
@@ -8910,7 +8919,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L224",
       "id": "app_appstate_appstate_focusurlbar",
-      "community": 6,
+      "community": 5,
       "norm_label": ".focusurlbar()"
     },
     {
@@ -8919,7 +8928,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L228",
       "id": "app_appstate_appstate_togglesplitorientation",
-      "community": 6,
+      "community": 5,
       "norm_label": ".togglesplitorientation()"
     },
     {
@@ -8928,7 +8937,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L232",
       "id": "app_appstate_appstate_updateactiverequest",
-      "community": 6,
+      "community": 5,
       "norm_label": ".updateactiverequest()"
     },
     {
@@ -8937,7 +8946,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L238",
       "id": "app_appstate_appstate_updatetab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".updatetab()"
     },
     {
@@ -8946,7 +8955,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L243",
       "id": "app_appstate_appstate_syncpathvariablesforactivetab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".syncpathvariablesforactivetab()"
     },
     {
@@ -8955,7 +8964,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L261",
       "id": "app_appstate_appstate_saveactivetab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".saveactivetab()"
     },
     {
@@ -8964,7 +8973,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L327",
       "id": "app_appstate_appstate_persistscriptsforrequest",
-      "community": 6,
+      "community": 5,
       "norm_label": ".persistscriptsforrequest()"
     },
     {
@@ -8982,7 +8991,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L594",
       "id": "app_appstate_appstate_buildenvironmentvariablemap",
-      "community": 6,
+      "community": 5,
       "norm_label": ".buildenvironmentvariablemap()"
     },
     {
@@ -8991,7 +9000,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L609",
       "id": "app_appstate_appstate_persistscriptenvironmentchanges",
-      "community": 6,
+      "community": 5,
       "norm_label": ".persistscriptenvironmentchanges()"
     },
     {
@@ -9018,7 +9027,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L690",
       "id": "app_appstate_appstate_cancelactivetab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".cancelactivetab()"
     },
     {
@@ -9027,7 +9036,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L701",
       "id": "app_appstate_appstate_cancelallinflight",
-      "community": 6,
+      "community": 5,
       "norm_label": ".cancelallinflight()"
     },
     {
@@ -9036,7 +9045,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L719",
       "id": "app_appstate_appstate_togglecollapseexpandall",
-      "community": 6,
+      "community": 5,
       "norm_label": ".togglecollapseexpandall()"
     },
     {
@@ -9045,7 +9054,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L729",
       "id": "app_appstate_appstate_setsidebarnodeexpanded",
-      "community": 6,
+      "community": 5,
       "norm_label": ".setsidebarnodeexpanded()"
     },
     {
@@ -9054,7 +9063,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L737",
       "id": "app_appstate_appstate_areallfolderscollapsed",
-      "community": 6,
+      "community": 5,
       "norm_label": ".areallfolderscollapsed()"
     },
     {
@@ -9063,7 +9072,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L742",
       "id": "app_appstate_appstate_togglecollapseexpandfolders",
-      "community": 6,
+      "community": 5,
       "norm_label": ".togglecollapseexpandfolders()"
     },
     {
@@ -9072,7 +9081,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L754",
       "id": "app_appstate_appstate_expandcontainerandancestors",
-      "community": 6,
+      "community": 5,
       "norm_label": ".expandcontainerandancestors()"
     },
     {
@@ -9081,7 +9090,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L772",
       "id": "app_appstate_appstate_createcollection",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createcollection()"
     },
     {
@@ -9090,7 +9099,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L783",
       "id": "app_appstate_appstate_renamecollection",
-      "community": 6,
+      "community": 5,
       "norm_label": ".renamecollection()"
     },
     {
@@ -9099,7 +9108,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L794",
       "id": "app_appstate_appstate_deletecollection",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deletecollection()"
     },
     {
@@ -9108,7 +9117,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L803",
       "id": "app_appstate_appstate_createfolder",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createfolder()"
     },
     {
@@ -9117,7 +9126,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L820",
       "id": "app_appstate_appstate_renamefolder",
-      "community": 6,
+      "community": 5,
       "norm_label": ".renamefolder()"
     },
     {
@@ -9126,7 +9135,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L831",
       "id": "app_appstate_appstate_deletefolder",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deletefolder()"
     },
     {
@@ -9135,7 +9144,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L840",
       "id": "app_appstate_appstate_createrequestinfolder",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createrequestinfolder()"
     },
     {
@@ -9144,7 +9153,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L851",
       "id": "app_appstate_appstate_duplicaterequest",
-      "community": 6,
+      "community": 5,
       "norm_label": ".duplicaterequest()"
     },
     {
@@ -9153,7 +9162,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L906",
       "id": "app_appstate_appstate_renamerequest",
-      "community": 6,
+      "community": 5,
       "norm_label": ".renamerequest()"
     },
     {
@@ -9162,7 +9171,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L930",
       "id": "app_appstate_appstate_deleterequest",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deleterequest()"
     },
     {
@@ -9171,7 +9180,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L945",
       "id": "app_appstate_appstate_selectenvironment",
-      "community": 6,
+      "community": 5,
       "norm_label": ".selectenvironment()"
     },
     {
@@ -9180,7 +9189,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L954",
       "id": "app_appstate_appstate_createenvironment",
-      "community": 6,
+      "community": 5,
       "norm_label": ".createenvironment()"
     },
     {
@@ -9189,7 +9198,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L965",
       "id": "app_appstate_appstate_renameenvironment",
-      "community": 6,
+      "community": 5,
       "norm_label": ".renameenvironment()"
     },
     {
@@ -9198,7 +9207,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L976",
       "id": "app_appstate_appstate_deleteenvironment",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deleteenvironment()"
     },
     {
@@ -9207,7 +9216,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L985",
       "id": "app_appstate_appstate_savevariable",
-      "community": 6,
+      "community": 5,
       "norm_label": ".savevariable()"
     },
     {
@@ -9216,7 +9225,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1011",
       "id": "app_appstate_appstate_deletevariable",
-      "community": 6,
+      "community": 5,
       "norm_label": ".deletevariable()"
     },
     {
@@ -9225,7 +9234,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1026",
       "id": "app_appstate_appstate_loadhistory",
-      "community": 6,
+      "community": 5,
       "norm_label": ".loadhistory()"
     },
     {
@@ -9234,7 +9243,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1032",
       "id": "app_appstate_appstate_clearhistory",
-      "community": 6,
+      "community": 5,
       "norm_label": ".clearhistory()"
     },
     {
@@ -9261,7 +9270,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1124",
       "id": "app_appstate_appstate_savesettings",
-      "community": 6,
+      "community": 5,
       "norm_label": ".savesettings()"
     },
     {
@@ -9270,7 +9279,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1135",
       "id": "app_appstate_appstate_authorizeoauth2foractivetab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".authorizeoauth2foractivetab()"
     },
     {
@@ -9279,7 +9288,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1244",
       "id": "app_appstate_appstate_refreshoauth2foractivetab",
-      "community": 6,
+      "community": 5,
       "norm_label": ".refreshoauth2foractivetab()"
     },
     {
@@ -9288,7 +9297,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1309",
       "id": "app_appstate_appstate_externalizeauthsecrets",
-      "community": 6,
+      "community": 5,
       "norm_label": ".externalizeauthsecrets()"
     },
     {
@@ -9297,7 +9306,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1340",
       "id": "app_appstate_appstate_secretvaluerequiringexternalization",
-      "community": 6,
+      "community": 5,
       "norm_label": ".secretvaluerequiringexternalization()"
     },
     {
@@ -9306,7 +9315,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1348",
       "id": "app_appstate_appstate_buildmergedvariablemapforauth",
-      "community": 6,
+      "community": 5,
       "norm_label": ".buildmergedvariablemapforauth()"
     },
     {
@@ -9315,7 +9324,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1360",
       "id": "app_appstate_appstate_resolveauthsecretvalue",
-      "community": 6,
+      "community": 5,
       "norm_label": ".resolveauthsecretvalue()"
     },
     {
@@ -9324,7 +9333,7 @@
       "source_file": "macos/KobeanREST/App/AppState.swift",
       "source_location": "L1378",
       "id": "app_appstate_appstate_resolvevariables",
-      "community": 6,
+      "community": 5,
       "norm_label": ".resolvevariables()"
     },
     {
@@ -9342,7 +9351,7 @@
       "source_file": "macos/KobeanREST/App/RootWorkbenchView.swift",
       "source_location": "L1",
       "id": "macos_kobeanrest_app_rootworkbenchview_swift",
-      "community": 8,
+      "community": 7,
       "norm_label": "rootworkbenchview.swift"
     },
     {
@@ -9351,7 +9360,7 @@
       "source_file": "macos/KobeanREST/App/RootWorkbenchView.swift",
       "source_location": "L3",
       "id": "app_rootworkbenchview_rootworkbenchview",
-      "community": 8,
+      "community": 7,
       "norm_label": "rootworkbenchview"
     },
     {
@@ -9360,7 +9369,7 @@
       "source_file": "",
       "source_location": "",
       "id": "view",
-      "community": 8,
+      "community": 7,
       "norm_label": "view"
     },
     {
@@ -9369,7 +9378,7 @@
       "source_file": "macos/KobeanREST/App/SettingsView.swift",
       "source_location": "L1",
       "id": "macos_kobeanrest_app_settingsview_swift",
-      "community": 8,
+      "community": 7,
       "norm_label": "settingsview.swift"
     },
     {
@@ -9378,7 +9387,7 @@
       "source_file": "macos/KobeanREST/App/SettingsView.swift",
       "source_location": "L3",
       "id": "app_settingsview_settingsview",
-      "community": 8,
+      "community": 7,
       "norm_label": "settingsview"
     },
     {
@@ -9414,7 +9423,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L1",
       "id": "macos_kobeanrest_features_sidebar_sidebarview_swift",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebarview.swift"
     },
     {
@@ -9423,7 +9432,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L4",
       "id": "sidebar_sidebarview_sidebarview",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebarview"
     },
     {
@@ -9432,7 +9441,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L20",
       "id": "sidebar_sidebarview_sidebarpromptaction",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebarpromptaction"
     },
     {
@@ -9450,7 +9459,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L21",
       "id": "sidebar_sidebarview_sidebarpromptaction_createworkspace",
-      "community": 8,
+      "community": 7,
       "norm_label": "createworkspace"
     },
     {
@@ -9459,7 +9468,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L22",
       "id": "sidebar_sidebarview_sidebarpromptaction_createcollection",
-      "community": 8,
+      "community": 7,
       "norm_label": "createcollection"
     },
     {
@@ -9468,7 +9477,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L23",
       "id": "sidebar_sidebarview_sidebarpromptaction_createfolder",
-      "community": 8,
+      "community": 7,
       "norm_label": "createfolder"
     },
     {
@@ -9477,7 +9486,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L262",
       "id": "sidebar_sidebarview_sidebarview_sidebarrowview",
-      "community": 8,
+      "community": 7,
       "norm_label": ".sidebarrowview()"
     },
     {
@@ -9486,7 +9495,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L418",
       "id": "sidebar_sidebarview_sidebarview_disclosurebutton",
-      "community": 8,
+      "community": 7,
       "norm_label": ".disclosurebutton()"
     },
     {
@@ -9495,7 +9504,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L435",
       "id": "sidebar_sidebarview_sidebarview_rownamecontent",
-      "community": 8,
+      "community": 7,
       "norm_label": ".rownamecontent()"
     },
     {
@@ -9504,7 +9513,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L463",
       "id": "sidebar_sidebarview_sidebarview_handleselectionchange",
-      "community": 8,
+      "community": 7,
       "norm_label": ".handleselectionchange()"
     },
     {
@@ -9513,7 +9522,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L474",
       "id": "sidebar_sidebarview_sidebarview_handleleftarrow",
-      "community": 8,
+      "community": 7,
       "norm_label": ".handleleftarrow()"
     },
     {
@@ -9522,7 +9531,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L498",
       "id": "sidebar_sidebarview_sidebarview_handlerightarrow",
-      "community": 8,
+      "community": 7,
       "norm_label": ".handlerightarrow()"
     },
     {
@@ -9531,7 +9540,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L524",
       "id": "sidebar_sidebarview_sidebarview_beginrename",
-      "community": 8,
+      "community": 7,
       "norm_label": ".beginrename()"
     },
     {
@@ -9540,7 +9549,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L537",
       "id": "sidebar_sidebarview_sidebarview_cancelrename",
-      "community": 8,
+      "community": 7,
       "norm_label": ".cancelrename()"
     },
     {
@@ -9549,7 +9558,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L548",
       "id": "sidebar_sidebarview_sidebarview_commitrename",
-      "community": 8,
+      "community": 7,
       "norm_label": ".commitrename()"
     },
     {
@@ -9558,7 +9567,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L690",
       "id": "sidebar_sidebarview_sidebarview_filteredhistory",
-      "community": 8,
+      "community": 7,
       "norm_label": ".filteredhistory()"
     },
     {
@@ -9567,7 +9576,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L700",
       "id": "sidebar_sidebarview_sidebarview_statuscolor",
-      "community": 8,
+      "community": 7,
       "norm_label": ".statuscolor()"
     },
     {
@@ -9576,7 +9585,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L709",
       "id": "sidebar_sidebarview_sidebarview_namepromptsheet",
-      "community": 8,
+      "community": 7,
       "norm_label": ".namepromptsheet()"
     },
     {
@@ -9585,7 +9594,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L736",
       "id": "sidebar_sidebarview_sidebarview_submitprompt",
-      "community": 8,
+      "community": 7,
       "norm_label": ".submitprompt()"
     },
     {
@@ -9594,7 +9603,7 @@
       "source_file": "macos/KobeanREST/Features/Sidebar/SidebarView.swift",
       "source_location": "L754",
       "id": "sidebar_sidebarview_methodbadge",
-      "community": 8,
+      "community": 7,
       "norm_label": "methodbadge"
     },
     {
@@ -10008,7 +10017,7 @@
       "source_file": "macos/KobeanREST/Features/CollectionRunner/CollectionRunnerSheetView.swift",
       "source_location": "L603",
       "id": "collectionrunner_collectionrunnersheetview_collectionrunnersheetview",
-      "community": 8,
+      "community": 7,
       "norm_label": "collectionrunnersheetview"
     },
     {
@@ -10017,7 +10026,7 @@
       "source_file": "macos/KobeanREST/Features/CollectionRunner/CollectionRunnerSheetView.swift",
       "source_location": "L610",
       "id": "collectionrunner_collectionrunnersheetview_collectionrunnersheetview_init",
-      "community": 8,
+      "community": 7,
       "norm_label": ".init()"
     },
     {
@@ -10026,7 +10035,7 @@
       "source_file": "macos/KobeanREST/Features/CollectionRunner/CollectionRunnerSheetView.swift",
       "source_location": "L758",
       "id": "collectionrunner_collectionrunnersheetview_collectionrunnersheetview_resultrow",
-      "community": 8,
+      "community": 7,
       "norm_label": ".resultrow()"
     },
     {
@@ -10035,7 +10044,7 @@
       "source_file": "macos/KobeanREST/Features/CollectionRunner/CollectionRunnerSheetView.swift",
       "source_location": "L841",
       "id": "collectionrunner_collectionrunnersheetview_collectionrunnersheetview_statusicon",
-      "community": 8,
+      "community": 7,
       "norm_label": ".statusicon()"
     },
     {
@@ -10044,7 +10053,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L1",
       "id": "macos_kobeanrest_features_websocket_websocketworkbenchview_swift",
-      "community": 8,
+      "community": 7,
       "norm_label": "websocketworkbenchview.swift"
     },
     {
@@ -10053,7 +10062,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L6",
       "id": "websocket_websocketworkbenchview_websocketviewmodel",
-      "community": 5,
+      "community": 6,
       "norm_label": "websocketviewmodel"
     },
     {
@@ -10062,7 +10071,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L21",
       "id": "websocket_websocketworkbenchview_websocketviewmodel_init",
-      "community": 5,
+      "community": 6,
       "norm_label": ".init()"
     },
     {
@@ -10071,7 +10080,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L45",
       "id": "websocket_websocketworkbenchview_websocketviewmodel_observeevents",
-      "community": 5,
+      "community": 6,
       "norm_label": ".observeevents()"
     },
     {
@@ -10080,7 +10089,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L56",
       "id": "websocket_websocketworkbenchview_websocketviewmodel_connect",
-      "community": 5,
+      "community": 6,
       "norm_label": ".connect()"
     },
     {
@@ -10089,7 +10098,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L82",
       "id": "websocket_websocketworkbenchview_websocketviewmodel_disconnect",
-      "community": 5,
+      "community": 6,
       "norm_label": ".disconnect()"
     },
     {
@@ -10098,7 +10107,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L86",
       "id": "websocket_websocketworkbenchview_websocketviewmodel_send",
-      "community": 5,
+      "community": 6,
       "norm_label": ".send()"
     },
     {
@@ -10107,7 +10116,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L104",
       "id": "websocket_websocketworkbenchview_websocketviewmodel_ping",
-      "community": 5,
+      "community": 6,
       "norm_label": ".ping()"
     },
     {
@@ -10116,7 +10125,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L123",
       "id": "websocket_websocketworkbenchview_websocketviewmodel_clearlog",
-      "community": 5,
+      "community": 6,
       "norm_label": ".clearlog()"
     },
     {
@@ -10125,7 +10134,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L127",
       "id": "websocket_websocketworkbenchview_websocketviewmodel_handle",
-      "community": 5,
+      "community": 6,
       "norm_label": ".handle()"
     },
     {
@@ -10134,7 +10143,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L160",
       "id": "websocket_websocketworkbenchview_websocketviewmodel_parsebinarypayload",
-      "community": 5,
+      "community": 6,
       "norm_label": ".parsebinarypayload()"
     },
     {
@@ -10143,7 +10152,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L185",
       "id": "websocket_websocketworkbenchview_websocketworkbenchview",
-      "community": 8,
+      "community": 7,
       "norm_label": "websocketworkbenchview"
     },
     {
@@ -10152,7 +10161,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L198",
       "id": "websocket_websocketworkbenchview_websocketworkbenchview_init",
-      "community": 8,
+      "community": 7,
       "norm_label": ".init()"
     },
     {
@@ -10161,7 +10170,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L364",
       "id": "websocket_websocketworkbenchview_websocketworkbenchview_errorbanner",
-      "community": 8,
+      "community": 7,
       "norm_label": ".errorbanner()"
     },
     {
@@ -10170,7 +10179,7 @@
       "source_file": "macos/KobeanREST/Features/WebSocket/WebSocketWorkbenchView.swift",
       "source_location": "L430",
       "id": "websocket_websocketworkbenchview_websocketworkbenchview_messagerow",
-      "community": 8,
+      "community": 7,
       "norm_label": ".messagerow()"
     },
     {
@@ -10179,7 +10188,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L1",
       "id": "macos_kobeanrest_features_response_responseinspectorview_swift",
-      "community": 8,
+      "community": 7,
       "norm_label": "responseinspectorview.swift"
     },
     {
@@ -10188,7 +10197,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L4",
       "id": "response_responseinspectorview_responseinspectorview",
-      "community": 8,
+      "community": 7,
       "norm_label": "responseinspectorview"
     },
     {
@@ -10197,7 +10206,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L47",
       "id": "response_responseinspectorview_responseinspectorview_loadingview",
-      "community": 8,
+      "community": 7,
       "norm_label": ".loadingview()"
     },
     {
@@ -10206,7 +10215,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L67",
       "id": "response_responseinspectorview_responseinspectorview_errorview",
-      "community": 8,
+      "community": 7,
       "norm_label": ".errorview()"
     },
     {
@@ -10215,7 +10224,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L95",
       "id": "response_responseinspectorview_responseinspectorview_successview",
-      "community": 8,
+      "community": 7,
       "norm_label": ".successview()"
     },
     {
@@ -10224,7 +10233,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L113",
       "id": "response_responseinspectorview_responseinspectorview_statusbar",
-      "community": 8,
+      "community": 7,
       "norm_label": ".statusbar()"
     },
     {
@@ -10233,7 +10242,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L151",
       "id": "response_responseinspectorview_responseinspectorview_tablabel",
-      "community": 8,
+      "community": 7,
       "norm_label": ".tablabel()"
     },
     {
@@ -10242,7 +10251,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L167",
       "id": "response_responseinspectorview_responseinspectorview_bodyview",
-      "community": 8,
+      "community": 7,
       "norm_label": ".bodyview()"
     },
     {
@@ -10251,7 +10260,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L215",
       "id": "response_responseinspectorview_responseinspectorview_headersview",
-      "community": 8,
+      "community": 7,
       "norm_label": ".headersview()"
     },
     {
@@ -10260,7 +10269,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L243",
       "id": "response_responseinspectorview_responseinspectorview_timingview",
-      "community": 8,
+      "community": 7,
       "norm_label": ".timingview()"
     },
     {
@@ -10269,7 +10278,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L263",
       "id": "response_responseinspectorview_responseinspectorview_timingrow",
-      "community": 8,
+      "community": 7,
       "norm_label": ".timingrow()"
     },
     {
@@ -10278,7 +10287,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L413",
       "id": "response_responseinspectorview_responseinspectorview_loglevelcolor",
-      "community": 8,
+      "community": 7,
       "norm_label": ".loglevelcolor()"
     },
     {
@@ -10287,7 +10296,7 @@
       "source_file": "macos/KobeanREST/Features/Response/ResponseInspectorView.swift",
       "source_location": "L421",
       "id": "response_responseinspectorview_responseinspectorview_formattedbytes",
-      "community": 8,
+      "community": 7,
       "norm_label": ".formattedbytes()"
     },
     {
@@ -10296,7 +10305,7 @@
       "source_file": "macos/KobeanREST/Features/Environments/EnvironmentManagerView.swift",
       "source_location": "L1",
       "id": "macos_kobeanrest_features_environments_environmentmanagerview_swift",
-      "community": 8,
+      "community": 7,
       "norm_label": "environmentmanagerview.swift"
     },
     {
@@ -10305,7 +10314,7 @@
       "source_file": "macos/KobeanREST/Features/Environments/EnvironmentManagerView.swift",
       "source_location": "L3",
       "id": "environments_environmentmanagerview_environmentmanagerview",
-      "community": 8,
+      "community": 7,
       "norm_label": "environmentmanagerview"
     },
     {
@@ -10314,7 +10323,7 @@
       "source_file": "macos/KobeanREST/Features/Environments/EnvironmentManagerView.swift",
       "source_location": "L202",
       "id": "environments_environmentmanagerview_environmentmanagerview_addvariablebar",
-      "community": 8,
+      "community": 7,
       "norm_label": ".addvariablebar()"
     },
     {
@@ -10323,7 +10332,7 @@
       "source_file": "macos/KobeanREST/Features/Environments/EnvironmentManagerView.swift",
       "source_location": "L258",
       "id": "environments_environmentmanagerview_environmentmanagerview_createenv",
-      "community": 8,
+      "community": 7,
       "norm_label": ".createenv()"
     },
     {
@@ -10350,7 +10359,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L16",
       "id": "mockserver_mockserversheetview_codingkeys",
-      "community": 7,
+      "community": 8,
       "norm_label": "codingkeys"
     },
     {
@@ -10368,7 +10377,7 @@
       "source_file": "",
       "source_location": "",
       "id": "codingkey",
-      "community": 7,
+      "community": 8,
       "norm_label": "codingkey"
     },
     {
@@ -10377,7 +10386,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L17",
       "id": "mockserver_mockserversheetview_codingkeys_id",
-      "community": 7,
+      "community": 8,
       "norm_label": "id"
     },
     {
@@ -10386,7 +10395,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L17",
       "id": "mockserver_mockserversheetview_codingkeys_method",
-      "community": 7,
+      "community": 8,
       "norm_label": "method"
     },
     {
@@ -10395,7 +10404,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L17",
       "id": "mockserver_mockserversheetview_codingkeys_path",
-      "community": 7,
+      "community": 8,
       "norm_label": "path"
     },
     {
@@ -10404,7 +10413,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L17",
       "id": "mockserver_mockserversheetview_codingkeys_enabled",
-      "community": 7,
+      "community": 8,
       "norm_label": "enabled"
     },
     {
@@ -10413,7 +10422,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L18",
       "id": "mockserver_mockserversheetview_codingkeys_statuscode",
-      "community": 7,
+      "community": 8,
       "norm_label": "statuscode"
     },
     {
@@ -10422,7 +10431,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L19",
       "id": "mockserver_mockserversheetview_codingkeys_responsebody",
-      "community": 7,
+      "community": 8,
       "norm_label": "responsebody"
     },
     {
@@ -10431,7 +10440,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L20",
       "id": "mockserver_mockserversheetview_codingkeys_contenttype",
-      "community": 7,
+      "community": 8,
       "norm_label": "contenttype"
     },
     {
@@ -10440,7 +10449,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L21",
       "id": "mockserver_mockserversheetview_codingkeys_delayms",
-      "community": 7,
+      "community": 8,
       "norm_label": "delayms"
     },
     {
@@ -10467,7 +10476,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L55",
       "id": "mockserver_mockserversheetview_codingkeys_timestamp",
-      "community": 7,
+      "community": 8,
       "norm_label": "timestamp"
     },
     {
@@ -10476,7 +10485,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L56",
       "id": "mockserver_mockserversheetview_codingkeys_matchedrouteid",
-      "community": 7,
+      "community": 8,
       "norm_label": "matchedrouteid"
     },
     {
@@ -10485,7 +10494,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L58",
       "id": "mockserver_mockserversheetview_codingkeys_durationms",
-      "community": 7,
+      "community": 8,
       "norm_label": "durationms"
     },
     {
@@ -10503,7 +10512,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L69",
       "id": "mockserver_mockserversheetview_codingkeys_running",
-      "community": 7,
+      "community": 8,
       "norm_label": "running"
     },
     {
@@ -10512,7 +10521,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L69",
       "id": "mockserver_mockserversheetview_codingkeys_port",
-      "community": 7,
+      "community": 8,
       "norm_label": "port"
     },
     {
@@ -10521,7 +10530,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L70",
       "id": "mockserver_mockserversheetview_codingkeys_requestcount",
-      "community": 7,
+      "community": 8,
       "norm_label": "requestcount"
     },
     {
@@ -10530,7 +10539,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L71",
       "id": "mockserver_mockserversheetview_codingkeys_activecollectionid",
-      "community": 7,
+      "community": 8,
       "norm_label": "activecollectionid"
     },
     {
@@ -10692,7 +10701,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L369",
       "id": "mockserver_mockserversheetview_mockserversheetview",
-      "community": 8,
+      "community": 7,
       "norm_label": "mockserversheetview"
     },
     {
@@ -10701,7 +10710,7 @@
       "source_file": "macos/KobeanREST/Features/MockServer/MockServerSheetView.swift",
       "source_location": "L386",
       "id": "mockserver_mockserversheetview_mockserversheetview_init",
-      "community": 8,
+      "community": 7,
       "norm_label": ".init()"
     },
     {
@@ -10728,7 +10737,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L11",
       "id": "mcp_mcptoolssheetview_codingkeys",
-      "community": 7,
+      "community": 8,
       "norm_label": "codingkeys"
     },
     {
@@ -10737,7 +10746,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L12",
       "id": "mcp_mcptoolssheetview_codingkeys_version",
-      "community": 7,
+      "community": 8,
       "norm_label": "version"
     },
     {
@@ -10746,7 +10755,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L13",
       "id": "mcp_mcptoolssheetview_codingkeys_manifestjson",
-      "community": 7,
+      "community": 8,
       "norm_label": "manifestjson"
     },
     {
@@ -10755,7 +10764,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L14",
       "id": "mcp_mcptoolssheetview_codingkeys_servername",
-      "community": 7,
+      "community": 8,
       "norm_label": "servername"
     },
     {
@@ -10791,7 +10800,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L37",
       "id": "mcp_mcptoolssheetview_mcptoolsviewmodel",
-      "community": 8,
+      "community": 7,
       "norm_label": "mcptoolsviewmodel"
     },
     {
@@ -10800,7 +10809,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L52",
       "id": "mcp_mcptoolssheetview_mcptoolsviewmodel_init",
-      "community": 8,
+      "community": 7,
       "norm_label": ".init()"
     },
     {
@@ -10809,7 +10818,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L61",
       "id": "mcp_mcptoolssheetview_mcptoolsviewmodel_loadmanifest",
-      "community": 8,
+      "community": 7,
       "norm_label": ".loadmanifest()"
     },
     {
@@ -10818,7 +10827,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L84",
       "id": "mcp_mcptoolssheetview_mcptoolsviewmodel_selecttool",
-      "community": 8,
+      "community": 7,
       "norm_label": ".selecttool()"
     },
     {
@@ -10827,7 +10836,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L91",
       "id": "mcp_mcptoolssheetview_mcptoolsviewmodel_runselectedtool",
-      "community": 8,
+      "community": 7,
       "norm_label": ".runselectedtool()"
     },
     {
@@ -10836,7 +10845,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L119",
       "id": "mcp_mcptoolssheetview_mcptoolsviewmodel_defaultargumentstemplate",
-      "community": 8,
+      "community": 7,
       "norm_label": ".defaultargumentstemplate()"
     },
     {
@@ -10845,7 +10854,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L133",
       "id": "mcp_mcptoolssheetview_mcptoolsviewmodel_prettyprintjson",
-      "community": 8,
+      "community": 7,
       "norm_label": ".prettyprintjson()"
     },
     {
@@ -10854,7 +10863,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L145",
       "id": "mcp_mcptoolssheetview_mcptoolssheetview",
-      "community": 8,
+      "community": 7,
       "norm_label": "mcptoolssheetview"
     },
     {
@@ -10863,7 +10872,7 @@
       "source_file": "macos/KobeanREST/Features/MCP/McpToolsSheetView.swift",
       "source_location": "L152",
       "id": "mcp_mcptoolssheetview_mcptoolssheetview_init",
-      "community": 8,
+      "community": 7,
       "norm_label": ".init()"
     },
     {
@@ -10926,7 +10935,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L1",
       "id": "macos_kobeanrest_features_workbench_workbenchview_swift",
-      "community": 8,
+      "community": 7,
       "norm_label": "workbenchview.swift"
     },
     {
@@ -10935,7 +10944,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L4",
       "id": "workbench_workbenchview_workbenchview",
-      "community": 8,
+      "community": 7,
       "norm_label": "workbenchview"
     },
     {
@@ -10944,7 +10953,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L35",
       "id": "workbench_workbenchview_tabdragstate",
-      "community": 8,
+      "community": 7,
       "norm_label": "tabdragstate"
     },
     {
@@ -10953,7 +10962,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L42",
       "id": "workbench_workbenchview_tabdragstate_begin",
-      "community": 8,
+      "community": 7,
       "norm_label": ".begin()"
     },
     {
@@ -10962,7 +10971,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L49",
       "id": "workbench_workbenchview_tabdragstate_reset",
-      "community": 8,
+      "community": 7,
       "norm_label": ".reset()"
     },
     {
@@ -10971,7 +10980,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L57",
       "id": "workbench_workbenchview_tabdropdelegate",
-      "community": 8,
+      "community": 7,
       "norm_label": "tabdropdelegate"
     },
     {
@@ -10980,7 +10989,7 @@
       "source_file": "",
       "source_location": "",
       "id": "dropdelegate",
-      "community": 8,
+      "community": 7,
       "norm_label": "dropdelegate"
     },
     {
@@ -10989,7 +10998,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L63",
       "id": "workbench_workbenchview_tabdropdelegate_validatedrop",
-      "community": 8,
+      "community": 7,
       "norm_label": ".validatedrop()"
     },
     {
@@ -10998,7 +11007,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L69",
       "id": "workbench_workbenchview_tabdropdelegate_dropupdated",
-      "community": 8,
+      "community": 7,
       "norm_label": ".dropupdated()"
     },
     {
@@ -11007,7 +11016,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L77",
       "id": "workbench_workbenchview_tabdropdelegate_dropentered",
-      "community": 8,
+      "community": 7,
       "norm_label": ".dropentered()"
     },
     {
@@ -11016,7 +11025,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L105",
       "id": "workbench_workbenchview_tabdropdelegate_performdrop",
-      "community": 8,
+      "community": 7,
       "norm_label": ".performdrop()"
     },
     {
@@ -11025,7 +11034,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L181",
       "id": "workbench_workbenchview_workbenchview_tabitem",
-      "community": 8,
+      "community": 7,
       "norm_label": ".tabitem()"
     },
     {
@@ -11034,7 +11043,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L234",
       "id": "workbench_workbenchview_workbenchview_requesttoolbar",
-      "community": 8,
+      "community": 7,
       "norm_label": ".requesttoolbar()"
     },
     {
@@ -11043,7 +11052,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L378",
       "id": "workbench_workbenchview_workbenchview_splitcontent",
-      "community": 8,
+      "community": 7,
       "norm_label": ".splitcontent()"
     },
     {
@@ -11052,7 +11061,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L424",
       "id": "workbench_workbenchview_workbenchview_requestinspector",
-      "community": 8,
+      "community": 7,
       "norm_label": ".requestinspector()"
     },
     {
@@ -11061,7 +11070,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L468",
       "id": "workbench_workbenchview_workbenchview_sectiontitle",
-      "community": 8,
+      "community": 7,
       "norm_label": ".sectiontitle()"
     },
     {
@@ -11070,7 +11079,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L487",
       "id": "workbench_workbenchview_workbenchview_paramseditor",
-      "community": 8,
+      "community": 7,
       "norm_label": ".paramseditor()"
     },
     {
@@ -11079,7 +11088,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L579",
       "id": "workbench_workbenchview_workbenchview_updatequeryparamsandurl",
-      "community": 8,
+      "community": 7,
       "norm_label": ".updatequeryparamsandurl()"
     },
     {
@@ -11088,7 +11097,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L597",
       "id": "workbench_workbenchview_workbenchview_headerseditor",
-      "community": 8,
+      "community": 7,
       "norm_label": ".headerseditor()"
     },
     {
@@ -11097,7 +11106,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L637",
       "id": "workbench_workbenchview_workbenchview_autheditor",
-      "community": 8,
+      "community": 7,
       "norm_label": ".autheditor()"
     },
     {
@@ -11106,7 +11115,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L836",
       "id": "workbench_workbenchview_workbenchview_bodyeditor",
-      "community": 8,
+      "community": 7,
       "norm_label": ".bodyeditor()"
     },
     {
@@ -11115,7 +11124,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L932",
       "id": "workbench_workbenchview_workbenchview_formatbodyjson",
-      "community": 8,
+      "community": 7,
       "norm_label": ".formatbodyjson()"
     },
     {
@@ -11124,7 +11133,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L943",
       "id": "workbench_workbenchview_workbenchview_scriptseditor",
-      "community": 8,
+      "community": 7,
       "norm_label": ".scriptseditor()"
     },
     {
@@ -11133,7 +11142,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/WorkbenchView.swift",
       "source_location": "L1055",
       "id": "workbench_workbenchview_keyvaluerowseditor",
-      "community": 8,
+      "community": 7,
       "norm_label": "keyvaluerowseditor"
     },
     {
@@ -11142,7 +11151,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/ImportSheetView.swift",
       "source_location": "L1",
       "id": "macos_kobeanrest_features_workbench_importsheetview_swift",
-      "community": 8,
+      "community": 7,
       "norm_label": "importsheetview.swift"
     },
     {
@@ -11151,7 +11160,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/ImportSheetView.swift",
       "source_location": "L5",
       "id": "workbench_importsheetview_importsheetview",
-      "community": 8,
+      "community": 7,
       "norm_label": "importsheetview"
     },
     {
@@ -11160,7 +11169,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/ImportSheetView.swift",
       "source_location": "L71",
       "id": "workbench_importsheetview_importsheetview_choosefile",
-      "community": 8,
+      "community": 7,
       "norm_label": ".choosefile()"
     },
     {
@@ -11169,7 +11178,7 @@
       "source_file": "macos/KobeanREST/Features/Workbench/ImportSheetView.swift",
       "source_location": "L81",
       "id": "workbench_importsheetview_importsheetview_runimport",
-      "community": 8,
+      "community": 7,
       "norm_label": ".runimport()"
     },
     {
@@ -11376,7 +11385,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L69",
       "id": "models_kobeanmodels_bodymimetype_from",
-      "community": 7,
+      "community": 8,
       "norm_label": ".from()"
     },
     {
@@ -11394,7 +11403,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L75",
       "id": "models_kobeanmodels_authmode_none",
-      "community": 0,
+      "community": 20,
       "norm_label": "none"
     },
     {
@@ -11439,7 +11448,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L93",
       "id": "models_kobeanmodels_authmode_from",
-      "community": 7,
+      "community": 8,
       "norm_label": ".from()"
     },
     {
@@ -11493,7 +11502,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L103",
       "id": "models_kobeanmodels_requestinspectortab_scripts",
-      "community": 0,
+      "community": 12,
       "norm_label": "scripts"
     },
     {
@@ -11655,7 +11664,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L145",
       "id": "models_kobeanmodels_codingkeys",
-      "community": 7,
+      "community": 8,
       "norm_label": "codingkeys"
     },
     {
@@ -11664,7 +11673,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L146",
       "id": "models_kobeanmodels_codingkeys_key",
-      "community": 7,
+      "community": 8,
       "norm_label": "key"
     },
     {
@@ -11673,7 +11682,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L146",
       "id": "models_kobeanmodels_codingkeys_value",
-      "community": 7,
+      "community": 8,
       "norm_label": "value"
     },
     {
@@ -11682,7 +11691,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L146",
       "id": "models_kobeanmodels_codingkeys_enabled",
-      "community": 7,
+      "community": 8,
       "norm_label": "enabled"
     },
     {
@@ -11691,7 +11700,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L147",
       "id": "models_kobeanmodels_codingkeys_fieldtype",
-      "community": 7,
+      "community": 8,
       "norm_label": "fieldtype"
     },
     {
@@ -11736,7 +11745,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L194",
       "id": "models_kobeanmodels_codingkeys_id",
-      "community": 7,
+      "community": 8,
       "norm_label": "id"
     },
     {
@@ -11745,7 +11754,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L194",
       "id": "models_kobeanmodels_codingkeys_name",
-      "community": 7,
+      "community": 8,
       "norm_label": "name"
     },
     {
@@ -11754,7 +11763,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L194",
       "id": "models_kobeanmodels_codingkeys_code",
-      "community": 7,
+      "community": 8,
       "norm_label": "code"
     },
     {
@@ -11763,7 +11772,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L194",
       "id": "models_kobeanmodels_codingkeys_status",
-      "community": 7,
+      "community": 8,
       "norm_label": "status"
     },
     {
@@ -11772,7 +11781,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L194",
       "id": "models_kobeanmodels_codingkeys_headers",
-      "community": 5,
+      "community": 6,
       "norm_label": "headers"
     },
     {
@@ -11781,7 +11790,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L194",
       "id": "models_kobeanmodels_codingkeys_body",
-      "community": 7,
+      "community": 2,
       "norm_label": "body"
     },
     {
@@ -11790,7 +11799,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L194",
       "id": "models_kobeanmodels_codingkeys_bodymimetype",
-      "community": 7,
+      "community": 8,
       "norm_label": "bodymimetype"
     },
     {
@@ -11817,7 +11826,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L217",
       "id": "models_kobeanmodels_codingkeys_description",
-      "community": 7,
+      "community": 8,
       "norm_label": "description"
     },
     {
@@ -11844,7 +11853,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L252",
       "id": "models_kobeanmodels_codingkeys_secret",
-      "community": 7,
+      "community": 8,
       "norm_label": "secret"
     },
     {
@@ -11853,7 +11862,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L252",
       "id": "models_kobeanmodels_codingkeys_secretref",
-      "community": 7,
+      "community": 8,
       "norm_label": "secretref"
     },
     {
@@ -11934,7 +11943,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L393",
       "id": "models_kobeanmodels_codingkeys_method",
-      "community": 7,
+      "community": 8,
       "norm_label": "method"
     },
     {
@@ -11952,7 +11961,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L393",
       "id": "models_kobeanmodels_codingkeys_folderid",
-      "community": 7,
+      "community": 8,
       "norm_label": "folderid"
     },
     {
@@ -11961,7 +11970,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L393",
       "id": "models_kobeanmodels_codingkeys_authmode",
-      "community": 7,
+      "community": 8,
       "norm_label": "authmode"
     },
     {
@@ -11970,7 +11979,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L393",
       "id": "models_kobeanmodels_codingkeys_authconfig",
-      "community": 12,
+      "community": 0,
       "norm_label": "authconfig"
     },
     {
@@ -11979,7 +11988,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L394",
       "id": "models_kobeanmodels_codingkeys_queryparams",
-      "community": 7,
+      "community": 8,
       "norm_label": "queryparams"
     },
     {
@@ -11988,7 +11997,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L394",
       "id": "models_kobeanmodels_codingkeys_bodyform",
-      "community": 7,
+      "community": 8,
       "norm_label": "bodyform"
     },
     {
@@ -11997,7 +12006,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L395",
       "id": "models_kobeanmodels_codingkeys_timeoutms",
-      "community": 7,
+      "community": 8,
       "norm_label": "timeoutms"
     },
     {
@@ -12006,7 +12015,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L395",
       "id": "models_kobeanmodels_codingkeys_followredirects",
-      "community": 7,
+      "community": 8,
       "norm_label": "followredirects"
     },
     {
@@ -12015,7 +12024,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L395",
       "id": "models_kobeanmodels_codingkeys_variables",
-      "community": 7,
+      "community": 8,
       "norm_label": "variables"
     },
     {
@@ -12024,7 +12033,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L396",
       "id": "models_kobeanmodels_codingkeys_examples",
-      "community": 7,
+      "community": 8,
       "norm_label": "examples"
     },
     {
@@ -12033,7 +12042,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L396",
       "id": "models_kobeanmodels_codingkeys_pathvariables",
-      "community": 7,
+      "community": 8,
       "norm_label": "pathvariables"
     },
     {
@@ -12096,7 +12105,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L517",
       "id": "models_kobeanmodels_codingkeys_masked",
-      "community": 7,
+      "community": 8,
       "norm_label": "masked"
     },
     {
@@ -12141,7 +12150,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L579",
       "id": "models_kobeanmodels_codingkeys_collectionid",
-      "community": 7,
+      "community": 8,
       "norm_label": "collectionid"
     },
     {
@@ -12150,7 +12159,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L579",
       "id": "models_kobeanmodels_codingkeys_parentid",
-      "community": 7,
+      "community": 8,
       "norm_label": "parentid"
     },
     {
@@ -12177,7 +12186,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L613",
       "id": "models_kobeanmodels_codingkeys_defaultenvironment",
-      "community": 7,
+      "community": 8,
       "norm_label": "defaultenvironment"
     },
     {
@@ -12222,7 +12231,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L655",
       "id": "models_kobeanmodels_codingkeys_activeenvironment",
-      "community": 7,
+      "community": 8,
       "norm_label": "activeenvironment"
     },
     {
@@ -12231,7 +12240,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L655",
       "id": "models_kobeanmodels_codingkeys_environments",
-      "community": 7,
+      "community": 8,
       "norm_label": "environments"
     },
     {
@@ -12240,7 +12249,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L655",
       "id": "models_kobeanmodels_codingkeys_folders",
-      "community": 7,
+      "community": 8,
       "norm_label": "folders"
     },
     {
@@ -12249,7 +12258,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L655",
       "id": "models_kobeanmodels_codingkeys_requests",
-      "community": 7,
+      "community": 8,
       "norm_label": "requests"
     },
     {
@@ -12285,7 +12294,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L702",
       "id": "models_kobeanmodels_codingkeys_updatechecksenabled",
-      "community": 7,
+      "community": 8,
       "norm_label": "updatechecksenabled"
     },
     {
@@ -12294,7 +12303,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L702",
       "id": "models_kobeanmodels_codingkeys_theme",
-      "community": 7,
+      "community": 8,
       "norm_label": "theme"
     },
     {
@@ -12303,7 +12312,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L702",
       "id": "models_kobeanmodels_codingkeys_exportredactionenabled",
-      "community": 7,
+      "community": 8,
       "norm_label": "exportredactionenabled"
     },
     {
@@ -12312,7 +12321,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L703",
       "id": "models_kobeanmodels_codingkeys_diagnosticsredactionenabled",
-      "community": 7,
+      "community": 8,
       "norm_label": "diagnosticsredactionenabled"
     },
     {
@@ -12321,7 +12330,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L703",
       "id": "models_kobeanmodels_codingkeys_offlinebehavior",
-      "community": 7,
+      "community": 8,
       "norm_label": "offlinebehavior"
     },
     {
@@ -12330,7 +12339,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L704",
       "id": "models_kobeanmodels_codingkeys_responseautowrap",
-      "community": 7,
+      "community": 8,
       "norm_label": "responseautowrap"
     },
     {
@@ -12339,7 +12348,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L704",
       "id": "models_kobeanmodels_codingkeys_responseautocollapse",
-      "community": 7,
+      "community": 8,
       "norm_label": "responseautocollapse"
     },
     {
@@ -12348,7 +12357,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L704",
       "id": "models_kobeanmodels_codingkeys_language",
-      "community": 7,
+      "community": 8,
       "norm_label": "language"
     },
     {
@@ -12357,7 +12366,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L704",
       "id": "models_kobeanmodels_codingkeys_quotesenabled",
-      "community": 7,
+      "community": 8,
       "norm_label": "quotesenabled"
     },
     {
@@ -12384,7 +12393,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L776",
       "id": "models_kobeanmodels_codingkeys_requestid",
-      "community": 7,
+      "community": 8,
       "norm_label": "requestid"
     },
     {
@@ -12393,7 +12402,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L776",
       "id": "models_kobeanmodels_codingkeys_durationms",
-      "community": 7,
+      "community": 8,
       "norm_label": "durationms"
     },
     {
@@ -12402,7 +12411,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L776",
       "id": "models_kobeanmodels_codingkeys_sizebytes",
-      "community": 7,
+      "community": 8,
       "norm_label": "sizebytes"
     },
     {
@@ -12411,7 +12420,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L776",
       "id": "models_kobeanmodels_codingkeys_createdat",
-      "community": 7,
+      "community": 8,
       "norm_label": "createdat"
     },
     {
@@ -12420,7 +12429,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L777",
       "id": "models_kobeanmodels_codingkeys_runid",
-      "community": 7,
+      "community": 8,
       "norm_label": "runid"
     },
     {
@@ -12429,7 +12438,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L777",
       "id": "models_kobeanmodels_codingkeys_scopeid",
-      "community": 7,
+      "community": 8,
       "norm_label": "scopeid"
     },
     {
@@ -12438,7 +12447,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L777",
       "id": "models_kobeanmodels_codingkeys_scopename",
-      "community": 7,
+      "community": 8,
       "norm_label": "scopename"
     },
     {
@@ -12447,7 +12456,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L777",
       "id": "models_kobeanmodels_codingkeys_testpassed",
-      "community": 7,
+      "community": 8,
       "norm_label": "testpassed"
     },
     {
@@ -12456,7 +12465,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L777",
       "id": "models_kobeanmodels_codingkeys_passedtests",
-      "community": 7,
+      "community": 8,
       "norm_label": "passedtests"
     },
     {
@@ -12465,7 +12474,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L777",
       "id": "models_kobeanmodels_codingkeys_failedtests",
-      "community": 7,
+      "community": 8,
       "norm_label": "failedtests"
     },
     {
@@ -12474,7 +12483,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L777",
       "id": "models_kobeanmodels_codingkeys_testresults",
-      "community": 7,
+      "community": 8,
       "norm_label": "testresults"
     },
     {
@@ -12483,7 +12492,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L778",
       "id": "models_kobeanmodels_codingkeys_responseheaders",
-      "community": 7,
+      "community": 8,
       "norm_label": "responseheaders"
     },
     {
@@ -12492,7 +12501,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L778",
       "id": "models_kobeanmodels_codingkeys_responsebodytext",
-      "community": 7,
+      "community": 8,
       "norm_label": "responsebodytext"
     },
     {
@@ -12501,7 +12510,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L778",
       "id": "models_kobeanmodels_codingkeys_responsebodybase64",
-      "community": 7,
+      "community": 8,
       "norm_label": "responsebodybase64"
     },
     {
@@ -12564,7 +12573,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L883",
       "id": "models_kobeanmodels_codingkeys_historyurl",
-      "community": 7,
+      "community": 8,
       "norm_label": "historyurl"
     },
     {
@@ -12573,7 +12582,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L884",
       "id": "models_kobeanmodels_codingkeys_effectiveauthmode",
-      "community": 7,
+      "community": 8,
       "norm_label": "effectiveauthmode"
     },
     {
@@ -12582,7 +12591,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L884",
       "id": "models_kobeanmodels_codingkeys_effectiveauthconfig",
-      "community": 7,
+      "community": 8,
       "norm_label": "effectiveauthconfig"
     },
     {
@@ -12591,7 +12600,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L884",
       "id": "models_kobeanmodels_codingkeys_authentityid",
-      "community": 7,
+      "community": 8,
       "norm_label": "authentityid"
     },
     {
@@ -12600,7 +12609,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L884",
       "id": "models_kobeanmodels_codingkeys_authentitytype",
-      "community": 7,
+      "community": 8,
       "norm_label": "authentitytype"
     },
     {
@@ -12609,7 +12618,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L887",
       "id": "models_kobeanmodels_preparedhttprequest_init",
-      "community": 12,
+      "community": 0,
       "norm_label": ".init()"
     },
     {
@@ -12654,7 +12663,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L994",
       "id": "models_kobeanmodels_codingkeys_statustext",
-      "community": 7,
+      "community": 8,
       "norm_label": "statustext"
     },
     {
@@ -12663,7 +12672,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L994",
       "id": "models_kobeanmodels_codingkeys_bodytext",
-      "community": 7,
+      "community": 8,
       "norm_label": "bodytext"
     },
     {
@@ -12672,7 +12681,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L994",
       "id": "models_kobeanmodels_codingkeys_bodybase64",
-      "community": 7,
+      "community": 8,
       "norm_label": "bodybase64"
     },
     {
@@ -12681,7 +12690,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L995",
       "id": "models_kobeanmodels_codingkeys_dnsms",
-      "community": 7,
+      "community": 8,
       "norm_label": "dnsms"
     },
     {
@@ -12690,7 +12699,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L995",
       "id": "models_kobeanmodels_codingkeys_connectms",
-      "community": 7,
+      "community": 8,
       "norm_label": "connectms"
     },
     {
@@ -12699,7 +12708,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L995",
       "id": "models_kobeanmodels_codingkeys_tlsms",
-      "community": 7,
+      "community": 8,
       "norm_label": "tlsms"
     },
     {
@@ -12708,7 +12717,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L995",
       "id": "models_kobeanmodels_codingkeys_requestms",
-      "community": 7,
+      "community": 8,
       "norm_label": "requestms"
     },
     {
@@ -12717,7 +12726,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L995",
       "id": "models_kobeanmodels_codingkeys_contenttype",
-      "community": 7,
+      "community": 8,
       "norm_label": "contenttype"
     },
     {
@@ -12744,7 +12753,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1082",
       "id": "models_kobeanmodels_codingkeys_collectionscount",
-      "community": 7,
+      "community": 8,
       "norm_label": "collectionscount"
     },
     {
@@ -12753,7 +12762,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1082",
       "id": "models_kobeanmodels_codingkeys_folderscount",
-      "community": 7,
+      "community": 8,
       "norm_label": "folderscount"
     },
     {
@@ -12762,7 +12771,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1082",
       "id": "models_kobeanmodels_codingkeys_requestscount",
-      "community": 7,
+      "community": 8,
       "norm_label": "requestscount"
     },
     {
@@ -12771,7 +12780,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1082",
       "id": "models_kobeanmodels_codingkeys_environmentscount",
-      "community": 7,
+      "community": 8,
       "norm_label": "environmentscount"
     },
     {
@@ -12780,7 +12789,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1082",
       "id": "models_kobeanmodels_codingkeys_variablescount",
-      "community": 7,
+      "community": 8,
       "norm_label": "variablescount"
     },
     {
@@ -12825,7 +12834,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1143",
       "id": "models_kobeanmodels_codingkeys_custommethod",
-      "community": 7,
+      "community": 8,
       "norm_label": "custommethod"
     },
     {
@@ -12834,7 +12843,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1146",
       "id": "models_kobeanmodels_curlimportresult_init",
-      "community": 12,
+      "community": 0,
       "norm_label": ".init()"
     },
     {
@@ -12852,7 +12861,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1171",
       "id": "models_kobeanmodels_codingkeys_entityid",
-      "community": 7,
+      "community": 8,
       "norm_label": "entityid"
     },
     {
@@ -12861,7 +12870,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1171",
       "id": "models_kobeanmodels_codingkeys_entitytype",
-      "community": 7,
+      "community": 8,
       "norm_label": "entitytype"
     },
     {
@@ -12870,7 +12879,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1171",
       "id": "models_kobeanmodels_codingkeys_scripttype",
-      "community": 7,
+      "community": 8,
       "norm_label": "scripttype"
     },
     {
@@ -12879,7 +12888,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1171",
       "id": "models_kobeanmodels_codingkeys_content",
-      "community": 7,
+      "community": 8,
       "norm_label": "content"
     },
     {
@@ -12888,7 +12897,7 @@
       "source_file": "macos/KobeanREST/Models/KobeanModels.swift",
       "source_location": "L1171",
       "id": "models_kobeanmodels_codingkeys_position",
-      "community": 7,
+      "community": 8,
       "norm_label": "position"
     },
     {
@@ -13329,7 +13338,7 @@
       "source_file": "macos/KobeanREST/Services/OAuthSessionService.swift",
       "source_location": "L404",
       "id": "services_oauthsessionservice_urlsessionoauthtransport_data",
-      "community": 5,
+      "community": 6,
       "norm_label": ".data()"
     },
     {
@@ -14796,7 +14805,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L1",
       "id": "macos_kobeanrest_services_websocketservice_swift",
-      "community": 5,
+      "community": 0,
       "norm_label": "websocketservice.swift"
     },
     {
@@ -14805,7 +14814,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L6",
       "id": "services_websocketservice_websocketmessage",
-      "community": 5,
+      "community": 6,
       "norm_label": "websocketmessage"
     },
     {
@@ -14859,7 +14868,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L14",
       "id": "services_websocketservice_payload_text",
-      "community": 8,
+      "community": 7,
       "norm_label": "text"
     },
     {
@@ -14877,7 +14886,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L23",
       "id": "services_websocketservice_websocketmessage_init",
-      "community": 5,
+      "community": 6,
       "norm_label": ".init()"
     },
     {
@@ -14886,7 +14895,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L36",
       "id": "services_websocketservice_websocketevent",
-      "community": 5,
+      "community": 0,
       "norm_label": "websocketevent"
     },
     {
@@ -14895,7 +14904,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L37",
       "id": "services_websocketservice_websocketevent_connected",
-      "community": 5,
+      "community": 0,
       "norm_label": "connected"
     },
     {
@@ -14904,7 +14913,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L38",
       "id": "services_websocketservice_websocketevent_messagereceived",
-      "community": 5,
+      "community": 0,
       "norm_label": "messagereceived"
     },
     {
@@ -14913,7 +14922,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L39",
       "id": "services_websocketservice_websocketevent_messagesent",
-      "community": 5,
+      "community": 0,
       "norm_label": "messagesent"
     },
     {
@@ -14922,7 +14931,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L40",
       "id": "services_websocketservice_websocketevent_disconnected",
-      "community": 5,
+      "community": 0,
       "norm_label": "disconnected"
     },
     {
@@ -14931,7 +14940,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L41",
       "id": "services_websocketservice_websocketevent_error",
-      "community": 5,
+      "community": 0,
       "norm_label": "error"
     },
     {
@@ -14940,7 +14949,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L44",
       "id": "services_websocketservice_websocketconnectionstate",
-      "community": 5,
+      "community": 0,
       "norm_label": "websocketconnectionstate"
     },
     {
@@ -14949,7 +14958,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L45",
       "id": "services_websocketservice_websocketconnectionstate_disconnected",
-      "community": 5,
+      "community": 0,
       "norm_label": "disconnected"
     },
     {
@@ -14958,7 +14967,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L46",
       "id": "services_websocketservice_websocketconnectionstate_connecting",
-      "community": 5,
+      "community": 0,
       "norm_label": "connecting"
     },
     {
@@ -14967,7 +14976,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L47",
       "id": "services_websocketservice_websocketconnectionstate_connected",
-      "community": 5,
+      "community": 0,
       "norm_label": "connected"
     },
     {
@@ -14976,7 +14985,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L50",
       "id": "services_websocketservice_websocketserviceerror",
-      "community": 5,
+      "community": 6,
       "norm_label": "websocketserviceerror"
     },
     {
@@ -14985,7 +14994,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L51",
       "id": "services_websocketservice_websocketserviceerror_invalidurl",
-      "community": 5,
+      "community": 6,
       "norm_label": "invalidurl"
     },
     {
@@ -14994,7 +15003,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L52",
       "id": "services_websocketservice_websocketserviceerror_unsupportedscheme",
-      "community": 5,
+      "community": 6,
       "norm_label": "unsupportedscheme"
     },
     {
@@ -15003,7 +15012,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L53",
       "id": "services_websocketservice_websocketserviceerror_missinghost",
-      "community": 5,
+      "community": 6,
       "norm_label": "missinghost"
     },
     {
@@ -15012,7 +15021,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L54",
       "id": "services_websocketservice_websocketserviceerror_alreadyconnected",
-      "community": 5,
+      "community": 6,
       "norm_label": "alreadyconnected"
     },
     {
@@ -15021,7 +15030,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L55",
       "id": "services_websocketservice_websocketserviceerror_notconnected",
-      "community": 5,
+      "community": 6,
       "norm_label": "notconnected"
     },
     {
@@ -15030,7 +15039,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L56",
       "id": "services_websocketservice_websocketserviceerror_handshakefailed",
-      "community": 5,
+      "community": 6,
       "norm_label": "handshakefailed"
     },
     {
@@ -15039,7 +15048,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L57",
       "id": "services_websocketservice_websocketserviceerror_sendfailed",
-      "community": 5,
+      "community": 6,
       "norm_label": "sendfailed"
     },
     {
@@ -15048,7 +15057,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L58",
       "id": "services_websocketservice_websocketserviceerror_receivefailed",
-      "community": 5,
+      "community": 6,
       "norm_label": "receivefailed"
     },
     {
@@ -15057,7 +15066,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L59",
       "id": "services_websocketservice_websocketserviceerror_pingfailed",
-      "community": 5,
+      "community": 6,
       "norm_label": "pingfailed"
     },
     {
@@ -15066,7 +15075,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L87",
       "id": "services_websocketservice_websockettaskprotocol",
-      "community": 5,
+      "community": 0,
       "norm_label": "websockettaskprotocol"
     },
     {
@@ -15075,7 +15084,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L98",
       "id": "services_websocketservice_websocketsessionfactory",
-      "community": 5,
+      "community": 0,
       "norm_label": "websocketsessionfactory"
     },
     {
@@ -15084,7 +15093,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L104",
       "id": "services_websocketservice_urlsessionwebsocketsessionfactory",
-      "community": 5,
+      "community": 0,
       "norm_label": "urlsessionwebsocketsessionfactory"
     },
     {
@@ -15093,7 +15102,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L107",
       "id": "services_websocketservice_urlsessionwebsocketsessionfactory_init",
-      "community": 5,
+      "community": 0,
       "norm_label": ".init()"
     },
     {
@@ -15102,7 +15111,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L111",
       "id": "services_websocketservice_urlsessionwebsocketsessionfactory_makewebsockettask",
-      "community": 5,
+      "community": 6,
       "norm_label": ".makewebsockettask()"
     },
     {
@@ -15111,7 +15120,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L116",
       "id": "services_websocketservice_urlsessionwebsockettaskadapter",
-      "community": 5,
+      "community": 6,
       "norm_label": "urlsessionwebsockettaskadapter"
     },
     {
@@ -15120,7 +15129,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L117",
       "id": "services_websocketservice_delegateproxy",
-      "community": 5,
+      "community": 6,
       "norm_label": "delegateproxy"
     },
     {
@@ -15129,7 +15138,7 @@
       "source_file": "",
       "source_location": "",
       "id": "urlsessionwebsocketdelegate",
-      "community": 5,
+      "community": 6,
       "norm_label": "urlsessionwebsocketdelegate"
     },
     {
@@ -15138,7 +15147,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L118",
       "id": "services_websocketservice_state",
-      "community": 8,
+      "community": 7,
       "norm_label": "state"
     },
     {
@@ -15147,7 +15156,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L135",
       "id": "services_websocketservice_delegateproxy_registeropencontinuation",
-      "community": 5,
+      "community": 6,
       "norm_label": ".registeropencontinuation()"
     },
     {
@@ -15156,7 +15165,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L148",
       "id": "services_websocketservice_delegateproxy_markcancelled",
-      "community": 5,
+      "community": 6,
       "norm_label": ".markcancelled()"
     },
     {
@@ -15165,7 +15174,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L155",
       "id": "services_websocketservice_delegateproxy_resolveopen",
-      "community": 5,
+      "community": 6,
       "norm_label": ".resolveopen()"
     },
     {
@@ -15174,7 +15183,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L169",
       "id": "services_websocketservice_delegateproxy_urlsession",
-      "community": 5,
+      "community": 6,
       "norm_label": ".urlsession()"
     },
     {
@@ -15183,7 +15192,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L211",
       "id": "services_websocketservice_urlsessionwebsockettaskadapter_init",
-      "community": 5,
+      "community": 6,
       "norm_label": ".init()"
     },
     {
@@ -15201,7 +15210,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L239",
       "id": "services_websocketservice_urlsessionwebsockettaskadapter_send",
-      "community": 5,
+      "community": 6,
       "norm_label": ".send()"
     },
     {
@@ -15210,7 +15219,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L249",
       "id": "services_websocketservice_urlsessionwebsockettaskadapter_receive",
-      "community": 5,
+      "community": 6,
       "norm_label": ".receive()"
     },
     {
@@ -15219,7 +15228,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L261",
       "id": "services_websocketservice_urlsessionwebsockettaskadapter_ping",
-      "community": 5,
+      "community": 6,
       "norm_label": ".ping()"
     },
     {
@@ -15228,7 +15237,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L273",
       "id": "services_websocketservice_urlsessionwebsockettaskadapter_cancel",
-      "community": 5,
+      "community": 6,
       "norm_label": ".cancel()"
     },
     {
@@ -15237,7 +15246,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L282",
       "id": "services_websocketservice_websocketservice",
-      "community": 5,
+      "community": 6,
       "norm_label": "websocketservice"
     },
     {
@@ -15255,7 +15264,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L306",
       "id": "services_websocketservice_websocketservice_deinit",
-      "community": 5,
+      "community": 6,
       "norm_label": ".deinit()"
     },
     {
@@ -15264,7 +15273,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L314",
       "id": "services_websocketservice_websocketservice_validatewebsocketurl",
-      "community": 5,
+      "community": 6,
       "norm_label": ".validatewebsocketurl()"
     },
     {
@@ -15273,7 +15282,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L337",
       "id": "services_websocketservice_websocketservice_connect",
-      "community": 5,
+      "community": 6,
       "norm_label": ".connect()"
     },
     {
@@ -15282,7 +15291,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L403",
       "id": "services_websocketservice_websocketservice_disconnect",
-      "community": 5,
+      "community": 6,
       "norm_label": ".disconnect()"
     },
     {
@@ -15291,7 +15300,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L425",
       "id": "services_websocketservice_websocketservice_sendtext",
-      "community": 5,
+      "community": 6,
       "norm_label": ".sendtext()"
     },
     {
@@ -15300,7 +15309,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L430",
       "id": "services_websocketservice_websocketservice_senddata",
-      "community": 5,
+      "community": 6,
       "norm_label": ".senddata()"
     },
     {
@@ -15309,7 +15318,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L435",
       "id": "services_websocketservice_websocketservice_ping",
-      "community": 5,
+      "community": 6,
       "norm_label": ".ping()"
     },
     {
@@ -15318,7 +15327,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L451",
       "id": "services_websocketservice_websocketservice_sendpayload",
-      "community": 5,
+      "community": 6,
       "norm_label": ".sendpayload()"
     },
     {
@@ -15327,7 +15336,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L472",
       "id": "services_websocketservice_websocketservice_runreceiveloop",
-      "community": 5,
+      "community": 6,
       "norm_label": ".runreceiveloop()"
     },
     {
@@ -15336,7 +15345,7 @@
       "source_file": "macos/KobeanREST/Services/WebSocketService.swift",
       "source_location": "L491",
       "id": "services_websocketservice_websocketservice_handlereceivefailure",
-      "community": 5,
+      "community": 6,
       "norm_label": ".handlereceivefailure()"
     },
     {
@@ -16596,7 +16605,7 @@
       "source_file": "scripts/check-release-preflight.mjs",
       "source_location": "L1",
       "id": "scripts_check_release_preflight_mjs",
-      "community": 22,
+      "community": 20,
       "norm_label": "check-release-preflight.mjs"
     },
     {
@@ -16605,7 +16614,7 @@
       "source_file": "scripts/check-release-preflight.mjs",
       "source_location": "L16",
       "id": "scripts_check_release_preflight_read",
-      "community": 22,
+      "community": 20,
       "norm_label": "read()"
     },
     {
@@ -16614,7 +16623,7 @@
       "source_file": "scripts/check-release-preflight.mjs",
       "source_location": "L20",
       "id": "scripts_check_release_preflight_requirefile",
-      "community": 22,
+      "community": 20,
       "norm_label": "requirefile()"
     },
     {
@@ -16938,7 +16947,7 @@
       "source_file": "src-tauri/src/http_client.rs",
       "source_location": "L1",
       "id": "src_tauri_src_http_client_rs",
-      "community": 22,
+      "community": 20,
       "norm_label": "http_client.rs"
     },
     {
@@ -18918,7 +18927,7 @@
       "source_file": "src/renderer/src/components/ResponseViewer.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_responseviewer_tsx",
-      "community": 8,
+      "community": 7,
       "norm_label": "responseviewer.tsx"
     },
     {
@@ -18927,7 +18936,7 @@
       "source_file": "src/renderer/src/components/ResponseViewer.tsx",
       "source_location": "L21",
       "id": "components_responseviewer_responseviewer",
-      "community": 8,
+      "community": 7,
       "norm_label": "responseviewer()"
     },
     {
@@ -19017,7 +19026,7 @@
       "source_file": "src/renderer/src/components/PostmanImportModal.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_postmanimportmodal_tsx",
-      "community": 20,
+      "community": 21,
       "norm_label": "postmanimportmodal.tsx"
     },
     {
@@ -19026,7 +19035,7 @@
       "source_file": "src/renderer/src/components/PostmanImportModal.tsx",
       "source_location": "L34",
       "id": "components_postmanimportmodal_countscripts",
-      "community": 20,
+      "community": 21,
       "norm_label": "countscripts()"
     },
     {
@@ -19035,7 +19044,7 @@
       "source_file": "src/renderer/src/components/PostmanImportModal.tsx",
       "source_location": "L67",
       "id": "components_postmanimportmodal_resetstate",
-      "community": 20,
+      "community": 21,
       "norm_label": "resetstate()"
     },
     {
@@ -19044,7 +19053,7 @@
       "source_file": "src/renderer/src/components/PostmanImportModal.tsx",
       "source_location": "L75",
       "id": "components_postmanimportmodal_handleclose",
-      "community": 20,
+      "community": 21,
       "norm_label": "handleclose()"
     },
     {
@@ -19053,7 +19062,7 @@
       "source_file": "src/renderer/src/components/PostmanImportModal.tsx",
       "source_location": "L80",
       "id": "components_postmanimportmodal_parseandpreview",
-      "community": 20,
+      "community": 21,
       "norm_label": "parseandpreview()"
     },
     {
@@ -19062,7 +19071,7 @@
       "source_file": "src/renderer/src/components/PostmanImportModal.tsx",
       "source_location": "L123",
       "id": "components_postmanimportmodal_handlefileselect",
-      "community": 20,
+      "community": 21,
       "norm_label": "handlefileselect()"
     },
     {
@@ -19071,7 +19080,7 @@
       "source_file": "src/renderer/src/components/PostmanImportModal.tsx",
       "source_location": "L135",
       "id": "components_postmanimportmodal_handleinputchange",
-      "community": 20,
+      "community": 21,
       "norm_label": "handleinputchange()"
     },
     {
@@ -19080,7 +19089,7 @@
       "source_file": "src/renderer/src/components/PostmanImportModal.tsx",
       "source_location": "L142",
       "id": "components_postmanimportmodal_handledrop",
-      "community": 20,
+      "community": 21,
       "norm_label": "handledrop()"
     },
     {
@@ -19089,7 +19098,7 @@
       "source_file": "src/renderer/src/components/PostmanImportModal.tsx",
       "source_location": "L151",
       "id": "components_postmanimportmodal_handleimport",
-      "community": 20,
+      "community": 21,
       "norm_label": "handleimport()"
     },
     {
@@ -19836,7 +19845,7 @@
       "source_file": "src/renderer/src/components/CodeSnippetViewer.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_codesnippetviewer_tsx",
-      "community": 8,
+      "community": 7,
       "norm_label": "codesnippetviewer.tsx"
     },
     {
@@ -19845,7 +19854,7 @@
       "source_file": "src/renderer/src/components/CodeSnippetViewer.tsx",
       "source_location": "L17",
       "id": "components_codesnippetviewer_codesnippetviewer",
-      "community": 8,
+      "community": 7,
       "norm_label": "codesnippetviewer()"
     },
     {
@@ -20124,7 +20133,7 @@
       "source_file": "src/renderer/src/components/BodyEditor.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_bodyeditor_tsx",
-      "community": 8,
+      "community": 7,
       "norm_label": "bodyeditor.tsx"
     },
     {
@@ -20133,7 +20142,7 @@
       "source_file": "src/renderer/src/components/BodyEditor.tsx",
       "source_location": "L69",
       "id": "components_bodyeditor_variablecompletion",
-      "community": 8,
+      "community": 7,
       "norm_label": "variablecompletion()"
     },
     {
@@ -20142,7 +20151,7 @@
       "source_file": "src/renderer/src/components/BodyEditor.tsx",
       "source_location": "L122",
       "id": "components_bodyeditor_onmousemove",
-      "community": 8,
+      "community": 7,
       "norm_label": "onmousemove()"
     },
     {
@@ -20151,7 +20160,7 @@
       "source_file": "src/renderer/src/components/BodyEditor.tsx",
       "source_location": "L178",
       "id": "components_bodyeditor_onclick",
-      "community": 8,
+      "community": 7,
       "norm_label": "onclick()"
     },
     {
@@ -20322,7 +20331,7 @@
       "source_file": "src/renderer/src/components/GrpcPanel.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_grpcpanel_tsx",
-      "community": 29,
+      "community": 27,
       "norm_label": "grpcpanel.tsx"
     },
     {
@@ -20331,7 +20340,7 @@
       "source_file": "src/renderer/src/components/GrpcPanel.tsx",
       "source_location": "L131",
       "id": "components_grpcpanel_handlegeneratepayload",
-      "community": 29,
+      "community": 27,
       "norm_label": "handlegeneratepayload()"
     },
     {
@@ -20340,7 +20349,7 @@
       "source_file": "src/renderer/src/components/GrpcPanel.tsx",
       "source_location": "L139",
       "id": "components_grpcpanel_handleprettifyjson",
-      "community": 29,
+      "community": 27,
       "norm_label": "handleprettifyjson()"
     },
     {
@@ -20349,7 +20358,7 @@
       "source_file": "src/renderer/src/components/GrpcPanel.tsx",
       "source_location": "L149",
       "id": "components_grpcpanel_handleinvokerpc",
-      "community": 0,
+      "community": 27,
       "norm_label": "handleinvokerpc()"
     },
     {
@@ -20358,7 +20367,7 @@
       "source_file": "src/renderer/src/components/GrpcPanel.tsx",
       "source_location": "L206",
       "id": "components_grpcpanel_handlecopyresponse",
-      "community": 29,
+      "community": 27,
       "norm_label": "handlecopyresponse()"
     },
     {
@@ -20367,7 +20376,7 @@
       "source_file": "src/renderer/src/components/GrpcPanel.tsx",
       "source_location": "L215",
       "id": "components_grpcpanel_handleaddmetadatarow",
-      "community": 29,
+      "community": 27,
       "norm_label": "handleaddmetadatarow()"
     },
     {
@@ -20376,7 +20385,7 @@
       "source_file": "src/renderer/src/components/GrpcPanel.tsx",
       "source_location": "L219",
       "id": "components_grpcpanel_handleupdatemetadatarow",
-      "community": 29,
+      "community": 27,
       "norm_label": "handleupdatemetadatarow()"
     },
     {
@@ -20385,7 +20394,7 @@
       "source_file": "src/renderer/src/components/GrpcPanel.tsx",
       "source_location": "L227",
       "id": "components_grpcpanel_handleremovemetadatarow",
-      "community": 29,
+      "community": 27,
       "norm_label": "handleremovemetadatarow()"
     },
     {
@@ -20394,7 +20403,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_envvariableseditor_tsx",
-      "community": 27,
+      "community": 28,
       "norm_label": "envvariableseditor.tsx"
     },
     {
@@ -20403,7 +20412,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L7",
       "id": "components_envvariableseditor_parsebulktext",
-      "community": 27,
+      "community": 28,
       "norm_label": "parsebulktext()"
     },
     {
@@ -20412,7 +20421,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L23",
       "id": "components_envvariableseditor_tobulktext",
-      "community": 27,
+      "community": 28,
       "norm_label": "tobulktext()"
     },
     {
@@ -20421,7 +20430,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L42",
       "id": "components_envvariableseditor_handleglobaltoggle",
-      "community": 27,
+      "community": 28,
       "norm_label": "handleglobaltoggle()"
     },
     {
@@ -20430,7 +20439,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L50",
       "id": "components_envvariableseditor_togglevaluevisibility",
-      "community": 27,
+      "community": 28,
       "norm_label": "togglevaluevisibility()"
     },
     {
@@ -20439,7 +20448,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L74",
       "id": "components_envvariableseditor_enterbulk",
-      "community": 27,
+      "community": 28,
       "norm_label": "enterbulk()"
     },
     {
@@ -20448,7 +20457,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L79",
       "id": "components_envvariableseditor_applybulk",
-      "community": 27,
+      "community": 28,
       "norm_label": "applybulk()"
     },
     {
@@ -20457,7 +20466,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L96",
       "id": "components_envvariableseditor_startinlineedit",
-      "community": 27,
+      "community": 28,
       "norm_label": "startinlineedit()"
     },
     {
@@ -20466,7 +20475,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L103",
       "id": "components_envvariableseditor_cancelinlineedit",
-      "community": 27,
+      "community": 28,
       "norm_label": "cancelinlineedit()"
     },
     {
@@ -20475,7 +20484,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L108",
       "id": "components_envvariableseditor_commitinlineedit",
-      "community": 27,
+      "community": 28,
       "norm_label": "commitinlineedit()"
     },
     {
@@ -20484,7 +20493,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L122",
       "id": "components_envvariableseditor_handleeditingrowblur",
-      "community": 27,
+      "community": 28,
       "norm_label": "handleeditingrowblur()"
     },
     {
@@ -20493,7 +20502,7 @@
       "source_file": "src/renderer/src/components/EnvVariablesEditor.tsx",
       "source_location": "L131",
       "id": "components_envvariableseditor_handleadd",
-      "community": 27,
+      "community": 28,
       "norm_label": "handleadd()"
     },
     {
@@ -20583,7 +20592,7 @@
       "source_file": "src/renderer/src/components/LayoutControls.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_layoutcontrols_tsx",
-      "community": 32,
+      "community": 33,
       "norm_label": "layoutcontrols.tsx"
     },
     {
@@ -20592,7 +20601,7 @@
       "source_file": "src/renderer/src/components/LayoutControls.tsx",
       "source_location": "L12",
       "id": "components_layoutcontrols_layoutcontrols",
-      "community": 32,
+      "community": 33,
       "norm_label": "layoutcontrols()"
     },
     {
@@ -20601,7 +20610,7 @@
       "source_file": "src/renderer/src/components/AIChatSidebar.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_aichatsidebar_tsx",
-      "community": 33,
+      "community": 32,
       "norm_label": "aichatsidebar.tsx"
     },
     {
@@ -20610,7 +20619,7 @@
       "source_file": "src/renderer/src/components/AIChatSidebar.tsx",
       "source_location": "L110",
       "id": "components_aichatsidebar_rendermarkdown",
-      "community": 33,
+      "community": 32,
       "norm_label": "rendermarkdown()"
     },
     {
@@ -20619,7 +20628,7 @@
       "source_file": "src/renderer/src/components/AIChatSidebar.tsx",
       "source_location": "L568",
       "id": "components_aichatsidebar_handlewindowresize",
-      "community": 33,
+      "community": 32,
       "norm_label": "handlewindowresize()"
     },
     {
@@ -20628,7 +20637,7 @@
       "source_file": "src/renderer/src/components/AIChatSidebar.tsx",
       "source_location": "L575",
       "id": "components_aichatsidebar_handlemousedownresizer",
-      "community": 33,
+      "community": 32,
       "norm_label": "handlemousedownresizer()"
     },
     {
@@ -20637,7 +20646,7 @@
       "source_file": "src/renderer/src/components/AIChatSidebar.tsx",
       "source_location": "L601",
       "id": "components_aichatsidebar_handledoubleclickresizer",
-      "community": 33,
+      "community": 32,
       "norm_label": "handledoubleclickresizer()"
     },
     {
@@ -20646,7 +20655,7 @@
       "source_file": "src/renderer/src/components/AIChatSidebar.tsx",
       "source_location": "L1007",
       "id": "components_aichatsidebar_stop",
-      "community": 33,
+      "community": 32,
       "norm_label": "stop()"
     },
     {
@@ -20655,7 +20664,7 @@
       "source_file": "src/renderer/src/components/AIChatSidebar.tsx",
       "source_location": "L1070",
       "id": "components_aichatsidebar_handlesubmit",
-      "community": 33,
+      "community": 32,
       "norm_label": "handlesubmit()"
     },
     {
@@ -20664,7 +20673,7 @@
       "source_file": "src/renderer/src/components/AIChatSidebar.tsx",
       "source_location": "L1091",
       "id": "components_aichatsidebar_processchat",
-      "community": 33,
+      "community": 32,
       "norm_label": "processchat()"
     },
     {
@@ -20673,7 +20682,7 @@
       "source_file": "src/renderer/src/components/AIChatSidebar.tsx",
       "source_location": "L1232",
       "id": "components_aichatsidebar_clearchat",
-      "community": 33,
+      "community": 32,
       "norm_label": "clearchat()"
     },
     {
@@ -20682,7 +20691,7 @@
       "source_file": "src/renderer/src/components/ScriptEditor.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_scripteditor_tsx",
-      "community": 8,
+      "community": 7,
       "norm_label": "scripteditor.tsx"
     },
     {
@@ -20691,7 +20700,7 @@
       "source_file": "src/renderer/src/components/ScriptEditor.tsx",
       "source_location": "L18",
       "id": "components_scripteditor_scripteditor",
-      "community": 8,
+      "community": 7,
       "norm_label": "scripteditor()"
     },
     {
@@ -20745,7 +20754,7 @@
       "source_file": "src/renderer/src/components/LoadTestModal.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_loadtestmodal_tsx",
-      "community": 8,
+      "community": 7,
       "norm_label": "loadtestmodal.tsx"
     },
     {
@@ -20754,7 +20763,7 @@
       "source_file": "src/renderer/src/components/LoadTestModal.tsx",
       "source_location": "L156",
       "id": "components_loadtestmodal_generatechartdata",
-      "community": 8,
+      "community": 7,
       "norm_label": "generatechartdata()"
     },
     {
@@ -20763,7 +20772,7 @@
       "source_file": "src/renderer/src/components/LoadTestModal.tsx",
       "source_location": "L180",
       "id": "components_loadtestmodal_pct",
-      "community": 8,
+      "community": 7,
       "norm_label": "pct()"
     },
     {
@@ -20772,7 +20781,7 @@
       "source_file": "src/renderer/src/components/LoadTestModal.tsx",
       "source_location": "L276",
       "id": "components_loadtestmodal_color",
-      "community": 8,
+      "community": 7,
       "norm_label": "color()"
     },
     {
@@ -20781,7 +20790,7 @@
       "source_file": "src/renderer/src/components/LoadTestModal.tsx",
       "source_location": "L433",
       "id": "components_loadtestmodal_setconcurrency",
-      "community": 8,
+      "community": 7,
       "norm_label": "setconcurrency()"
     },
     {
@@ -20817,7 +20826,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_scopedvariableseditor_tsx",
-      "community": 28,
+      "community": 29,
       "norm_label": "scopedvariableseditor.tsx"
     },
     {
@@ -20826,7 +20835,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L6",
       "id": "components_scopedvariableseditor_tobulktext",
-      "community": 28,
+      "community": 29,
       "norm_label": "tobulktext()"
     },
     {
@@ -20835,7 +20844,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L10",
       "id": "components_scopedvariableseditor_parsebulktext",
-      "community": 28,
+      "community": 29,
       "norm_label": "parsebulktext()"
     },
     {
@@ -20844,7 +20853,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L47",
       "id": "components_scopedvariableseditor_handleglobaltoggle",
-      "community": 28,
+      "community": 29,
       "norm_label": "handleglobaltoggle()"
     },
     {
@@ -20853,7 +20862,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L55",
       "id": "components_scopedvariableseditor_togglevaluevisibility",
-      "community": 28,
+      "community": 29,
       "norm_label": "togglevaluevisibility()"
     },
     {
@@ -20862,7 +20871,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L78",
       "id": "components_scopedvariableseditor_enterbulk",
-      "community": 28,
+      "community": 29,
       "norm_label": "enterbulk()"
     },
     {
@@ -20871,7 +20880,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L83",
       "id": "components_scopedvariableseditor_applybulk",
-      "community": 28,
+      "community": 29,
       "norm_label": "applybulk()"
     },
     {
@@ -20880,7 +20889,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L100",
       "id": "components_scopedvariableseditor_startinlineedit",
-      "community": 28,
+      "community": 29,
       "norm_label": "startinlineedit()"
     },
     {
@@ -20889,7 +20898,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L107",
       "id": "components_scopedvariableseditor_cancelinlineedit",
-      "community": 28,
+      "community": 29,
       "norm_label": "cancelinlineedit()"
     },
     {
@@ -20898,7 +20907,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L112",
       "id": "components_scopedvariableseditor_commitinlineedit",
-      "community": 28,
+      "community": 29,
       "norm_label": "commitinlineedit()"
     },
     {
@@ -20907,7 +20916,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L123",
       "id": "components_scopedvariableseditor_handleeditingrowblur",
-      "community": 28,
+      "community": 29,
       "norm_label": "handleeditingrowblur()"
     },
     {
@@ -20916,7 +20925,7 @@
       "source_file": "src/renderer/src/components/ScopedVariablesEditor.tsx",
       "source_location": "L131",
       "id": "components_scopedvariableseditor_handleadd",
-      "community": 28,
+      "community": 29,
       "norm_label": "handleadd()"
     },
     {
@@ -21078,7 +21087,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L1",
       "id": "src_renderer_src_components_graphqlbodyeditor_tsx",
-      "community": 21,
+      "community": 22,
       "norm_label": "graphqlbodyeditor.tsx"
     },
     {
@@ -21087,7 +21096,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L52",
       "id": "components_graphqlbodyeditor_parsegraphqlbody",
-      "community": 21,
+      "community": 22,
       "norm_label": "parsegraphqlbody()"
     },
     {
@@ -21096,7 +21105,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L84",
       "id": "components_graphqlbodyeditor_formatgraphqlquery",
-      "community": 21,
+      "community": 22,
       "norm_label": "formatgraphqlquery()"
     },
     {
@@ -21105,7 +21114,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L239",
       "id": "components_graphqlbodyeditor_emitchange",
-      "community": 21,
+      "community": 22,
       "norm_label": "emitchange()"
     },
     {
@@ -21114,7 +21123,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L255",
       "id": "components_graphqlbodyeditor_handlequerychange",
-      "community": 21,
+      "community": 22,
       "norm_label": "handlequerychange()"
     },
     {
@@ -21123,7 +21132,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L260",
       "id": "components_graphqlbodyeditor_handlevariableschange",
-      "community": 21,
+      "community": 22,
       "norm_label": "handlevariableschange()"
     },
     {
@@ -21132,7 +21141,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L265",
       "id": "components_graphqlbodyeditor_handlebeautifyquery",
-      "community": 21,
+      "community": 22,
       "norm_label": "handlebeautifyquery()"
     },
     {
@@ -21141,7 +21150,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L271",
       "id": "components_graphqlbodyeditor_handlebeautifyvariables",
-      "community": 21,
+      "community": 22,
       "norm_label": "handlebeautifyvariables()"
     },
     {
@@ -21150,7 +21159,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L282",
       "id": "components_graphqlbodyeditor_handleapplytemplate",
-      "community": 21,
+      "community": 22,
       "norm_label": "handleapplytemplate()"
     },
     {
@@ -21168,7 +21177,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L335",
       "id": "components_graphqlbodyeditor_handleimportschemafile",
-      "community": 21,
+      "community": 22,
       "norm_label": "handleimportschemafile()"
     },
     {
@@ -21177,7 +21186,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L367",
       "id": "components_graphqlbodyeditor_handleapplypastedsdl",
-      "community": 21,
+      "community": 22,
       "norm_label": "handleapplypastedsdl()"
     },
     {
@@ -21186,7 +21195,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L391",
       "id": "components_graphqlbodyeditor_handlecopysdl",
-      "community": 21,
+      "community": 22,
       "norm_label": "handlecopysdl()"
     },
     {
@@ -21195,7 +21204,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L398",
       "id": "components_graphqlbodyeditor_handledownloadsdl",
-      "community": 21,
+      "community": 22,
       "norm_label": "handledownloadsdl()"
     },
     {
@@ -21204,7 +21213,7 @@
       "source_file": "src/renderer/src/components/GraphQLBodyEditor.tsx",
       "source_location": "L409",
       "id": "components_graphqlbodyeditor_handlegeneratequery",
-      "community": 21,
+      "community": 22,
       "norm_label": "handlegeneratequery()"
     },
     {
@@ -22194,7 +22203,7 @@
       "source_file": "src/renderer/src/services/graphql-schema.ts",
       "source_location": "L1",
       "id": "src_renderer_src_services_graphql_schema_ts",
-      "community": 21,
+      "community": 22,
       "norm_label": "graphql-schema.ts"
     },
     {
@@ -22203,7 +22212,7 @@
       "source_file": "src/renderer/src/services/graphql-schema.ts",
       "source_location": "L188",
       "id": "services_graphql_schema_formattyperef",
-      "community": 21,
+      "community": 22,
       "norm_label": "formattyperef()"
     },
     {
@@ -22212,7 +22221,7 @@
       "source_file": "src/renderer/src/services/graphql-schema.ts",
       "source_location": "L202",
       "id": "services_graphql_schema_getbasetypename",
-      "community": 21,
+      "community": 22,
       "norm_label": "getbasetypename()"
     },
     {
@@ -22221,7 +22230,7 @@
       "source_file": "src/renderer/src/services/graphql-schema.ts",
       "source_location": "L211",
       "id": "services_graphql_schema_introspectiontosdl",
-      "community": 21,
+      "community": 22,
       "norm_label": "introspectiontosdl()"
     },
     {
@@ -22230,7 +22239,7 @@
       "source_file": "src/renderer/src/services/graphql-schema.ts",
       "source_location": "L347",
       "id": "services_graphql_schema_parsesdltoschema",
-      "community": 21,
+      "community": 22,
       "norm_label": "parsesdltoschema()"
     },
     {
@@ -22239,7 +22248,7 @@
       "source_file": "src/renderer/src/services/graphql-schema.ts",
       "source_location": "L462",
       "id": "services_graphql_schema_generateoperationforfield",
-      "community": 21,
+      "community": 22,
       "norm_label": "generateoperationforfield()"
     },
     {
@@ -22248,7 +22257,7 @@
       "source_file": "src/renderer/src/services/graphql-schema.ts",
       "source_location": "L522",
       "id": "services_graphql_schema_getgraphqlschemacompletionsource",
-      "community": 21,
+      "community": 22,
       "norm_label": "getgraphqlschemacompletionsource()"
     },
     {
@@ -22356,7 +22365,7 @@
       "source_file": "src/renderer/src/services/proto-parser.ts",
       "source_location": "L1",
       "id": "src_renderer_src_services_proto_parser_ts",
-      "community": 29,
+      "community": 27,
       "norm_label": "proto-parser.ts"
     },
     {
@@ -22365,7 +22374,7 @@
       "source_file": "src/renderer/src/services/proto-parser.ts",
       "source_location": "L3",
       "id": "services_proto_parser_parseprotoschema",
-      "community": 29,
+      "community": 27,
       "norm_label": "parseprotoschema()"
     },
     {
@@ -22374,7 +22383,7 @@
       "source_file": "src/renderer/src/services/proto-parser.ts",
       "source_location": "L108",
       "id": "services_proto_parser_generatesamplemessagejson",
-      "community": 29,
+      "community": 27,
       "norm_label": "generatesamplemessagejson()"
     },
     {
@@ -22383,7 +22392,7 @@
       "source_file": "src/renderer/src/services/i18n.ts",
       "source_location": "L1",
       "id": "src_renderer_src_services_i18n_ts",
-      "community": 32,
+      "community": 33,
       "norm_label": "i18n.ts"
     },
     {
@@ -22392,7 +22401,7 @@
       "source_file": "src/renderer/src/services/i18n.ts",
       "source_location": "L44",
       "id": "services_i18n_detectsystemlanguage",
-      "community": 32,
+      "community": 33,
       "norm_label": "detectsystemlanguage()"
     },
     {
@@ -22401,7 +22410,7 @@
       "source_file": "src/renderer/src/services/i18n.ts",
       "source_location": "L62",
       "id": "services_i18n_getactivelanguage",
-      "community": 32,
+      "community": 33,
       "norm_label": "getactivelanguage()"
     },
     {
@@ -22410,7 +22419,7 @@
       "source_file": "src/renderer/src/services/i18n.ts",
       "source_location": "L66",
       "id": "services_i18n_getresolvedlanguage",
-      "community": 32,
+      "community": 33,
       "norm_label": "getresolvedlanguage()"
     },
     {
@@ -22419,7 +22428,7 @@
       "source_file": "src/renderer/src/services/i18n.ts",
       "source_location": "L76",
       "id": "services_i18n_t",
-      "community": 32,
+      "community": 33,
       "norm_label": "t()"
     },
     {
@@ -22428,7 +22437,7 @@
       "source_file": "src/renderer/src/services/i18n.ts",
       "source_location": "L113",
       "id": "services_i18n_i18nprovider",
-      "community": 32,
+      "community": 33,
       "norm_label": "i18nprovider()"
     },
     {
@@ -22437,7 +22446,7 @@
       "source_file": "src/renderer/src/services/i18n.ts",
       "source_location": "L147",
       "id": "services_i18n_usei18n",
-      "community": 32,
+      "community": 33,
       "norm_label": "usei18n()"
     },
     {
@@ -22446,7 +22455,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L1",
       "id": "src_renderer_src_services_postman_import_ts",
-      "community": 20,
+      "community": 21,
       "norm_label": "postman-import.ts"
     },
     {
@@ -22455,7 +22464,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L191",
       "id": "services_postman_import_convertpostmanscript",
-      "community": 20,
+      "community": 21,
       "norm_label": "convertpostmanscript()"
     },
     {
@@ -22464,7 +22473,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L211",
       "id": "services_postman_import_generateid",
-      "community": 20,
+      "community": 21,
       "norm_label": "generateid()"
     },
     {
@@ -22473,7 +22482,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L215",
       "id": "services_postman_import_isrequestitem",
-      "community": 20,
+      "community": 21,
       "norm_label": "isrequestitem()"
     },
     {
@@ -22482,7 +22491,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L220",
       "id": "services_postman_import_buildurlfromobject",
-      "community": 20,
+      "community": 21,
       "norm_label": "buildurlfromobject()"
     },
     {
@@ -22491,7 +22500,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L237",
       "id": "services_postman_import_convertpostmanauth",
-      "community": 20,
+      "community": 21,
       "norm_label": "convertpostmanauth()"
     },
     {
@@ -22500,7 +22509,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L286",
       "id": "services_postman_import_extractevents",
-      "community": 20,
+      "community": 21,
       "norm_label": "extractevents()"
     },
     {
@@ -22509,7 +22518,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L325",
       "id": "services_postman_import_convertvariables",
-      "community": 20,
+      "community": 21,
       "norm_label": "convertvariables()"
     },
     {
@@ -22518,7 +22527,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L339",
       "id": "services_postman_import_parsepostmancollection",
-      "community": 20,
+      "community": 21,
       "norm_label": "parsepostmancollection()"
     },
     {
@@ -22527,7 +22536,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L629",
       "id": "services_postman_import_parsepostmanenvironment",
-      "community": 20,
+      "community": 21,
       "norm_label": "parsepostmanenvironment()"
     },
     {
@@ -22536,7 +22545,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L656",
       "id": "services_postman_import_ispostmancollection",
-      "community": 20,
+      "community": 21,
       "norm_label": "ispostmancollection()"
     },
     {
@@ -22545,7 +22554,7 @@
       "source_file": "src/renderer/src/services/postman-import.ts",
       "source_location": "L677",
       "id": "services_postman_import_ispostmanenvironment",
-      "community": 20,
+      "community": 21,
       "norm_label": "ispostmanenvironment()"
     },
     {
@@ -22923,7 +22932,7 @@
       "source_file": "src/renderer/src/services/grpc-client.ts",
       "source_location": "L1",
       "id": "src_renderer_src_services_grpc_client_ts",
-      "community": 0,
+      "community": 27,
       "norm_label": "grpc-client.ts"
     },
     {
@@ -22932,7 +22941,7 @@
       "source_file": "src/renderer/src/services/grpc-client.ts",
       "source_location": "L36",
       "id": "services_grpc_client_executegrpccall",
-      "community": 0,
+      "community": 27,
       "norm_label": "executegrpccall()"
     },
     {
@@ -23634,7 +23643,7 @@
       "source_file": "src/renderer/src/services/auth.ts",
       "source_location": "L89",
       "id": "services_auth_applyauth",
-      "community": 19,
+      "community": 4,
       "norm_label": "applyauth()"
     },
     {
@@ -24072,6 +24081,18 @@
       "source_location": "L520",
       "weight": 1.0,
       "_src": "crates_kobean_core_tests_core_tests_rs",
+      "_tgt": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "source": "crates_kobean_core_tests_core_tests_rs",
+      "target": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "crates/kobean-core/tests/core_tests.rs",
+      "source_location": "L560",
+      "weight": 1.0,
+      "_src": "crates_kobean_core_tests_core_tests_rs",
       "_tgt": "tests_core_tests_secrets_resolve_strict_fails_closed_on_missing_ref",
       "source": "crates_kobean_core_tests_core_tests_rs",
       "target": "tests_core_tests_secrets_resolve_strict_fails_closed_on_missing_ref",
@@ -24081,7 +24102,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/tests/core_tests.rs",
-      "source_location": "L531",
+      "source_location": "L571",
       "weight": 1.0,
       "_src": "crates_kobean_core_tests_core_tests_rs",
       "_tgt": "tests_core_tests_persistence_seeded_requests_match_seeded_folders_and_scopes_history_to_active_workspace",
@@ -24093,7 +24114,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/tests/core_tests.rs",
-      "source_location": "L588",
+      "source_location": "L628",
       "weight": 1.0,
       "_src": "crates_kobean_core_tests_core_tests_rs",
       "_tgt": "tests_core_tests_persistence_enables_foreign_keys_delete_folder_cascades_and_move_rejects_cycles",
@@ -24165,7 +24186,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/tests/core_tests.rs",
-      "source_location": "L532",
+      "source_location": "L572",
       "weight": 1.0,
       "_src": "tests_core_tests_persistence_seeded_requests_match_seeded_folders_and_scopes_history_to_active_workspace",
       "_tgt": "tests_core_tests_temp_data_dir",
@@ -24177,7 +24198,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/tests/core_tests.rs",
-      "source_location": "L589",
+      "source_location": "L629",
       "weight": 1.0,
       "_src": "tests_core_tests_persistence_enables_foreign_keys_delete_folder_cascades_and_move_rejects_cycles",
       "_tgt": "tests_core_tests_temp_data_dir",
@@ -24207,6 +24228,18 @@
       "_tgt": "tests_core_tests_free_ephemeral_port",
       "source": "tests_core_tests_free_ephemeral_port",
       "target": "tests_core_tests_mock_server_sanitizes_crlf_headers_restricts_cors_and_json_escapes_404",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "crates/kobean-core/tests/core_tests.rs",
+      "source_location": "L537",
+      "weight": 1.0,
+      "_src": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "_tgt": "tests_core_tests_free_ephemeral_port",
+      "source": "tests_core_tests_free_ephemeral_port",
+      "target": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
       "confidence_score": 1.0
     },
     {
@@ -24759,6 +24792,78 @@
       "_src": "tests_core_tests_mock_server_sanitizes_crlf_headers_restricts_cors_and_json_escapes_404",
       "_tgt": "src_mock_server_stop_local_mock_server",
       "source": "tests_core_tests_mock_server_sanitizes_crlf_headers_restricts_cors_and_json_escapes_404",
+      "target": "src_mock_server_stop_local_mock_server"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "crates/kobean-core/tests/core_tests.rs",
+      "source_location": "L521",
+      "weight": 1.0,
+      "_src": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "_tgt": "src_lib_ffimockserver_default",
+      "source": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "target": "src_lib_ffimockserver_default"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "crates/kobean-core/tests/core_tests.rs",
+      "source_location": "L522",
+      "weight": 1.0,
+      "_src": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "_tgt": "src_mock_server_set_mock_routes",
+      "source": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "target": "src_mock_server_set_mock_routes"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "crates/kobean-core/tests/core_tests.rs",
+      "source_location": "L538",
+      "weight": 1.0,
+      "_src": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "_tgt": "src_mock_server_start_local_mock_server",
+      "source": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "target": "src_mock_server_start_local_mock_server"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "crates/kobean-core/tests/core_tests.rs",
+      "source_location": "L540",
+      "weight": 1.0,
+      "_src": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "_tgt": "services_websocket_client_websocketclient_connect",
+      "source": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "target": "services_websocket_client_websocketclient_connect"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "crates/kobean-core/tests/core_tests.rs",
+      "source_location": "L549",
+      "weight": 1.0,
+      "_src": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "_tgt": "src_lib_ffimockserver_new",
+      "source": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "target": "src_lib_ffimockserver_new"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "crates/kobean-core/tests/core_tests.rs",
+      "source_location": "L556",
+      "weight": 1.0,
+      "_src": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
+      "_tgt": "src_mock_server_stop_local_mock_server",
+      "source": "tests_core_tests_mock_server_waits_for_delayed_request_bytes_after_connect",
       "target": "src_mock_server_stop_local_mock_server"
     },
     {
@@ -25989,7 +26094,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L117",
+      "source_location": "L118",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_parse_request_line",
@@ -26001,7 +26106,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L130",
+      "source_location": "L131",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_path_matches",
@@ -26013,7 +26118,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L145",
+      "source_location": "L146",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_find_matching_route",
@@ -26025,7 +26130,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L158",
+      "source_location": "L159",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_sanitize_header_value",
@@ -26037,7 +26142,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L165",
+      "source_location": "L166",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_current_unix_ms",
@@ -26049,7 +26154,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L174",
+      "source_location": "L175",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_start_local_mock_server",
@@ -26061,7 +26166,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L349",
+      "source_location": "L352",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_stop_local_mock_server",
@@ -26073,7 +26178,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L365",
+      "source_location": "L368",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_get_mock_server_status",
@@ -26085,7 +26190,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L382",
+      "source_location": "L385",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_set_mock_routes",
@@ -26097,7 +26202,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L388",
+      "source_location": "L391",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_get_mock_routes",
@@ -26109,7 +26214,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L393",
+      "source_location": "L396",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_get_mock_request_log",
@@ -26121,7 +26226,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L398",
+      "source_location": "L401",
       "weight": 1.0,
       "_src": "crates_kobean_core_src_mock_server_rs",
       "_tgt": "src_mock_server_clear_mock_request_log",
@@ -26169,7 +26274,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L218",
+      "source_location": "L221",
       "weight": 1.0,
       "_src": "src_mock_server_start_local_mock_server",
       "_tgt": "src_mock_server_read_http_request",
@@ -26181,7 +26286,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L220",
+      "source_location": "L223",
       "weight": 1.0,
       "_src": "src_mock_server_start_local_mock_server",
       "_tgt": "src_mock_server_parse_request_line",
@@ -26193,7 +26298,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L151",
+      "source_location": "L152",
       "weight": 1.0,
       "_src": "src_mock_server_find_matching_route",
       "_tgt": "src_mock_server_path_matches",
@@ -26205,7 +26310,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L225",
+      "source_location": "L228",
       "weight": 1.0,
       "_src": "src_mock_server_start_local_mock_server",
       "_tgt": "src_mock_server_find_matching_route",
@@ -26217,7 +26322,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L260",
+      "source_location": "L263",
       "weight": 1.0,
       "_src": "src_mock_server_start_local_mock_server",
       "_tgt": "src_mock_server_sanitize_header_value",
@@ -26229,7 +26334,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "crates/kobean-core/src/mock_server.rs",
-      "source_location": "L210",
+      "source_location": "L213",
       "weight": 1.0,
       "_src": "src_mock_server_start_local_mock_server",
       "_tgt": "src_mock_server_current_unix_ms",
@@ -34632,8 +34737,8 @@
       "source_file": "crates/kobean-core/src/domain/path_variables.rs",
       "source_location": "L230",
       "weight": 1.0,
-      "_src": "domain_path_variables_resolve_path_variables_in_url",
-      "_tgt": "domain_variables_contains_variables",
+      "_src": "domain_variables_contains_variables",
+      "_tgt": "domain_path_variables_resolve_path_variables_in_url",
       "source": "domain_variables_contains_variables",
       "target": "domain_path_variables_resolve_path_variables_in_url"
     },
@@ -34860,8 +34965,8 @@
       "source_file": "crates/kobean-core/src/domain/path_variables.rs",
       "source_location": "L233",
       "weight": 1.0,
-      "_src": "domain_path_variables_resolve_path_variables_in_url",
-      "_tgt": "domain_variables_encode_if_needed",
+      "_src": "domain_variables_encode_if_needed",
+      "_tgt": "domain_path_variables_resolve_path_variables_in_url",
       "source": "domain_variables_encode_if_needed",
       "target": "domain_path_variables_resolve_path_variables_in_url"
     },

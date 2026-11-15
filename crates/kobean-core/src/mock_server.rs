@@ -98,6 +98,7 @@ fn read_http_request(socket: &mut TcpStream) -> Vec<u8> {
                     }
                 }
             }
+            Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
             Err(err)
                 if matches!(
                     err.kind(),
@@ -205,6 +206,8 @@ pub fn start_local_mock_server(
     let handle = std::thread::spawn(move || {
         while *running_flag.lock().unwrap_or_else(|e| e.into_inner()) {
             if let Ok((mut socket, _)) = listener.accept() {
+                // Accepted sockets inherit O_NONBLOCK from the non-blocking listener on macOS/BSD.
+                let _ = socket.set_nonblocking(false);
                 let _ = socket.set_read_timeout(Some(Duration::from_secs(5)));
                 let req_started = Instant::now();
                 let start_ms = current_unix_ms();

@@ -517,6 +517,46 @@ fn mock_server_sanitizes_crlf_headers_restricts_cors_and_json_escapes_404() {
 }
 
 #[test]
+fn mock_server_waits_for_delayed_request_bytes_after_connect() {
+    let state = MockServerState::default();
+    set_mock_routes(
+        &state,
+        vec![MockRoute {
+            id: "delayed-route".to_string(),
+            method: "GET".to_string(),
+            path: "/safe".to_string(),
+            status_code: 200,
+            response_body: r#"{"ok":true}"#.to_string(),
+            content_type: "application/json".to_string(),
+            delay_ms: 0,
+            enabled: true,
+        }],
+    )
+    .expect("set_mock_routes");
+
+    let port = free_ephemeral_port();
+    start_local_mock_server(&state, port, None).expect("start mock server");
+
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect mock server");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .expect("set_read_timeout");
+    std::thread::sleep(Duration::from_millis(30));
+    stream
+        .write_all(b"GET /safe HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+        .expect("write delayed request");
+
+    let mut response = String::new();
+    let _ = stream.read_to_string(&mut response);
+    assert!(
+        response.starts_with("HTTP/1.1 200 OK\r\n"),
+        "expected 200 OK after delayed write, got: {response}"
+    );
+
+    stop_local_mock_server(&state).expect("stop mock server");
+}
+
+#[test]
 fn secrets_resolve_strict_fails_closed_on_missing_ref() {
     let empty_ok = resolve_secrets_strict(vec!["".to_string()]).expect("empty ref ignored");
     assert!(empty_ok.is_empty());

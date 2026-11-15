@@ -1,12 +1,12 @@
 # Graph Report - KobeanREST  (2026-11-15)
 
 ## Corpus Check
-- 275 files · ~656,164 words
+- 275 files · ~656,328 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2636 nodes · 5307 edges · 59 communities detected
-- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 904 edges (avg confidence: 0.8)
+- 2637 nodes · 5315 edges · 59 communities detected
+- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 910 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
@@ -98,7 +98,7 @@
 
 ### Community 0 - "Community 0"
 Cohesion: 0.02
-Nodes (155): CaseIterable, Codable, CollectionRunnerViewModel, PersistedScriptEntry, RunnerItemStatus, failed, passed, pending (+147 more)
+Nodes (167): AnyObject, CaseIterable, Codable, CollectionRunnerViewModel, PersistedScriptEntry, RunnerItemStatus, failed, passed (+159 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.02
@@ -106,7 +106,7 @@ Nodes (198): AppliedAuth, apply_auth(), AuthConfig, EffectiveAuth, get_effective
 
 ### Community 2 - "Community 2"
 Cohesion: 0.03
-Nodes (123): buildScopedVariableMapJson(), clearRequestHistory(), createCollection(), createEnvironment(), createFolder(), createReader(), createRequest(), createWorkspace() (+115 more)
+Nodes (126): FfiConverter, buildScopedVariableMapJson(), clearRequestHistory(), createCollection(), createEnvironment(), createFolder(), createReader(), createRequest() (+118 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.05
@@ -114,23 +114,23 @@ Nodes (142): parse_postman_environment(), ok, ffi_initialize_persistence(), exec
 
 ### Community 4 - "Community 4"
 Cohesion: 0.03
-Nodes (119): handleExport(), async(), updateConfig(), applyFilter(), fetchPreview(), handleRefreshRequest(), handleSave(), handleTokenObtained() (+111 more)
+Nodes (120): handleExport(), async(), updateConfig(), applyFilter(), fetchPreview(), handleRefreshRequest(), handleSave(), handleTokenObtained() (+112 more)
 
 ### Community 5 - "Community 5"
 Cohesion: 0.03
-Nodes (58): AnyObject, Error, FfiMockServerProtocol, UniffiInternalError, bufferOverflow, incompleteData, rustPanic, unexpectedEnumCase (+50 more)
+Nodes (3): AppState, SidebarMockBridge, SidebarTreeTests
 
 ### Community 6 - "Community 6"
-Cohesion: 0.03
-Nodes (4): AppState, CoreBridgeProtocol, SidebarMockBridge, SidebarTreeTests
+Cohesion: 0.04
+Nodes (43): Error, UniffiInternalError, bufferOverflow, incompleteData, rustPanic, unexpectedEnumCase, unexpectedNullPointer, unexpectedOptionalTag (+35 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.02
-Nodes (102): CodingKey, FfiConverter, FfiConverterByRefBytes, CodingKeys, manifestJson, serverName, version, CodingKeys (+94 more)
-
-### Community 8 - "Community 8"
 Cohesion: 0.03
 Nodes (25): RootWorkbenchView, SettingsView, CollectionRunnerSheetView, color(), DropDelegate, EnvironmentManagerView, McpToolsSheetView, McpToolsViewModel (+17 more)
+
+### Community 8 - "Community 8"
+Cohesion: 0.02
+Nodes (99): CodingKey, CodingKeys, manifestJson, serverName, version, CodingKeys, activeCollectionId, contentType (+91 more)
 
 ### Community 9 - "Community 9"
 Cohesion: 0.03
@@ -145,8 +145,8 @@ Cohesion: 0.06
 Nodes (9): collections, CoreBridge, CoreBridgeError, decoding, encoding, ffi, invalidData, missingSecret (+1 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.05
-Nodes (5): CoreBridgeTests, MockCoreBridge, TestOAuthHTTPTransport, authConfig, OAuthHTTPTransport
+Cohesion: 0.04
+Nodes (5): CoreBridgeTests, MockCoreBridge, TestOAuthHTTPTransport, scripts, OAuthHTTPTransport
 
 ### Community 13 - "Community 13"
 Cohesion: 0.05
@@ -154,7 +154,7 @@ Nodes (39): handleSubmit(), addHeader(), addQueryParam(), async(), encodeIfNeede
 
 ### Community 14 - "Community 14"
 Cohesion: 0.04
-Nodes (3): Invocation, MockRunnerBridge, reserveLoopbackPort()
+Nodes (4): CoreBridgeProtocol, Invocation, MockRunnerBridge, reserveLoopbackPort()
 
 ### Community 15 - "Community 15"
 Cohesion: 0.05
@@ -166,27 +166,27 @@ Nodes (12): SnippetGeneratorTests, AuthService, ResolvedRequest, SnippetGenerato
 
 ### Community 17 - "Community 17"
 Cohesion: 0.07
-Nodes (25): handleKeyDown(), handleSendMessage(), handleToggleConnection(), NSLock, UniffiHandleMap, WebSocketClient, clear_mock_request_log(), current_unix_ms() (+17 more)
+Nodes (26): handleKeyDown(), handleSendMessage(), handleToggleConnection(), NSLock, UniffiHandleMap, WebSocketClient, clear_mock_request_log(), current_unix_ms() (+18 more)
 
 ### Community 18 - "Community 18"
 Cohesion: 0.12
 Nodes (1): WorkspaceStorageService
 
 ### Community 19 - "Community 19"
-Cohesion: 0.14
-Nodes (21): getMethodDropdownLayout(), resolvedMethodLabel(), updateLayout(), applyAuth(), detectImportFormat(), generateId(), parseUniversalImport(), generateCurlSnippet() (+13 more)
+Cohesion: 0.15
+Nodes (20): getMethodDropdownLayout(), resolvedMethodLabel(), updateLayout(), detectImportFormat(), generateId(), parseUniversalImport(), generateCurlSnippet(), generateFetchSnippet() (+12 more)
 
 ### Community 20 - "Community 20"
-Cohesion: 0.15
-Nodes (16): countScripts(), handleClose(), handleDrop(), handleFileSelect(), handleImport(), handleInputChange(), parseAndPreview(), resetState() (+8 more)
+Cohesion: 0.13
+Nodes (14): none, read(), append_bounded_chunk(), execute_http_request(), ExecuteHttpRequest, ExecuteHttpResponse, format_reqwest_error(), HeaderEntry (+6 more)
 
 ### Community 21 - "Community 21"
 Cohesion: 0.15
-Nodes (14): emitChange(), formatGraphQLQuery(), handleApplyPastedSDL(), handleApplyTemplate(), handleBeautifyQuery(), handleBeautifyVariables(), handleGenerateQuery(), handleQueryChange() (+6 more)
+Nodes (16): countScripts(), handleClose(), handleDrop(), handleFileSelect(), handleImport(), handleInputChange(), parseAndPreview(), resetState() (+8 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.14
-Nodes (13): read(), append_bounded_chunk(), execute_http_request(), ExecuteHttpRequest, ExecuteHttpResponse, format_reqwest_error(), HeaderEntry, is_http2_pseudo_header() (+5 more)
+Cohesion: 0.15
+Nodes (14): emitChange(), formatGraphQLQuery(), handleApplyPastedSDL(), handleApplyTemplate(), handleBeautifyQuery(), handleBeautifyVariables(), handleGenerateQuery(), handleQueryChange() (+6 more)
 
 ### Community 23 - "Community 23"
 Cohesion: 0.18
@@ -205,28 +205,28 @@ Cohesion: 0.15
 Nodes (3): formatBytes(), handleCopyMarkdown(), handleExportHtml()
 
 ### Community 27 - "Community 27"
-Cohesion: 0.23
-Nodes (8): applyBulk(), cancelInlineEdit(), commitInlineEdit(), enterBulk(), handleEditingRowBlur(), handleGlobalToggle(), parseBulkText(), toBulkText()
+Cohesion: 0.15
+Nodes (4): handleGeneratePayload(), handleInvokeRpc(), executeGrpcCall(), generateSampleMessageJson()
 
 ### Community 28 - "Community 28"
 Cohesion: 0.23
 Nodes (8): applyBulk(), cancelInlineEdit(), commitInlineEdit(), enterBulk(), handleEditingRowBlur(), handleGlobalToggle(), parseBulkText(), toBulkText()
 
 ### Community 29 - "Community 29"
-Cohesion: 0.2
-Nodes (2): handleGeneratePayload(), generateSampleMessageJson()
+Cohesion: 0.23
+Nodes (8): applyBulk(), cancelInlineEdit(), commitInlineEdit(), enterBulk(), handleEditingRowBlur(), handleGlobalToggle(), parseBulkText(), toBulkText()
 
 ### Community 30 - "Community 30"
 Cohesion: 0.27
 Nodes (1): SocketIOClient
 
 ### Community 32 - "Community 32"
-Cohesion: 0.31
-Nodes (5): LayoutControls(), detectSystemLanguage(), getResolvedLanguage(), t(), useI18n()
-
-### Community 33 - "Community 33"
 Cohesion: 0.25
 Nodes (2): handleSubmit(), processChat()
+
+### Community 33 - "Community 33"
+Cohesion: 0.31
+Nodes (5): LayoutControls(), detectSystemLanguage(), getResolvedLanguage(), t(), useI18n()
 
 ### Community 34 - "Community 34"
 Cohesion: 0.25
@@ -339,11 +339,9 @@ Nodes (1): persistence::WorkspaceSummary
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 24`** (17 nodes): `MockServerViewModel`, `.addRoute()`, `.clearRequestLog()`, `.deleteRoute()`, `.extractPath()`, `.importRoutes()`, `.init()`, `.loadRoutes()`, `.mockRoute()`, `.refreshAll()`, `.refreshRequestLog()`, `.refreshStatus()`, `.setRoutes()`, `.startServer()`, `.stopServer()`, `.syncRoutesToServer()`, `.toggleServer()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 29`** (10 nodes): `handleAddMetadataRow()`, `handleCopyResponse()`, `handleGeneratePayload()`, `handlePrettifyJson()`, `handleRemoveMetadataRow()`, `handleUpdateMetadataRow()`, `generateSampleMessageJson()`, `parseProtoSchema()`, `GrpcPanel.tsx`, `proto-parser.ts`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 30`** (10 nodes): `SocketIOClient`, `.connect()`, `.constructor()`, `.disconnect()`, `.emit()`, `.getSocket()`, `.getStatus()`, `.getUrl()`, `.setStatus()`, `socketio-client.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 33`** (9 nodes): `clearChat()`, `handleDoubleClickResizer()`, `handleMouseDownResizer()`, `handleSubmit()`, `handleWindowResize()`, `processChat()`, `renderMarkdown()`, `stop()`, `AIChatSidebar.tsx`
+- **Thin community `Community 32`** (9 nodes): `clearChat()`, `handleDoubleClickResizer()`, `handleMouseDownResizer()`, `handleSubmit()`, `handleWindowResize()`, `processChat()`, `renderMarkdown()`, `stop()`, `AIChatSidebar.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 34`** (9 nodes): `loadActiveSessionId()`, `loadChatSessions()`, `loadKnowledgeBase()`, `loadMcpServers()`, `saveActiveSessionId()`, `saveChatSessions()`, `saveKnowledgeBase()`, `saveMcpServers()`, `ai-chat-store.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
@@ -394,11 +392,11 @@ Nodes (1): persistence::WorkspaceSummary
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `normalize_graphql_body()` connect `Community 1` to `Community 0`?**
-  _High betweenness centrality (0.132) - this node is a cross-community bridge._
-- **Why does `ok` connect `Community 3` to `Community 17`, `Community 2`, `Community 22`, `Community 1`?**
-  _High betweenness centrality (0.057) - this node is a cross-community bridge._
-- **Why does `MockCoreBridge` connect `Community 12` to `Community 0`, `Community 2`, `Community 6`?**
-  _High betweenness centrality (0.057) - this node is a cross-community bridge._
+  _High betweenness centrality (0.139) - this node is a cross-community bridge._
+- **Why does `ok` connect `Community 3` to `Community 17`, `Community 2`, `Community 20`, `Community 1`?**
+  _High betweenness centrality (0.062) - this node is a cross-community bridge._
+- **Why does `sendSelectedRequest()` connect `Community 4` to `Community 0`, `Community 13`, `Community 15`?**
+  _High betweenness centrality (0.058) - this node is a cross-community bridge._
 - **Are the 105 inferred relationships involving `ok` (e.g. with `export_openapi_30_spec()` and `import_openapi_30_spec()`) actually correct?**
   _`ok` has 105 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `ensure_database()` (e.g. with `persistence_round_trip_and_secret_redaction()` and `openapi_export_and_mcp_list_collections()`) actually correct?**
