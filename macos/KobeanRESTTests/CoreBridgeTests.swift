@@ -198,6 +198,39 @@ struct CoreBridgeTests {
         #expect(state.selectedTabID == firstTabID)
     }
 
+    @Test("AppState reorders tabs forward, backward, and to end without losing selection")
+    @MainActor
+    func appStateReordersTabs() async {
+        let mockBridge = MockCoreBridge()
+        let state = AppState(bridge: mockBridge)
+        await state.bootstrap()
+
+        let id1 = state.tabs[0].id
+        let id2 = state.createNewTab()
+        let id3 = state.createNewTab()
+        #expect(state.tabs.map(\.id) == [id1, id2, id3])
+        #expect(state.selectedTabID == id3)
+
+        // Move first tab to middle
+        state.moveTab(fromID: id1, toID: id2)
+        #expect(state.tabs.map(\.id) == [id2, id1, id3])
+        #expect(state.selectedTabID == id3)
+
+        // Move last tab to front
+        state.moveTab(fromID: id3, toID: id2)
+        #expect(state.tabs.map(\.id) == [id3, id2, id1])
+        #expect(state.selectedTabID == id3)
+
+        // Move front tab to end
+        state.moveTabToEnd(id: id3)
+        #expect(state.tabs.map(\.id) == [id2, id1, id3])
+
+        // No-op on unknown or identical IDs
+        state.moveTab(fromID: id1, toID: id1)
+        state.moveTab(fromID: UUID(), toID: id1)
+        #expect(state.tabs.map(\.id) == [id2, id1, id3])
+    }
+
     @Test("CoreBridge saveScript and getScripts round-trip and delete cleanly")
     func scriptPersistenceRoundTrip() async throws {
         let tempDir = try makeTempDir()

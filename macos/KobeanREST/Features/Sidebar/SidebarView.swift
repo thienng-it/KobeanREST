@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SidebarView: View {
@@ -6,20 +7,26 @@ struct SidebarView: View {
     @State private var promptAction: SidebarPromptAction?
     @State private var promptText: String = ""
 
+    @State private var selectedNodeID: SidebarNodeID?
+    @State private var hoveredNodeID: SidebarNodeID?
+    @State private var renamingNodeID: SidebarNodeID?
+    @State private var renameDraft: String = ""
+    @State private var renameCancelled: Bool = false
+    @State private var pendingSelectAllRename: Bool = false
+
+    @FocusState private var isSidebarListFocused: Bool
+    @FocusState private var focusedRenameNodeID: SidebarNodeID?
+
     private enum SidebarPromptAction: Identifiable {
         case createWorkspace
         case createCollection
-        case renameCollection(CollectionSummary)
         case createFolder(collectionId: String?, parentId: String?)
-        case renameFolder(FolderSummary)
 
         var id: String {
             switch self {
             case .createWorkspace: return "createWorkspace"
             case .createCollection: return "createCollection"
-            case .renameCollection(let c): return "renameCollection-\(c.id)"
             case .createFolder(let cid, let pid): return "createFolder-\(cid ?? "")-\(pid ?? "")"
-            case .renameFolder(let f): return "renameFolder-\(f.id)"
             }
         }
 
@@ -27,17 +34,15 @@ struct SidebarView: View {
             switch self {
             case .createWorkspace: return "New Workspace"
             case .createCollection: return "New Collection"
-            case .renameCollection: return "Rename Collection"
             case .createFolder: return "New Folder"
-            case .renameFolder: return "Rename Folder"
             }
         }
 
         var placeholder: String {
             switch self {
             case .createWorkspace: return "Workspace name"
-            case .createCollection, .renameCollection: return "Collection name"
-            case .createFolder, .renameFolder: return "Folder name"
+            case .createCollection: return "Collection name"
+            case .createFolder: return "Folder name"
             }
         }
     }
@@ -59,6 +64,21 @@ struct SidebarView: View {
         .background(Color(nsColor: .controlBackgroundColor).opacity(0.4))
         .sheet(item: $promptAction) { action in
             namePromptSheet(for: action)
+        }
+        .onChange(of: focusedRenameNodeID) { oldValue, newValue in
+            if let oldValue, newValue != oldValue, renamingNodeID == oldValue, !renameCancelled {
+                commitRename()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSText.didBeginEditingNotification)) { notification in
+            guard pendingSelectAllRename,
+                  renamingNodeID != nil,
+                  let textView = notification.object as? NSTextView,
+                  textView.string == renameDraft else {
+                return
+            }
+            pendingSelectAllRename = false
+            textView.selectAll(nil)
         }
     }
 
@@ -99,14 +119,6 @@ struct SidebarView: View {
                 .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
             }
             .menuStyle(.borderlessButton)
-
-            Button {
-                appState.createNewTab()
-            } label: {
-                Image(systemName: "plus")
-            }
-            .buttonStyle(.borderless)
-            .help("New Request Tab (⌘T)")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -123,30 +135,54 @@ struct SidebarView: View {
             .labelsHidden()
 
             HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                TextField("Filter requests…", text: $appState.searchQuery)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                if !appState.searchQuery.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    TextField("Filter requests…", text: $appState.searchQuery)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12))
+                    if !appState.searchQuery.isEmpty {
+                        Button {
+                            appState.searchQuery = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+                )
+
+                if appState.sidebarSection == .collections {
+                    let allCollapsed = appState.areAllSidebarNodesCollapsed
+                    let hasContainers = !appState.allCollapsibleSidebarNodeIDs.isEmpty
+                    let isSearching = !appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
                     Button {
-                        appState.searchQuery = ""
+                        withAnimation(.easeInOut(duration: 0.16)) {
+                            appState.toggleCollapseExpandAll()
+                        }
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                        Image(systemName: allCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(hasContainers && !isSearching ? .secondary : .tertiary)
+                            .frame(width: 26, height: 26)
+                            .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
                     }
                     .buttonStyle(.plain)
+                    .disabled(!hasContainers || isSearching)
+                    .help(allCollapsed ? "Expand All Folders" : "Collapse All Folders")
+                    .accessibilityLabel(allCollapsed ? "Expand All Folders" : "Collapse All Folders")
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color.primary.opacity(0.10), lineWidth: 1)
-            )
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -154,99 +190,55 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var collectionsList: some View {
-        let workspace = appState.workspace
-        let collections = workspace?.collections ?? []
-        let folders = workspace?.folders ?? []
-        let requests = filteredRequests(workspace?.requests ?? [])
+        let rows = SidebarTreeBuilder.buildRows(
+            workspace: appState.workspace,
+            collapsedNodeIDs: appState.collapsedSidebarNodeIDs,
+            searchQuery: appState.searchQuery
+        )
 
-        if collections.isEmpty && folders.isEmpty && requests.isEmpty {
+        if rows.isEmpty {
             emptyCollectionsState
         } else {
-            List {
-                ForEach(collections) { collection in
-                    CollectionSectionView(
-                        collection: collection,
-                        allFolders: folders,
-                        allRequests: requests,
-                        selectedRequestID: appState.activeTab?.request.id,
-                        onSelectRequest: { appState.openRequest($0) },
-                        onNewRequest: { folderId in
-                            Task { await appState.createRequestInFolder(folderId: folderId) }
-                        },
-                        onNewFolder: { cid, pid in
-                            promptText = ""
-                            promptAction = .createFolder(collectionId: cid, parentId: pid)
-                        },
-                        onRenameCollection: { col in
-                            promptText = col.name
-                            promptAction = .renameCollection(col)
-                        },
-                        onDeleteCollection: { col in
-                            Task { await appState.deleteCollection(id: col.id) }
-                        },
-                        onRenameFolder: { folder in
-                            promptText = folder.name
-                            promptAction = .renameFolder(folder)
-                        },
-                        onDeleteFolder: { folder in
-                            Task { await appState.deleteFolder(id: folder.id) }
-                        },
-                        onDeleteRequest: { req in
-                            Task { await appState.deleteRequest(id: req.id) }
-                        }
-                    )
-                }
-
-                // Standalone folders without a matching collection
-                let collectionIDs = Set(collections.map(\.id))
-                let orphanFolders = folders.filter { folder in
-                    (folder.parentId ?? "").isEmpty &&
-                    !collectionIDs.contains(folder.collectionId ?? "")
-                }
-                ForEach(orphanFolders) { folder in
-                    FolderTreeView(
-                        folder: folder,
-                        allFolders: folders,
-                        allRequests: requests,
-                        selectedRequestID: appState.activeTab?.request.id,
-                        onSelectRequest: { appState.openRequest($0) },
-                        onNewRequest: { fid in
-                            Task { await appState.createRequestInFolder(folderId: fid) }
-                        },
-                        onNewSubfolder: { pid in
-                            promptText = ""
-                            promptAction = .createFolder(collectionId: folder.collectionId, parentId: pid)
-                        },
-                        onRenameFolder: { f in
-                            promptText = f.name
-                            promptAction = .renameFolder(f)
-                        },
-                        onDeleteFolder: { f in
-                            Task { await appState.deleteFolder(id: f.id) }
-                        },
-                        onDeleteRequest: { req in
-                            Task { await appState.deleteRequest(id: req.id) }
-                        }
-                    )
-                }
-
-                // Unfiled requests
-                let knownContainerIDs = Set(collections.map(\.id)).union(folders.map(\.id))
-                let unfiled = requests.filter { !knownContainerIDs.contains($0.folderId) }
-                if !unfiled.isEmpty {
-                    Section("Requests") {
-                        ForEach(unfiled) { req in
-                            SidebarRequestRow(
-                                request: req,
-                                isSelected: appState.activeTab?.request.id == req.id,
-                                onSelect: { appState.openRequest(req) },
-                                onDelete: { Task { await appState.deleteRequest(id: req.id) } }
-                            )
-                        }
-                    }
-                }
+            List(rows, id: \.id, selection: $selectedNodeID) { row in
+                sidebarRowView(row)
+                    .tag(row.id)
+                    .selectionDisabled(!row.isRenameable)
+                    .listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
+                    .listRowSeparator(.hidden)
             }
             .listStyle(.sidebar)
+            .focused($isSidebarListFocused)
+            .onChange(of: selectedNodeID) { _, newSelection in
+                handleSelectionChange(newSelection, rows: rows)
+            }
+            .onChange(of: appState.activeTab?.request.id) { _, activeRequestID in
+                guard renamingNodeID == nil else { return }
+                if let activeRequestID,
+                   rows.contains(where: { $0.id == .request(activeRequestID) }) {
+                    selectedNodeID = .request(activeRequestID)
+                }
+            }
+            .onChange(of: appState.workspace?.id) { _, _ in
+                cancelRename(restoreListFocus: false)
+                selectedNodeID = nil
+            }
+            .onKeyPress(.return) {
+                guard isSidebarListFocused,
+                      renamingNodeID == nil,
+                      let targetID = selectedNodeID,
+                      let targetRow = rows.first(where: { $0.id == targetID }),
+                      targetRow.isRenameable else {
+                    return .ignored
+                }
+                beginRename(for: targetRow)
+                return .handled
+            }
+            .onKeyPress(.leftArrow) {
+                handleLeftArrow(rows: rows)
+            }
+            .onKeyPress(.rightArrow) {
+                handleRightArrow(rows: rows)
+            }
             .contextMenu {
                 Button("New Collection…") {
                     promptText = ""
@@ -255,6 +247,326 @@ struct SidebarView: View {
                 Button("New Request Tab") {
                     appState.createNewTab()
                 }
+                if !appState.allCollapsibleSidebarNodeIDs.isEmpty {
+                    Divider()
+                    Button(appState.areAllSidebarNodesCollapsed ? "Expand All" : "Collapse All") {
+                        withAnimation(.easeInOut(duration: 0.16)) {
+                            appState.toggleCollapseExpandAll()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sidebarRowView(_ row: SidebarTreeRow) -> some View {
+        let indent = CGFloat(row.depth) * 14
+        let isRenaming = renamingNodeID == row.id
+
+        switch row.kind {
+        case .sectionHeader(let title):
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.top, 6)
+                .padding(.bottom, 2)
+                .padding(.leading, 4)
+
+        case .collection(let collection):
+            let folderIDs = SidebarTreeBuilder.folderNodeIDs(inCollection: collection.id, workspace: appState.workspace)
+            let hasFolders = !folderIDs.isEmpty
+            let allFoldersCollapsed = hasFolders && folderIDs.isSubset(of: appState.collapsedSidebarNodeIDs)
+            let isSearching = !appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let showFolderToggle = hasFolders && !isRenaming && !isSearching
+                && (hoveredNodeID == row.id || selectedNodeID == row.id || allFoldersCollapsed)
+
+            HStack(spacing: 4) {
+                disclosureButton(for: row)
+                Image(systemName: "folder.badge.gearshape")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                rowNameContent(
+                    row: row,
+                    isRenaming: isRenaming,
+                    font: .system(size: 13, weight: .semibold)
+                )
+                Spacer(minLength: 4)
+                if showFolderToggle {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.16)) {
+                            appState.toggleCollapseExpandFolders(inCollection: collection.id)
+                        }
+                    } label: {
+                        Image(systemName: allFoldersCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
+                            .font(.system(size: 10.5, weight: .medium))
+                            .foregroundStyle(selectedNodeID == row.id ? AnyShapeStyle(.white.opacity(0.9)) : AnyShapeStyle(.secondary))
+                            .frame(width: 20, height: 20)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(allFoldersCollapsed
+                          ? "Expand All Folders in \(collection.name)"
+                          : "Collapse All Folders in \(collection.name)")
+                    .accessibilityLabel(allFoldersCollapsed
+                                        ? "Expand All Folders in \(collection.name)"
+                                        : "Collapse All Folders in \(collection.name)")
+                }
+            }
+            .padding(.leading, indent)
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
+            .onHover { isHovering in
+                if isHovering {
+                    hoveredNodeID = row.id
+                } else if hoveredNodeID == row.id {
+                    hoveredNodeID = nil
+                }
+            }
+            .contextMenu {
+                Button("New Request") {
+                    Task { await appState.createRequestInFolder(folderId: collection.id) }
+                }
+                Button("New Folder…") {
+                    promptText = ""
+                    promptAction = .createFolder(collectionId: collection.id, parentId: nil)
+                }
+                if hasFolders {
+                    Divider()
+                    Button(allFoldersCollapsed ? "Expand All Folders" : "Collapse All Folders") {
+                        withAnimation(.easeInOut(duration: 0.16)) {
+                            appState.toggleCollapseExpandFolders(inCollection: collection.id)
+                        }
+                    }
+                }
+                Divider()
+                Button("Rename") {
+                    beginRename(for: row)
+                }
+                Button("Delete", role: .destructive) {
+                    Task { await appState.deleteCollection(id: collection.id) }
+                }
+            }
+
+        case .folder(let folder, _):
+            HStack(spacing: 4) {
+                disclosureButton(for: row)
+                Image(systemName: "folder")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                rowNameContent(
+                    row: row,
+                    isRenaming: isRenaming,
+                    font: .system(size: 12.5, weight: .medium)
+                )
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, indent)
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
+            .contextMenu {
+                Button("New Request") {
+                    Task { await appState.createRequestInFolder(folderId: folder.id) }
+                }
+                Button("New Subfolder…") {
+                    promptText = ""
+                    promptAction = .createFolder(collectionId: folder.collectionId, parentId: folder.id)
+                }
+                Divider()
+                Button("Rename") {
+                    beginRename(for: row)
+                }
+                Button("Delete", role: .destructive) {
+                    Task { await appState.deleteFolder(id: folder.id) }
+                }
+            }
+
+        case .request(let req):
+            HStack(spacing: 6) {
+                Color.clear
+                    .frame(width: 14, height: 14)
+                MethodBadge(method: req.method)
+                rowNameContent(
+                    row: row,
+                    isRenaming: isRenaming,
+                    font: .system(size: 12.5)
+                )
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, indent)
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
+            .contextMenu {
+                Button("Open in Tab") {
+                    selectedNodeID = row.id
+                    appState.openRequest(req)
+                }
+                Button("Duplicate") {
+                    Task { await appState.duplicateRequest(id: req.id) }
+                }
+                Button("Rename") {
+                    beginRename(for: row)
+                }
+                Divider()
+                Button("Delete", role: .destructive) {
+                    Task { await appState.deleteRequest(id: req.id) }
+                }
+            }
+        }
+    }
+
+    private func disclosureButton(for row: SidebarTreeRow) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.16)) {
+                appState.setSidebarNodeExpanded(row.id, expanded: !row.isExpanded)
+            }
+        } label: {
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9.5, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .rotationEffect(.degrees(row.isExpanded ? 90 : 0))
+                .frame(width: 14, height: 14)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(row.isExpanded ? "Collapse \(row.displayName)" : "Expand \(row.displayName)")
+    }
+
+    @ViewBuilder
+    private func rowNameContent(row: SidebarTreeRow, isRenaming: Bool, font: Font) -> some View {
+        if isRenaming {
+            TextField("Name", text: $renameDraft)
+                .textFieldStyle(.plain)
+                .font(font)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 4))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.accentColor, lineWidth: 1.5)
+                )
+                .focused($focusedRenameNodeID, equals: row.id)
+                .onSubmit {
+                    commitRename()
+                }
+                .onExitCommand {
+                    cancelRename(restoreListFocus: true)
+                }
+        } else {
+            Text(row.displayName)
+                .font(font)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+    }
+
+    private func handleSelectionChange(_ newSelection: SidebarNodeID?, rows: [SidebarTreeRow]) {
+        guard let newSelection else { return }
+        if case .request(let requestID) = newSelection,
+           let row = rows.first(where: { $0.id == .request(requestID) }),
+           case .request(let request) = row.kind {
+            if appState.activeTab?.request.id != request.id {
+                appState.openRequest(request)
+            }
+        }
+    }
+
+    private func handleLeftArrow(rows: [SidebarTreeRow]) -> KeyPress.Result {
+        guard isSidebarListFocused,
+              renamingNodeID == nil,
+              let currentID = selectedNodeID,
+              let row = rows.first(where: { $0.id == currentID }) else {
+            return .ignored
+        }
+
+        if row.isCollapsible && row.isExpanded {
+            withAnimation(.easeInOut(duration: 0.16)) {
+                appState.setSidebarNodeExpanded(row.id, expanded: false)
+            }
+            return .handled
+        }
+
+        if let parentID = row.parentContainerID,
+           rows.contains(where: { $0.id == parentID && $0.isRenameable }) {
+            selectedNodeID = parentID
+            return .handled
+        }
+
+        return .ignored
+    }
+
+    private func handleRightArrow(rows: [SidebarTreeRow]) -> KeyPress.Result {
+        guard isSidebarListFocused,
+              renamingNodeID == nil,
+              let currentID = selectedNodeID,
+              let row = rows.first(where: { $0.id == currentID }),
+              row.isCollapsible else {
+            return .ignored
+        }
+
+        if !row.isExpanded {
+            withAnimation(.easeInOut(duration: 0.16)) {
+                appState.setSidebarNodeExpanded(row.id, expanded: true)
+            }
+            return .handled
+        }
+
+        if let idx = rows.firstIndex(where: { $0.id == currentID }),
+           idx + 1 < rows.count,
+           rows[idx + 1].parentContainerID == currentID {
+            selectedNodeID = rows[idx + 1].id
+            return .handled
+        }
+
+        return .ignored
+    }
+
+    private func beginRename(for row: SidebarTreeRow) {
+        guard row.isRenameable else { return }
+        selectedNodeID = row.id
+        renameCancelled = false
+        renameDraft = row.displayName
+        pendingSelectAllRename = true
+        renamingNodeID = row.id
+
+        Task { @MainActor in
+            focusedRenameNodeID = row.id
+        }
+    }
+
+    private func cancelRename(restoreListFocus: Bool) {
+        renameCancelled = true
+        pendingSelectAllRename = false
+        renamingNodeID = nil
+        focusedRenameNodeID = nil
+        renameDraft = ""
+        if restoreListFocus {
+            isSidebarListFocused = true
+        }
+    }
+
+    private func commitRename() {
+        guard let targetID = renamingNodeID else { return }
+        let trimmed = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        renameCancelled = true
+        pendingSelectAllRename = false
+        renamingNodeID = nil
+        focusedRenameNodeID = nil
+        isSidebarListFocused = true
+
+        guard !trimmed.isEmpty else { return }
+
+        Task {
+            switch targetID {
+            case .collection(let id):
+                await appState.renameCollection(id: id, name: trimmed)
+            case .folder(let id):
+                await appState.renameFolder(id: id, name: trimmed)
+            case .request(let id):
+                await appState.renameRequest(id: id, name: trimmed)
+            case .sectionHeader:
+                break
             }
         }
     }
@@ -375,16 +687,6 @@ struct SidebarView: View {
         }
     }
 
-    private func filteredRequests(_ requests: [SavedRequest]) -> [SavedRequest] {
-        let q = appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !q.isEmpty else { return requests }
-        return requests.filter {
-            $0.name.lowercased().contains(q)
-                || $0.url.lowercased().contains(q)
-                || $0.method.lowercased().contains(q)
-        }
-    }
-
     private func filteredHistory(_ entries: [HistoryEntry]) -> [HistoryEntry] {
         let q = appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !q.isEmpty else { return entries }
@@ -442,160 +744,9 @@ struct SidebarView: View {
                 await appState.createWorkspace(name: name)
             case .createCollection:
                 await appState.createCollection(name: name)
-            case .renameCollection(let col):
-                await appState.renameCollection(id: col.id, name: name)
             case .createFolder(let cid, let pid):
                 await appState.createFolder(name: name, collectionId: cid, parentId: pid)
-            case .renameFolder(let folder):
-                await appState.renameFolder(id: folder.id, name: name)
             }
-        }
-    }
-}
-
-private struct CollectionSectionView: View {
-    let collection: CollectionSummary
-    let allFolders: [FolderSummary]
-    let allRequests: [SavedRequest]
-    let selectedRequestID: String?
-    let onSelectRequest: (SavedRequest) -> Void
-    let onNewRequest: (String) -> Void
-    let onNewFolder: (String?, String?) -> Void
-    let onRenameCollection: (CollectionSummary) -> Void
-    let onDeleteCollection: (CollectionSummary) -> Void
-    let onRenameFolder: (FolderSummary) -> Void
-    let onDeleteFolder: (FolderSummary) -> Void
-    let onDeleteRequest: (SavedRequest) -> Void
-
-    @State private var isExpanded: Bool = true
-
-    var body: some View {
-        let rootFolders = allFolders.filter {
-            $0.collectionId == collection.id && ($0.parentId ?? "").isEmpty
-        }
-        let directRequests = allRequests.filter { $0.folderId == collection.id }
-
-        DisclosureGroup(isExpanded: $isExpanded) {
-            ForEach(rootFolders) { folder in
-                FolderTreeView(
-                    folder: folder,
-                    allFolders: allFolders,
-                    allRequests: allRequests,
-                    selectedRequestID: selectedRequestID,
-                    onSelectRequest: onSelectRequest,
-                    onNewRequest: onNewRequest,
-                    onNewSubfolder: { pid in onNewFolder(collection.id, pid) },
-                    onRenameFolder: onRenameFolder,
-                    onDeleteFolder: onDeleteFolder,
-                    onDeleteRequest: onDeleteRequest
-                )
-            }
-            ForEach(directRequests) { req in
-                SidebarRequestRow(
-                    request: req,
-                    isSelected: selectedRequestID == req.id,
-                    onSelect: { onSelectRequest(req) },
-                    onDelete: { onDeleteRequest(req) }
-                )
-            }
-        } label: {
-            Label(collection.name, systemImage: "folder.badge.gearshape")
-                .font(.system(size: 13, weight: .semibold))
-                .contextMenu {
-                    Button("New Request") { onNewRequest(collection.id) }
-                    Button("New Folder…") { onNewFolder(collection.id, nil) }
-                    Divider()
-                    Button("Rename…") { onRenameCollection(collection) }
-                    Button("Delete", role: .destructive) { onDeleteCollection(collection) }
-                }
-        }
-    }
-}
-
-private struct FolderTreeView: View {
-    let folder: FolderSummary
-    let allFolders: [FolderSummary]
-    let allRequests: [SavedRequest]
-    let selectedRequestID: String?
-    let onSelectRequest: (SavedRequest) -> Void
-    let onNewRequest: (String) -> Void
-    let onNewSubfolder: (String) -> Void
-    let onRenameFolder: (FolderSummary) -> Void
-    let onDeleteFolder: (FolderSummary) -> Void
-    let onDeleteRequest: (SavedRequest) -> Void
-
-    @State private var isExpanded: Bool = true
-
-    var body: some View {
-        let childFolders = allFolders.filter { $0.parentId == folder.id }
-        let childRequests = allRequests.filter { $0.folderId == folder.id }
-
-        DisclosureGroup(isExpanded: $isExpanded) {
-            ForEach(childFolders) { sub in
-                FolderTreeView(
-                    folder: sub,
-                    allFolders: allFolders,
-                    allRequests: allRequests,
-                    selectedRequestID: selectedRequestID,
-                    onSelectRequest: onSelectRequest,
-                    onNewRequest: onNewRequest,
-                    onNewSubfolder: onNewSubfolder,
-                    onRenameFolder: onRenameFolder,
-                    onDeleteFolder: onDeleteFolder,
-                    onDeleteRequest: onDeleteRequest
-                )
-            }
-            ForEach(childRequests) { req in
-                SidebarRequestRow(
-                    request: req,
-                    isSelected: selectedRequestID == req.id,
-                    onSelect: { onSelectRequest(req) },
-                    onDelete: { onDeleteRequest(req) }
-                )
-            }
-        } label: {
-            Label(folder.name, systemImage: "folder")
-                .font(.system(size: 12.5, weight: .medium))
-                .contextMenu {
-                    Button("New Request") { onNewRequest(folder.id) }
-                    Button("New Subfolder…") { onNewSubfolder(folder.id) }
-                    Divider()
-                    Button("Rename…") { onRenameFolder(folder) }
-                    Button("Delete", role: .destructive) { onDeleteFolder(folder) }
-                }
-        }
-    }
-}
-
-private struct SidebarRequestRow: View {
-    let request: SavedRequest
-    let isSelected: Bool
-    let onSelect: () -> Void
-    let onDelete: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 6) {
-                MethodBadge(method: request.method)
-                Text(request.name)
-                    .font(.system(size: 12.5))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Spacer()
-            }
-            .padding(.vertical, 2)
-            .padding(.horizontal, 4)
-            .background(
-                isSelected ? Color.accentColor.opacity(0.14) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 5)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            Button("Open in Tab") { onSelect() }
-            Divider()
-            Button("Delete", role: .destructive) { onDelete() }
         }
     }
 }

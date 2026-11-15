@@ -18,6 +18,7 @@ public final class AppState {
 
     public var sidebarSection: SidebarSection = .collections
     public var searchQuery: String = ""
+    public var collapsedSidebarNodeIDs: Set<SidebarNodeID> = []
     public var splitOrientation: SplitOrientation = .horizontal
 
     public var isLoadingWorkspace: Bool = false
@@ -111,6 +112,7 @@ public final class AppState {
             self.history = (try? await bridge.loadRequestHistory()) ?? []
             self.tabs = []
             self.selectedTabID = nil
+            self.collapsedSidebarNodeIDs.removeAll()
             if let first = switched.requests.first {
                 openRequest(first)
             } else {
@@ -198,6 +200,25 @@ public final class AppState {
     public func closeActiveTab() {
         guard let selectedTabID else { return }
         closeTab(id: selectedTabID)
+    }
+
+    public func moveTab(fromID: UUID, toID: UUID) {
+        guard fromID != toID,
+              let fromIndex = tabs.firstIndex(where: { $0.id == fromID }),
+              let toIndex = tabs.firstIndex(where: { $0.id == toID }) else {
+            return
+        }
+        let moved = tabs.remove(at: fromIndex)
+        tabs.insert(moved, at: toIndex)
+    }
+
+    public func moveTabToEnd(id: UUID) {
+        guard let fromIndex = tabs.firstIndex(where: { $0.id == id }),
+              fromIndex < tabs.count - 1 else {
+            return
+        }
+        let moved = tabs.remove(at: fromIndex)
+        tabs.append(moved)
     }
 
     public func focusURLBar() {
@@ -686,6 +707,68 @@ public final class AppState {
 
     // MARK: - Collections, Folders & Requests CRUD
 
+    public var allCollapsibleSidebarNodeIDs: Set<SidebarNodeID> {
+        SidebarTreeBuilder.allCollapsibleNodeIDs(workspace: workspace)
+    }
+
+    public var areAllSidebarNodesCollapsed: Bool {
+        let allIDs = allCollapsibleSidebarNodeIDs
+        return !allIDs.isEmpty && allIDs.isSubset(of: collapsedSidebarNodeIDs)
+    }
+
+    public func toggleCollapseExpandAll() {
+        let allIDs = allCollapsibleSidebarNodeIDs
+        guard !allIDs.isEmpty else { return }
+        if areAllSidebarNodesCollapsed {
+            collapsedSidebarNodeIDs.removeAll()
+        } else {
+            collapsedSidebarNodeIDs = allIDs
+        }
+    }
+
+    public func setSidebarNodeExpanded(_ id: SidebarNodeID, expanded: Bool) {
+        if expanded {
+            collapsedSidebarNodeIDs.remove(id)
+        } else if id.isCollapsible {
+            collapsedSidebarNodeIDs.insert(id)
+        }
+    }
+
+    public func areAllFoldersCollapsed(inCollection collectionID: String) -> Bool {
+        let folderIDs = SidebarTreeBuilder.folderNodeIDs(inCollection: collectionID, workspace: workspace)
+        return !folderIDs.isEmpty && folderIDs.isSubset(of: collapsedSidebarNodeIDs)
+    }
+
+    public func toggleCollapseExpandFolders(inCollection collectionID: String) {
+        let folderIDs = SidebarTreeBuilder.folderNodeIDs(inCollection: collectionID, workspace: workspace)
+        guard !folderIDs.isEmpty else { return }
+
+        collapsedSidebarNodeIDs.remove(.collection(collectionID))
+        if folderIDs.isSubset(of: collapsedSidebarNodeIDs) {
+            collapsedSidebarNodeIDs.subtract(folderIDs)
+        } else {
+            collapsedSidebarNodeIDs.formUnion(folderIDs)
+        }
+    }
+
+    private func expandContainerAndAncestors(containerID: String) {
+        guard !containerID.isEmpty else { return }
+        collapsedSidebarNodeIDs.remove(.collection(containerID))
+        var currentFolderID: String? = containerID
+        var visited = Set<String>()
+        while let fid = currentFolderID, !fid.isEmpty, visited.insert(fid).inserted {
+            collapsedSidebarNodeIDs.remove(.folder(fid))
+            if let folder = workspace?.folders.first(where: { $0.id == fid }) {
+                if let cid = folder.collectionId, !cid.isEmpty {
+                    collapsedSidebarNodeIDs.remove(.collection(cid))
+                }
+                currentFolderID = folder.parentId
+            } else {
+                currentFolderID = nil
+            }
+        }
+    }
+
     public func createCollection(name: String) async {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -722,6 +805,12 @@ public final class AppState {
         guard !trimmed.isEmpty else { return }
         do {
             _ = try await bridge.createFolder(name: trimmed, collectionId: collectionId, parentId: parentId)
+            if let parentId, !parentId.isEmpty {
+                expandContainerAndAncestors(containerID: parentId)
+            }
+            if let collectionId, !collectionId.isEmpty {
+                collapsedSidebarNodeIDs.remove(.collection(collectionId))
+            }
             await refreshWorkspace()
         } catch {
             statusMessage = error.localizedDescription
@@ -751,8 +840,88 @@ public final class AppState {
     public func createRequestInFolder(folderId: String) async {
         do {
             let req = try await bridge.createRequest(folderId: folderId)
+            expandContainerAndAncestors(containerID: folderId)
             await refreshWorkspace()
             openRequest(req)
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    public func duplicateRequest(id: String) async {
+        guard let source = workspace?.requests.first(where: { $0.id == id })
+                ?? tabs.first(where: { $0.request.id == id && $0.isPersisted })?.request else {
+            return
+        }
+
+        do {
+            let created = try await bridge.createRequest(folderId: source.folderId)
+            var duplicated = source
+            duplicated.id = created.id
+            duplicated.folderId = created.folderId
+            duplicated.name = "\(source.name) (copy)"
+
+            var cfg = duplicated.decodedAuthConfig
+            let rawValues = [cfg.clientSecret, cfg.token, cfg.refreshToken, cfg.password, cfg.keyValue]
+            let secretRefs = rawValues.compactMap { value -> String? in
+                guard let value, value.hasPrefix(CoreBridge.secretReferencePrefix) else { return nil }
+                return value
+            }
+            if !secretRefs.isEmpty {
+                let resolved = try await bridge.resolveSecrets(refIds: secretRefs)
+                func unwrap(_ val: String?) -> String? {
+                    guard let val, val.hasPrefix(CoreBridge.secretReferencePrefix) else { return val }
+                    return resolved[val] ?? val
+                }
+                cfg.clientSecret = unwrap(cfg.clientSecret)
+                cfg.token = unwrap(cfg.token)
+                cfg.refreshToken = unwrap(cfg.refreshToken)
+                cfg.password = unwrap(cfg.password)
+                cfg.keyValue = unwrap(cfg.keyValue)
+                duplicated.setAuthConfig(cfg)
+            }
+
+            try await externalizeAuthSecrets(request: &duplicated)
+            try await bridge.saveRequest(duplicated)
+
+            let sourceScripts = (try? await bridge.getScripts(entityId: source.id, entityType: "request")) ?? []
+            let preScript = sourceScripts.first(where: { $0.scriptType == "pre" })?.content ?? ""
+            let postScript = sourceScripts.first(where: { $0.scriptType == "post" })?.content ?? ""
+            if !preScript.isEmpty || !postScript.isEmpty {
+                try await persistScriptsForRequest(
+                    requestId: duplicated.id,
+                    preScript: preScript,
+                    postScript: postScript
+                )
+            }
+
+            expandContainerAndAncestors(containerID: duplicated.folderId)
+            await refreshWorkspace()
+            openRequest(duplicated)
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    public func renameRequest(id: String, name: String) async {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard var target = workspace?.requests.first(where: { $0.id == id })
+                ?? tabs.first(where: { $0.request.id == id && $0.isPersisted })?.request,
+              target.name != trimmed else {
+            return
+        }
+
+        target.name = trimmed
+        do {
+            try await bridge.saveRequest(target)
+            if let wsIdx = workspace?.requests.firstIndex(where: { $0.id == id }) {
+                workspace?.requests[wsIdx].name = trimmed
+            }
+            for tabIdx in tabs.indices where tabs[tabIdx].request.id == id {
+                tabs[tabIdx].request.name = trimmed
+            }
+            await refreshWorkspace()
         } catch {
             statusMessage = error.localizedDescription
         }

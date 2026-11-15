@@ -1,8 +1,10 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct WorkbenchView: View {
     @Bindable var appState: AppState
     @FocusState private var isURLFocused: Bool
+    @State private var tabDragState = TabDragState()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,36 +32,150 @@ struct WorkbenchView: View {
         }
     }
 
+    @MainActor
+    private final class TabDragState {
+        var draggingTabID: UUID?
+        var lastSwappedTargetID: UUID?
+        var lastSwapAt: Date = .distantPast
+        var lastMovedToEndAt: Date = .distantPast
+
+        func begin(tabID: UUID) {
+            draggingTabID = tabID
+            lastSwappedTargetID = nil
+            lastSwapAt = .distantPast
+            lastMovedToEndAt = .distantPast
+        }
+
+        func reset() {
+            draggingTabID = nil
+            lastSwappedTargetID = nil
+            lastSwapAt = .distantPast
+            lastMovedToEndAt = .distantPast
+        }
+    }
+
+    private struct TabDropDelegate: DropDelegate {
+        /// `nil` targets the trailing end of the tab strip.
+        let targetTabID: UUID?
+        let appState: AppState
+        let dragState: TabDragState
+
+        func validateDrop(info: DropInfo) -> Bool {
+            MainActor.assumeIsolated {
+                dragState.draggingTabID != nil
+            }
+        }
+
+        func dropUpdated(info: DropInfo) -> DropProposal? {
+            MainActor.assumeIsolated {
+                dragState.draggingTabID != nil
+                    ? DropProposal(operation: .move)
+                    : DropProposal(operation: .forbidden)
+            }
+        }
+
+        func dropEntered(info: DropInfo) {
+            MainActor.assumeIsolated {
+                guard let draggedID = dragState.draggingTabID,
+                      draggedID != targetTabID else {
+                    return
+                }
+                let now = Date()
+                if let targetTabID {
+                    if dragState.lastSwappedTargetID == targetTabID,
+                       now.timeIntervalSince(dragState.lastSwapAt) < 0.22 {
+                        return
+                    }
+                    dragState.lastSwappedTargetID = targetTabID
+                    dragState.lastSwapAt = now
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        appState.moveTab(fromID: draggedID, toID: targetTabID)
+                    }
+                } else {
+                    guard now.timeIntervalSince(dragState.lastMovedToEndAt) >= 0.22 else { return }
+                    dragState.lastMovedToEndAt = now
+                    dragState.lastSwappedTargetID = nil
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        appState.moveTabToEnd(id: draggedID)
+                    }
+                }
+            }
+        }
+
+        func performDrop(info: DropInfo) -> Bool {
+            MainActor.assumeIsolated {
+                let accepted = dragState.draggingTabID != nil
+                dragState.reset()
+                return accepted
+            }
+        }
+    }
+
     // MARK: - Multi-Tab Strip
 
     private var tabStrip: some View {
-        HStack(spacing: 0) {
-            ScrollView(.horizontal, showsIndicators: false) {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 4) {
                 HStack(spacing: 2) {
                     ForEach(appState.tabs) { tab in
                         tabItem(tab)
                     }
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
+                newTabButton
+                Spacer(minLength: 0)
+                    .contentShape(Rectangle())
+                    .onDrop(of: [.plainText], delegate: TabDropDelegate(
+                        targetTabID: nil,
+                        appState: appState,
+                        dragState: tabDragState
+                    ))
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
 
-            Divider()
-                .frame(height: 18)
+            HStack(spacing: 0) {
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 2) {
+                            ForEach(appState.tabs) { tab in
+                                tabItem(tab)
+                                    .id(tab.id)
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                    }
+                    .onChange(of: appState.selectedTabID) { _, selectedID in
+                        guard let selectedID else { return }
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            proxy.scrollTo(selectedID, anchor: .trailing)
+                        }
+                    }
+                }
 
-            Button {
-                appState.createNewTab()
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 11, weight: .semibold))
-                    .frame(width: 26, height: 26)
+                Divider()
+                    .frame(height: 18)
+
+                newTabButton
+                    .padding(.horizontal, 4)
             }
-            .buttonStyle(.borderless)
-            .padding(.horizontal, 4)
-            .help("New Request Tab (⌘T)")
         }
         .frame(height: 36)
         .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    private var newTabButton: some View {
+        Button {
+            appState.createNewTab()
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .help("New Request Tab (⌘T)")
+        .accessibilityLabel("New Request Tab")
     }
 
     private func tabItem(_ tab: RequestTab) -> some View {
@@ -99,8 +215,18 @@ struct WorkbenchView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
+            tabDragState.reset()
             appState.selectedTabID = tab.id
         }
+        .onDrag {
+            tabDragState.begin(tabID: tab.id)
+            return NSItemProvider(object: tab.id.uuidString as NSString)
+        }
+        .onDrop(of: [.plainText], delegate: TabDropDelegate(
+            targetTabID: tab.id,
+            appState: appState,
+            dragState: tabDragState
+        ))
     }
 
     // MARK: - URL Bar
