@@ -2,6 +2,16 @@
 
 All notable changes to KobeanREST are documented in this file.
 
+## [v0.3.0] - 2026-11-15
+*Comparing changes against v0.2.0*
+
+### 🚀 New Features & Enhancements
+- feat(macos): add native SwiftUI/AppKit client over kobean-core & UniFFI (`28fba32`) - *thienng-it*
+
+### 🔧 Build & Maintenance
+- bd init: initialize beads issue tracking (`1513ff1`) - *thienng-it*
+- chore(deps): bump codeceptjs, playwright, and vite to resolve vulnerabilities (`fa1a901`) - *thienng-it*
+
 ## [v0.2.0] - 2026-08-23
 *Comparing changes against v0.1.35*
 
