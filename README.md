@@ -1,237 +1,354 @@
 <div align="center">
 
-# KobeanREST
+# ⚡ KobeanREST
 
-**Local-first native desktop API client powered by a shared Rust engine.**
+**A fast, local-first desktop API client for REST, gRPC, WebSocket, Socket.IO, and GraphQL workflows.**
 
-Zero cloud telemetry. Zero account walls. Built for speed with SwiftUI on macOS and Tauri on Windows & Linux.
+*No account required. No cloud sync forced. 100% local workspace ownership.*
 
-[![Release](https://img.shields.io/github/v/release/thienng-it/KobeanREST?display_name=tag&style=flat-square)](https://github.com/thienng-it/KobeanREST/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
-[![Platforms](https://img.shields.io/badge/Platforms-macOS%20%28SwiftUI%29%20%7C%20Windows%20%7C%20Linux-2ea44f?style=flat-square)](#downloads--installation)
-[![Local Only](https://img.shields.io/badge/Telemetry-None-6e7781?style=flat-square)](#security--local-first-guarantee)
+[![Version](https://img.shields.io/github/v/release/thienng-it/KobeanREST?color=3b82f6&style=flat-square)](https://github.com/thienng-it/KobeanREST/releases/latest)
+[![License](https://img.shields.io/github/license/thienng-it/KobeanREST?color=10b981&style=flat-square)](LICENSE)
+[![Tauri 2](https://img.shields.io/badge/Tauri-2.0-22c55e?style=flat-square&logo=tauri)](https://tauri.app)
+[![Swift 6](https://img.shields.io/badge/macOS_Native-SwiftUI_%2B_AppKit-F05138?style=flat-square&logo=swift)](macos/project.yml)
+[![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react)](https://react.dev)
+[![Docs Portal](https://img.shields.io/badge/Docs-Live-8b5cf6?style=flat-square)](https://thienng-it.github.io/KobeanREST/)
+[![Web Preview](https://img.shields.io/badge/Web_Preview-Try_Live-ec4899?style=flat-square)](https://thienng-it.github.io/KobeanREST/app/)
 
-[Features](#highlights) · [macOS Gallery](#macos-native-app) · [Downloads](#downloads--installation) · [Architecture](#architecture) · [Build & Test](#development--building) · [Security](#security--local-first-guarantee)
+---
+
+[📖 Documentation](https://thienng-it.github.io/KobeanREST/) • [🚀 Try Web Preview](https://thienng-it.github.io/KobeanREST/app/) • [📦 Download Desktop App](https://github.com/thienng-it/KobeanREST/releases/latest) • [🗺️ Roadmap](docs/implementation-roadmap.md)
+
+<br />
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/workbench-rest.png" alt="KobeanREST Native macOS Workbench" width="100%" />
+      <p align="center"><b>Native macOS (SwiftUI + AppKit)</b><br /><sub>Zero-latency native windowing, drag-and-drop tabs, Keychain integration, and Retina dark/light modes.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/main-ui.png" alt="KobeanREST Cross-Platform Tauri Workbench" width="100%" />
+      <p align="center"><b>Cross-Platform Desktop (Tauri 2 + React)</b><br /><sub>Unified experience across Windows, Linux, macOS, and the browser Web Preview.</sub></p>
+    </td>
+  </tr>
+</table>
 
 </div>
 
 ---
+
+## 🌟 Overview
+
+**KobeanREST** is designed for software engineers, backend developers, and QA teams who need a high-performance API client without forced cloud lock-in or user registration. Download the app, launch it locally, and build, test, and debug REST, gRPC, WebSocket, Socket.IO, and GraphQL endpoints directly on your machine.
+
+> **Local-First Contract:**
+> KobeanREST has **no user accounts, no login screens, no cloud telemetry, and no required backend service.** All workspace data is stored in local SQLite databases, and secret credentials remain safely secured in your operating system's native keychain.
+
+---
+
+## ✨ Key Features
+
+| Feature | Description |
+| :--- | :--- |
+| 🍎 **Native macOS App (SwiftUI + AppKit)** | Dedicated macOS 15+ Swift 6 desktop client powered by `KobeanFFI.xcframework` with multi-tab drag-and-drop reordering, collapsible folders, Light/Dark themes, and shared SQLite/Keychain parity. |
+| ⚡ **gRPC & Protobuf RPC Client** | Native gRPC execution engine supporting Unary and Streaming calls with `.proto` IDL loading, service/method selection, sample payload synthesis, custom metadata headers, and latency metrics. |
+| 🔌 **WebSocket & Socket.IO Streaming** | Real-time bidirectional message streaming with incoming/outgoing chronological timeline inspector, event emitters, Text/UTF-8/Hex payloads, and connection state indicators. |
+| 📐 **GraphQL Studio & Inspection** | Query and variables editor with syntax highlighting, schema introspection support, and strict GraphQL-over-HTTP error & data status reporting (`GraphQL OK`, `GraphQL Errors`). |
+| 🛠️ **Local Mock Server & Starter Templates** | Built-in multi-route HTTP/REST & gRPC mock server with template presets (E-Commerce, OpenAI LLM, DevOps Health, Greeter, Echo Streaming), custom delays, and live hit logs. |
+| 📥 **Universal API Importer** | 1-click import from cURL, Postman v2.1, OpenAPI/Swagger 3.x, Insomnia, HAR, Hoppscotch, and `.http` files with draft preservation. |
+| 🤖 **AI Assistant & MCP Tools** | Built-in local/cloud AI Assistant (Ollama, OpenAI, Anthropic, Gemini, Groq, OpenRouter) plus a native MCP Tools Inspector running directly against local workspace storage. |
+| 🧩 **Extensible Plugin System** | Modular plugin runner with a rich built-in catalog (UUID Request ID, HMAC Signer, Response Time Logger, Rate Limit Checker, JSON Extractor, Status Asserters). |
+| 🔐 **Keychain Secret Protection** | Sensitive values (API keys, OAuth 2.0 + PKCE tokens, client secrets) stay outside SQLite in OS Keychain / encrypted vault storage. |
+| 🏃 **Collection Runner & 6-Lang Snippets** | Execute entire collections sequentially with assertion summaries, and export clean redacted code snippets (cURL, Python, JavaScript, Swift, HTTPie, Go). |
+| 📜 **Pre & Post Request Scripts** | Dynamic JavaScript execution environment (`kb.*` / `pm.*`) with live console logs, assertions, and variable injection. |
+| 📊 **QA Dashboard** | Real-time test analytics, flakiness governance, and daily telemetry drilldown for automated tests. |
+| 🌐 **Live Web Preview** | Try KobeanREST instantly in any modern web browser without installing local desktop binaries. |
+
+---
+
+## 🍎 Native macOS App Gallery (`macos/`)
 
 <div align="center">
-  <img src="docs/images/macos/workbench-rest.png" alt="KobeanREST Native macOS Workbench (Light Mode)" width="100%" />
+  <img src="docs/images/macos/workbench-dark.png" alt="KobeanREST Native macOS Dark Mode" width="880" />
   <br />
-  <sub><b>Native macOS SwiftUI Workbench</b> — multi-tab request tabs with drag-and-drop reordering, bi-directional URL & parameter sync, JSON syntax viewer, and local SQLite persistence.</sub>
+  <sub><b>Native macOS Dark Mode:</b> JSON body composer alongside syntax-formatted <code>201 Created</code> response inspection.</sub>
+</div>
+
+<br />
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/graphql-studio.png" alt="macOS GraphQL Studio" width="100%" />
+      <p align="center"><b>GraphQL Studio</b><br /><sub>GraphQL query editor with one-click introspection template and formatted response output.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/websocket-stream.png" alt="macOS WebSocket Workbench" width="100%" />
+      <p align="center"><b>WebSocket Workbench</b><br /><sub>Text and UTF-8 / Hex frame composer with live inbound/outbound stream timeline.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/params-sync.png" alt="macOS Query Params and Path Variables" width="100%" />
+      <p align="center"><b>Query & Path Parameter Sync</b><br /><sub>Live two-way sync between <code>?key=value</code> query strings, <code>:path</code> tokens, and response headers.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/auth-oauth2.png" alt="macOS OAuth 2.0 and PKCE Auth" width="100%" />
+      <p align="center"><b>OAuth 2.0 & PKCE Auth</b><br /><sub>Native <code>ASWebAuthenticationSession</code> PKCE, Client Credentials, Bearer, Basic, and API Key auth.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/scripts-tests.png" alt="macOS Pre and Post Scripts and Test Assertions" width="100%" />
+      <p align="center"><b>Scripts & Test Assertions</b><br /><sub>Sandboxed <code>JavaScriptCore</code> pre-request and <code>kb.test()</code> / <code>pm.test()</code> post-response runner.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/history-timing.png" alt="macOS History and Timing Waterfall" width="100%" />
+      <p align="center"><b>History & Timing Waterfall</b><br /><sub>Secret-redacted history log paired with DNS, TCP, TLS, and wait latency stages.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/collection-runner.png" alt="macOS Collection Runner" width="100%" />
+      <p align="center"><b>Collection Runner</b><br /><sub>Sequential batch runner across collections & folders with assertion pass summaries.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/mock-server.png" alt="macOS Local Rust Mock Server" width="100%" />
+      <p align="center"><b>Local Rust Mock Server</b><br /><sub>Loopback HTTP mock server with live route editing, custom delays, and request hit logs.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/environment-manager.png" alt="macOS Environments and Keychain Secrets" width="100%" />
+      <p align="center"><b>Environments & Keychain Secrets</b><br /><sub>Environment variable switcher keeping secrets in macOS Keychain, never plaintext SQLite.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/universal-importer.png" alt="macOS Universal Importer" width="100%" />
+      <p align="center"><b>Universal Importer</b><br /><sub>Auto-detect cURL, OpenAPI 3.0, Postman v2.1, Insomnia, HAR, Hoppscotch, and KobeanREST JSON.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/code-snippets.png" alt="macOS 6-Language Code Snippet Generator" width="100%" />
+      <p align="center"><b>Code Snippet Generator</b><br /><sub>Export requests to cURL, Python, JavaScript, Swift, HTTPie, and Go with secret redaction.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/macos/mcp-tools.png" alt="macOS MCP Tools Inspector" width="100%" />
+      <p align="center"><b>MCP Tools Inspector</b><br /><sub>Inspect and invoke local KobeanREST MCP tools directly against workspace SQLite storage.</sub></p>
+    </td>
+  </tr>
+</table>
+
+<div align="center">
+  <img src="docs/images/macos/settings.png" alt="KobeanREST Native macOS Settings" width="520" />
+  <br />
+  <sub><b>Native macOS Settings:</b> Theme selection, response wrapping, export/diagnostic redaction, SQLite WAL path, and Keychain vault status.</sub>
 </div>
 
 ---
 
-## Highlights
+## 📸 Cross-Platform Feature Gallery (Windows, Linux & macOS Tauri)
 
-| Category | Capabilities |
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/grpc-panel.png" alt="KobeanREST gRPC Client" width="100%" />
+      <p align="center"><b>gRPC & Protobuf Client</b><br /><sub>Interactive <code>.proto</code> loader, method selector, and decoded streaming response viewer.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/websocket-panel.png" alt="WebSocket and Socket.IO Streaming" width="100%" />
+      <p align="center"><b>WebSocket & Socket.IO</b><br /><sub>Real-time bi-directional streaming inspector and interactive event emitter.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/mock-server.png" alt="Local Mock Server & Starter Templates" width="100%" />
+      <p align="center"><b>Local Mock Server</b><br /><sub>Built-in multi-route REST & gRPC server with pre-configured starter templates.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/qa-dashboard.png" alt="KobeanREST QA Dashboard" width="100%" />
+      <p align="center"><b>QA Dashboard</b><br /><sub>Real-time test analytics, suite metrics, and flakiness telemetry drilldown.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/environment-editor.png" alt="Environment Editor" width="100%" />
+      <p align="center"><b>Local Environment & Variables Editor</b><br /><sub>Keep secrets safe in your native OS keychain alongside dynamic variable scopes.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/scripts-tab.png" alt="Pre & Post Request Scripts" width="100%" />
+      <p align="center"><b>Pre & Post Request Scripts</b><br /><sub>Dynamic execution environment with tests, assertions, and live logs.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/params-tab.png" alt="Interactive Query Params" width="100%" />
+      <p align="center"><b>Interactive Query Params</b><br /><sub>Real-time bi-directional synchronization with the URL bar.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/history-viewer.png" alt="Request History" width="100%" />
+      <p align="center"><b>History Viewer</b><br /><sub>Detailed logging of past requests and one-click replay functionality.</sub></p>
+    </td>
+  </tr>
+</table>
+
+---
+
+## 📥 Downloads & Installation
+
+Official cross-platform installers are published through GitHub Releases:
+
+👉 **[Download Latest Version (GitHub Releases)](https://github.com/thienng-it/KobeanREST/releases/latest)**
+
+| Platform | Installer Format | Architecture |
+| :--- | :--- | :--- |
+| **macOS** | `.dmg` (Tauri Universal & Native macOS `KobeanREST-macOS-Native.dmg`) | macOS 15+ (Apple Silicon & Intel) |
+| **Windows** | `.msi` | x64 |
+| **Linux** | `.AppImage` / `.deb` | x64 |
+
+*Detailed installation instructions, checksum verification (`SHA256SUMS.txt`), and OS security notes are available in the [Download Guide](docs/download.md).*
+
+---
+
+## 🏗️ Architecture
+
+```
+┌──────────────────────────────┐    ┌─────────────────────────────────────┐
+│   Native macOS App (macOS)   │    │  Tauri Desktop App (Win/Linux/Mac)  │
+│  SwiftUI + AppKit (Swift 6)  │    │   React Renderer + Tauri 2 IPC      │
+└──────────────┬───────────────┘    └──────────────────┬──────────────────┘
+               │ UniFFI Static XCFramework             │
+               │ (crates/kobean-ffi)                   │ Tauri Commands
+               └──────────────────┬────────────────────┘
+                                  ▼
+               ┌──────────────────────────────────────┐
+               │       Shared Rust Core (kobean-core) │
+               │ SQLite (WAL), Reqwest, OS Keychain,  │
+               │ Domain Engine, Mock Server, MCP      │
+               └──────────────────────────────────────┘
+```
+
+| Layer | Responsibility |
 | :--- | :--- |
-| **Protocols & Payloads** | REST (GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS/custom), JSON, GraphQL with introspection template, WebSocket live streams, form-urlencoded, multipart, and raw bodies |
-| **Native macOS Experience** | SwiftUI + AppKit split-pane workbench, horizontal/vertical layouts, Light & Dark modes, drag-and-drop tab reordering, collapsible collection folders, and `⌘`-shortcuts |
-| **Auth & Secret Vault** | Bearer, Basic, API Key, OAuth 2.0 (Authorization Code + PKCE, Client Credentials, Refresh) stored in macOS Keychain (`crates/kobean-core` encrypted vault fallback) |
-| **Automation & Mocking** | Pre-request & post-response test scripts (`kb.*` / `pm.*` assertions + console logs), Collection Runner, and built-in local Rust HTTP Mock Server |
-| **Developer Workflow** | Universal importer (OpenAPI 3.0, Postman v2.1, Insomnia, HAR, Hoppscotch, cURL), 6-language code snippet generator, MCP Tools Inspector, and DNS/TCP/TLS timing waterfall |
+| **Native macOS Client ([`macos/`](macos/))** | SwiftUI + AppKit workbench (macOS 15+, Swift 6 strict concurrency), keyboard-navigable sidebar tree (Collapse/Expand All, `Return` / right-click inline rename, Duplicate), drag-and-drop tab reordering, `ASWebAuthenticationSession` OAuth2 + PKCE, `JavaScriptCore` sandboxed scripts, `URLSessionWebSocketTask`, Snippet Generator, and XcodeGen project ([`macos/project.yml`](macos/project.yml)) |
+| **UniFFI Bridge ([`crates/kobean-ffi`](crates/kobean-ffi))** | Static `KobeanFFI.xcframework` exposing `kobean-core` persistence, HTTP, mock server, MCP, and domain helpers to Swift |
+| **Shared Rust Core ([`crates/kobean-core`](crates/kobean-core))** | Shared workspace SQLite (`WAL`, `com.kobeanrest.app/kobeanrest.sqlite`), Keychain secret vault (`service = "KobeanREST"`), HTTP client, domain resolution/import parity, loopback mock server, OpenAPI generator, and MCP tools |
+| **Tauri 2 Shell ([`src-tauri/`](src-tauri/))** | Thin desktop IPC wrapper around `kobean-core` for cross-platform Windows, Linux, and macOS builds |
+| **React Renderer ([`src/renderer/`](src/renderer/))** | CodeMirror editor, dynamic variable resolution `{{var}}`, theme engines |
+| **VS Code Extension ([`vscode-extension/`](vscode-extension/))** | Standalone KobeanREST extension integration for VS Code |
+| **Docs Portal ([`docs-site/`](docs-site/))** | GitHub Pages documentation portal |
 
 ---
 
-## macOS Native App
-
-### Workbench, Appearance & Protocols
-
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/workbench-dark.png" alt="Native macOS Dark Mode" width="100%" />
-      <p align="center"><b>Native Dark Mode</b><br /><sub>JSON request editor with live formatting alongside color-coded <code>201 Created</code> response payloads.</sub></p>
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/graphql-studio.png" alt="GraphQL Studio" width="100%" />
-      <p align="center"><b>GraphQL Studio</b><br /><sub>Dedicated GraphQL body editor with one-click introspection query template and typed JSON output.</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/websocket-stream.png" alt="WebSocket Workbench" width="100%" />
-      <p align="center"><b>WebSocket Live Stream</b><br /><sub>Bidirectional Text and UTF-8 / Hex frame composer, ping controls, and live timestamped frame log.</sub></p>
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/params-sync.png" alt="Bi-Directional Query and Path Parameters" width="100%" />
-      <p align="center"><b>Query & Path Parameter Sync</b><br /><sub>Live two-way sync between <code>?key=value</code> query strings, <code>:path</code> tokens, and inspected response headers.</sub></p>
-    </td>
-  </tr>
-</table>
-
-### Auth, Scripting & Execution Insights
-
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/auth-oauth2.png" alt="OAuth 2.0 and PKCE Auth Inspector" width="100%" />
-      <p align="center"><b>OAuth 2.0 & PKCE Auth</b><br /><sub>Configurable Authorization Code + PKCE, Client Credentials, Bearer, Basic, and API Key flows.</sub></p>
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/scripts-tests.png" alt="Pre and Post Request Scripts and Assertions" width="100%" />
-      <p align="center"><b>Scripts & Test Assertions</b><br /><sub>Run JavaScript pre-request mutators and post-response <code>kb.test()</code> / <code>pm.test()</code> assertions with console logs.</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/history-timing.png" alt="Request History and Network Timing Waterfall" width="100%" />
-      <p align="center"><b>History & Timing Waterfall</b><br /><sub>Redacted execution history paired with per-stage DNS, TCP, TLS, and request latency bars.</sub></p>
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/collection-runner.png" alt="Collection Runner" width="100%" />
-      <p align="center"><b>Collection Runner</b><br /><sub>Sequential batch execution across collections/folders with environment overrides and assertion pass summaries.</sub></p>
-    </td>
-  </tr>
-</table>
-
-### Mocking, Environments, Import & Tooling
-
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/mock-server.png" alt="Local Rust HTTP Mock Server" width="100%" />
-      <p align="center"><b>Built-in Rust Mock Server</b><br /><sub>Local HTTP mock server inside <code>kobean-core</code> with route matching, custom status/latency, and live hit logs.</sub></p>
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/environment-manager.png" alt="Environments and macOS Keychain Secrets" width="100%" />
-      <p align="center"><b>Environments & Keychain Secrets</b><br /><sub>Switchable environment profiles where sensitive tokens are stored in macOS Keychain, never plaintext SQLite.</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/universal-importer.png" alt="Universal API Importer" width="100%" />
-      <p align="center"><b>Universal Importer</b><br /><sub>Auto-detect and import cURL, OpenAPI 3.0, Postman v2.1, Insomnia, HAR, Hoppscotch, and KobeanREST JSON.</sub></p>
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/code-snippets.png" alt="6-Language Code Snippet Generator" width="100%" />
-      <p align="center"><b>Code Snippet Generator</b><br /><sub>Export requests to cURL, Python, JavaScript, Swift, HTTPie, or Go with one-click secret redaction.</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/mcp-tools.png" alt="MCP Tools Inspector" width="100%" />
-      <p align="center"><b>MCP Tools Inspector</b><br /><sub>Inspect and run local KobeanREST MCP tools directly against your SQLite workspace.</sub></p>
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/images/macos/settings.png" alt="Native macOS Settings" width="100%" />
-      <p align="center"><b>Native Settings & Storage Info</b><br /><sub>Configure theme, response line wrapping, export/log redaction, and inspect SQLite & Keychain status.</sub></p>
-    </td>
-  </tr>
-</table>
-
-<details>
-<summary><b>Cross-Platform Desktop UI (Windows & Linux via Tauri)</b></summary>
-
-KobeanREST also ships a cross-platform desktop client sharing the exact same Rust core (`crates/kobean-core`) alongside a React/TypeScript frontend (`src/renderer/`) and VS Code extension (`vscode-extension/`).
-
-| Workbench | Collections & Environments | Collection Runner & Mock |
-| :---: | :---: | :---: |
-| <img src="docs/images/main-ui.png" alt="Tauri Main Workbench" width="100%" /> | <img src="docs/images/collections-hub.png" alt="Collections Hub" width="100%" /> | <img src="docs/images/collection-runner.png" alt="Cross-Platform Collection Runner" width="100%" /> |
-
-</details>
-
----
-
-## Downloads & Installation
-
-Pre-built signed binaries and checksums are published on [**GitHub Releases**](https://github.com/thienng-it/KobeanREST/releases):
-
-| Platform | Package Format | Notes |
-| :--- | :--- | :--- |
-| **macOS** | `.dmg` / `.app` | Native SwiftUI (`macos/`) and Tauri universal desktop builds (Apple Silicon & Intel) |
-| **Windows** | `.msi` / `.exe` | 64-bit Windows 10 / 11 |
-| **Linux** | `.AppImage` / `.deb` | Ubuntu, Fedora, Debian, Arch (`x86_64`) |
-
-Every release includes `SHA256SUMS.txt`. See [docs/download.md](docs/download.md) for checksum verification steps and troubleshooting.
-
----
-
-## Architecture
-
-A single Rust workspace powers HTTP networking, persistence, secret resolution, importing, and mocking across both the native macOS SwiftUI frontend (via UniFFI XCFramework) and the cross-platform Tauri shell:
-
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                             Presentation Layer                             │
-│    macos/ (SwiftUI + AppKit)      │      src/renderer/ (React + Tauri)     │
-└─────────────────┬─────────────────┴───────────────────┬────────────────────┘
-                  │ UniFFI XCFramework                  │ Tauri IPC Commands
-┌─────────────────▼─────────────────────────────────────▼────────────────────┐
-│                       crates/kobean-ffi  &  src-tauri                      │
-└─────────────────────────────────────┬──────────────────────────────────────┘
-                                      │
-┌─────────────────────────────────────▼──────────────────────────────────────┐
-│                             crates/kobean-core                             │
-│   HTTP Client (reqwest) · SQLite (WAL) · Keychain/Vault · Mock · Importer  │
-└────────────────────────────────────────────────────────────────────────────┘
-```
-
-| Module | Path | Purpose |
-| :--- | :--- | :--- |
-| **Rust Core** | [`crates/kobean-core`](crates/kobean-core) | Shared HTTP execution engine, SQLite WAL persistence, Keychain/AES-GCM vault, importers, mock server |
-| **UniFFI Bridge** | [`crates/kobean-ffi`](crates/kobean-ffi) | Swift & foreign-language bindings exposing `kobean-core` as `KobeanCore.xcframework` |
-| **Native macOS App** | [`macos/`](macos/) | Swift 6 / SwiftUI desktop workbench (`KobeanREST.xcodeproj` generated via `xcodegen`) |
-| **Tauri Host & UI** | [`src-tauri/`](src-tauri/) · [`src/renderer/`](src/renderer/) | Cross-platform desktop shell and TypeScript/React workbench |
-| **VS Code Extension** | [`vscode-extension/`](vscode-extension/) | In-editor API client integration for VS Code |
-| **Contracts & Docs** | [`tests/`](tests/) · [`docs/`](docs/) | Release/contract verification suites and ADRs |
-
----
-
-## Development & Building
+## 🛠️ Development & Building
 
 ### Prerequisites
+- [Node.js](https://nodejs.org/) v22+
+- [Rust](https://www.rust-lang.org/) stable toolchain
+- Cargo & platform build dependencies
+- *(Native macOS only)* Xcode 16+ (macOS 15 SDK) and [`xcodegen`](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
-- **Rust** (stable toolchain via `rustup`)
-- **Node.js** 20+ (for contract tests and Tauri frontend)
-- **macOS native builds**: Xcode 16+, macOS 15+ SDK, and [`xcodegen`](https://github.com/yonaskolb/XcodeGen)
+### Cross-Platform Tauri App
 
-### Quick Commands
+1. **Clone & Install Dependencies:**
+   ```bash
+   git clone https://github.com/thienng-it/KobeanREST.git
+   cd KobeanREST
+   npm install
+   ```
 
-```bash
-# Build native macOS SwiftUI app (compiles Rust XCFramework, generates Xcode project, opens app)
-npm run macos
+2. **Run Web Renderer (Dev Mode):**
+   ```bash
+   npm run dev
+   ```
 
-# Run native macOS Swift unit tests
-xcodebuild test \
-  -project macos/KobeanREST.xcodeproj \
-  -scheme KobeanREST \
-  -destination 'platform=macOS' \
-  -derivedDataPath macos/DerivedData \
-  -only-testing:KobeanRESTTests \
-  CODE_SIGNING_ALLOWED=NO
+3. **Run Tauri Desktop App:**
+   ```bash
+   npm run tauri dev
+   ```
 
-# Regenerate macOS showcase screenshots
-TEST_RUNNER_KOBEAN_CAPTURE_SCREENSHOTS_DIR="$PWD/docs/images/macos" \
-  xcodebuild test -project macos/KobeanREST.xcodeproj -scheme KobeanREST \
-  -destination 'platform=macOS' -derivedDataPath macos/DerivedData \
-  -only-testing:KobeanRESTTests/ScreenshotCaptureTests CODE_SIGNING_ALLOWED=NO
+4. **Execute Cross-Platform Verification & Tests:**
+   ```bash
+   npm test               # Run contract and unit test suite
+   npm run build          # Build TypeScript & Vite renderer
+   npm run check:native   # Run Cargo check for Tauri desktop crate
+   npm run build:docs     # Build documentation portal
+   npm run check:secrets  # Perform Betterleak sensitive-data scan
+   npm run check:release  # Run release preflight checks
+   ```
 
-# Cross-platform Tauri dev / release build
-npm install && npm run tauri:dev
-npm run tauri:build
+### Native macOS Client (`macos/`)
 
-# Verify Rust workspace & JS contract suites
-cargo test --workspace
-npm test
-```
+The native macOS client shares the exact same SQLite workspace and OS Keychain store as Tauri so both clients interoperate on your local machine.
+
+1. **One-Command Build & Launch (Release):**
+   ```bash
+   npm run macos
+   ```
+   *(Builds the Rust XCFramework, regenerates `macos/KobeanREST.xcodeproj`, compiles Release, and opens `KobeanREST.app`.)*
+
+2. **Build Rust Core XCFramework & Swift UniFFI Bindings (Manual):**
+   ```bash
+   ./macos/scripts/build-rust-xcframework.sh              # Current macOS architecture
+   # Or build Universal (requires `rustup target add x86_64-apple-darwin aarch64-apple-darwin`):
+   ./macos/scripts/build-rust-xcframework.sh --universal
+   ```
+
+3. **Generate Xcode Project, Run Tests, or Launch Debug Build:**
+   ```bash
+   cd macos && xcodegen generate && cd ..
+
+   # Run Swift unit & integration tests
+   xcodebuild test \
+     -project macos/KobeanREST.xcodeproj \
+     -scheme KobeanREST \
+     -configuration Debug \
+     -destination 'platform=macOS' \
+     -derivedDataPath macos/DerivedData \
+     -only-testing:KobeanRESTTests \
+     CODE_SIGNING_ALLOWED=NO
+
+   # Regenerate macOS showcase screenshots
+   TEST_RUNNER_KOBEAN_CAPTURE_SCREENSHOTS_DIR="$PWD/docs/images/macos" \
+     xcodebuild test \
+       -project macos/KobeanREST.xcodeproj \
+       -scheme KobeanREST \
+       -destination 'platform=macOS' \
+       -derivedDataPath macos/DerivedData \
+       -only-testing:KobeanRESTTests/ScreenshotCaptureTests \
+       CODE_SIGNING_ALLOWED=NO
+
+   # Fast Swift-only Debug rebuild & launch (when Rust core hasn't changed)
+   xcodebuild build \
+     -project macos/KobeanREST.xcodeproj \
+     -scheme KobeanREST \
+     -configuration Debug \
+     -destination "platform=macOS,arch=$(uname -m)" \
+     -derivedDataPath macos/DerivedData && \
+     open macos/DerivedData/Build/Products/Debug/KobeanREST.app
+
+   # Or open in Xcode GUI (press ⌘R to run)
+   open macos/KobeanREST.xcodeproj
+   ```
+
+4. **Run Rust Core & FFI Workspace Tests:**
+   ```bash
+   cargo test --workspace
+   ```
 
 ---
 
-## Security & Local-First Guarantee
+## 🔒 Security & Privacy
 
-- **Zero Telemetry & Zero Accounts**: No analytics SDKs, crash reporters, remote sync servers, or telemetry endpoints. Workspaces live strictly on disk in SQLite (`WAL` mode).
-- **OS Keychain First**: Sensitive environment secrets, API keys, and OAuth tokens are stored in macOS Keychain / OS credential storage (with an encrypted vault fallback in `crates/kobean-core`), never in plaintext workspace tables.
-- **Automatic Redaction**: Sensitive headers (`Authorization`, `Cookie`, API keys) and query credentials are redacted in history logs, exports, diagnostics, and generated code snippets by default.
+KobeanREST is engineered to keep your workspace data private and local:
 
-For architecture decisions and roadmap milestones, see [`docs/implementation-roadmap.md`](docs/implementation-roadmap.md) and [`docs/adr/`](docs/adr/).
+- **Keychain-Externalized Credentials:** API keys, passwords, OAuth2 access/refresh tokens, and client secrets are stored in the OS Keychain (`service = "KobeanREST"`, referenced via `kobeanrest://secrets/...`) rather than plaintext SQLite fields.
+- **Sandboxed Scripts & Native OAuth2:** On native macOS, `kb.*`/`pm.*` scripts run inside an isolated `JavaScriptCore` context with a watchdog timeout and zero Keychain secret exposure; OAuth2 uses ephemeral `ASWebAuthenticationSession` with strict PKCE `S256` and CSRF `state` verification.
+- **Redacted Secret Exports & History:** Workspace exports redact secret variables, auth configs, and sensitive headers by default, and request history masks sensitive URL query tokens, `Authorization`, `Cookie`, and `Set-Cookie` headers.
+- **Automated Scanning:** Source, Swift, Xcode configs, and workflows are scanned for credential leaks (`npm run check:secrets` and `betterleaks`).
 
 ---
 
-## License
+## 📄 License
 
-Licensed under the [MIT License](LICENSE).
+Distributed under the [MIT License](LICENSE). Created and maintained with ❤️ by **[Joseph Thien](https://github.com/thienng-it)** and **[Kobenguyent](https://github.com/kobenguyent)**.
