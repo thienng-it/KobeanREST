@@ -19,7 +19,8 @@
     "build:docs": "npm --prefix docs-site run build",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "macos": "./macos/scripts/build-rust-xcframework.sh && (cd macos && xcodegen generate) && xcodebuild build -project macos/KobeanREST.xcodeproj -scheme KobeanREST -configuration Release -destination \"platform=macOS,arch=$(uname -m)\" -derivedDataPath macos/DerivedData && open macos/DerivedData/Build/Products/Release/KobeanREST.app"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

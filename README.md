@@ -150,7 +150,7 @@ Official cross-platform installers are published through GitHub Releases:
 
 | Layer | Responsibility |
 | :--- | :--- |
-| **Native macOS Client (`macos/`)** | SwiftUI + AppKit workbench (macOS 15+, Swift 6 strict concurrency), `ASWebAuthenticationSession` OAuth2 + PKCE, `JavaScriptCore` sandboxed scripts, `URLSessionWebSocketTask`, Snippet Generator, and XcodeGen project (`macos/project.yml`) |
+| **Native macOS Client (`macos/`)** | SwiftUI + AppKit workbench (macOS 15+, Swift 6 strict concurrency), keyboard-navigable sidebar tree (Collapse/Expand All, `Return` / right-click inline rename), `ASWebAuthenticationSession` OAuth2 + PKCE, `JavaScriptCore` sandboxed scripts, `URLSessionWebSocketTask`, Snippet Generator, and XcodeGen project (`macos/project.yml`) |
 | **UniFFI Bridge (`crates/kobean-ffi`)** | Static `KobeanFFI.xcframework` exposing `kobean-core` persistence, HTTP, mock server, MCP, and domain helpers to Swift |
 | **Shared Rust Core (`crates/kobean-core`)** | Shared workspace SQLite (`WAL`, `com.kobeanrest.app/kobeanrest.sqlite`), Keychain secret vault (`service = "KobeanREST"`), HTTP client, domain resolution/import parity, loopback mock server, OpenAPI generator, and MCP tools |
 | **Tauri 2 Shell (`src-tauri/`)** | Thin desktop IPC wrapper around `kobean-core` for cross-platform Windows, Linux, and macOS builds |
@@ -200,24 +200,45 @@ Official cross-platform installers are published through GitHub Releases:
 
 The native macOS client shares the exact same SQLite workspace and OS Keychain store as Tauri so both clients interoperate on your local machine.
 
-1. **Build Rust Core XCFramework & Swift UniFFI Bindings:**
+1. **One-Command Build & Launch (Release):**
+   ```bash
+   npm run macos
+   ```
+   *(Builds the Rust XCFramework, regenerates `macos/KobeanREST.xcodeproj`, compiles Release, and opens `KobeanREST.app`.)*
+
+2. **Build Rust Core XCFramework & Swift UniFFI Bindings (Manual):**
    ```bash
    ./macos/scripts/build-rust-xcframework.sh              # Current macOS architecture
    # Or build Universal (requires `rustup target add x86_64-apple-darwin aarch64-apple-darwin`):
    ./macos/scripts/build-rust-xcframework.sh --universal
    ```
 
-2. **Generate Xcode Project & Run Tests:**
+3. **Generate Xcode Project, Run Tests, or Launch Debug Build:**
    ```bash
    cd macos && xcodegen generate && cd ..
+
+   # Run Swift unit & integration tests
    xcodebuild test \
      -project macos/KobeanREST.xcodeproj \
      -scheme KobeanREST \
      -configuration Debug \
-     -destination 'platform=macOS,arch=arm64'
+     -destination 'platform=macOS' \
+     -derivedDataPath macos/DerivedData
+
+   # Fast Swift-only Debug rebuild & launch (when Rust core hasn't changed)
+   xcodebuild build \
+     -project macos/KobeanREST.xcodeproj \
+     -scheme KobeanREST \
+     -configuration Debug \
+     -destination "platform=macOS,arch=$(uname -m)" \
+     -derivedDataPath macos/DerivedData && \
+     open macos/DerivedData/Build/Products/Debug/KobeanREST.app
+
+   # Or open in Xcode GUI (press ⌘R to run)
+   open macos/KobeanREST.xcodeproj
    ```
 
-3. **Run Rust Core & FFI Workspace Tests:**
+4. **Run Rust Core & FFI Workspace Tests:**
    ```bash
    cargo test --workspace
    ```
