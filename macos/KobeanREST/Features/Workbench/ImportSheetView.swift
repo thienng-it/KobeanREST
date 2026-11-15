@@ -6,10 +6,15 @@ struct ImportSheetView: View {
     @Bindable var appState: AppState
     @Environment(\.dismiss) private var dismiss
 
-    @State private var rawContent: String = ""
+    @State private var rawContent: String
     @State private var detectedFormat: String = "unknown"
     @State private var errorMessage: String?
     @State private var isImporting: Bool = false
+
+    init(appState: AppState, initialContent: String = "") {
+        self.appState = appState
+        self._rawContent = State(initialValue: initialContent)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -66,6 +71,11 @@ struct ImportSheetView: View {
         }
         .padding(18)
         .frame(width: 620, height: 420)
+        .task {
+            if !rawContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                detectedFormat = await appState.bridge.detectImportFormat(content: rawContent)
+            }
+        }
     }
 
     private func chooseFile() {

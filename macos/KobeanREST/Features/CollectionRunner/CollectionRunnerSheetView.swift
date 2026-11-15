@@ -607,10 +607,14 @@ struct CollectionRunnerSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: CollectionRunnerViewModel
 
-    init(bridge: any CoreBridgeProtocol, workspace: WorkspaceSummary) {
+    init(
+        bridge: any CoreBridgeProtocol,
+        workspace: WorkspaceSummary,
+        initialViewModel: CollectionRunnerViewModel? = nil
+    ) {
         self.bridge = bridge
         self.workspace = workspace
-        self._viewModel = State(initialValue: CollectionRunnerViewModel(bridge: bridge, workspace: workspace))
+        self._viewModel = State(initialValue: initialViewModel ?? CollectionRunnerViewModel(bridge: bridge, workspace: workspace))
     }
 
     var body: some View {

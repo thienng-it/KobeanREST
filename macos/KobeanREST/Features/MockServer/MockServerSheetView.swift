@@ -372,7 +372,7 @@ struct MockServerSheetView: View {
     let requests: [SavedRequest]
 
     @Environment(\.dismiss) private var dismiss
-    @State private var viewModel = MockServerViewModel()
+    @State private var viewModel: MockServerViewModel
     @State private var selectedCollectionID: String = ""
     @State private var copiedBaseURL: Bool = false
 
@@ -386,11 +386,13 @@ struct MockServerSheetView: View {
     init(
         collections: [CollectionSummary],
         folders: [FolderSummary] = [],
-        requests: [SavedRequest]
+        requests: [SavedRequest],
+        initialViewModel: MockServerViewModel? = nil
     ) {
         self.collections = collections
         self.folders = folders
         self.requests = requests
+        self._viewModel = State(initialValue: initialViewModel ?? MockServerViewModel())
     }
 
     var body: some View {

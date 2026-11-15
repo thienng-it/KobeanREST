@@ -71,7 +71,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 340)
+        .frame(width: 540, height: 420)
         .task {
             storageStatus = await appState.bridge.localStorageStatus()
         }

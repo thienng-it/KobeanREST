@@ -127,6 +127,8 @@ struct ResponseInspectorView: View {
                 Text("\(response.status) \(response.statusText)")
                     .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .foregroundStyle(response.statusColor)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
@@ -135,13 +137,18 @@ struct ResponseInspectorView: View {
                 Text("\(response.durationMs) ms")
                     .font(.system(size: 11.5, weight: .medium, design: .monospaced))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .foregroundStyle(.secondary)
 
                 Text(formattedBytes(response.sizeBytes))
                     .font(.system(size: 11.5, weight: .medium, design: .monospaced))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .foregroundStyle(.secondary)
             }
+            .layoutPriority(1)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

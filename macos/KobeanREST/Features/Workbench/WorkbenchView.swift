@@ -237,32 +237,53 @@ struct WorkbenchView: View {
             return false
         }()
 
+        let tabID = tab.id
+
         let methodBinding = Binding<String>(
             get: { tab.request.method },
             set: { newMethod in
-                appState.updateActiveRequest { $0.method = newMethod }
+                appState.updateTab(id: tabID) {
+                    guard $0.request.method != newMethod else { return }
+                    $0.request.method = newMethod
+                    $0.isDirty = true
+                }
             }
         )
 
         let urlBinding = Binding<String>(
             get: { tab.request.url },
             set: { newURL in
-                appState.updateActiveRequest { $0.url = newURL }
-                Task { await appState.syncPathVariablesForActiveTab() }
+                var changed = false
+                appState.updateTab(id: tabID) {
+                    guard $0.request.url != newURL else { return }
+                    $0.request.url = newURL
+                    $0.isDirty = true
+                    changed = true
+                }
+                if changed && appState.selectedTabID == tabID {
+                    Task { await appState.syncPathVariablesForActiveTab() }
+                }
             }
         )
 
         let customMethodBinding = Binding<String>(
             get: { tab.customMethod },
             set: { newCustom in
-                appState.updateTab(id: tab.id) { $0.customMethod = newCustom }
+                appState.updateTab(id: tabID) {
+                    guard $0.customMethod != newCustom else { return }
+                    $0.customMethod = newCustom
+                }
             }
         )
 
         let nameBinding = Binding<String>(
             get: { tab.request.name },
             set: { newName in
-                appState.updateActiveRequest { $0.name = newName }
+                appState.updateTab(id: tabID) {
+                    guard $0.request.name != newName else { return }
+                    $0.request.name = newName
+                    $0.isDirty = true
+                }
             }
         )
 
@@ -289,6 +310,7 @@ struct WorkbenchView: View {
 
                 HStack(spacing: 6) {
                     TextField("https://api.example.com/v1/users/:id", text: urlBinding)
+                        .id(tab.id)
                         .textFieldStyle(.plain)
                         .font(.system(size: 12.5, design: .monospaced))
                         .focused($isURLFocused)
@@ -356,6 +378,7 @@ struct WorkbenchView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                 TextField("Request name", text: nameBinding)
+                    .id(tab.id)
                     .textFieldStyle(.plain)
                     .font(.system(size: 11.5, weight: .medium))
                     .frame(maxWidth: 280)

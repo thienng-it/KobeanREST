@@ -195,10 +195,14 @@ struct WebSocketWorkbenchView: View {
         return formatter
     }()
 
-    init(url: String, headers: [HeaderEntry]) {
+    init(
+        url: String,
+        headers: [HeaderEntry],
+        initialViewModel: WebSocketViewModel? = nil
+    ) {
         self.url = url
         self.headers = headers
-        self._viewModel = State(initialValue: WebSocketViewModel(url: url, headers: headers))
+        self._viewModel = State(initialValue: initialViewModel ?? WebSocketViewModel(url: url, headers: headers))
     }
 
     var body: some View {
