@@ -40,6 +40,8 @@ pub struct AuthConfig {
     pub refresh_token: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redirect_uri: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -101,6 +103,7 @@ pub fn resolve_auth_config(
         audience: try_resolve(auth_config.audience.as_deref(), variable_map),
         refresh_token: auth_config.refresh_token.clone(),
         expires_at: auth_config.expires_at,
+        redirect_uri: try_resolve(auth_config.redirect_uri.as_deref(), variable_map),
     }
 }
 

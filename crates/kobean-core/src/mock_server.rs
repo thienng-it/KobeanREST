@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::io::{Read, Write};
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +47,7 @@ pub struct MockServerState {
     pub routes: Arc<Mutex<Vec<MockRoute>>>,
     pub request_log: Arc<Mutex<VecDeque<MockRequestLog>>>,
     pub log_id_counter: Arc<Mutex<u64>>,
+    pub worker_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
 }
 
 impl Default for MockServerState {
@@ -57,8 +60,56 @@ impl Default for MockServerState {
             routes: Arc::new(Mutex::new(Vec::new())),
             request_log: Arc::new(Mutex::new(VecDeque::with_capacity(200))),
             log_id_counter: Arc::new(Mutex::new(0)),
+            worker_handle: Arc::new(Mutex::new(None)),
         }
     }
+}
+
+fn read_http_request(socket: &mut TcpStream) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(4096);
+    let mut chunk = [0u8; 4096];
+    let max_bytes = 1024 * 1024;
+    let mut content_length: Option<usize> = None;
+    let mut header_end: Option<usize> = None;
+
+    while buf.len() < max_bytes {
+        match socket.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                buf.extend_from_slice(&chunk[..n]);
+                if header_end.is_none() {
+                    if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                        let end = pos + 4;
+                        header_end = Some(end);
+                        let headers_str = String::from_utf8_lossy(&buf[..end]);
+                        for line in headers_str.lines() {
+                            if let Some((k, v)) = line.split_once(':') {
+                                if k.trim().eq_ignore_ascii_case("content-length") {
+                                    content_length = v.trim().parse::<usize>().ok();
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Some(end) = header_end {
+                    let expected_total = end.saturating_add(content_length.unwrap_or(0));
+                    if buf.len() >= expected_total {
+                        break;
+                    }
+                }
+            }
+            Err(err)
+                if matches!(
+                    err.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) =>
+            {
+                break;
+            }
+            Err(_) => break,
+        }
+    }
+    buf
 }
 
 // ── HTTP Parsing Helpers ───────────────────────────────────────────────────
@@ -151,10 +202,11 @@ pub fn start_local_mock_server(
     let request_log = Arc::clone(&state.request_log);
     let log_id_counter = Arc::clone(&state.log_id_counter);
 
-    std::thread::spawn(move || {
+    let handle = std::thread::spawn(move || {
         while *running_flag.lock().unwrap_or_else(|e| e.into_inner()) {
             if let Ok((mut socket, _)) = listener.accept() {
-                let _ = socket.set_read_timeout(Some(std::time::Duration::from_secs(5)));
+                let _ = socket.set_read_timeout(Some(Duration::from_secs(5)));
+                let req_started = Instant::now();
                 let start_ms = current_unix_ms();
 
                 // Increment request count
@@ -162,11 +214,10 @@ pub fn start_local_mock_server(
                 *req_counter += 1;
                 drop(req_counter);
 
-                // Read raw request
-                let mut buffer = [0u8; 4096];
-                let n = socket.read(&mut buffer).unwrap_or(0);
+                // Read HTTP request headers & declared body
+                let raw_request = read_http_request(&mut socket);
 
-                let (method, path) = parse_request_line(&buffer[..n])
+                let (method, path) = parse_request_line(&raw_request)
                     .unwrap_or_else(|| ("GET".to_string(), "/".to_string()));
 
                 // Find matching route
@@ -176,8 +227,24 @@ pub fn start_local_mock_server(
 
                 // Handle CORS preflight for browser/WebKit callers
                 if method == "OPTIONS" && matched.is_none() {
-                    let preflight = "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: http://127.0.0.1\r\nAccess-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, GRPC\r\nAccess-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With\r\nAccess-Control-Expose-Headers: grpc-status, grpc-message, x-grpc-web, content-type\r\nAccess-Control-Max-Age: 86400\r\nContent-Length: 0\r\n\r\n";
+                    let preflight = "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: http://127.0.0.1\r\nAccess-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, GRPC\r\nAccess-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With\r\nAccess-Control-Expose-Headers: grpc-status, grpc-message, x-grpc-web, content-type\r\nAccess-Control-Max-Age: 86400\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
                     let _ = socket.write_all(preflight.as_bytes());
+                    let duration_ms = req_started.elapsed().as_millis() as u32;
+                    let mut log_guard = request_log.lock().unwrap_or_else(|e| e.into_inner());
+                    let mut id_guard = log_id_counter.lock().unwrap_or_else(|e| e.into_inner());
+                    *id_guard += 1;
+                    if log_guard.len() >= 200 {
+                        log_guard.pop_front();
+                    }
+                    log_guard.push_back(MockRequestLog {
+                        id: *id_guard,
+                        timestamp: start_ms,
+                        method,
+                        path,
+                        matched_route_id: None,
+                        status_code: 204,
+                        duration_ms,
+                    });
                     continue;
                 }
 
@@ -185,7 +252,11 @@ pub fn start_local_mock_server(
                     if let Some(route) = matched {
                         let id = route.id.clone();
                         let delay = route.delay_ms;
-                        let sc = route.status_code;
+                        let sc = if (100..=599).contains(&route.status_code) {
+                            route.status_code
+                        } else {
+                            500
+                        };
                         let ct = sanitize_header_value(&route.content_type);
                         let b = route.response_body.clone();
                         let grpc_flag = route.method.eq_ignore_ascii_case("GRPC") || ct.contains("grpc");
@@ -203,10 +274,10 @@ pub fn start_local_mock_server(
 
                 // Apply delay
                 if delay_ms > 0 {
-                    std::thread::sleep(std::time::Duration::from_millis(delay_ms as u64));
+                    std::thread::sleep(Duration::from_millis(delay_ms as u64));
                 }
 
-                let duration_ms = (current_unix_ms() - start_ms) as u32;
+                let duration_ms = req_started.elapsed().as_millis() as u32;
 
                 // Status text
                 let status_text = match status_code {
@@ -235,7 +306,7 @@ pub fn start_local_mock_server(
                 };
 
                 let response = format!(
-                    "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: http://127.0.0.1\r\nAccess-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\nAccess-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With\r\nAccess-Control-Expose-Headers: grpc-status, grpc-message, x-grpc-web, content-type\r\nX-Powered-By: KobeanREST-MockServer\r\n{}\r\n{}",
+                    "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nAccess-Control-Allow-Origin: http://127.0.0.1\r\nAccess-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\nAccess-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With\r\nAccess-Control-Expose-Headers: grpc-status, grpc-message, x-grpc-web, content-type\r\nX-Powered-By: KobeanREST-MockServer\r\n{}\r\n{}",
                     status_code,
                     status_text,
                     content_type,
@@ -263,17 +334,31 @@ pub fn start_local_mock_server(
                 }
                 log_guard.push_back(entry);
             } else {
-                std::thread::sleep(std::time::Duration::from_millis(20));
+                std::thread::sleep(Duration::from_millis(20));
             }
         }
     });
+
+    if let Ok(mut handle_guard) = state.worker_handle.lock() {
+        *handle_guard = Some(handle);
+    }
 
     Ok(actual_port)
 }
 
 pub fn stop_local_mock_server(state: &MockServerState) -> Result<(), String> {
-    let mut running = state.running.lock().map_err(|e| e.to_string())?;
-    *running = false;
+    {
+        let mut running = state.running.lock().map_err(|e| e.to_string())?;
+        *running = false;
+    }
+    let handle = state
+        .worker_handle
+        .lock()
+        .map_err(|e| e.to_string())?
+        .take();
+    if let Some(join_handle) = handle {
+        let _ = join_handle.join();
+    }
     Ok(())
 }
 

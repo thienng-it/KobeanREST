@@ -526,3 +526,121 @@ fn secrets_resolve_strict_fails_closed_on_missing_ref() {
     ]);
     assert!(missing.is_err());
 }
+
+#[test]
+fn persistence_seeded_requests_match_seeded_folders_and_scopes_history_to_active_workspace() {
+    let dir = temp_data_dir("seeded_and_active_ws");
+    kobean_core::persistence::ensure_database(&dir).expect("ensure_database");
+
+    let ws = kobean_core::persistence::load_workspace(&dir).expect("load_workspace");
+    let folder_ids: std::collections::HashSet<&str> =
+        ws.folders.iter().map(|f| f.id.as_str()).collect();
+    for req in &ws.requests {
+        assert!(
+            folder_ids.contains(req.folder_id.as_str()),
+            "seeded request '{}' references missing folder '{}'",
+            req.name,
+            req.folder_id
+        );
+    }
+
+    // Create and switch to a second workspace, verify history follows active workspace
+    let ws2_id =
+        kobean_core::persistence::create_workspace(&dir, "Second".to_string()).expect("ws2");
+    kobean_core::persistence::switch_workspace(&dir, ws2_id.clone()).expect("switch ws2");
+    kobean_core::persistence::record_request_history(
+        &dir,
+        kobean_core::persistence::RequestHistoryEntry {
+            request_id: "req-ws2".to_string(),
+            workspace_id: None,
+            method: "GET".to_string(),
+            url: "https://example.com/ws2".to_string(),
+            status: 200,
+            duration_ms: 10,
+            size_bytes: 2,
+            response_headers: None,
+            response_body_text: Some("ok".to_string()),
+            response_body_base64: None,
+            run_id: None,
+            scope_id: None,
+            scope_name: None,
+            test_passed: None,
+            passed_tests: None,
+            failed_tests: None,
+            test_results: None,
+        },
+    )
+    .expect("record history in ws2");
+
+    let ws2_history =
+        kobean_core::persistence::load_request_history(&dir).expect("load ws2 history");
+    assert_eq!(ws2_history.len(), 1);
+    assert_eq!(ws2_history[0].request_id, "req-ws2");
+
+    // Switching back to ws1 should NOT show ws2 history
+    kobean_core::persistence::switch_workspace(&dir, ws.id.clone()).expect("switch ws1");
+    let ws1_history =
+        kobean_core::persistence::load_request_history(&dir).expect("load ws1 history");
+    assert!(ws1_history.is_empty());
+}
+
+#[test]
+fn persistence_enables_foreign_keys_delete_folder_cascades_and_move_rejects_cycles() {
+    let dir = temp_data_dir("fk_and_folder_cycles");
+    kobean_core::persistence::ensure_database(&dir).expect("ensure_database");
+
+    let conn = kobean_core::persistence::open_database(&dir).expect("open_database");
+    let fk_enabled: i64 = conn
+        .query_row("PRAGMA foreign_keys;", [], |r| r.get(0))
+        .expect("query PRAGMA foreign_keys");
+    assert_eq!(fk_enabled, 1);
+    drop(conn);
+
+    let ws = kobean_core::persistence::load_workspace(&dir).expect("load_workspace");
+    let col_id = ws.collections.as_ref().unwrap()[0].id.clone();
+
+    let parent = kobean_core::persistence::create_folder(
+        &dir,
+        "Parent".to_string(),
+        Some(col_id.clone()),
+        None,
+    )
+    .expect("parent folder");
+    let child = kobean_core::persistence::create_folder(
+        &dir,
+        "Child".to_string(),
+        Some(col_id.clone()),
+        Some(parent.id.clone()),
+    )
+    .expect("child folder");
+
+    // Multi-hop cycle (moving Parent into Child) must fail
+    let cycle_err = kobean_core::persistence::move_folder(
+        &dir,
+        parent.id.clone(),
+        Some(child.id.clone()),
+        Some(col_id.clone()),
+    )
+    .expect_err("multi-hop cycle move should fail");
+    assert!(cycle_err.to_lowercase().contains("cycle") || cycle_err.to_lowercase().contains("descendant"));
+
+    // Deleting Parent must recursively delete Child + nested requests + scripts
+    let nested_req = kobean_core::persistence::create_request(&dir, child.id.clone()).expect("req");
+    kobean_core::persistence::save_script(
+        &dir,
+        nested_req.id.clone(),
+        "request".to_string(),
+        "pre".to_string(),
+        "console.log(1);".to_string(),
+    )
+    .expect("save script");
+    kobean_core::persistence::delete_folder(&dir, parent.id.clone()).expect("delete parent");
+
+    let after = kobean_core::persistence::load_workspace(&dir).expect("reload");
+    assert!(!after.folders.iter().any(|f| f.id == child.id));
+    assert!(!after.requests.iter().any(|r| r.id == nested_req.id));
+    let scripts =
+        kobean_core::persistence::get_scripts(&dir, nested_req.id, "request".to_string())
+            .expect("scripts");
+    assert!(scripts.is_empty());
+}

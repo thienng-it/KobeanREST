@@ -87,9 +87,10 @@ pub fn resolve_secrets_strict(ref_ids: Vec<String>) -> Result<HashMap<String, St
 pub fn delete_secret(ref_id: String) -> Result<(), String> {
     let entry = Entry::new(KEYCHAIN_SERVICE, &ref_id)
         .map_err(|error| format!("failed to open keychain entry: {error}"))?;
-    entry
-        .delete_credential()
-        .map_err(|error| format!("failed to delete secret from keychain: {error}"))
+    match entry.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(error) => Err(format!("failed to delete secret from keychain: {error}")),
+    }
 }
 
 fn normalize_ref_part(value: &str) -> String {

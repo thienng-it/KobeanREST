@@ -382,12 +382,17 @@ public actor CoreBridge: CoreBridgeProtocol {
         let path = dataDirPath
         return try await runFFI {
             let refId = try KobeanREST.storeSecret(scope: scope, key: key, value: value)
-            try KobeanREST.saveSecretVariable(
-                dataDir: path,
-                environmentName: environmentName,
-                key: key,
-                secretRef: refId
-            )
+            do {
+                try KobeanREST.saveSecretVariable(
+                    dataDir: path,
+                    environmentName: environmentName,
+                    key: key,
+                    secretRef: refId
+                )
+            } catch {
+                try? KobeanREST.deleteSecret(refId: refId)
+                throw error
+            }
             return refId
         }
     }
@@ -399,10 +404,10 @@ public actor CoreBridge: CoreBridgeProtocol {
     ) async throws {
         let path = dataDirPath
         try await runFFI {
-            try KobeanREST.deleteVariable(dataDir: path, environmentName: environmentName, key: key)
             if let refId = secretRef, !refId.isEmpty {
-                try? KobeanREST.deleteSecret(refId: refId)
+                try KobeanREST.deleteSecret(refId: refId)
             }
+            try KobeanREST.deleteVariable(dataDir: path, environmentName: environmentName, key: key)
         }
     }
 

@@ -231,7 +231,9 @@ pub fn database_path(data_dir: &Path) -> Result<PathBuf, String> {
 
 fn configure_connection(connection: &Connection) -> Result<(), String> {
     connection
-        .execute_batch("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;")
+        .execute_batch(
+            "PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;",
+        )
         .map_err(|error| format!("failed to configure local database pragmas: {error}"))
 }
 
@@ -944,7 +946,7 @@ pub fn record_request_history(data_dir: &Path, entry: RequestHistoryEntry) -> Re
     let connection = open_database(data_dir)?;
     let workspace_id = match entry.workspace_id {
         Some(workspace_id) => workspace_id,
-        None => first_workspace_id(&connection)?,
+        None => active_workspace_id(&connection)?,
     };
 
     connection
@@ -1019,7 +1021,7 @@ pub struct HistoryEntry {
 pub fn load_request_history(data_dir: &Path) -> Result<Vec<HistoryEntry>, String> {
     ensure_database(data_dir)?;
     let connection = open_database(data_dir)?;
-    let workspace_id = first_workspace_id(&connection)?;
+    let workspace_id = active_workspace_id(&connection)?;
     let mut statement = connection
         .prepare(
             "SELECT id, request_id, method, url, status, duration_ms, size_bytes, created_at, run_id, scope_id, scope_name, test_passed, response_headers, response_body_text, response_body_base64, passed_tests, failed_tests, test_results
@@ -1059,7 +1061,7 @@ pub fn load_request_history(data_dir: &Path) -> Result<Vec<HistoryEntry>, String
 pub fn clear_request_history(data_dir: &Path) -> Result<(), String> {
     ensure_database(data_dir)?;
     let connection = open_database(data_dir)?;
-    let workspace_id = first_workspace_id(&connection)?;
+    let workspace_id = active_workspace_id(&connection)?;
     connection
         .execute(
             "DELETE FROM request_history WHERE workspace_id = ?1",
@@ -1124,7 +1126,7 @@ pub fn load_collection_runs(
 ) -> Result<Vec<CollectionRunSummary>, String> {
     ensure_database(data_dir)?;
     let connection = open_database(data_dir)?;
-    let workspace_id = first_workspace_id(&connection)?;
+    let workspace_id = active_workspace_id(&connection)?;
 
     let mut statement = connection
         .prepare(
@@ -1417,7 +1419,7 @@ fn seed_default_workspace(connection: &mut Connection) -> Result<(), String> {
             .execute(
                 "INSERT INTO folders (id, collection_id, name, position) VALUES (?1, ?2, ?3, ?4)",
                 params![
-                    format!("folder-{}", uuid::Uuid::new_v4()),
+                    format!("folder-{}", folder.to_lowercase().replace(' ', "-")),
                     "default-collection",
                     folder,
                     position as i64
@@ -2103,6 +2105,7 @@ pub struct VariableRow {
 
 const SENSITIVE_AUTH_CONFIG_KEYS: &[&str] = &[
     "token",
+    "accessToken",
     "password",
     "keyValue",
     "clientSecret",
@@ -2522,7 +2525,7 @@ pub fn save_request(data_dir: &Path, request: SavedRequest) -> Result<(), String
                 |row| row.get(0),
             )
         })
-        .unwrap_or_else(|_| first_workspace_id(&transaction).unwrap_or_default());
+        .unwrap_or_else(|_| active_workspace_id(&transaction).unwrap_or_default());
 
     let examples_json = request.examples.and_then(|ex| serde_json::to_string(&ex).ok());
     let path_variables_json = request.path_variables.and_then(|pv| serde_json::to_string(&pv).ok());
@@ -2588,19 +2591,33 @@ pub fn save_request(data_dir: &Path, request: SavedRequest) -> Result<(), String
 
 pub fn delete_request(data_dir: &Path, request_id: String) -> Result<(), String> {
     ensure_database(data_dir)?;
-    let connection = open_database(data_dir)?;
-    connection
+    let mut connection = open_database(data_dir)?;
+    let transaction = connection.transaction().map_err(|e| e.to_string())?;
+    transaction
         .execute(
             "DELETE FROM request_headers WHERE request_id = ?1",
             rusqlite::params![&request_id],
         )
         .map_err(|e| e.to_string())?;
-    connection
+    transaction
+        .execute(
+            "DELETE FROM scripts WHERE entity_type = 'request' AND entity_id = ?1",
+            rusqlite::params![&request_id],
+        )
+        .map_err(|e| e.to_string())?;
+    transaction
+        .execute(
+            "DELETE FROM scoped_variables WHERE entity_type = 'request' AND entity_id = ?1",
+            rusqlite::params![&request_id],
+        )
+        .map_err(|e| e.to_string())?;
+    transaction
         .execute(
             "DELETE FROM requests WHERE id = ?1",
             rusqlite::params![&request_id],
         )
         .map_err(|e| e.to_string())?;
+    transaction.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -2685,6 +2702,29 @@ pub fn move_folder(
         return Err("cannot move a folder into itself".to_string());
     }
 
+    // Reject multi-hop folder cycles (moving a folder into any of its descendants).
+    if let Some(pid) = parent_id.as_deref() {
+        let mut cursor = Some(pid.to_string());
+        let mut visited = std::collections::HashSet::new();
+        while let Some(curr) = cursor {
+            if curr == folder_id {
+                return Err("cannot move a folder into a descendant cycle".to_string());
+            }
+            if !visited.insert(curr.clone()) {
+                break;
+            }
+            cursor = tx
+                .query_row(
+                    "SELECT parent_id FROM folders WHERE id = ?1",
+                    rusqlite::params![&curr],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .optional()
+                .map_err(|e| e.to_string())?
+                .flatten();
+        }
+    }
+
     tx.execute(
         "UPDATE folders SET collection_id = ?2, parent_id = ?3,
          position = (SELECT COALESCE(MAX(position), -1) + 1 FROM folders WHERE collection_id = ?2 AND parent_id IS ?3)
@@ -2760,6 +2800,21 @@ pub fn delete_collection(data_dir: &Path, collection_id: String) -> Result<(), S
         .map_err(|e| e.to_string())?;
     transaction
         .execute(
+            "DELETE FROM scoped_variables WHERE
+                (entity_type = 'collection' AND entity_id = ?1)
+                OR (entity_type = 'folder' AND entity_id IN (
+                    SELECT id FROM folders WHERE collection_id = ?1
+                ))
+                OR (entity_type = 'request' AND entity_id IN (
+                    SELECT requests.id FROM requests
+                    LEFT JOIN folders ON folders.id = requests.folder_id
+                    WHERE folders.collection_id = ?1 OR requests.folder_id = ?1
+                ))",
+            rusqlite::params![&collection_id],
+        )
+        .map_err(|e| e.to_string())?;
+    transaction
+        .execute(
             "DELETE FROM requests WHERE folder_id = ?1 OR folder_id IN (
                 SELECT id FROM folders WHERE collection_id = ?1
             )",
@@ -2788,35 +2843,79 @@ pub fn delete_folder(data_dir: &Path, folder_id: String) -> Result<(), String> {
     let mut connection = open_database(data_dir)?;
     let transaction = connection.transaction().map_err(|e| e.to_string())?;
 
-    // delete all requests in folder
-    let mut statement = transaction
-        .prepare("SELECT id FROM requests WHERE folder_id = ?1")
-        .map_err(|e| e.to_string())?;
-    let req_ids = statement
-        .query_map(rusqlite::params![&folder_id], |r| r.get::<_, String>(0))
-        .map_err(|e| e.to_string())?;
-    for rid in req_ids.flatten() {
+    // Collect folder_id and all recursive descendant folder IDs
+    let mut folder_ids = vec![folder_id.clone()];
+    let mut idx = 0;
+    while idx < folder_ids.len() {
+        let current = folder_ids[idx].clone();
+        idx += 1;
+        let mut child_stmt = transaction
+            .prepare("SELECT id FROM folders WHERE parent_id = ?1")
+            .map_err(|e| e.to_string())?;
+        let children = child_stmt
+            .query_map(rusqlite::params![&current], |r| r.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+        for child_id in children.flatten() {
+            if !folder_ids.contains(&child_id) {
+                folder_ids.push(child_id);
+            }
+        }
+    }
+
+    for fid in &folder_ids {
+        let mut req_stmt = transaction
+            .prepare("SELECT id FROM requests WHERE folder_id = ?1")
+            .map_err(|e| e.to_string())?;
+        let req_ids: Vec<String> = req_stmt
+            .query_map(rusqlite::params![fid], |r| r.get::<_, String>(0))
+            .map_err(|e| e.to_string())?
+            .flatten()
+            .collect();
+        drop(req_stmt);
+
+        for rid in &req_ids {
+            transaction
+                .execute(
+                    "DELETE FROM request_headers WHERE request_id = ?1",
+                    rusqlite::params![rid],
+                )
+                .map_err(|e| e.to_string())?;
+            transaction
+                .execute(
+                    "DELETE FROM scripts WHERE entity_type = 'request' AND entity_id = ?1",
+                    rusqlite::params![rid],
+                )
+                .map_err(|e| e.to_string())?;
+            transaction
+                .execute(
+                    "DELETE FROM scoped_variables WHERE entity_type = 'request' AND entity_id = ?1",
+                    rusqlite::params![rid],
+                )
+                .map_err(|e| e.to_string())?;
+            transaction
+                .execute("DELETE FROM requests WHERE id = ?1", rusqlite::params![rid])
+                .map_err(|e| e.to_string())?;
+        }
+
         transaction
             .execute(
-                "DELETE FROM request_headers WHERE request_id = ?1",
-                rusqlite::params![&rid],
+                "DELETE FROM scripts WHERE entity_type = 'folder' AND entity_id = ?1",
+                rusqlite::params![fid],
             )
             .map_err(|e| e.to_string())?;
         transaction
             .execute(
-                "DELETE FROM requests WHERE id = ?1",
-                rusqlite::params![&rid],
+                "DELETE FROM scoped_variables WHERE entity_type = 'folder' AND entity_id = ?1",
+                rusqlite::params![fid],
             )
             .map_err(|e| e.to_string())?;
     }
-    drop(statement);
 
-    transaction
-        .execute(
-            "DELETE FROM folders WHERE id = ?1",
-            rusqlite::params![&folder_id],
-        )
-        .map_err(|e| e.to_string())?;
+    for fid in folder_ids.iter().rev() {
+        transaction
+            .execute("DELETE FROM folders WHERE id = ?1", rusqlite::params![fid])
+            .map_err(|e| e.to_string())?;
+    }
     transaction.commit().map_err(|e| e.to_string())?;
     Ok(())
 }

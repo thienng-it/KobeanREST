@@ -51,7 +51,7 @@ test("Rust native core exposes SQLite persistence commands", () => {
   const corePersistence = read("crates/kobean-core/src/persistence.rs");
   assert.match(corePersistence, /rusqlite::Connection|rusqlite::\{.*Connection/);
   assert.match(corePersistence, /include_str!\("\.\.\/\.\.\/\.\.\/src-tauri\/migrations\/001_initial\.sql"\)/);
-  assert.match(corePersistence, /None => first_workspace_id\(&connection\)\?/);
+  assert.match(corePersistence, /None => active_workspace_id\(&connection\)\?/);
   assert.match(corePersistence, /UPDATE collections SET name = \?2 WHERE id = \?1/);
   assert.match(corePersistence, /DELETE FROM scripts WHERE/);
   assert.match(corePersistence, /DELETE FROM request_headers WHERE request_id IN/);

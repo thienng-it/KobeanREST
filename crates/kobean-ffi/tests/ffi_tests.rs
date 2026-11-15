@@ -346,3 +346,133 @@ fn domain_path_vars_importer_and_auth_redaction() {
     assert_eq!(redacted_headers[1]["value"], "[redacted]");
     assert_eq!(redacted_headers[2]["value"], "application/json");
 }
+
+#[test]
+fn http_client_diagnoses_builder_errors_skips_h2_pseudo_headers_and_handles_multipart_and_zero_timeout() {
+    // 1. Missing scheme / invalid URL gives explicit error instead of opaque "builder error"
+    let no_scheme_req = serde_json::json!({
+        "method": "GET",
+        "url": "example.com/v1/users",
+        "headers": [],
+        "timeoutMs": 5000,
+        "followRedirects": true
+    });
+    let url_err = execute_http_request_json(no_scheme_req.to_string())
+        .expect_err("missing scheme should fail with descriptive error");
+    assert_ne!(url_err.to_string(), "request failed: builder error");
+    assert!(
+        url_err.to_string().to_lowercase().contains("url")
+            || url_err.to_string().to_lowercase().contains("scheme"),
+        "expected URL/scheme diagnostic, got: {url_err}"
+    );
+
+    // 2. Invalid header name names the offending header key
+    let bad_hdr_key = serde_json::json!({
+        "method": "GET",
+        "url": "https://example.com/get",
+        "headers": [{ "key": "Bad Header", "value": "123", "enabled": true }],
+        "timeoutMs": 5000,
+        "followRedirects": true
+    });
+    let hdr_key_err = execute_http_request_json(bad_hdr_key.to_string())
+        .expect_err("invalid header key should fail");
+    assert!(
+        hdr_key_err.to_string().contains("Bad Header"),
+        "expected error to identify 'Bad Header', got: {hdr_key_err}"
+    );
+
+    // 3. Invalid header value (newline) names the offending header key
+    let bad_hdr_val = serde_json::json!({
+        "method": "GET",
+        "url": "https://example.com/get",
+        "headers": [{ "key": "Authorization", "value": "Bearer abc\ndef", "enabled": true }],
+        "timeoutMs": 5000,
+        "followRedirects": true
+    });
+    let hdr_val_err = execute_http_request_json(bad_hdr_val.to_string())
+        .expect_err("newline in header value should fail");
+    assert!(
+        hdr_val_err.to_string().contains("Authorization"),
+        "expected error to identify 'Authorization', got: {hdr_val_err}"
+    );
+
+    // 4. Unreadable multipart file returns explicit error instead of silently omitting part
+    let bad_multipart = serde_json::json!({
+        "method": "POST",
+        "url": "https://example.com/upload",
+        "headers": [],
+        "bodyMimeType": "multipart/form-data",
+        "bodyForm": [{ "key": "file", "value": "/nonexistent/kobean-missing-file.bin", "enabled": true, "type": "file" }],
+        "timeoutMs": 5000,
+        "followRedirects": true
+    });
+    let mp_err = execute_http_request_json(bad_multipart.to_string())
+        .expect_err("missing multipart file should fail loudly");
+    assert!(
+        mp_err.to_string().contains("kobean-missing-file.bin"),
+        "expected file path in error, got: {mp_err}"
+    );
+
+    // 5. Invalid base64 in application/octet-stream fails explicitly instead of sending raw string
+    let bad_octet = serde_json::json!({
+        "method": "POST",
+        "url": "https://example.com/bin",
+        "headers": [],
+        "bodyMimeType": "application/octet-stream",
+        "body": "not!valid!base64!!!",
+        "timeoutMs": 5000,
+        "followRedirects": true
+    });
+    let octet_err = execute_http_request_json(bad_octet.to_string())
+        .expect_err("invalid base64 octet-stream should fail loudly");
+    assert!(
+        octet_err.to_string().to_lowercase().contains("base64"),
+        "expected base64 error, got: {octet_err}"
+    );
+
+    // 6. Start mock server, verify HTTP/2 pseudo-headers are skipped cleanly, timeoutMs=0 works with delay,
+    //    and stop + immediate restart on same port succeeds.
+    let server = FfiMockServer::new();
+    let port = free_ephemeral_port();
+    server.start(port, None).unwrap();
+    let routes = serde_json::json!([
+        {
+            "id": "r-delay",
+            "method": "GET",
+            "path": "/slow",
+            "status_code": 200,
+            "response_body": "{\"slow\":true}",
+            "content_type": "application/json",
+            "delay_ms": 40,
+            "enabled": true
+        }
+    ]);
+    server.set_routes_json(routes.to_string()).unwrap();
+
+    let h2_and_zero_timeout = serde_json::json!({
+        "method": "GET",
+        "url": format!("http://127.0.0.1:{port}/slow"),
+        "headers": [
+            { "key": ":authority", "value": format!("127.0.0.1:{port}"), "enabled": true },
+            { "key": ":method", "value": "GET", "enabled": true },
+            { "key": ":path", "value": "/slow", "enabled": true },
+            { "key": ":scheme", "value": "http", "enabled": true },
+            { "key": "X-Custom", "value": "ok", "enabled": true }
+        ],
+        "timeoutMs": 0,
+        "followRedirects": true
+    });
+    let ok_json = execute_http_request_json(h2_and_zero_timeout.to_string())
+        .expect("HTTP/2 pseudo-headers and timeoutMs=0 should succeed");
+    let ok_val: serde_json::Value = serde_json::from_str(&ok_json).unwrap();
+    assert_eq!(ok_val["status"], 200);
+    assert_eq!(ok_val["bodyText"], "{\"slow\":true}");
+
+    server.stop().unwrap();
+    // Immediate restart on same port must not race with lingering worker thread
+    let restarted_port = server
+        .start(port, None)
+        .expect("immediate restart on same port after stop should succeed");
+    assert_eq!(restarted_port, port);
+    server.stop().unwrap();
+}

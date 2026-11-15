@@ -756,3 +756,116 @@ fn http_client_bounded_response_limit_and_chunk_guard() {
     let err = append_bounded_chunk(&mut buf, b"!", 11).expect_err("exceeds limit");
     assert!(err.contains("response body exceeded maximum allowed limit of 11 bytes"));
 }
+
+#[test]
+fn importer_sanitizes_pseudo_headers_and_newlines_across_har_curl_postman() {
+    // cURL with ANSI-C newline inside header and leading-space pseudo-header
+    let curl = "curl -H ' :authority: api.example.com' -H $'X-Note: line1\\nline2' -H 'Accept: application/json' https://api.example.com/v1";
+    let parsed_curl = parse_curl_command(curl);
+    assert!(!parsed_curl.headers.iter().any(|h| h.key.starts_with(':')));
+    assert_eq!(parsed_curl.headers.len(), 2);
+    assert!(!parsed_curl.headers.iter().any(|h| h.value.contains('\n') || h.value.contains('\r')));
+
+    // HAR with Chrome HTTP/2 pseudo-headers + normal headers
+    let har = serde_json::json!({
+        "log": {
+            "entries": [{
+                "request": {
+                    "method": "GET",
+                    "url": "https://api.example.com/items",
+                    "headers": [
+                        { "name": ":authority", "value": "api.example.com" },
+                        { "name": ":method", "value": "GET" },
+                        { "name": ":path", "value": "/items" },
+                        { "name": ":scheme", "value": "https" },
+                        { "name": "Accept", "value": "application/json\r\n" },
+                        { "name": "", "value": "ignored" }
+                    ]
+                }
+            }]
+        }
+    });
+    let har_res = parse_universal_import(&har.to_string(), None).expect("HAR import");
+    let hdrs = &har_res.export_data.request_headers;
+    assert_eq!(hdrs.len(), 1);
+    assert_eq!(hdrs[0].header_key, "Accept");
+    assert_eq!(hdrs[0].header_value, "application/json");
+}
+
+#[test]
+fn request_prep_preserves_multipart_file_type_and_resolves_body_form_and_redirect_uri() {
+    let ws = sample_workspace();
+    let mut req = sample_request("req-mp", "folder-root");
+    req.url = "{{baseUrl}}/upload".to_string();
+    req.body_mime_type = "multipart/form-data".to_string();
+    req.body_form = serde_json::json!([
+        { "key": "doc", "value": "/tmp/{{fileName}}", "enabled": true, "type": "file" },
+        { "key": "tag", "value": "{{sharedVar}}", "enabled": true }
+    ])
+    .to_string();
+    req.auth_mode = "oauth2".to_string();
+    req.auth_config = serde_json::json!({
+        "grantType": "authorization_code",
+        "redirectUri": "http://localhost:8765/cb",
+        "token": "tok-1"
+    })
+    .to_string();
+
+    let mut vars = build_scoped_variable_map(
+        &ws,
+        &VariableScope {
+            request: Some(&req),
+            ..Default::default()
+        },
+    );
+    vars.insert("fileName".to_string(), "spec.pdf".to_string());
+
+    let prepared = prepare_http_request(&req, &ws, &vars, None).expect("prepare multipart");
+    assert_eq!(prepared.body_form.len(), 2);
+    assert_eq!(prepared.body_form[0].field_type.as_deref(), Some("file"));
+    assert_eq!(prepared.body_form[0].value, "/tmp/spec.pdf");
+    assert_eq!(prepared.body_form[1].value, "from-root-folder");
+
+    let exec_req = prepared.to_execute_http_request();
+    assert_eq!(exec_req.body_form[0].field_type.as_deref(), Some("file"));
+    assert_eq!(
+        prepared.effective_auth_config.redirect_uri.as_deref(),
+        Some("http://localhost:8765/cb")
+    );
+}
+
+#[test]
+fn variables_preserve_fragment_resolve_header_keys_and_encode_path_vars() {
+    assert_eq!(
+        encode_query_params_in_resolved_url("https://example.com/docs?q=hello world#section-2"),
+        "https://example.com/docs?q=hello%20world#section-2"
+    );
+
+    let mut vars = HashMap::new();
+    vars.insert("hdrName".to_string(), "X-Tenant".to_string());
+    vars.insert("tenant".to_string(), "acme".to_string());
+    let resolved = resolve_request_fields(
+        &vars,
+        "https://example.com",
+        &[HeaderEntry {
+            key: "{{hdrName}}".to_string(),
+            value: "{{tenant}}".to_string(),
+            enabled: true,
+        }],
+        None,
+    )
+    .expect("resolve templated header key");
+    assert_eq!(resolved.headers[0].key, "X-Tenant");
+    assert_eq!(resolved.headers[0].value, "acme");
+
+    let path_vars = vec![PathVariableEntry {
+        key: "id".to_string(),
+        value: "hello world/a?b=1".to_string(),
+        enabled: true,
+        description: None,
+    }];
+    assert_eq!(
+        resolve_path_variables_in_url("https://example.com/items/:id", Some(&path_vars)),
+        "https://example.com/items/hello%20world%2Fa%3Fb%3D1"
+    );
+}

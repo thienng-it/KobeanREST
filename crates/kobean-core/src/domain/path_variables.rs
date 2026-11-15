@@ -2,6 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::persistence::PathVariableEntry;
 
+use super::variables::{contains_variables, encode_if_needed};
+
 fn strip_scheme(s: &str) -> &str {
     if let Some(idx) = s.find("://") {
         let prefix = &s[..idx];
@@ -225,9 +227,14 @@ pub fn resolve_path_variables_in_url(
         if key.is_empty() {
             continue;
         }
-        resolved = replace_colon_param(&resolved, key, &item.value);
+        let encoded_value = if item.value.is_empty() || contains_variables(&item.value) {
+            item.value.clone()
+        } else {
+            encode_if_needed(&item.value)
+        };
+        resolved = replace_colon_param(&resolved, key, &encoded_value);
         let brace_pattern = format!("{{{key}}}");
-        resolved = resolved.replace(&brace_pattern, &item.value);
+        resolved = resolved.replace(&brace_pattern, &encoded_value);
     }
 
     resolved

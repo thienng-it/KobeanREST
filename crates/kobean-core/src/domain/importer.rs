@@ -166,6 +166,22 @@ fn generate_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4())
 }
 
+fn sanitize_imported_header(raw_key: &str, raw_value: &str) -> Option<(String, String)> {
+    let key = raw_key
+        .chars()
+        .filter(|ch| *ch != '\r' && *ch != '\n' && !ch.is_control())
+        .collect::<String>();
+    let key = key.trim().to_string();
+    if key.is_empty() || key.starts_with(':') {
+        return None;
+    }
+    let value = raw_value
+        .chars()
+        .filter(|ch| *ch != '\r' && *ch != '\n' && !ch.is_control())
+        .collect::<String>();
+    Some((key, value.trim().to_string()))
+}
+
 fn starts_with_curl_flag(trimmed: &str) -> bool {
     let lower = trimmed.to_ascii_lowercase();
     for prefix in ["curl", "-x", "--request"] {
@@ -601,10 +617,12 @@ pub fn parse_curl_command(raw: &str) -> CurlImportResult {
             i += 1;
             let header_str = tokens.get(i).map(String::as_str).unwrap_or("");
             if let Some(colon_idx) = header_str.find(':') {
-                if colon_idx > 0 {
+                let raw_key = &header_str[..colon_idx];
+                let raw_val = &header_str[colon_idx + 1..];
+                if let Some((key, value)) = sanitize_imported_header(raw_key, raw_val) {
                     headers.push(HeaderEntry {
-                        key: header_str[..colon_idx].trim().to_string(),
-                        value: header_str[colon_idx + 1..].trim().to_string(),
+                        key,
+                        value,
                         enabled: true,
                     });
                 }
@@ -1235,26 +1253,20 @@ fn process_postman_items(
 
                 if let Some(hdr_arr) = req_obj.get("header").and_then(Value::as_array) {
                     for h in hdr_arr {
-                        let key = h
-                            .get("key")
-                            .and_then(Value::as_str)
-                            .unwrap_or("")
-                            .to_string();
-                        let value = h
-                            .get("value")
-                            .and_then(Value::as_str)
-                            .unwrap_or("")
-                            .to_string();
+                        let raw_key = h.get("key").and_then(Value::as_str).unwrap_or("");
+                        let raw_val = h.get("value").and_then(Value::as_str).unwrap_or("");
                         let disabled = h.get("disabled").and_then(Value::as_bool) == Some(true);
-                        if !disabled && key.eq_ignore_ascii_case("content-type") {
-                            body_mime_type =
-                                value.split(';').next().unwrap_or("").trim().to_string();
+                        if let Some((key, value)) = sanitize_imported_header(raw_key, raw_val) {
+                            if !disabled && key.eq_ignore_ascii_case("content-type") {
+                                body_mime_type =
+                                    value.split(';').next().unwrap_or("").trim().to_string();
+                            }
+                            headers.push(HeaderEntry {
+                                key,
+                                value,
+                                enabled: !disabled,
+                            });
                         }
-                        headers.push(HeaderEntry {
-                            key,
-                            value,
-                            enabled: !disabled,
-                        });
                     }
                 }
 
@@ -2094,18 +2106,21 @@ pub fn parse_universal_import(
                         .unwrap_or("application/json")
                         .to_string();
                     if let Some(hdrs) = req.get("headers").and_then(Value::as_array) {
-                        for (h_pos, h) in hdrs.iter().enumerate() {
-                            if let (Some(k), Some(v)) = (
+                        for h in hdrs {
+                            if let (Some(raw_k), Some(raw_v)) = (
                                 h.get("name").and_then(Value::as_str),
                                 h.get("value").and_then(Value::as_str),
                             ) {
-                                export_data.request_headers.push(RequestHeaderRow {
-                                    request_id: req_id.clone(),
-                                    header_key: k.to_string(),
-                                    header_value: v.to_string(),
-                                    enabled: 1,
-                                    position: h_pos as i64,
-                                });
+                                if let Some((key, value)) = sanitize_imported_header(raw_k, raw_v) {
+                                    let pos = export_data.request_headers.len() as i64;
+                                    export_data.request_headers.push(RequestHeaderRow {
+                                        request_id: req_id.clone(),
+                                        header_key: key,
+                                        header_value: value,
+                                        enabled: 1,
+                                        position: pos,
+                                    });
+                                }
                             }
                         }
                     }

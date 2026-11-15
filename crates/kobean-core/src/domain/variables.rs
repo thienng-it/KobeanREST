@@ -379,7 +379,7 @@ fn is_already_encoded(segment: &str) -> bool {
         .is_some_and(|decoded| encode_uri_component(&decoded) == segment)
 }
 
-fn encode_if_needed(segment: &str) -> String {
+pub(crate) fn encode_if_needed(segment: &str) -> String {
     if is_already_encoded(segment) {
         segment.to_string()
     } else {
@@ -392,7 +392,11 @@ pub fn encode_query_params_in_resolved_url(url: &str) -> String {
         return url.to_string();
     };
     let base = &url[..q_index];
-    let query_string = &url[q_index + 1..];
+    let after_q = &url[q_index + 1..];
+    let (query_string, fragment) = match after_q.find('#') {
+        Some(h_idx) => (&after_q[..h_idx], Some(&after_q[h_idx..])),
+        None => (after_q, None),
+    };
     if query_string.is_empty() {
         return url.to_string();
     }
@@ -414,7 +418,10 @@ pub fn encode_query_params_in_resolved_url(url: &str) -> String {
         })
         .collect();
 
-    format!("{base}?{}", encoded.join("&"))
+    match fragment {
+        Some(frag) => format!("{base}?{}{frag}", encoded.join("&")),
+        None => format!("{base}?{}", encoded.join("&")),
+    }
 }
 
 pub fn build_scoped_variable_map(
@@ -555,13 +562,16 @@ pub fn resolve_request_fields(
 
     let mut resolved_headers = Vec::with_capacity(headers.len());
     for header in headers {
-        let value = if header.enabled {
-            resolve_string(&header.value, variable_map)?.resolved
+        let (key, value) = if header.enabled {
+            (
+                resolve_string(&header.key, variable_map)?.resolved,
+                resolve_string(&header.value, variable_map)?.resolved,
+            )
         } else {
-            header.value.clone()
+            (header.key.clone(), header.value.clone())
         };
         resolved_headers.push(HeaderEntry {
-            key: header.key.clone(),
+            key,
             value,
             enabled: header.enabled,
         });

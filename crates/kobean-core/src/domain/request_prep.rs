@@ -43,7 +43,7 @@ pub struct PreparedHttpRequest {
     pub headers: Vec<HeaderEntry>,
     pub body: Option<String>,
     pub body_mime_type: Option<String>,
-    pub body_form: Vec<HeaderEntry>,
+    pub body_form: Vec<http_client::HeaderEntry>,
     pub timeout_ms: u64,
     pub follow_redirects: bool,
     pub history_url: String,
@@ -77,7 +77,7 @@ impl PreparedHttpRequest {
                     key: f.key.clone(),
                     value: f.value.clone(),
                     enabled: f.enabled,
-                    field_type: None,
+                    field_type: f.field_type.clone(),
                 })
                 .collect(),
             timeout_ms: self.timeout_ms,
@@ -237,7 +237,18 @@ pub fn prepare_http_request(
         }
     }
 
-    let body_form: Vec<HeaderEntry> = serde_json::from_str(&request.body_form).unwrap_or_default();
+    let body_form: Vec<http_client::HeaderEntry> =
+        serde_json::from_str::<Vec<http_client::HeaderEntry>>(&request.body_form)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|mut item| {
+                if item.enabled {
+                    item.key = resolve_string_safe(&item.key, variable_map);
+                    item.value = resolve_string_safe(&item.value, variable_map);
+                }
+                item
+            })
+            .collect();
 
     Ok(PreparedHttpRequest {
         method: effective_method,

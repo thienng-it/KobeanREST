@@ -1,10 +1,18 @@
+use std::error::Error as _;
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
-use reqwest::{header::HeaderMap, Method};
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    Method, Url,
+};
 use serde::{Deserialize, Serialize};
 
 pub const MAX_RESPONSE_BODY_BYTES: usize = 50 * 1024 * 1024;
+
+static CLIENT_FOLLOW_REDIRECTS: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
+static CLIENT_NO_REDIRECTS: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
 
 pub fn append_bounded_chunk(
     bytes: &mut Vec<u8>,
@@ -27,7 +35,7 @@ pub struct HeaderEntry {
     pub value: String,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
-    #[serde(rename = "type")]
+    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub field_type: Option<String>,
 }
 
@@ -79,18 +87,63 @@ fn default_follow_redirects() -> bool {
     true
 }
 
-fn build_client(input: &ExecuteHttpRequest) -> Result<reqwest::Client, String> {
-    let redirect_policy = if input.follow_redirects {
-        reqwest::redirect::Policy::limited(10)
+fn shared_client(follow_redirects: bool) -> Result<&'static reqwest::Client, String> {
+    let slot = if follow_redirects {
+        &CLIENT_FOLLOW_REDIRECTS
     } else {
-        reqwest::redirect::Policy::none()
+        &CLIENT_NO_REDIRECTS
     };
+    let result = slot.get_or_init(|| {
+        let redirect_policy = if follow_redirects {
+            reqwest::redirect::Policy::limited(10)
+        } else {
+            reqwest::redirect::Policy::none()
+        };
+        reqwest::Client::builder()
+            .redirect(redirect_policy)
+            .build()
+            .map_err(|error| format!("failed to build HTTP client: {error}"))
+    });
+    result.as_ref().map_err(Clone::clone)
+}
 
-    reqwest::Client::builder()
-        .redirect(redirect_policy)
-        .timeout(Duration::from_millis(input.timeout_ms.max(1)))
-        .build()
-        .map_err(|error| format!("failed to build HTTP client: {error}"))
+fn format_reqwest_error(error: &reqwest::Error) -> String {
+    let mut parts = vec![error.to_string()];
+    let mut current: Option<&(dyn std::error::Error + 'static)> = error.source();
+    while let Some(source) = current {
+        let msg = source.to_string();
+        if !parts.last().is_some_and(|prev| prev == &msg) {
+            parts.push(msg);
+        }
+        current = source.source();
+    }
+    format!("request failed: {}", parts.join(": "))
+}
+
+fn is_http2_pseudo_header(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        ":authority" | ":method" | ":path" | ":scheme" | ":protocol" | ":status"
+    )
+}
+
+fn validate_request_url(raw_url: &str) -> Result<&str, String> {
+    let trimmed = raw_url.trim();
+    if trimmed.is_empty() {
+        return Err("invalid request URL: URL cannot be empty".to_string());
+    }
+    let parsed = Url::parse(trimmed)
+        .map_err(|error| format!("invalid request URL '{trimmed}': {error}"))?;
+    let scheme = parsed.scheme();
+    if scheme != "http" && scheme != "https" {
+        return Err(format!(
+            "unsupported URL scheme '{scheme}' in '{trimmed}' (expected http:// or https://)"
+        ));
+    }
+    if !parsed.has_host() {
+        return Err(format!("invalid request URL '{trimmed}': missing host"));
+    }
+    Ok(trimmed)
 }
 
 fn response_headers(headers: &HeaderMap) -> Vec<HeaderEntry> {
@@ -123,35 +176,58 @@ fn is_text_response(content_type: Option<&str>) -> bool {
 pub async fn execute_http_request(
     input: ExecuteHttpRequest,
 ) -> Result<ExecuteHttpResponse, String> {
-    let method = Method::from_bytes(input.method.as_bytes())
+    let method = Method::from_bytes(input.method.trim().as_bytes())
         .map_err(|error| format!("invalid HTTP method '{}': {error}", input.method))?;
-    let client = build_client(&input)?;
-    let mut request = client.request(method, &input.url);
+    let validated_url = validate_request_url(&input.url)?;
+    let client = shared_client(input.follow_redirects)?;
 
-    // Track if Content-Type is already set in headers
+    let is_multipart = input.body_mime_type.as_deref() == Some("multipart/form-data");
+    let mut header_map = HeaderMap::new();
     let mut has_content_type = false;
 
     for header in input.headers.iter().filter(|header| header.enabled) {
-        if header.key.trim().is_empty() {
+        let key = header.key.trim();
+        if key.is_empty() || is_http2_pseudo_header(key) {
             continue;
         }
-        let key_lower = header.key.trim().to_ascii_lowercase();
-        if key_lower == "content-type" {
+        let header_name = HeaderName::from_bytes(key.as_bytes())
+            .map_err(|error| format!("invalid header name '{key}': {error}"))?;
+        let header_value = HeaderValue::from_str(&header.value)
+            .map_err(|error| format!("invalid header value for '{key}': {error}"))?;
+
+        if key.eq_ignore_ascii_case("content-type") {
+            // Let reqwest generate the authoritative multipart boundary header unless caller supplied one.
+            if is_multipart
+                && !header
+                    .value
+                    .to_ascii_lowercase()
+                    .contains("boundary=")
+            {
+                continue;
+            }
             has_content_type = true;
         }
-        request = request.header(header.key.trim(), header.value.as_str());
+        header_map.append(header_name, header_value);
     }
 
-    // If Content-Type not set and bodyMimeType is provided, add it
-    if !has_content_type {
-        if let Some(mime_type) = input.body_mime_type.as_ref().filter(|m| !m.is_empty()) {
+    // If Content-Type not set and bodyMimeType is provided (and not multipart), validate & add it
+    if !has_content_type && !is_multipart {
+        if let Some(mime_type) = input.body_mime_type.as_ref().filter(|m| !m.trim().is_empty()) {
             let actual_mime = if mime_type == "application/graphql" {
                 "application/json"
             } else {
-                mime_type.as_str()
+                mime_type.trim()
             };
-            request = request.header(reqwest::header::CONTENT_TYPE, actual_mime);
+            let content_type_val = HeaderValue::from_str(actual_mime).map_err(|error| {
+                format!("invalid Content-Type header value '{actual_mime}': {error}")
+            })?;
+            header_map.insert(reqwest::header::CONTENT_TYPE, content_type_val);
         }
+    }
+
+    let mut request = client.request(method, validated_url).headers(header_map);
+    if input.timeout_ms > 0 {
+        request = request.timeout(Duration::from_millis(input.timeout_ms));
     }
 
     // Handle body: for application/x-www-form-urlencoded, use bodyForm if available
@@ -173,7 +249,7 @@ pub async fn execute_http_request(
         } else if let Some(body_content) = input.body.filter(|b| !b.is_empty()) {
             request = request.body(body_content);
         }
-    } else if input.body_mime_type.as_deref() == Some("multipart/form-data") {
+    } else if is_multipart {
         let mut form = reqwest::multipart::Form::new();
         for item in input
             .body_form
@@ -181,15 +257,34 @@ pub async fn execute_http_request(
             .filter(|item| item.enabled && !item.key.is_empty())
         {
             if item.field_type.as_deref() == Some("file") {
-                if let Ok(bytes) = std::fs::read(&item.value) {
-                    let file_name = std::path::Path::new(&item.value)
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .into_owned();
-                    let part = reqwest::multipart::Part::bytes(bytes).file_name(file_name);
-                    form = form.part(item.key.clone(), part);
+                let file_path = item.value.clone();
+                let bytes = std::thread::spawn(move || std::fs::read(&file_path))
+                    .join()
+                    .map_err(|_| {
+                        format!(
+                            "failed to read multipart file '{}' for field '{}': reader thread panicked",
+                            item.value, item.key
+                        )
+                    })?
+                    .map_err(|error| {
+                        format!(
+                            "failed to read multipart file '{}' for field '{}': {error}",
+                            item.value, item.key
+                        )
+                    })?;
+                if bytes.len() > MAX_RESPONSE_BODY_BYTES {
+                    return Err(format!(
+                        "multipart file '{}' exceeds maximum allowed size of {} bytes",
+                        item.value, MAX_RESPONSE_BODY_BYTES
+                    ));
                 }
+                let file_name = std::path::Path::new(&item.value)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned();
+                let part = reqwest::multipart::Part::bytes(bytes).file_name(file_name);
+                form = form.part(item.key.clone(), part);
             } else {
                 form = form.text(item.key.clone(), item.value.clone());
             }
@@ -197,29 +292,29 @@ pub async fn execute_http_request(
         request = request.multipart(form);
     } else if input.body_mime_type.as_deref() == Some("application/octet-stream") {
         if let Some(body_content) = input.body.filter(|b| !b.is_empty()) {
-            let decoded_bytes =
+            let bytes =
                 if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&body_content) {
-                    if let Some(b64) = json_val.get("base64").and_then(|v| v.as_str()) {
-                        BASE64.decode(b64.trim()).ok()
-                    } else {
-                        None
-                    }
+                    let b64 = json_val.get("base64").and_then(|v| v.as_str()).ok_or_else(|| {
+                        "invalid application/octet-stream JSON payload: missing 'base64' string"
+                            .to_string()
+                    })?;
+                    BASE64.decode(b64.trim()).map_err(|error| {
+                        format!("invalid base64 payload in application/octet-stream body: {error}")
+                    })?
                 } else if let Some(b64_part) = body_content.strip_prefix("data:") {
-                    if let Some(comma_pos) = b64_part.find(',') {
-                        let b64_data = &b64_part[comma_pos + 1..];
-                        BASE64.decode(b64_data.trim()).ok()
-                    } else {
-                        None
-                    }
+                    let (_, b64_data) = b64_part.split_once(',').ok_or_else(|| {
+                        "invalid data URI in application/octet-stream body: missing comma separator"
+                            .to_string()
+                    })?;
+                    BASE64.decode(b64_data.trim()).map_err(|error| {
+                        format!("invalid base64 payload in data URI: {error}")
+                    })?
                 } else {
-                    BASE64.decode(body_content.trim()).ok()
+                    BASE64.decode(body_content.trim()).map_err(|error| {
+                        format!("invalid base64 payload for application/octet-stream body: {error}")
+                    })?
                 };
-
-            if let Some(bytes) = decoded_bytes {
-                request = request.body(bytes);
-            } else {
-                request = request.body(body_content);
-            }
+            request = request.body(bytes);
         }
     } else if let Some(body_content) = input.body.filter(|b| !b.is_empty()) {
         request = request.body(body_content);
@@ -229,7 +324,7 @@ pub async fn execute_http_request(
     let mut response = request
         .send()
         .await
-        .map_err(|error| format!("request failed: {error}"))?;
+        .map_err(|error| format_reqwest_error(&error))?;
     let duration_ms = started.elapsed().as_millis();
 
     // For a minimal implementation without changing the reqwest connector,
