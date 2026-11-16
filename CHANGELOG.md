@@ -2,6 +2,21 @@
 
 All notable changes to KobeanREST are documented in this file.
 
+## [v0.4.0] - 2026-11-16
+*Comparing changes against v0.3.0*
+
+### 🚀 New Features & Enhancements
+- feat(macos): add sidebar collapse, inline rename, request duplicate, and tab reordering (`91d8d46`) - *thienng-it*
+
+### 🐛 Bug Fixes
+- fix(core): clear O_NONBLOCK on accepted mock server sockets (`552635d`) - *thienng-it*
+- fix(core): harden HTTP request validation, importers, persistence, and mock server (`b2217da`) - *thienng-it*
+
+### 📝 Documentation
+- docs: restore cross-platform gallery images alongside macOS showcase (`d4c85b2`) - *thienng-it*
+- docs(macos): add native macOS showcase screenshots and revamp README (`4482892`) - *thienng-it*
+- docs: update macOS native build docs and sync beads and graphify (`b643320`) - *thienng-it*
+
 ## [v0.3.0] - 2026-11-15
 *Comparing changes against v0.2.0*
 
