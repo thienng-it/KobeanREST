@@ -366,6 +366,17 @@ export function syncAllVersionFiles(newVersion, dryRun = false) {
     filesModified.push("src-tauri/Cargo.toml");
   }
 
+  // 5. macos/project.yml
+  const macosProjectPath = path.join(ROOT_DIR, "macos/project.yml");
+  if (existsSync(macosProjectPath)) {
+    let projectYml = readFileSync(macosProjectPath, "utf8");
+    projectYml = projectYml.replace(/MARKETING_VERSION:\s*[^\s\r\n]+/, `MARKETING_VERSION: ${newVersion}`);
+    if (!dryRun) {
+      writeFileSync(macosProjectPath, projectYml);
+    }
+    filesModified.push("macos/project.yml");
+  }
+
   return filesModified;
 }
 

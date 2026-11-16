@@ -31,19 +31,42 @@ public final class AppState {
     public var isMockServerSheetPresented: Bool = false
     public var isRunnerSheetPresented: Bool = false
     public var isMcpSheetPresented: Bool = false
+    public var isUpdateSheetPresented: Bool = false
     public var isAuthorizingOAuth: Bool = false
     public var urlFocusTrigger: UUID = UUID()
 
+    // MARK: - Software Update State (GitHub Releases)
+
+    public let currentAppVersion: String
+    public var isCheckingForUpdates: Bool = false
+    public var availableUpdate: AvailableAppUpdate?
+    public var latestKnownVersion: String?
+    public var latestReleaseName: String?
+    public var latestReleaseNotes: String?
+    public var latestReleaseURL: String?
+    public var latestReleaseAsset: GitHubReleaseAsset?
+    public var lastUpdateCheckDate: Date?
+    public var updateCheckError: String?
+    public var isUpdateBannerDismissed: Bool = false
+    public var updateDownloadState: UpdateDownloadState = .idle
+
+    private var cachedReleaseETag: String?
+    private var updateSchedulerTask: Task<Void, Never>?
     private var inFlightTasks: [UUID: Task<Void, Never>] = [:]
     private let oauthService: OAuthSessionService
+    private let updateService: any UpdateServiceProtocol
     private let logger = Logger(subsystem: "com.kobeanrest.app", category: "AppState")
 
     public init(
         bridge: any CoreBridgeProtocol = CoreBridge(),
-        oauthService: OAuthSessionService = OAuthSessionService()
+        oauthService: OAuthSessionService = OAuthSessionService(),
+        updateService: any UpdateServiceProtocol = UpdateService(),
+        currentAppVersion: String = SemanticVersion.currentAppVersion()
     ) {
         self.bridge = bridge
         self.oauthService = oauthService
+        self.updateService = updateService
+        self.currentAppVersion = SemanticVersion.normalize(currentAppVersion)
     }
 
     public var activeTabIndex: Int? {
@@ -81,6 +104,10 @@ public final class AppState {
                 } else {
                     createNewTab()
                 }
+            }
+
+            if settings.updateChecksEnabled {
+                scheduleAutomaticUpdateChecks(checkImmediately: true)
             }
         } catch {
             workspaceError = error.localizedDescription
@@ -1122,9 +1149,16 @@ public final class AppState {
     }
 
     public func saveSettings(_ updated: AppSettings) async {
+        let wasAutoUpdateEnabled = self.settings.updateChecksEnabled
         self.settings = updated
         do {
             try await bridge.saveAppSettings(updated)
+            if updated.updateChecksEnabled && !wasAutoUpdateEnabled {
+                scheduleAutomaticUpdateChecks(checkImmediately: true)
+            } else if !updated.updateChecksEnabled {
+                updateSchedulerTask?.cancel()
+                updateSchedulerTask = nil
+            }
         } catch {
             statusMessage = error.localizedDescription
         }
@@ -1406,5 +1440,172 @@ public final class AppState {
         } catch {
             statusMessage = "Export failed: \(error.localizedDescription)"
         }
+    }
+
+    // MARK: - Software Updates (GitHub Releases)
+
+    public var isUpdateAvailable: Bool {
+        availableUpdate != nil
+    }
+
+    public var shouldShowUpdateBanner: Bool {
+        availableUpdate != nil && !isUpdateBannerDismissed
+    }
+
+    public func scheduleAutomaticUpdateChecks(checkImmediately: Bool = false) {
+        updateSchedulerTask?.cancel()
+        guard settings.updateChecksEnabled else { return }
+        let intervalSeconds: TimeInterval = 24 * 3600
+
+        updateSchedulerTask = Task { @MainActor [weak self] in
+            if checkImmediately {
+                await self?.checkForUpdates(manual: false)
+            }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(intervalSeconds * 1_000_000_000))
+                guard !Task.isCancelled, let self, self.settings.updateChecksEnabled else { break }
+                await self.checkForUpdates(manual: false)
+            }
+        }
+    }
+
+    public func checkForUpdates(manual: Bool = false) async {
+        guard !isCheckingForUpdates else { return }
+        if !manual && !settings.updateChecksEnabled {
+            return
+        }
+
+        isCheckingForUpdates = true
+        updateCheckError = nil
+        defer { isCheckingForUpdates = false }
+
+        do {
+            let outcome = try await updateService.checkForUpdates(
+                currentVersion: currentAppVersion,
+                etag: cachedReleaseETag,
+                force: manual || latestReleaseURL == nil
+            )
+            lastUpdateCheckDate = Date()
+
+            switch outcome {
+            case .notModified(let etag):
+                if let etag { cachedReleaseETag = etag }
+                if manual {
+                    isUpdateSheetPresented = true
+                }
+
+            case .upToDate(_, let latestVersion, let releaseName, let releaseNotes, let releaseURL, _, let asset, let etag):
+                availableUpdate = nil
+                latestKnownVersion = latestVersion
+                latestReleaseName = releaseName
+                latestReleaseNotes = releaseNotes
+                latestReleaseURL = releaseURL
+                latestReleaseAsset = asset
+                if let etag { cachedReleaseETag = etag }
+                if manual {
+                    statusMessage = "You're up to date (KobeanREST v\(currentAppVersion))."
+                    isUpdateSheetPresented = true
+                }
+
+            case .updateAvailable(let update):
+                availableUpdate = update
+                latestKnownVersion = update.latestVersion
+                latestReleaseName = update.releaseName
+                latestReleaseNotes = update.releaseNotes
+                latestReleaseURL = update.releaseURL
+                latestReleaseAsset = update.asset
+                if let etag = update.etag { cachedReleaseETag = etag }
+                isUpdateBannerDismissed = false
+                statusMessage = "Update available: KobeanREST v\(update.latestVersion)"
+                if manual {
+                    isUpdateSheetPresented = true
+                }
+            }
+        } catch {
+            updateCheckError = error.localizedDescription
+            if manual {
+                statusMessage = "Update check failed: \(error.localizedDescription)"
+                isUpdateSheetPresented = true
+            } else if settings.offlineBehavior == "notice" {
+                statusMessage = "Update check unavailable offline."
+            }
+            logger.debug("Update check failed: \(error.localizedDescription, privacy: .private)")
+        }
+    }
+
+    public func downloadUpdate() async {
+        if case .downloading = updateDownloadState { return }
+
+        if availableUpdate == nil && latestReleaseAsset == nil {
+            await checkForUpdates(manual: false)
+        }
+
+        let targetAsset = availableUpdate?.asset ?? latestReleaseAsset
+        guard let asset = targetAsset else {
+            let msg = "No native macOS download asset found on the latest release. Opening GitHub Releases page."
+            updateDownloadState = .failed(msg)
+            openReleasePage()
+            return
+        }
+
+        updateDownloadState = .downloading(progress: 0)
+        do {
+            let fileURL = try await updateService.downloadAsset(
+                from: asset.browser_download_url,
+                assetName: asset.name
+            ) { [weak self] pct in
+                Task { @MainActor in
+                    guard let self else { return }
+                    if case .downloading = self.updateDownloadState {
+                        self.updateDownloadState = .downloading(progress: pct)
+                    }
+                }
+            }
+            updateDownloadState = .ready(fileURL: fileURL)
+            statusMessage = "Downloaded \(fileURL.lastPathComponent) — ready to install."
+        } catch {
+            updateDownloadState = .failed(error.localizedDescription)
+            statusMessage = "Update download failed: \(error.localizedDescription)"
+        }
+    }
+
+    public func downloadAndInstallUpdate() async {
+        await downloadUpdate()
+        if case .ready = updateDownloadState {
+            installReadyUpdate()
+        }
+    }
+
+    public func installReadyUpdate() {
+        guard case .ready(let fileURL) = updateDownloadState else { return }
+        do {
+            try updateService.installAndRelaunch(
+                downloadedFile: fileURL,
+                currentBundlePath: Bundle.main.bundlePath
+            )
+            statusMessage = "Installing update and relaunching KobeanREST…"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                NSApplication.shared.terminate(nil)
+            }
+        } catch {
+            updateDownloadState = .failed(error.localizedDescription)
+            statusMessage = "Update install failed: \(error.localizedDescription)"
+        }
+    }
+
+    public func dismissUpdateBanner() {
+        isUpdateBannerDismissed = true
+    }
+
+    public func openReleasePage() {
+        let urlString = availableUpdate?.releaseURL
+            ?? latestReleaseURL
+            ?? UpdateService.releasesPageURL.absoluteString
+        guard UpdateService.isAllowedReleasePageURL(urlString),
+              let url = URL(string: urlString) else {
+            NSWorkspace.shared.open(UpdateService.releasesPageURL)
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 }

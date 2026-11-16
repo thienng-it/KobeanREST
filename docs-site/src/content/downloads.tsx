@@ -24,6 +24,20 @@ function DownloadSection() {
 
   const downloadCards = [
     {
+      platform: "macOS (Native SwiftUI)",
+      artifact: "Native macOS DMG",
+      file: `KobeanREST-macOS-Native.dmg`,
+      href: `${baseUrl}/KobeanREST-macOS-Native.dmg`,
+      note: "Native SwiftUI + AppKit client for macOS 15+. Open the DMG and drag KobeanREST to Applications (or run the included one-click installer).",
+    },
+    {
+      platform: "macOS (Native SwiftUI)",
+      artifact: "Native macOS ZIP",
+      file: `KobeanREST-macOS-Native.zip`,
+      href: `${baseUrl}/KobeanREST-macOS-Native.zip`,
+      note: "Compressed KobeanREST.app bundle for macOS 15+.",
+    },
+    {
       platform: "macOS",
       artifact: "Universal DMG",
       file: `KobeanREST_${version}_universal.dmg`,

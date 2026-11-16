@@ -80,7 +80,7 @@ jobs:
 
           echo "Committing version bump to ${NEXT_VER} and tagging ${TARGET_TAG}..."
 
-          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml CHANGELOG.md
+          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml macos/project.yml CHANGELOG.md
           git commit -m "chore(release): auto-bump version to ${NEXT_VER} [skip ci]" || echo "No file modifications to commit"
           git push origin main
 
@@ -112,6 +112,8 @@ jobs:
               src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
               src-tauri/target/release/bundle/macos/*.tar.gz
               src-tauri/target/release/bundle/macos/*.tar.gz.sig
+              macos/build/KobeanREST*-macOS-Native.dmg
+              macos/build/KobeanREST*-macOS-Native.zip
           - name: Windows
             os: windows-latest
             args: ""
@@ -183,6 +185,21 @@ jobs:
           prerelease: false
           includeUpdaterJson: false
           args: ${{ matrix.platform.args }}
+
+      - name: Build, package & upload Native macOS SwiftUI app (.dmg & .zip)
+        if: runner.os == 'macOS'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check-and-bump.outputs.tag_name }}
+        run: |
+          brew install xcodegen
+          ./macos/scripts/package-macos-native.sh --universal
+          gh release upload "${{ needs.check-and-bump.outputs.tag_name }}" \
+            macos/build/KobeanREST-macOS-Native.dmg \
+            macos/build/KobeanREST-*-macOS-Native.dmg \
+            macos/build/KobeanREST-macOS-Native.zip \
+            macos/build/KobeanREST-*-macOS-Native.zip \
+            --clobber --repo "${{ github.repository }}"
 
       - name: Upload platform bundle files
         uses: actions/upload-artifact@v4

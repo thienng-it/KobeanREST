@@ -26,3 +26,21 @@ test("release hardening docs and roadmap mention checksum publishing", () => {
   assert.match(downloadDoc, /SHA256SUMS\.txt/);
   assert.match(downloadDoc, /latest\.json/);
 });
+
+test("GitHub workflows build and publish Native macOS DMG and ZIP release artifacts", () => {
+  const macosNativeWorkflow = read(".github/workflows/macos-native.yml");
+  const releaseWorkflow = read(".github/workflows/release.yml");
+  const nightlyWorkflow = read(".github/workflows/nightly-release.yml");
+  const packageScript = read("macos/scripts/package-macos-native.sh");
+
+  assert.match(packageScript, /KobeanREST-macOS-Native\.dmg/);
+  assert.match(packageScript, /KobeanREST-macOS-Native\.zip/);
+  assert.match(packageScript, /codesign --force --deep --sign -/);
+
+  for (const wf of [macosNativeWorkflow, releaseWorkflow, nightlyWorkflow]) {
+    assert.match(wf, /package-macos-native\.sh/);
+    assert.match(wf, /KobeanREST-macOS-Native\.dmg/);
+    assert.match(wf, /KobeanREST-macOS-Native\.zip/);
+    assert.match(wf, /gh release upload/);
+  }
+});

@@ -10,6 +10,12 @@ struct KobeanRESTApp: App {
         }
         .defaultSize(width: 1380, height: 880)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    Task { await appState.checkForUpdates(manual: true) }
+                }
+            }
+
             CommandGroup(replacing: .newItem) {
                 Button("New Request Tab") {
                     appState.createNewTab()

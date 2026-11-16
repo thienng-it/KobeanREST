@@ -202,7 +202,8 @@ Official cross-platform installers are published through GitHub Releases:
 
 | Platform | Installer Format | Architecture |
 | :--- | :--- | :--- |
-| **macOS** | `.dmg` (Tauri Universal & Native macOS `KobeanREST-macOS-Native.dmg`) | macOS 15+ (Apple Silicon & Intel) |
+| **macOS (Native SwiftUI)** | [`.dmg` (`KobeanREST-macOS-Native.dmg`)](https://github.com/thienng-it/KobeanREST/releases/latest/download/KobeanREST-macOS-Native.dmg) / [`.zip` (`KobeanREST-macOS-Native.zip`)](https://github.com/thienng-it/KobeanREST/releases/latest/download/KobeanREST-macOS-Native.zip) | macOS 15+ (Universal: Apple Silicon & Intel) |
+| **macOS (Tauri)** | `.dmg` (Tauri Universal) | macOS (Apple Silicon & Intel) |
 | **Windows** | `.msi` | x64 |
 | **Linux** | `.AppImage` / `.deb` | x64 |
 

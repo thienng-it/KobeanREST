@@ -69,9 +69,57 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            Section("Software Updates (GitHub Releases)") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Installed Version: v\(appState.currentAppVersion)")
+                            .font(.subheadline.weight(.medium))
+                        if let update = appState.availableUpdate {
+                            Text("Update available: v\(update.latestVersion)")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        } else if let latest = appState.latestKnownVersion {
+                            Text("Up to date (latest: v\(latest))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Checks github.com/thienng-it/KobeanREST/releases")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button {
+                        Task { await appState.checkForUpdates(manual: true) }
+                    } label: {
+                        if appState.isCheckingForUpdates {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Label("Check for Updates…", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    .controlSize(.small)
+                    .disabled(appState.isCheckingForUpdates)
+                }
+
+                Toggle("Automatically check for updates on launch", isOn: Binding(
+                    get: { appState.settings.updateChecksEnabled },
+                    set: { enabled in
+                        var copy = appState.settings
+                        copy.updateChecksEnabled = enabled
+                        Task { await appState.saveSettings(copy) }
+                    }
+                ))
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 540, height: 420)
+        .frame(width: 540, height: 500)
+        .sheet(isPresented: $appState.isUpdateSheetPresented) {
+            UpdateSheetView(appState: appState)
+        }
         .task {
             storageStatus = await appState.bridge.localStorageStatus()
         }

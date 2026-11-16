@@ -107,14 +107,14 @@ const macOSArtifact = findSignedArtifact([
   (name) => name.includes("universal") && name.endsWith(".tar.gz"),
   (name) => name.endsWith(".app.tar.gz"),
   (name) => name.endsWith(".tar.gz"),
-  (name) => name.endsWith(".dmg"),
+  (name) => !name.toLowerCase().includes("native") && name.endsWith(".dmg"),
 ]);
 addPlatformEntries(["darwin-x86_64", "darwin-aarch64"], macOSArtifact);
 
 // Windows Updater Artifacts (.msi, .nsis.zip, .zip)
 const windowsArtifact = findSignedArtifact([
   (name) => name.endsWith(".msi"),
-  (name) => name.endsWith(".zip"),
+  (name) => !name.toLowerCase().includes("macos") && name.endsWith(".zip"),
 ]);
 addPlatformEntries(["windows-x86_64", "windows-x86_64-msi"], windowsArtifact);
 

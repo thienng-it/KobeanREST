@@ -125,5 +125,28 @@ test("build-updater-manifest.mjs prioritizes universal macOS artifacts", () => {
   assert.match(script, /name\.includes\("universal"\) && name\.endsWith\("\.app\.tar\.gz"\)/);
 });
 
+test("native macOS SwiftUI app implements GitHub Releases auto-update check and installer flow", () => {
+  const updateService = read("macos/KobeanREST/Services/UpdateService.swift");
+  const appState = read("macos/KobeanREST/App/AppState.swift");
+  const settingsView = read("macos/KobeanREST/App/SettingsView.swift");
+  const appMain = read("macos/KobeanREST/App/KobeanRESTApp.swift");
+  const updateSheet = read("macos/KobeanREST/App/UpdateSheetView.swift");
+
+  assert.match(updateService, /https:\/\/api\.github\.com\/repos\/.*\/releases\/latest/);
+  assert.match(updateService, /pickBestNativeAsset/);
+  assert.match(updateService, /macos-native/);
+  assert.match(updateService, /installAndRelaunch/);
+
+  assert.match(appState, /public func checkForUpdates\(manual: Bool = false\) async/);
+  assert.match(appState, /if settings\.updateChecksEnabled/);
+  assert.match(appState, /scheduleAutomaticUpdateChecks/);
+
+  assert.match(settingsView, /Software Updates \(GitHub Releases\)/);
+  assert.match(settingsView, /Automatically check for updates on launch/);
+  assert.match(appMain, /Check for Updates…/);
+  assert.match(updateSheet, /UpdateNotificationBanner/);
+  assert.match(updateSheet, /UpdateSheetView/);
+});
+
 
 

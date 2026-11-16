@@ -20,7 +20,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "macos": "./macos/scripts/build-rust-xcframework.sh && (cd macos && xcodegen generate) && xcodebuild build -project macos/KobeanREST.xcodeproj -scheme KobeanREST -configuration Release -destination \"platform=macOS,arch=$(uname -m)\" -derivedDataPath macos/DerivedData && open macos/DerivedData/Build/Products/Release/KobeanREST.app"
+    "macos": "./macos/scripts/build-rust-xcframework.sh && (cd macos && xcodegen generate) && xcodebuild build -project macos/KobeanREST.xcodeproj -scheme KobeanREST -configuration Release -destination \"platform=macOS,arch=$(uname -m)\" -derivedDataPath macos/DerivedData && open macos/DerivedData/Build/Products/Release/KobeanREST.app",
+    "macos:package": "./macos/scripts/package-macos-native.sh"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

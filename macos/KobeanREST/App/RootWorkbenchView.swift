@@ -36,11 +36,27 @@ struct RootWorkbenchView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                WorkbenchView(appState: appState)
+                VStack(spacing: 0) {
+                    if appState.shouldShowUpdateBanner, let update = appState.availableUpdate {
+                        UpdateNotificationBanner(appState: appState, update: update)
+                        Divider()
+                    }
+                    WorkbenchView(appState: appState)
+                }
             }
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                if appState.isUpdateAvailable, let update = appState.availableUpdate {
+                    Button {
+                        appState.isUpdateSheetPresented = true
+                    } label: {
+                        Label("Update v\(update.latestVersion)", systemImage: "arrow.down.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                    .help("New release available (v\(update.latestVersion)) — click to view & install")
+                }
+
                 environmentPicker
                 Button {
                     appState.isEnvironmentSheetPresented = true
@@ -91,6 +107,9 @@ struct RootWorkbenchView: View {
         }
         .sheet(isPresented: $appState.isMcpSheetPresented) {
             McpToolsSheetView(dataDirectoryURL: appState.bridge.dataDirectoryURL)
+        }
+        .sheet(isPresented: $appState.isUpdateSheetPresented) {
+            UpdateSheetView(appState: appState)
         }
         .preferredColorScheme(preferredColorScheme)
         .task {
@@ -166,6 +185,21 @@ struct RootWorkbenchView: View {
                 Label("Export Workspace JSON…", systemImage: "square.and.arrow.up")
             }
             .disabled(appState.workspace == nil)
+
+            Divider()
+
+            Button {
+                Task { await appState.checkForUpdates(manual: true) }
+            } label: {
+                Label(
+                    appState.isUpdateAvailable
+                        ? "Update Available (v\(appState.availableUpdate?.latestVersion ?? ""))…"
+                        : "Check for Updates…",
+                    systemImage: appState.isUpdateAvailable
+                        ? "arrow.down.circle.fill"
+                        : "arrow.triangle.2.circlepath"
+                )
+            }
         } label: {
             Label("Tools", systemImage: "wrench.and.screwdriver")
         }
