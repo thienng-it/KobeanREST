@@ -2,6 +2,12 @@
 
 All notable changes to KobeanREST are documented in this file.
 
+## [v0.5.0] - 2026-11-17
+*Comparing changes against v0.4.0*
+
+### 🚀 New Features & Enhancements
+- feat: auto update (`66dc641`) - *kobenguyent*
+
 ## [v0.4.0] - 2026-11-16
 *Comparing changes against v0.3.0*
 
